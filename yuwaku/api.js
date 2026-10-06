@@ -180,6 +180,8 @@
     if (!raw) return generic;
     if (code === 'unauthorized' || code === 'invalid_refresh_session' || code === 'stale_session_response') return en ? 'Your session has expired. Please log in again.' : 'ログインの有効期限が切れました。再度ログインしてください。';
     if (code === 'forbidden' || code.indexOf('forbidden_page:') === 0 || code === 'forbidden_fn') return permission;
+    if (code === 'owner_cannot_delete') return en ? 'The registered owner cannot be deleted.' : '登録オーナーは削除できません。';
+    if (code === 'owner_must_remain_active') return en ? 'The registered owner must remain active with a login ID.' : '登録オーナーは在籍状態かつログインIDありで維持してください。';
     if (code === 'not_found' || code.endsWith('_not_found')) return notFound;
     if (code === 'rate_limited' || code === 'signup_rate_limited' || code === 'login_rate_limited') return retryLater;
     if (code === 'coupon_unavailable') return en
@@ -849,7 +851,6 @@
     var shouldInspectLinks = page === 'overview.html';
     var accountPage = page === 'account.html';
     if (!key && !accountPage && !shouldInspectLinks) return true;
-    if (key || accountPage) showPermissionGate('checking');
     var token = storedToken();
     if (!token) { if (key || accountPage) { hidePermissionGate(); denyPage(); } return false; }
     try {

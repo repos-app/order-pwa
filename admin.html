@@ -180,7 +180,8 @@
       invalid_image:'画像形式が不正です。JPEG / PNG / WebPを使用してください。',
       image_too_large:'画像が大きすぎます。2MB以下の画像を使用してください。',
       ai_unavailable:'AIテストを利用できません。WorkerのAI設定を確認してください。',
-      workers_ai_timeout:'AIテストがタイムアウトしました。もう一度お試しください。'
+      workers_ai_timeout:'AIテストがタイムアウトしました。もう一度お試しください。',
+      workers_ai_invalid_response:'AIがJSON形式の解析結果を返しませんでした。このDraftはテスト成功扱いにしていません。Promptを短く明確にして再テストしてください。'
     };
     return map[code]||code;
   }

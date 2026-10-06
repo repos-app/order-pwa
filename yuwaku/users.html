@@ -97,7 +97,8 @@
     if (!TOKEN) location.href = './manage.html';
     function rpc(fn,args){ return API.post('rpc',{fn:fn,args:args||[],token:TOKEN}).then(function(r){ return r.data; }); }
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-    var allUsers = [], pmData = null;
+    var allUsers = [], pmData = null, EDITING_OWNER = false;
+    function userCopy(ja,en){ return (window.I18n&&I18n.lang&&I18n.lang()==='en')?en:ja; }
     function LBL(k){ var en=(window.I18n&&I18n.lang()==='en'); if(pmData&&pmData.labels&&pmData.labels[k]) return en?pmData.labels[k].en:pmData.labels[k].ja; return I18n.t('pg_'+k) || k; }
 
     window.switchTab = function(w){
@@ -115,10 +116,11 @@
         return '<div class="u-row"><div style="flex:1;min-width:120px;"><div class="nm">'+esc(u.name)+'</div>'+
           '<div class="lid">'+(u.loginId?esc(u.loginId):'<span class="muted">'+I18n.t('notSet')+'</span>')+'</div></div>'+
           '<span class="chip">'+esc(I18n.systemText(u.role))+'</span>'+
+          (u.isOwner?'<span class="chip" title="'+esc(userCopy('登録オーナー','Registered owner'))+'">'+esc(userCopy('オーナー','Owner'))+'</span>':'')+
           '<span class="muted">PW: '+(u.hasPassword?I18n.t('pwSet'):'—')+'</span>'+
           (u.status==='退職'?'<span class="muted">('+I18n.t('stLeft')+')</span>':'')+
           '<button class="btn-sm b-edit" onclick="editUser(\''+u.id+'\')">'+I18n.t('edit')+'</button>'+
-          '<button class="btn-sm b-del" onclick="delUser(\''+u.id+'\')">'+I18n.t('del')+'</button></div>';
+          (u.isOwner?'<span class="muted">'+esc(userCopy('オーナーは削除できません','Owner cannot be deleted'))+'</span>':'<button class="btn-sm b-del" onclick="delUser(\''+u.id+'\')">'+I18n.t('del')+'</button>')+'</div>';
       }).join('');
     }
     var EMPLOYEE_REQUEST_ID='', EMPLOYEE_REQUEST_SIG='';
@@ -127,19 +129,23 @@
     window.editUser = function(id){
       resetEmployeeRequest();
       var u = allUsers.filter(function(x){return x.id===id;})[0]; if(!u) return;
+      EDITING_OWNER=!!u.isOwner;
       document.getElementById('uId').value=u.id; document.getElementById('uName').value=u.name;
       document.getElementById('uRole').value=u.role; document.getElementById('uLogin').value=u.loginId||'';
       document.getElementById('uWage').value=u.wage||0; document.getElementById('uPass').value='';
       document.getElementById('uStatus').value=u.status||'在籍';
+      document.getElementById('uStatus').disabled=EDITING_OWNER;
+      document.getElementById('uLogin').required=EDITING_OWNER;
       window.scrollTo({top:0,behavior:'smooth'});
     };
-    window.clearForm = function(){ resetEmployeeRequest(); ['uId','uName','uLogin','uWage','uPass'].forEach(function(id){ document.getElementById(id).value=''; }); document.getElementById('uRole').value='一般'; document.getElementById('uStatus').value='在籍'; document.getElementById('uMsg').style.display='none'; };
+    window.clearForm = function(){ resetEmployeeRequest(); EDITING_OWNER=false; ['uId','uName','uLogin','uWage','uPass'].forEach(function(id){ document.getElementById(id).value=''; }); document.getElementById('uRole').value='一般'; document.getElementById('uStatus').value='在籍'; document.getElementById('uStatus').disabled=false; document.getElementById('uLogin').required=false; document.getElementById('uMsg').style.display='none'; };
     window.saveUser = function(){
       var name = document.getElementById('uName').value.trim();
       if (!name){ msg('uMsg',I18n.t('needName'), false); document.getElementById('uName').focus(); return; }
       var emp = { id:document.getElementById('uId').value||'', name:name, role:document.getElementById('uRole').value,
         loginId:document.getElementById('uLogin').value.trim(), wage:Number(document.getElementById('uWage').value)||0,
         password:document.getElementById('uPass').value, status:document.getElementById('uStatus').value };
+      if(EDITING_OWNER && (!emp.loginId || emp.status!=='在籍')){ msg('uMsg',userCopy('登録オーナーは在籍状態かつログインIDありで維持してください。','The registered owner must remain active with a login ID.'),false); return; }
       if(!emp.id && emp.loginId && !emp.password){ msg('uMsg',I18n.t('needPassword'), false); document.getElementById('uPass').focus(); return; }
       if(emp.password && emp.password.length<8){ msg('uMsg',I18n.t('pwShort'), false); document.getElementById('uPass').focus(); return; }
       if(!emp.id){ var sig=JSON.stringify(emp); if(!EMPLOYEE_REQUEST_ID||EMPLOYEE_REQUEST_SIG!==sig){ EMPLOYEE_REQUEST_SIG=sig; EMPLOYEE_REQUEST_ID=nextEmployeeRequestId(); } emp.clientRequestId=EMPLOYEE_REQUEST_ID; }
@@ -156,6 +162,8 @@
       }).catch(function(e){ btn.disabled=false; msg('uMsg',I18n.t('errPrefix')+API.userErrorText(e), false); });
     };
     window.delUser = function(id){
+      var target=allUsers.find(function(u){return u.id===id;});
+      if(target&&target.isOwner){ msg('uMsg',userCopy('登録オーナーは削除できません。','The registered owner cannot be deleted.'),false); return; }
       UIConfirm(I18n.t('delConfirm')).then(function(ok){
         if (!ok) return;
         rpc('deleteEmployee',[id]).then(function(r){ if(!r||r.success!==true) throw new Error((r&&r.error)||'delete_failed'); allUsers=allUsers.filter(function(u){return u.id!==id;}); renderUsers(); })
