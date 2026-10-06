@@ -70,7 +70,7 @@
 
   <canvas id="cv" width="384" height="10"></canvas>
 
-<script src="./config.js?v=auth2"></script><script src="./api.js?v=auth2"></script><script src="./confirm.js?v=auth2"></script>
+<script src="./config.js?v=auth2"></script><script src="./api.js?v=auth2"></script><script src="./confirm.js?v=auth2"></script><script src="./print-renderer.js?v=print2"></script>
 <script>
 // 2026-08-24: このページ自体はBRIDGE_KEY(任意)だけでバックエンド呼び出しをしており、
 // URLを直接開けばログイン無しで店舗設定(getSettings)等が見える状態だった。
@@ -324,6 +324,17 @@ function buildCanvasFromText(text){
 // 混在印刷：ASCII行は高速なESC/POSテキストモード、日本語を含む行だけ1行画像化。
 // これでデータ量が激減し大幅に高速化。行頭の制御 (0x01=中央大 / 0x02=中央) でヘッダーを装飾。
 async function printReceipt(text){
+  if(window.IzEscPosRenderer&&typeof window.IzEscPosRenderer.print==='function'){
+    await window.IzEscPosRenderer.print({
+      text:text,
+      logo:logoImg?{img:logoImg,scale:logoScale}:null,
+      createCanvas:function(){return document.getElementById('cv');},
+      loadImage:loadImageAsync,
+      send:sendChunks,
+      log:function(kind,e){log('印字生成 '+kind+': '+API.userErrorText(e));}
+    });
+    return;
+  }
   await sendChunks(new Uint8Array([0x1B,0x40])); // 初期化
   // レシート（店名ヘッダー[[B]]を含む）のときは先頭にロゴを中央印字
   if (logoImg && text.indexOf('[[B]]') >= 0) { log('ロゴ印字'); try { await printLogo(); } catch(e){ log('ロゴ印字失敗: '+API.userErrorText(e)); } }

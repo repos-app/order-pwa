@@ -169,8 +169,16 @@
     </div>
 
     <div class="card">
+      <div class="card-title" data-t="approvalTitle">🔐 承認設定</div>
+      <label class="chk" style="margin:8px 0 10px;"><input type="checkbox" id="orderVoidManagerApprovalRequired" checked><span data-t="orderVoidApproval">注文取消時にマネージャー以上の承認を必須にする</span></label>
+      <div class="form-hint" data-t="approvalHint" style="margin-bottom:10px;">全額返金は常にマネージャー以上の承認が必要です。割引は下の割引マスタで割引ごとに「マネージャー以上の承認」を設定します。</div>
+      <button class="btn" onclick="saveApprovalSettings()" data-t="save">💾 保存</button>
+      <div class="st" id="st-approval"></div>
+    </div>
+
+    <div class="card" id="discountRulesCard">
       <div class="card-title">🏷️ 割引マスタ / Discount rules</div>
-      <div class="form-hint" style="margin:0 0 12px;">店舗・国・業態に合わせて割引を登録します。率／固定額、税免除、ID提示、責任者承認を割引ごとに設定できます。</div>
+      <div class="form-hint" style="margin:0 0 12px;">店舗・国・業態に合わせて割引を登録します。率／固定額、税免除、ID提示、マネージャー以上の承認を割引ごとに設定できます。</div>
       <input type="hidden" id="discountRuleId">
       <div class="grid2">
         <div class="fg" id="fieldDiscountNameJa"><label class="form-label">表示名（日本語）/ Japanese name</label><input class="fc" id="discountName" maxlength="80" placeholder="例: 会員割引"></div>
@@ -183,7 +191,7 @@
       <div style="display:flex;gap:14px;flex-wrap:wrap;margin:4px 0 12px;">
         <label class="chk"><input type="checkbox" id="discountTaxExempt"><span>税免除 / Tax exempt</span></label>
         <label class="chk"><input type="checkbox" id="discountIdRequired"><span>ID必須 / ID required</span></label>
-        <label class="chk"><input type="checkbox" id="discountManagerApproval" checked><span>責任者承認 / Manager approval</span></label>
+        <label class="chk"><input type="checkbox" id="discountManagerApproval" checked><span>マネージャー以上の承認 / Manager-or-above approval</span></label>
         <label class="chk"><input type="checkbox" id="discountEnabled" checked><span>有効 / Enabled</span></label>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -553,6 +561,11 @@
       if (v < 1) v = 1; if (v > 720) v = 720;
       rpc('saveSettings',[{ sessionTimeoutHours: v }]).then(function(r){ requireRpcSuccess(r); st('st-security',I18n.t('saved'), true); }).catch(function(e){ st('st-security',I18n.t('errPrefix')+API.userErrorText(e), false); });
     };
+    window.saveApprovalSettings = function(){
+      rpc('saveSettings',[{ orderVoidManagerApprovalRequired:$('orderVoidManagerApprovalRequired').checked?'on':'off' }])
+        .then(function(r){ requireRpcSuccess(r); st('st-approval',I18n.t('saved'), true); })
+        .catch(function(e){ st('st-approval',I18n.t('errPrefix')+API.userErrorText(e), false); });
+    };
     function _settingEnabled(d, key, amountKey){
       if(Object.prototype.hasOwnProperty.call(d, key)) return d[key]===true || d[key]===1 || d[key]==='1' || d[key]==='on' || d[key]==='true';
       return Number(d[amountKey]) >= 1;
@@ -599,7 +612,7 @@
     function renderDiscountRules(){
       syncDiscountNameOrder();
       var host=$('discountRuleList'); if(!host) return;
-      var en=discountIsEn(), taxTxt=en?'Tax exempt':'税免除', idTxt=en?'ID required':'ID必須', apprTxt=en?'Approval':'承認必須', editTxt=en?'Edit':'編集', delTxt=en?'Delete':'削除', emptyTxt=en?'No discounts registered.':'登録済みの割引はありません。';
+      var en=discountIsEn(), taxTxt=en?'Tax exempt':'税免除', idTxt=en?'ID required':'ID必須', apprTxt=en?'Manager-or-above approval':'マネージャー以上の承認', editTxt=en?'Edit':'編集', delTxt=en?'Delete':'削除', emptyTxt=en?'No discounts registered.':'登録済みの割引はありません。';
       host.innerHTML=DISCOUNT_RULES.length?DISCOUNT_RULES.map(function(r){
         var value=r.calculationType==='fixed'?String(r.value):String(r.value)+'%';
         return '<div style="display:flex;align-items:center;gap:8px;padding:9px 4px;border-top:1px solid var(--border);">'+
@@ -791,6 +804,7 @@
       var d = bundle.settings || {};
       DISCOUNT_RULES = bundle.discountRules || [];
       renderDiscountRules();
+      $('orderVoidManagerApprovalRequired').checked = d.orderVoidManagerApprovalRequired===undefined ? true : !/^(?:|0|false|off|no)$/i.test(String(d.orderVoidManagerApprovalRequired).trim());
       $('creditCardEnabled').checked = (d.creditCardEnabled==='on'||d.creditCardEnabled===true||d.creditCardEnabled==='true');
       $('cashPaymentEnabled').checked = !(d.cashPaymentEnabled===''||d.cashPaymentEnabled==='off'||d.cashPaymentEnabled==='false'||d.cashPaymentEnabled===false);
       $('qrPaymentEnabled').checked = d.qrPaymentEnabled!==undefined ? (d.qrPaymentEnabled==='on'||d.qrPaymentEnabled===true||d.qrPaymentEnabled==='true') : !!d.gcashQr;
@@ -868,11 +882,11 @@
         localeTitle:'🌐 表示・地域', countryCode:'国・地域コード', localeCode:'地域形式（ロケール）', dateFormat:'日付表示形式', curCode:'通貨コード', curSym:'通貨記号', curDigits:'通貨の小数桁', svcRate:'サービス料 (%)', taxRate:'税率 (%)', taxName:'税の表示名', taxIdName:'税務登録番号の表示名', receiptPrefix:'レシート番号の接頭辞', receiptTitleJa:'帳票名（日本語）', receiptTitleEn:'帳票名（英語）', taxRound:'税・料金の端数処理', roundNearest:'四捨五入', roundFloor:'切り捨て', roundCeil:'切り上げ', applyCountry:'国別初期値を適用', countryHint:'国別初期値は通貨・標準時間・税名称・帳票名を選択・入力欄へ反映します。保存するまでは確定されません。法定帳票名は店舗所在地の専門家へ確認してください。', unknownCountry:'この国のプリセットはありません。現在の設定値を保持します。', countryApplied:'国別初期値を反映しました。内容を確認して保存してください。', timezoneLbl:'標準時間（タイムゾーン）', timezoneHint:'店舗所在地のIANAタイムゾーンを選択してください。営業日、売上集計、勤怠、提供時間、定期レポートの時刻へ共通反映されます。', invalidTimezone:'有効なタイムゾーンを選択してください（例：Asia/Manila）。', currentSetting:'現在の設定', defLang:'既定言語', accent:'アクセント色',
         svcInclLabel:'内税（価格に含む）', taxInclLabel:'内税（価格に含む）', chargesHint:'チェックなし＝外税（表示価格に加算）。チェックあり＝内税（表示価格に含む）。一般的には税＝内税、サービス料＝外税です。',
         bizCutoff:'営業日切替時刻', bizCutoffHint:'深夜営業の場合に設定してください。例：2:30を設定すると、午前2時30分までの売上は前日の営業日として日報・週報・月報・売上集計に計上されます。0:00＝通常どおり午前0時で区切り。指定できるのは0:00〜11:59の範囲です（それ以外は0:00として扱われます）。',
-        securityTitle:'🔐 セキュリティ', sessionTimeout:'ログイン保持時間（時間）', sessionTimeoutHint:'スタッフの管理画面ログインが自動的に切れるまでの時間です。未設定の場合は8時間。ログイン中に管理画面を操作していれば、その都度この時間だけ自動延長されます（ログインしたまま何も操作しない状態がこの時間続くと自動的にログアウトされます）。最大720時間（30日）まで設定できます。',
+        securityTitle:'🔐 セキュリティ', sessionTimeout:'ログイン保持時間（時間）', sessionTimeoutHint:'スタッフの管理画面ログインが自動的に切れるまでの時間です。未設定の場合は8時間。ログイン中に管理画面を操作していれば、その都度この時間だけ自動延長されます（ログインしたまま何も操作しない状態がこの時間続くと自動的にログアウトされます）。最大720時間（30日）まで設定できます。', approvalTitle:'🔐 承認設定', orderVoidApproval:'注文取消時にマネージャー以上の承認を必須にする', approvalHint:'全額返金は常にマネージャー以上の承認が必要です。割引は下の割引マスタで割引ごとに「マネージャー以上の承認」を設定します。',
         entryTitle:'🎫 入場料・延長料', entryFeeEnable:'入場料を有効にする', extensionFeeEnable:'延長料を有効にする', entryFeeAmount:'入場料（1人あたり）', baseUsageMinutes:'基本利用時間（分）', extensionFeeAmount:'延長料（1人・1単位あたり）', extensionUnitMinutes:'延長時間の単位（分）', partySizeMax:'人数選択の最大値',
         entryHint:'チェックを入れた料金だけが会計時に請求されます。チェックを外しても入力金額は保持されます。注文画面の人数は1人〜「人数選択の最大値」までのドロップダウンから選択します。延長料は、その人数と入店時刻を基準に、基本利用時間を超えた分を延長時間の単位で切り上げて自動計算します。両方とも無効の場合、注文画面では人数選択を表示しません。', entryAmountRequired:'入場料を有効にする場合は、1以上の金額を入力してください。', extensionAmountRequired:'延長料を有効にする場合は、1以上の金額を入力してください。', extensionUnitRequired:'延長料を有効にする場合は、延長時間の単位を1分以上で入力してください。', partySizeMaxRequired:'人数選択の最大値は1〜100で入力してください。',
         seniorTitle:'🧓 シニア/PWD割引', seniorEnable:'有効にする（無効の場合、会計画面から選択肢自体が消えます）',
-        seniorHint:'有効にした場合でも、実際に割引を適用するには会計時に責任者（マネージャー以上）のログイン承認が必要です。従業員が無断で割引を適用することを防ぐための仕組みです。',
+        seniorHint:'有効にした場合でも、実際に割引を適用するには会計時にマネージャー以上のログイン承認が必要です。従業員が無断で割引を適用することを防ぐための仕組みです。',
         payTitle:'💳 決済方法', payHint:'会計画面に表示する決済方法と、画面・レシートに印字する名称を設定します。', cashEnable:'現金を表示する', ccEnable:'カードを表示する', qrEnable:'QR決済を表示する', screenLabel:'画面表示名', receiptLabel:'レシート表記', screenLabelJa:'画面表示名（日本語）', screenLabelEn:'画面表示名（English）', receiptLabelJa:'レシート表記（日本語）', receiptLabelEn:'レシート表記（English）', cardInstructionJa:'カード決済案内（日本語・任意）', cardInstructionEn:'カード決済案内（English・任意）', qrInstructionJa:'QR決済案内（日本語・任意）', qrInstructionEn:'QR決済案内（English・任意）', paymentLangHint:'表示名・レシート表記・案内文は日本語/英語の片方だけでも設定できます。未入力側はもう一方へフォールバックします。', cardInstructionLbl:'カード決済の案内文（任意）', qrInstructionLbl:'QR決済の案内文（任意）', paymentRequired:'決済方法を1つ以上有効にしてください。', ccWarn:'⚠️ カード・QRとも、この画面自体は請求処理を行いません。外部端末・決済サービスで入金を確認してから会計を確定してください。', gcashQrLbl:'QR決済コード（画像）', gcashQrHint:'利用するQR決済サービスのコード画像を登録します。入金確認はスタッフが決済サービス側で行ってください。', remove:'🗑️ 削除',
         aiUsageTitle:'🤖 AI利用状況', aiUsageHint:'AI在庫スキャンと自動翻訳はシステム側で管理されます。現在の利用量とプラン上限を表示します。',
         geoTitle:'📍 勤怠・店舗位置', lat:'緯度', lng:'経度', radius:'許容半径 (m)', getLoc:'📡 現在地を取得', geoClear:'🧹 クリア', geoCleared:'✅ 店舗位置をクリアしました', geoNoCheckHint:'店舗位置（緯度・経度・許容半径）が未設定の場合、出勤時のGPS距離チェックは行いません。',
@@ -894,7 +908,7 @@
         localeTitle:'🌐 Display & region', countryCode:'Country/region code', localeCode:'Number/date locale', dateFormat:'Date format', curCode:'Currency code', curSym:'Currency symbol', curDigits:'Currency decimal digits', svcRate:'Service charge (%)', taxRate:'Tax (%)', taxName:'Tax display name', taxIdName:'Tax registration label', receiptPrefix:'Receipt number prefix', receiptTitleJa:'Document title (Japanese)', receiptTitleEn:'Document title (English)', taxRound:'Tax/charge rounding', roundNearest:'Round to nearest', roundFloor:'Round down', roundCeil:'Round up', applyCountry:'Apply country defaults', countryHint:'Country defaults fill the available selections plus tax labels and receipt titles. Nothing is final until you save. Confirm legally required document wording with a local professional.', unknownCountry:'No preset is available for that country. The current saved values are kept.', countryApplied:'Country defaults applied. Review them, then save.', timezoneLbl:'Standard time (time zone)', timezoneHint:'Choose the store location’s IANA time zone. It is applied consistently to business dates, sales totals, attendance, service hours, and scheduled reports.', invalidTimezone:'Choose a valid time zone (for example, Asia/Manila).', currentSetting:'Current setting', defLang:'Default language', accent:'Accent color',
         svcInclLabel:'Tax-inclusive (included in price)', taxInclLabel:'Tax-inclusive (included in price)', chargesHint:'Unchecked = exclusive (added on top of the listed price). Checked = inclusive (already included in the listed price). Typically tax is inclusive and the service charge is exclusive.',
         bizCutoff:'Business day cutoff time', bizCutoffHint:'Set this if you stay open past midnight. E.g. setting 2:30 means sales up to 2:30am count toward the previous day’s business day in the daily/weekly/monthly reports and sales totals. 0:00 = normal midnight cutoff. Valid range is 0:00–11:59 (anything else is treated as 0:00).',
-        securityTitle:'🔐 Security', sessionTimeout:'Login session length (hours)', sessionTimeoutHint:'How long a staff management login stays valid before it automatically expires. Defaults to 8 hours if unset. Each action taken while logged in extends the session by this amount (staying logged in with no activity for this long logs you out automatically). Max 720 hours (30 days).',
+        securityTitle:'🔐 Security', sessionTimeout:'Login session length (hours)', sessionTimeoutHint:'How long a staff management login stays valid before it automatically expires. Defaults to 8 hours if unset. Each action taken while logged in extends the session by this amount (staying logged in with no activity for this long logs you out automatically). Max 720 hours (30 days).', approvalTitle:'🔐 Approval settings', orderVoidApproval:'Require Manager-or-above approval to void an order', approvalHint:'Full refunds always require Manager-or-above approval. Discounts use the per-rule Manager-or-above approval setting in Discount rules below.',
         entryTitle:'🎫 Entry & extension fee', entryFeeEnable:'Enable entry fee', extensionFeeEnable:'Enable extension fee', entryFeeAmount:'Entry fee (per person)', baseUsageMinutes:'Base usage time (minutes)', extensionFeeAmount:'Extension fee (per person, per unit)', extensionUnitMinutes:'Extension unit (minutes)', partySizeMax:'Maximum party size',
         entryHint:'Only enabled charges are billed. Disabled values are retained. On the order screen, party size is chosen from a dropdown from 1 up to the configured maximum. Extension fees use that party size and the seating time to round overtime up by the extension unit. If both fees are disabled, the party-size selector is hidden.', entryAmountRequired:'Enter an entry fee of at least 1 when entry fee is enabled.', extensionAmountRequired:'Enter an extension fee of at least 1 when extension fee is enabled.', extensionUnitRequired:'Enter an extension unit of at least 1 minute when extension fee is enabled.', partySizeMaxRequired:'Maximum party size must be between 1 and 100.',
         seniorTitle:'🧓 Senior/PWD discount', seniorEnable:'Enable (when off, the option disappears entirely from checkout)',
@@ -924,7 +938,7 @@
         { ja: '① 「🏪 店舗設定」で業態プロファイルを選ぶと席の呼称初期値が入ります。日本語・英語の主な席、もう一つの席、全体呼称は個別編集でき、席数0でその席種を非表示にできます。', en: '① In "Store settings", choose a business profile to fill terminology defaults. You can edit the Japanese and English main, other seating, and group labels, and set a location count to 0 to hide that type.' },
         { ja: '② 「📱 席QRコード」の「QRコードを表示」ボタンで公開HTTPS注文URLのQRコードを一覧表示します。各席の「ブラウザで開く」、印刷、対応プリンタへの送信はすべて同じ店舗ID・席・署名トークン付きURLを使います。', en: '② "Location QR Codes" → "Show QR Codes" lists QR codes for the public HTTPS order URLs. “Open in browser,” printing, and printer queues all use the same URL with its store ID, location, and signed token.' },
         { ja: '③ 「🌐 表示・地域」で店舗所在地の標準時間（IANAタイムゾーン）、通貨、税・サービス料、言語、色、営業日切替時刻を設定できます。標準時間は売上集計・勤怠・提供時間・定期レポートへ共通反映されます。', en: '③ "Display & region" sets the store’s standard time (IANA time zone), currency, tax/service charge, language, color, and business-day cutoff. The time zone is shared by sales totals, attendance, service hours, and scheduled reports.' },
-        { ja: '④ 「🏷️ 割引マスタ」では、割引名・率または固定額・税免除・ID提示・責任者承認の要否を割引ごとに登録できます。この誘惑店Webではフィリピン向けSenior/PWDプリセットと旧端末互換設定も残しています。', en: '④ "Discount rules" lets you configure each discount name, percentage or fixed amount, tax exemption, ID requirement, and manager approval. This Yuwaku-specific Web app also retains Philippines Senior/PWD presets and its legacy-client compatibility switch.' },
+        { ja: '④ 「🏷️ 割引マスタ」では、割引名・率または固定額・税免除・ID提示・マネージャー以上の承認要否を割引ごとに登録できます。この誘惑店Webではフィリピン向けSenior/PWDプリセットと旧端末互換設定も残しています。', en: '④ "Discount rules" lets you configure each discount name, percentage or fixed amount, tax exemption, ID requirement, and Manager-or-above approval. This Yuwaku-specific Web app also retains Philippines Senior/PWD presets and its legacy-client compatibility switch.' },
         { ja: '⑤ AI在庫スキャンや自動翻訳はシステム側AIを利用するため、店舗側でAIサービスのAPIキーを取得・設定する必要はありません。', en: '⑤ Inventory AI scanning and automatic translation use the system AI service, so stores do not need to obtain or configure an AI-provider API key.' },
         { ja: '⑥ 「📧 定期レポート」では送信先メール・日次/週次/月次の送信タイミングと出力言語を設定し、「保存＆スケジュール」で反映、「日次/週次/月次テスト」ボタンで実際にテストメールを送信して確認できます（メール送信設定でAPIキー・送信元アドレスの登録が必要）。', en: '⑥ "Scheduled reports" sets recipient emails, daily/weekly/monthly send times, and output language; "Save & schedule" applies it, and the "Daily/Weekly/Monthly test" buttons send an actual test email to verify (requires the API key and from-address to be configured above).' },
         { ja: '⑦ PT-210のBluetooth接続は「プリンタ設定」画面から行います。内部用のブリッジ設定は通常画面には表示しません。', en: '⑦ Connect the PT-210 from Printer Settings. Internal bridge settings are not shown in the normal settings screen.' },

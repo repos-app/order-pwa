@@ -583,6 +583,11 @@
   // 明示許可を得て削除した（対応するpayChoice/payModalのHTML・app.jsのイベント登録も
   // 合わせて削除済み）。現状は常に「後会計」のみとなる。
 
+  var _submitRetryKey = '', _submitRetryClientId = '';
+  function submitRetryKey(order) { var copy=Object.assign({},order||{});delete copy.clientId;try{return JSON.stringify(copy);}catch(e){return '';} }
+  function ensureSubmitClientId(order) { var key=submitRetryKey(order);if(key&&key===_submitRetryKey&&_submitRetryClientId){order.clientId=_submitRetryClientId;return;}if(!order.clientId){try{order.clientId='c-'+crypto.randomUUID();}catch(e){order.clientId='c-'+Date.now()+'-'+Math.random().toString(36).slice(2,10);}}_submitRetryKey=key;_submitRetryClientId=order.clientId; }
+  function showSubmitError(message) { var el=$('submitError');if(!el){el=document.createElement('div');el.id='submitError';el.setAttribute('role','alert');el.style.cssText='display:none;margin:8px 12px 0;padding:10px 12px;border-radius:9px;background:#fef2f2;color:#b91c1c;font-size:13px;font-weight:700;white-space:pre-wrap;';var host=document.querySelector('.cartbar');if(host)host.appendChild(el);}if(!el)return;el.textContent=message||'';el.style.display=message?'block':'none'; }
+
   function send() {
     var x = t();
     if (state.sessionEnded) { $('doneOverlay').classList.add('show'); return; }
@@ -616,15 +621,17 @@
   function doSubmit(order, paid) {
     if (!order) return;
     order.paid = !!paid;
+    ensureSubmitClientId(order); showSubmitError('');
     var btn = $('sendBtn'); btn.disabled = true;
     API.submitOrder(order, state.staffMode ? staffAuthToken() : '').then(function (result) {
       var x = t();
       // サーバ拒否（例: テーブル未選択/不正）はカートを消さずにエラー表示
       if (typeof result === 'string' && result.indexOf('rejected:') === 0) {
         var reason = result.slice(9);
-        showErr(x.errTitle + ': ' + (reason === 'Invalid table' ? x.noTable : API.userErrorText(reason)));
+        showSubmitError(x.errTitle + ': ' + API.userErrorText(reason));
         return;
       }
+      var printWarning = (typeof result === 'string' && result.indexOf('sent_with_warning:') === 0) ? result.slice(18) : '';
       var earnedTxt = '';
       if (order.phone) {
         var rate = Number(state.settings.loyaltyEarnRate) || 20;
@@ -634,11 +641,13 @@
         if (earned > 0) earnedTxt = '　🎁+' + earned + x.points;
       }
       state.cart = {}; state.optLines = []; state.coupon = null; updateCouponBtn(); renderMenu(); updateTotal();
+      _submitRetryKey = ''; _submitRetryClientId = ''; showSubmitError('');
       var title = result === 'queued' ? x.queuedTitle : (paid ? x.paidTitle : x.okTitle);
       var msg   = (result === 'queued' ? x.queuedMsg   : (paid ? x.paidMsg   : x.okMsg)) + earnedTxt;
+      if (printWarning) msg += ' ⚠️ ' + API.userErrorText(printWarning);
       showOk(title, msg, result === 'queued' ? '📥' : (paid ? '💳' : '✅'));
       refreshPending();
-    }).catch(function (err) { showErr(API.userErrorText(err)); })
+    }).catch(function (err) { showSubmitError(t().errTitle + ': ' + API.userErrorText(err)); })
       .then(function () { btn.disabled = false; });
   }
 

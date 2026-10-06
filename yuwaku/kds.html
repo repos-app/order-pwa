@@ -142,6 +142,53 @@
     function fmtTime(dateStr){ try { return toUtcDate(dateStr).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); } catch(e){ return ''; } }
 
     var lastData = [];
+    var statusPending = Object.create(null), statusErrors = Object.create(null);
+    var _statusMutationSeq = 0, _forceLoadQueued = false;
+    function noteStatusMutation(){
+      _statusMutationSeq++;
+      _opsVersion = null;
+      if(_loadInFlight)_forceLoadQueued = true;
+    }
+    function statusResponseError(r){
+      var d=r&&r.data;
+      if(d==='OK'||(d&&d.ok===true))return '';
+      if(d==='Not found')return 'not_found';
+      if(d==='Locked')return 'locked';
+      if(d==='State changed')return 'state_changed';
+      return (d&&d.error)||'invalid_server_response';
+    }
+    function statusNeedsReconcile(code){
+      return code==='state_changed'||/failed to fetch|networkerror|aborterror|fetch is aborted|\baborted\b|timeout|^http_5\d\d$|^request_failed$/i.test(String(code||''));
+    }
+    function statusLabel(status){
+      if(!(window.I18n&&I18n.lang&&I18n.lang()==='en'))return String(status||'');
+      return ({'未対応':'New','調理中':'Cooking','提供済':'Served','会計済':'Settled','取消':'Voided'})[status]||String(status||'');
+    }
+    function statusErrorText(code, latestStatus){
+      code=String(code||'');var en=window.I18n&&I18n.lang&&I18n.lang()==='en';
+      if(code==='not_found')return en?'This order no longer exists. Refresh the kitchen list.':'この注文は見つかりません。キッチン一覧を更新してください。';
+      if(code==='locked')return en?'This order is already settled, voided, served, or otherwise locked.':'この注文は会計済・取消済・提供済などのため状態を変更できません。';
+      if(code==='state_changed')return en?'Another device changed this order. The latest state has been reloaded.':'別の端末で注文状態が変更されました。最新状態を再読み込みしました。';
+      if(/^(?:status_update_failed|internal_error|api_error)$/.test(code))return en?'The server could not update this order status. Wait a moment, then retry.':'サーバー側で注文ステータスを更新できませんでした。少し時間をおいて再試行してください。';
+      if(code==='invalid_server_response')return en?'The server response was unexpected, so the status update could not be confirmed.':'サーバー応答が不正なため、ステータス更新を確認できませんでした。';
+      if(/failed to fetch|networkerror|aborterror|fetch is aborted|\baborted\b|timeout|^http_5\d\d$|^request_failed$/i.test(code)){
+        var suffix=latestStatus?(en?' Latest status: "'+statusLabel(latestStatus)+'".':' 最新状態は「'+statusLabel(latestStatus)+'」です。'):'';
+        return (en?'The update result could not be confirmed. Check the latest status before retrying.':'更新結果を確認できませんでした。再試行前に最新状態を確認してください。')+suffix;
+      }
+      return API.userErrorText(code);
+    }
+    function reconcileStatus(id,target){
+      return API.post('getOperationsDelta',{token:TOKEN,__silent:true,__noInternalRetry:true}).then(function(r){
+        var d=(r&&r.data)||{},list=Array.isArray(d.orders)?d.orders:null;
+        if(!list)throw new Error('invalid_server_response');
+        var latest=list.find(function(o){return String(o.id)===String(id);});
+        if(!latest)return {confirmed:false,missing:true,status:''};
+        noteStatusMutation();
+        var current=lastData.find(function(o){return String(o.id)===String(id);});
+        if(current)current.status=latest.status;
+        return {confirmed:latest.status===target,missing:false,status:latest.status};
+      });
+    }
     function render(data){
       data = data || lastData || []; lastData = data;
       var active = data.filter(function(o){ return o.status === '未対応' || o.status === '調理中'; });
@@ -170,6 +217,7 @@
       active.forEach(function(x){
         var o = x.o, items = x.items;
         var isNew = o.status === '未対応';
+        var statusBusy=!!statusPending[o.id],statusErr=statusErrors[o.id]?'<div style="margin-top:8px;padding:7px 9px;border-radius:8px;background:#fee2e2;color:#b91c1c;font-size:12px;font-weight:800;line-height:1.45;">'+esc(statusErrors[o.id])+'</div>':'';
         var el = elapsedInfo(o.date);
         html += '<div class="ticket ' + (isNew?'new':'cook') + '">';
         html += '<div class="t-head"><div class="t-table">🪑 ' + esc(seatLabel(o.table)) + '</div>'
@@ -182,12 +230,12 @@
         html += '</div>';
         html += '<div class="t-time">🕐 ' + fmtTime(o.date) + '</div>';
         html += '<div class="t-act">';
-        if (isNew){ html += '<button class="act-btn act-cook" onclick="setStatus(\'' + o.id + '\',\'調理中\')">'+I18n.t('startCook')+'</button>'; }
+        if (isNew){ html += '<button class="act-btn act-cook" '+(statusBusy?'disabled ':'')+'onclick="setStatus(\'' + o.id + '\',\'調理中\')">'+(statusBusy?(I18n.lang()==='en'?'Updating…':'更新中…'):I18n.t('startCook'))+'</button>'; }
         else {
-          html += '<button class="act-back" onclick="setStatus(\'' + o.id + '\',\'未対応\')" title="'+I18n.t('backNew')+'">↩</button>';
-          html += '<button class="act-btn act-done" onclick="setStatus(\'' + o.id + '\',\'提供済\')">'+I18n.t('done')+'</button>';
+          html += '<button class="act-back" '+(statusBusy?'disabled ':'')+'onclick="setStatus(\'' + o.id + '\',\'未対応\')" title="'+I18n.t('backNew')+'">↩</button>';
+          html += '<button class="act-btn act-done" '+(statusBusy?'disabled ':'')+'onclick="setStatus(\'' + o.id + '\',\'提供済\')">'+(statusBusy?(I18n.lang()==='en'?'Updating…':'更新中…'):I18n.t('done'))+'</button>';
         }
-        html += '</div></div>';
+        html += '</div>'+statusErr+'</div>';
       });
       document.getElementById('grid').innerHTML = html;
     }
@@ -201,29 +249,51 @@
         stale.map(function(o){ return esc(seatLabel(o.table)) + '(' + Math.floor((Date.now()-new Date(o.date).getTime())/60000) + 'm)'; }).join(', ');
     }
     window.setStatus = function(id, status){
-      API.post('updateOrderStatus', { id: id, status: status, token: TOKEN }).then(function(){ load(true); }).catch(function(){ load(true); });
+      if(statusPending[id])return;
+      statusPending[id]=status;delete statusErrors[id];render(lastData);
+      API.post('updateOrderStatus', { id: id, status: status, token: TOKEN }).then(function(r){
+        var code=statusResponseError(r);if(code)throw new Error(code);
+        noteStatusMutation();
+        var current=lastData.find(function(o){return String(o.id)===String(id);});
+        if(current)current.status=status;
+        delete statusErrors[id];render(lastData);
+        return load(true);
+      }).catch(function(e){
+        var code=String(e&&e.message||e||'request_failed');
+        if(!statusNeedsReconcile(code)){statusErrors[id]=statusErrorText(code);render(lastData);return;}
+        return reconcileStatus(id,status).then(function(latest){
+          if(latest.confirmed){delete statusErrors[id];render(lastData);return;}
+          statusErrors[id]=statusErrorText(code,latest.status);render(lastData);
+        }).catch(function(){statusErrors[id]=statusErrorText(code);render(lastData);});
+      }).finally(function(){delete statusPending[id];render(lastData);});
     };
     // [P0] getOrdersの単独ポーリングをやめ、getOperationsDelta（KDS/admin共通の統合API）を使う。
     // 直前に見たバージョン番号を送り、サーバー側で変化が無ければunchanged:trueだけが返るため、
     // 平常時（8秒ごと・変化なし）はSpreadsheet読込自体が省略され、GAS実行が軽くなる。
     var _opsVersion = null;
-    var _loadInFlight = false;
+    var _loadInFlight = false, _loadPromise = null;
     window.load = function(force){
-      if (_loadInFlight) return; // 前回リクエストが残っていれば重複送信しない
+      if (_loadInFlight) { if(force)_forceLoadQueued=true; return _loadPromise || Promise.resolve(); } // status更新後のforceは前回poll完了後に必ず再実行
       _loadInFlight = true;
+      var startedMutationSeq = _statusMutationSeq;
       // [修正点一覧C-2対応] getOperationsDelta/getOrders/getStaffCallsが認証必須になったため、tokenを送る。
       var payload = (force || _opsVersion == null) ? { token: TOKEN } : { sinceVersion: _opsVersion, token: TOKEN };
-      return API.post('getOperationsDelta', payload).then(function(r){
-        _loadInFlight = false;
+      var p = API.post('getOperationsDelta', payload).then(function(r){
+        if(startedMutationSeq !== _statusMutationSeq) return; // status更新より前に開始した古いsnapshotは適用しない
         __booted = true;
         var d = r.data || {};
         _opsVersion = d.version != null ? d.version : _opsVersion;
         if (d.unchanged) return; // 変化なし：再描画不要
         render(d.orders || []);
       }).catch(function(){
-        _loadInFlight = false;
+        if(startedMutationSeq !== _statusMutationSeq) return;
         var lm=document.getElementById('loadMsg'); if(lm) lm.innerText=I18n.t('connErr');
+      }).finally(function(){
+        _loadInFlight = false; _loadPromise = null;
+        if(_forceLoadQueued){ _forceLoadQueued=false; return load(true); }
       });
+      _loadPromise = p;
+      return p;
     };
 
     var _actx = null;

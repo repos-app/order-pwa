@@ -223,6 +223,21 @@
     if (code === 'tenant_write_frozen' || code === 'tenant_write_fence_not_ready') return en
       ? 'This store database is temporarily unavailable for writes during maintenance. Wait a moment and try again.'
       : 'メンテナンス中のため、この店舗データベースへの書き込みを一時停止しています。少し待ってから、もう一度お試しください。';
+    if (code === 'invalid_table') return en ? 'The selected table is no longer valid. Select the table again and retry.' : '選択した席が現在の店舗設定と一致しません。席を選び直して再試行してください。';
+    if (code === 'no_items') return en ? 'There are no items in this order.' : '注文商品がありません。';
+    if (code === 'invalid_quantity') return en ? 'One or more item quantities are invalid. Review the order and retry.' : '商品の数量が正しくありません。注文内容を確認して再試行してください。';
+    if (code === 'unknown_item' || code === 'item_unavailable') return en ? 'A menu item in this order is no longer available. Refresh the menu and review the order.' : '注文内の商品が現在のメニューで利用できません。メニューを更新して注文内容を確認してください。';
+    if (code === 'item_sold_out') return en ? 'A menu item in this order is sold out. Refresh the menu and review the order.' : '注文内の商品が売り切れになりました。メニューを更新して注文内容を確認してください。';
+    if (code === 'sample_item_unavailable' || code === 'mixed_sample_order') return en ? 'This sample order combination cannot be submitted. Review the order and retry.' : 'このサンプル注文の組み合わせでは送信できません。注文内容を確認してください。';
+    if (code === 'validation_failed') return en ? 'The order did not pass server validation. Review the table and items, then retry.' : '注文内容のサーバー検証に失敗しました。席と商品を確認して再試行してください。';
+    if (code === 'table_state_changed') return en ? 'The selected table changed while the order was being saved. Select the table again and retry.' : '注文保存中に席設定が変更されました。席を選び直して再試行してください。';
+    if (code === 'loyalty_points_changed') return en ? 'The member point balance changed while the order was being saved. Refresh the member information and retry.' : '注文保存中に会員ポイント残高が変更されました。会員情報を更新して再試行してください。';
+    if (code === 'order_persist_failed') return en ? 'The server could not save the order data. This is an order-save error, not a printing error. Retry after a moment; if it continues, report code: order_persist_failed.' : '注文データをサーバーへ保存できませんでした。印刷処理ではなく注文保存処理のエラーです。少し待って再試行し、続く場合はエラーコード order_persist_failed を連絡してください。';
+    if (code === 'order_print_enqueue_failed') return en ? 'The order was saved, but the print job could not be queued. The order is registered; check Printer Settings or the print host before printing again.' : '注文は登録されましたが、印刷ジョブを登録できませんでした。注文自体は登録済みです。再印刷する前にプリンター設定または印刷担当端末を確認してください。';
+    if (code === 'store_context_mismatch' || code === 'store_context_required' || code === 'tenant_store_mismatch') return en ? 'The current store and login session do not match. Sign in to this store again before retrying.' : '現在の店舗とログイン情報が一致していません。この店舗へログインし直してから再試行してください。';
+    if (code === 'environment_mismatch') return en ? 'The app environment does not match the server environment. Reopen the app and sign in again.' : 'アプリとサーバーの接続環境が一致していません。アプリを開き直して再ログインしてください。';
+    if (code === 'request_failed') return en ? 'The order response could not be confirmed. Check the order list before retrying; retrying the same order is safe.' : '注文結果を確認できませんでした。再試行前に注文一覧を確認してください。同じ注文の再試行は二重登録されないよう保護されています。';
+    if (code === 'internal_error' || code === 'api_error') return en ? 'The server could not complete the order because of an internal error. Retry after a moment; if it continues, report this error code.' : 'サーバー内部エラーで注文を完了できませんでした。少し待って再試行し、続く場合はこのエラーコードを連絡してください。';
     if (code === 'translation_unavailable') return en
       ? 'Automatic translation is temporarily unavailable. Please try saving again later, or enter both Japanese and English.'
       : '自動翻訳を一時的に利用できません。時間をおいて再度保存するか、日本語・英語の両方を入力してください。';
@@ -258,7 +273,7 @@
     if (code === 'request_timeout') return en ? 'The order request timed out. Please check the order status before trying again.' : '注文送信がタイムアウトしました。注文状況を確認してから再試行してください。';
     if (/^http_5\d\d$/.test(code)) return en ? 'The server could not complete the order request. Please try again after a moment.' : 'サーバー側で注文処理を完了できませんでした。少し時間をおいて再試行してください。';
     if (code === 'locked, please retry') return en ? 'The order could not be accepted because the server was busy. Please try again.' : 'サーバーが混み合っているため注文を受け付けられませんでした。もう一度お試しください。';
-    if (/^(?:http_\d+|api_error|internal_error|save_failed|delete_failed|request_failed|load_failed|server_busy_retry|environment_mismatch|auth_environment_not_configured)$/.test(code)) return generic;
+    if (/^(?:http_\d+|save_failed|delete_failed|load_failed|server_busy_retry|auth_environment_not_configured)$/.test(code)) return generic;
     if (/failed to fetch|networkerror|aborterror|fetch is aborted|\baborted\b|timeout/i.test(raw)) return network;
     if (/d1_error|sqlite|constraint|primary\s*key|foreign\s*key|sql\b|typeerror|referenceerror|syntaxerror|stack|\bat\s+[^\s]+\s*\(/i.test(raw)) return generic;
     if (/[ぁ-んァ-ヶ一-龠]/.test(raw)) return en ? generic : raw;
@@ -597,6 +612,13 @@
       const res = await API.post('submitOrder', payload);
       const d = res && res.data;
       if (d === 'Locked, please retry') return 'rejected:Locked, please retry';
+      // GAS互換経路は成功を文字列'OK'で返す一方、Native/Direct経路は
+      // {ok:true, orderId:...}をdataとして返す。後者を拒否扱いすると、
+      // 保存済み注文までrejected:[object Object]となるため両契約を明示的に受理する。
+      if (d && typeof d === 'object' && d.ok === true) {
+        if (d.printWarning) return 'sent_with_warning:' + d.printWarning;
+        return 'sent';
+      }
       if (d && d !== 'OK') {
         var rejectReason = (typeof d === 'object' && d.error) ? d.error : d;
         return 'rejected:' + rejectReason;

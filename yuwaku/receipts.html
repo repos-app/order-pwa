@@ -29,6 +29,20 @@
     th{ font-size:11px; color:var(--text-3); }
     td.num,th.num{ text-align:right; font-variant-numeric:tabular-nums; }
     .btn-sm{ background:#eef2f7; color:var(--navy); border:0; border-radius:8px; padding:6px 10px; font-weight:800; cursor:pointer; }
+    .btn-danger{ background:#fee2e2; color:#991b1b; margin-left:5px; }
+    .badge{ display:inline-block; border-radius:999px; padding:3px 7px; font-size:11px; font-weight:900; margin-left:5px; }
+    .badge-refund{ background:#fee2e2; color:#991b1b; }
+    .badge-refunded{ background:#e2e8f0; color:#475569; }
+    .modal-bg{ display:none; position:fixed; inset:0; z-index:100; background:rgba(15,23,42,.62); padding:20px; align-items:center; justify-content:center; }
+    .modal-bg.open{ display:flex; }
+    .modal{ width:min(480px,100%); background:#fff; border-radius:16px; padding:20px; box-shadow:0 20px 60px rgba(0,0,0,.3); }
+    .modal h2{ margin:0 0 8px; font-size:20px; }
+    .modal label{ display:block; margin-top:12px; font-size:12px; font-weight:800; }
+    .modal input,.modal textarea{ width:100%; margin-top:5px; padding:10px; border:1px solid var(--border); border-radius:9px; font:inherit; }
+    .modal-actions{ display:flex; gap:8px; justify-content:flex-end; margin-top:16px; }
+    .modal-actions .btn-sm{ flex:1 1 0; min-width:0; min-height:44px; padding:11px 14px; border-radius:10px; font-size:14px; font-family:inherit; line-height:1.25; }
+    .modal-actions .btn-danger{ margin-left:0; }
+    @media (max-width:360px){ .modal-bg{ padding:12px; } .modal{ padding:16px; } .modal-actions .btn-sm{ padding-left:10px; padding-right:10px; } }
   </style>
   <link rel="stylesheet" href="./date-controls.css?v=3">
 </head>
@@ -50,6 +64,19 @@
     <div style="text-align:center;margin-top:12px;"><button class="btn-sm" id="moreBtn" style="display:none;" onclick="loadMore()" data-t="loadMore">さらに読み込む</button></div>
   </div></div>
 
+  <div id="refundModal" class="modal-bg" role="dialog" aria-modal="true" aria-labelledby="refundTitle">
+    <div class="modal">
+      <h2 id="refundTitle" data-t="refundTitle">会計を返金する</h2>
+      <div id="refundTarget" class="muted"></div>
+      <div class="muted" style="margin-top:8px;" data-t="refundWarning">元の会計は変更せず、全額をマイナス伝票で取り消します。クーポン利用と会員ポイント等も戻ります。この操作は元に戻せません。</div>
+      <label data-t="reason">返金理由（必須）</label><textarea id="refundReason" rows="3" maxlength="300"></textarea>
+      <label data-t="approverLogin">承認者（マネージャー以上）のログインID</label><input id="refundLogin" autocomplete="username" maxlength="100">
+      <label data-t="approverPassword">承認者パスワード</label><input id="refundPassword" type="password" autocomplete="current-password">
+      <div id="refundError" style="display:none;color:#b91c1c;margin-top:10px;"></div>
+      <div class="modal-actions"><button class="btn-sm" type="button" onclick="closeRefund()" data-t="cancel">閉じる</button><button id="refundSubmit" class="btn-sm btn-danger" type="button" onclick="submitRefund()" data-t="executeRefund">全額返金を実行</button></div>
+    </div>
+  </div>
+
   <script src="./date-display.js?v=auth4" data-iz-date-display></script><script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
   <script src="./i18n.js?v=auth3"></script>
@@ -63,7 +90,7 @@
     // [負荷試験レビュー対応/優先#4] サーバー側ページングに対応。月合計(SUM_TOTAL)・件数(CNT_TOTAL)は
     // 「その月の全レシート」に対してサーバー側で集計した値を使う（表示中の行数に依存しない、常に正確な値）。
     // 一覧本体は1ページ100件ずつ「さらに読み込む」で追加取得する（一度に全件は読まない）。
-    var PAGE=1, PAGE_SIZE=100, HAS_MORE=false, SUM_TOTAL=0, CNT_TOTAL=0;
+    var PAGE=1, PAGE_SIZE=100, HAS_MORE=false, SUM_TOTAL=0, CNT_TOTAL=0, REFUND_COUNT=0, REFUND_OR='';
     function seatLabel(v){ var s=String(v==null?'':v); var en=(window.I18n&&I18n.lang&&I18n.lang()==='en'); var tableTerm=(en?(SETTINGS.tableLabelEn||SETTINGS.tableLabelJa):(SETTINGS.tableLabelJa||SETTINGS.tableLabelEn))||(en?'Table':'テーブル'); var counterTerm=(en?(SETTINGS.counterLabelEn||SETTINGS.counterLabelJa):(SETTINGS.counterLabelJa||SETTINGS.counterLabelEn))||(en?'Counter':'カウンター'); var m=s.match(/^テーブル(\d+)$/)||s.match(/^(\d+)$/); if(m) return tableTerm+' '+m[1]; var c=s.match(/^カウンター(\d+)$/); if(c) return counterTerm+' '+c[1]; return s; }
     var MENU_LABELS={};
     function receiptItemName(nm){
@@ -88,14 +115,16 @@
     function render(){
       var seatHead=document.querySelector('[data-t="thTable"]'),en=(window.I18n&&I18n.lang&&I18n.lang()==='en'); if(seatHead) seatHead.textContent=(en?(SETTINGS.seatGroupLabelEn||SETTINGS.seatGroupLabelJa):(SETTINGS.seatGroupLabelJa||SETTINGS.seatGroupLabelEn))||(en?'Seating':'席');
       document.getElementById('total').innerText = SYM + SUM_TOTAL.toLocaleString();
-      document.getElementById('cnt').innerText = CNT_TOTAL + ' ' + I18n.t('bills');
+      document.getElementById('cnt').innerText = CNT_TOTAL + ' ' + I18n.t('bills') + (REFUND_COUNT ? (' / '+I18n.t('refunds')+' '+REFUND_COUNT) : '');
       document.getElementById('moreBtn').style.display = HAS_MORE ? '' : 'none';
       if(!ROWS.length){ document.getElementById('rows').innerHTML='<tr><td colspan="7" class="muted" style="padding:16px;text-align:center;">'+I18n.t('empty')+'</td></tr>'; return; }
       document.getElementById('rows').innerHTML = ROWS.map(function(r){
         var disc = (Number(r.discountAmount)>0) ? ('-'+SYM+(Number(r.discountAmount)||0).toLocaleString()+(r.discountType?(' '+esc(r.discountType)):'')) : '';
-        var main = '<tr><td class="muted">'+esc(window.DateDisplay?DateDisplay.formatDateTime(r.datetime):r.datetime)+'</td><td style="font-weight:800;">'+esc(r.orNo)+'</td><td>'+esc(seatLabel(r.table))+'</td>'+
+        var state = r.isRefund ? ('<span class="badge badge-refund">'+I18n.t('refundSlip')+'</span>') : (r.refunded ? ('<span class="badge badge-refunded">'+I18n.t('refunded')+'</span>') : '');
+        var refundBtn = (!r.isRefund && !r.refunded) ? ('<button class="btn-sm btn-danger" onclick="openRefund(decodeURIComponent(\''+encodeURIComponent(r.orNo)+'\'))">'+I18n.t('refund')+'</button>') : '';
+        var main = '<tr><td class="muted">'+esc(window.DateDisplay?DateDisplay.formatDateTime(r.datetime):r.datetime)+'</td><td style="font-weight:800;">'+esc(r.orNo)+state+'</td><td>'+esc(seatLabel(r.table))+'</td>'+
           '<td class="num" style="font-weight:800;">'+SYM+(Number(r.total)||0).toLocaleString()+'</td><td>'+esc(en?(r.methodLabelEn||r.methodLabelJa||r.methodLabel||r.method):(r.methodLabelJa||r.methodLabelEn||r.methodLabel||r.method))+'</td><td class="muted">'+disc+'</td>'+
-          '<td><button class="btn-sm" onclick="reprint(\''+esc(r.orNo).replace(/'/g,"\\'")+'\')">'+I18n.t('reprint')+'</button></td></tr>';
+          '<td><button class="btn-sm" onclick="reprint(\''+esc(r.orNo).replace(/'/g,"\\'")+'\')">'+I18n.t('reprint')+'</button>'+refundBtn+'</td></tr>';
         // 明細（あれば2行目に表示）
         var det = readableDetails(r.details);
         var detRow = det ? ('<tr><td></td><td colspan="6" class="muted" style="white-space:normal;padding-top:0;font-size:12px;">🧾 '+esc(det)+'</td></tr>') : '';
@@ -106,12 +135,31 @@
     function nextReprintRequestId(){ try{ if(crypto&&typeof crypto.randomUUID==='function') return 'receipt-reprint-'+crypto.randomUUID(); }catch(e){} return 'receipt-reprint-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2); }
     function showReprintError(error){ var code=String(error&&error.message||error||''); var msg=I18n.t('errPrefix')+API.userErrorText(error); if(code==='no_printer'){ var en=I18n.lang&&I18n.lang()==='en'; UIConfirm(msg,{okLabel:en?'Printer Settings':'プリンター設定へ',cancelLabel:en?'Close':'閉じる'}).then(function(ok){ if(ok) location.href='./printers.html'; }); } else UIAlert(msg); }
     window.reprint = function(orNo){ var requestId=REPRINT_REQUESTS[orNo]||(REPRINT_REQUESTS[orNo]=nextReprintRequestId()); rpc('reprintReceipt',[orNo,requestId]).then(function(d){ delete REPRINT_REQUESTS[orNo]; d=d||{}; if(d.ok){ UIAlert(I18n.t('sent')); } else { showReprintError(d.error||'error'); } }).catch(function(e){ showReprintError(e); }); };
+    window.openRefund = function(orNo){
+      var row=ROWS.find(function(r){return r.orNo===orNo;}); if(!row || row.isRefund || row.refunded) return;
+      REFUND_OR=orNo; document.getElementById('refundTarget').textContent=orNo+' / '+SYM+(Number(row.total)||0).toLocaleString();
+      document.getElementById('refundReason').value=''; document.getElementById('refundPassword').value='';
+      document.getElementById('refundError').style.display='none'; document.getElementById('refundModal').classList.add('open');
+      document.getElementById('refundReason').focus();
+    };
+    window.closeRefund = function(){ document.getElementById('refundModal').classList.remove('open'); REFUND_OR=''; };
+    window.submitRefund = function(){
+      var reason=document.getElementById('refundReason').value.trim(), login=document.getElementById('refundLogin').value.trim(), pass=document.getElementById('refundPassword').value;
+      var err=document.getElementById('refundError'), btn=document.getElementById('refundSubmit'); err.style.display='none';
+      if(!reason || !login || !pass){ err.textContent=I18n.t('requiredFields'); err.style.display='block'; return; }
+      btn.disabled=true; btn.textContent=I18n.t('processing');
+      rpc('refundReceipt',[REFUND_OR,reason,login,pass]).then(function(d){ d=d||{};
+        if(!d.success){ var key=d.error==='refund_auth'?'refundAuth':(d.error==='already_refunded'?'alreadyRefunded':'refundFailed'); err.textContent=I18n.t(key); err.style.display='block'; return; }
+        closeRefund(); UIAlert(I18n.t('refundDone')+' '+d.refundReceiptNo); load();
+      }).catch(function(e){ err.textContent=I18n.t('errPrefix')+API.userErrorText(e); err.style.display='block'; })
+      .finally(function(){ btn.disabled=false; btn.textContent=I18n.t('executeRefund'); document.getElementById('refundPassword').value=''; });
+    };
     function load(){
       var mo=document.getElementById('month').value;
       PAGE=1; ROWS=[];
       document.getElementById('rows').innerHTML='<tr><td colspan="7" class="muted" style="padding:16px;text-align:center;" data-t="loading">'+I18n.t('loading')+'</td></tr>';
       rpc('getReceipts',[mo, PAGE, PAGE_SIZE]).then(function(d){
-        d=d||{}; ROWS=d.rows||[]; SUM_TOTAL=Number(d.sumTotal)||0; CNT_TOTAL=Number(d.count)||0; HAS_MORE=!!d.hasMore;
+        d=d||{}; ROWS=d.rows||[]; SUM_TOTAL=Number(d.sumTotal)||0; CNT_TOTAL=Number(d.count)||0; REFUND_COUNT=Number(d.refundCount)||0; HAS_MORE=!!d.hasMore;
         render();
       }).catch(function(e){ if(String(e.message||e).indexOf('unauthorized')>=0){ location.href='./manage.html'; return; } document.getElementById('rows').innerHTML='<tr><td colspan="7" style="color:#b91c1c;padding:16px;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</td></tr>'; });
     }
@@ -119,7 +167,7 @@
       var mo=document.getElementById('month').value;
       var nextPage=PAGE+1;
       rpc('getReceipts',[mo, nextPage, PAGE_SIZE]).then(function(d){
-        d=d||{}; PAGE=nextPage; ROWS=ROWS.concat(d.rows||[]); SUM_TOTAL=Number(d.sumTotal)||0; CNT_TOTAL=Number(d.count)||0; HAS_MORE=!!d.hasMore;
+        d=d||{}; PAGE=nextPage; ROWS=ROWS.concat(d.rows||[]); SUM_TOTAL=Number(d.sumTotal)||0; CNT_TOTAL=Number(d.count)||0; REFUND_COUNT=Number(d.refundCount)||0; HAS_MORE=!!d.hasMore;
         render();
       }).catch(function(e){ UIAlert(I18n.t('errPrefix')+API.userErrorText(e)); });
     };
@@ -139,8 +187,8 @@
     __loaded=true; load();
 
     I18n.init({
-      ja:{ title:'🧾 会計履歴', back:'管理へ', toOrders:'← 注文一覧', month:'対象月', monthTotal:'月合計', bills:'件', thTime:'日時', thOr:'OR番号', thTable:'卓', thTotal:'合計', thMethod:'支払', thDisc:'割引', reprint:'🖨️ 再印刷', sent:'印刷キューに送信しました', loading:'読み込み中…', empty:'この月の会計はありません', errPrefix:'エラー: ', loadErr:'読み込みエラー: ', loadMore:'さらに読み込む' },
-      en:{ title:'🧾 Receipts', back:'Manage', toOrders:'← Orders', month:'Target month', monthTotal:'Month total', bills:'bills', thTime:'Time', thOr:'OR no.', thTable:'Table', thTotal:'Total', thMethod:'Paid', thDisc:'Discount', reprint:'🖨️ Reprint', sent:'Sent to print queue', loading:'Loading…', empty:'No receipts this month', errPrefix:'Error: ', loadErr:'Load error: ', loadMore:'Load more' }
+      ja:{ title:'🧾 会計履歴', back:'管理へ', toOrders:'← 注文一覧', month:'対象月', monthTotal:'月合計（返金反映後）', bills:'伝票', refunds:'返金', thTime:'日時', thOr:'OR番号', thTable:'卓', thTotal:'合計', thMethod:'支払', thDisc:'割引', reprint:'🖨️ 再印刷', refund:'↩ 全額返金', refundSlip:'返金伝票', refunded:'返金済', refundTitle:'会計を返金する', refundWarning:'元の会計は変更せず、全額をマイナス伝票で取り消します。クーポン利用と会員ポイント等も戻ります。この操作は元に戻せません。', reason:'返金理由（必須）', approverLogin:'承認者（マネージャー以上）のログインID', approverPassword:'承認者パスワード', cancel:'閉じる', executeRefund:'全額返金を実行', processing:'処理中…', requiredFields:'理由・マネージャー以上の承認者ID・パスワードをすべて入力してください。', refundAuth:'マネージャー以上の権限またはパスワードを確認してください。', alreadyRefunded:'この会計は既に返金済みです。', refundFailed:'返金できませんでした。', refundDone:'返金伝票を作成しました:', sent:'印刷キューに送信しました', loading:'読み込み中…', empty:'この月の会計はありません', errPrefix:'エラー: ', loadErr:'読み込みエラー: ', loadMore:'さらに読み込む' },
+      en:{ title:'🧾 Receipts', back:'Manage', toOrders:'← Orders', month:'Target month', monthTotal:'Month total (net of refunds)', bills:'entries', refunds:'refunds', thTime:'Time', thOr:'OR no.', thTable:'Table', thTotal:'Total', thMethod:'Paid', thDisc:'Discount', reprint:'🖨️ Reprint', refund:'↩ Full refund', refundSlip:'Refund', refunded:'Refunded', refundTitle:'Refund receipt', refundWarning:'The original receipt remains unchanged and a negative receipt reverses the full amount. Coupon use and member rewards are also reversed. This cannot be undone.', reason:'Refund reason (required)', approverLogin:'Approver (Manager or above) login ID', approverPassword:'Approver password', cancel:'Close', executeRefund:'Process full refund', processing:'Processing…', requiredFields:'Enter the reason, Manager-or-above approver ID and password.', refundAuth:'Check the Manager-or-above role and password.', alreadyRefunded:'This receipt has already been refunded.', refundFailed:'The refund could not be processed.', refundDone:'Refund receipt created:', sent:'Sent to print queue', loading:'Loading…', empty:'No receipts this month', errPrefix:'Error: ', loadErr:'Load error: ', loadMore:'Load more' }
     }, function(){ if(__loaded) render(); });
   </script>
   <script src="./help.js?v=auth2"></script>
@@ -154,6 +202,7 @@
         { ja: '③ 各行に明細（注文した商品と数量）が表示されます。', en: '③ Each row shows the order details (items and quantities).' },
         { ja: '④ 各行の「🖨️ 再印刷」ボタンを押すと、そのレシートを印刷キューに再送信できます。', en: '④ Tap "🖨️ Reprint" on a row to resend that receipt to the print queue.' },
         { ja: '⑤ 「さらに読み込む」ボタンで、100件ずつ追加の会計データを読み込めます。', en: '⑤ Tap "Load more" to fetch additional receipts, 100 at a time.' }
+        ,{ ja: '⑥ 「全額返金」はマネージャー以上の承認者を再認証後、元伝票を残したままマイナスの返金伝票を作成し、売上・原価・販売報酬・クーポン利用・会員ポイント等を相殺します。', en: '⑥ "Full refund" re-authenticates a Manager-or-above approver, keeps the original receipt, and creates a negative receipt that reverses revenue, cost, sales commission, coupon use, and member rewards.' }
       ]
     });
   </script>

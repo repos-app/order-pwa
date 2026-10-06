@@ -162,9 +162,11 @@
       <div id="vdItem" style="font-size:13px;color:#475569;margin-bottom:10px;"></div>
       <label style="font-size:12px;font-weight:800;" id="vdReasonL">取消理由</label>
       <input id="vdReason" style="width:100%;padding:9px;border:1px solid #e5e7eb;border-radius:8px;font-family:inherit;margin:4px 0 10px;box-sizing:border-box;">
-      <div style="font-size:12px;font-weight:800;margin-bottom:4px;" id="vdApprL">承認者（責任者ログイン）</div>
-      <input id="vdLogin" placeholder="ログインID" autocomplete="off" style="width:100%;padding:9px;border:1px solid #e5e7eb;border-radius:8px;font-family:inherit;margin-bottom:6px;box-sizing:border-box;">
-      <input id="vdPass" type="password" placeholder="パスワード" autocomplete="off" style="width:100%;padding:9px;border:1px solid #e5e7eb;border-radius:8px;font-family:inherit;margin-bottom:10px;box-sizing:border-box;">
+      <div id="vdApproverFields">
+        <div style="font-size:12px;font-weight:800;margin-bottom:4px;" id="vdApprL">承認者（マネージャー以上のログイン）</div>
+        <input id="vdLogin" placeholder="ログインID" autocomplete="off" style="width:100%;padding:9px;border:1px solid #e5e7eb;border-radius:8px;font-family:inherit;margin-bottom:6px;box-sizing:border-box;">
+        <input id="vdPass" type="password" placeholder="パスワード" autocomplete="off" style="width:100%;padding:9px;border:1px solid #e5e7eb;border-radius:8px;font-family:inherit;margin-bottom:10px;box-sizing:border-box;">
+      </div>
       <div class="alert" id="vdAlert"></div>
       <button class="pbtn" style="background:#b91c1c;" onclick="doVoid()" id="vdGo">取消を承認</button>
       <button class="cancel" onclick="closeVoid()" id="vdCxl">キャンセル</button>
@@ -197,18 +199,18 @@
             noKey:'オンライン決済は未設定です。', cashRecv:'現金を受け取りましたか？', cardRecv:'💳 決済端末でクレジットカード決済をしてください。決済を確認したら、下のボタンを押して会計を完了してください。', gcashHint:'お客様にQRコードをスキャンして送金していただき、入金を確認したら下のボタンを押してください。', gcashConfirm:'入金を確認した', confirmed:'支払い完了', done:'完了（会計済にする）', processing:'処理中…', lang:'EN',
             disc:'割引', senior:'シニア', idPh:'ID番号', eligPh:'対象額', discLine:'割引', vatNote:'うちVAT', orLbl:'レシート番号', printBtn:'🖨️ レシート印刷', close:'閉じる', tableW:'卓', totalW:'合計',
             partial:'🧾 一部会計', partTitle:'一部会計 — 明細を選択', selected:'選択', selPay:'選択分を会計', splitLbl:'割り勘 ÷', each:'/人',
-            callHdr:'🔔 呼び出し', callLbl:'スタッフ呼出', billLbl:'お会計希望', resolve:'対応済', agoMin:'分前', stay:'滞在', voidBtn:'取消', voidT:'注文の取消', reason:'取消理由', approver:'承認者（責任者ログイン）', loginPh:'ログインID', passPh:'パスワード', voidGo:'取消を承認', needReason:'取消理由を入力してください', authFail:'ログインIDまたはパスワードが違います', voided:'取消しました', alreadySettled:'会計済のため取消できません', eReceipt:'eレシート送信先メール（任意）',
+            callHdr:'🔔 呼び出し', callLbl:'スタッフ呼出', billLbl:'お会計希望', resolve:'対応済', agoMin:'分前', stay:'滞在', voidBtn:'取消', voidT:'注文の取消', reason:'取消理由', approver:'承認者（マネージャー以上のログイン）', loginPh:'ログインID', passPh:'パスワード', voidGo:'取消を承認', voidGoNoApproval:'取消を実行', needReason:'取消理由を入力してください', needApprover:'マネージャー以上の承認者ID・パスワードを入力してください', authFail:'マネージャー以上の承認者IDまたはパスワードを確認してください', voided:'取消しました', alreadySettled:'会計済のため取消できません', eReceipt:'eレシート送信先メール（任意）',
             entryFeeLbl:'入場料', extFeeLbl:'延長料',
-            discApprover:'承認者（マネージャー以上のログイン）', discNeedAppr:'承認者のログインID・パスワードを入力してください', discNotManager:'マネージャー以上の権限が必要です', discDisabled:'シニア/PWD割引は現在無効化されています', discVerifying:'承認確認中…', unservedBill:'未提供の注文が含まれています。先に対象明細を「提供済」にしてから会計してください。', demoTag:'🧪 デモ', demoDone:'デモ会計が完了しました。売上・レシート・ポイント・在庫には計上されません。' },
+            discApprover:'承認者（マネージャー以上のログイン）', discNeedAppr:'マネージャー以上の承認者ログインID・パスワードを入力してください', discNotManager:'マネージャー以上の権限が必要です', discDisabled:'シニア/PWD割引は現在無効化されています', discVerifying:'承認確認中…', unservedBill:'未提供の注文が含まれています。先に対象明細を「提供済」にしてから会計してください。', demoTag:'🧪 デモ', demoDone:'デモ会計が完了しました。売上・レシート・ポイント・在庫には計上されません。' },
       en: { title:'Orders', served:'✓ Served', servedBtn:'Mark served', pay:'💳 Checkout', noOrder:'No open orders',
             cash:'Cash', card:'Card', qrPayment:'QR Payment', cancel:'Cancel', pTitle:'Payment', sub:'Subtotal', svc:'Service', tax:'Tax',
             openPay:'Open payment page', checkBtn:'Check status', checking:'Checking…', notYet:'Payment not confirmed yet.',
             noKey:'Online payment is not set up.', cashRecv:'Cash received?', cardRecv:'💳 Please process the credit card payment on the card terminal. Once confirmed, press the button below to complete checkout.', gcashHint:'Ask the customer to scan the QR code and pay, then press the button below once you\'ve confirmed the payment.', gcashConfirm:'Payment confirmed', confirmed:'Paid', done:'Done (settle)', processing:'Processing…', lang:'JP',
             disc:'Discount', senior:'Senior', idPh:'ID no.', eligPh:'Eligible amt', discLine:'Discount', vatNote:'incl. VAT', orLbl:'Receipt no.', printBtn:'🖨️ Print receipt', close:'Close', tableW:'Table', totalW:'TOTAL',
             partial:'🧾 Partial', partTitle:'Partial checkout — select items', selected:'Selected', selPay:'Checkout selected', splitLbl:'Split ÷', each:'/person',
-            callHdr:'🔔 Requests', callLbl:'Call staff', billLbl:'Bill please', resolve:'Done', agoMin:'m ago', stay:'Seated', voidBtn:'Void', voidT:'Void order', reason:'Reason', approver:'Approver (manager login)', loginPh:'Login ID', passPh:'Password', voidGo:'Approve void', needReason:'Please enter a reason', authFail:'Wrong login ID or password', voided:'Order voided', alreadySettled:'Cannot void a settled order', eReceipt:'e-receipt email (optional)',
+            callHdr:'🔔 Requests', callLbl:'Call staff', billLbl:'Bill please', resolve:'Done', agoMin:'m ago', stay:'Seated', voidBtn:'Void', voidT:'Void order', reason:'Reason', approver:'Approver (Manager or above login)', loginPh:'Login ID', passPh:'Password', voidGo:'Approve void', voidGoNoApproval:'Void order', needReason:'Please enter a reason', needApprover:'Enter a Manager-or-above approver login ID and password', authFail:'Check the Manager-or-above approver login ID and password', voided:'Order voided', alreadySettled:'Cannot void a settled order', eReceipt:'e-receipt email (optional)',
             entryFeeLbl:'Entry fee', extFeeLbl:'Extension fee',
-            discApprover:'Approver (manager-or-above login)', discNeedAppr:'Please enter the approver login ID and password', discNotManager:'Manager-level login required', discDisabled:'Senior/PWD discount is currently disabled', discVerifying:'Verifying approval…', unservedBill:'This checkout includes unserved orders. Mark every selected order as served before checkout.', demoTag:'🧪 DEMO', demoDone:'Demo checkout completed. It was not recorded in sales, receipts, points, or inventory.' }
+            discApprover:'Approver (Manager-or-above login)', discNeedAppr:'Please enter a Manager-or-above approver login ID and password', discNotManager:'Manager-or-above role required', discDisabled:'Senior/PWD discount is currently disabled', discVerifying:'Verifying approval…', unservedBill:'This checkout includes unserved orders. Mark every selected order as served before checkout.', demoTag:'🧪 DEMO', demoDone:'Demo checkout completed. It was not recorded in sales, receipts, points, or inventory.' }
     };
     function t(){ return I18n.d(); }
     function settingLoc(base,fallback){var legacy=String(SETTINGS[base]||'').trim(),ja=String(SETTINGS[base+'Ja']||'').trim(),en=String(SETTINGS[base+'En']||'').trim();return lang==='en'?(en||ja||legacy||fallback):(ja||en||legacy||fallback);}
@@ -295,6 +297,53 @@
       var h = Math.floor(m/60), mm = m%60;
       return (h>0 ? h+'h'+('0'+mm).slice(-2) : m+'m');
     }
+    var servedPending = Object.create(null), servedErrors = Object.create(null);
+    var _statusMutationSeq = 0, _forceLoadQueued = false;
+    function noteStatusMutation(){
+      _statusMutationSeq++;
+      _opsVersion = null;
+      if(_loadInFlight)_forceLoadQueued = true;
+    }
+    function servedStatusLabel(status){
+      if(lang!=='en')return String(status||'');
+      return ({'未対応':'New','調理中':'Cooking','提供済':'Served','会計済':'Settled','取消':'Voided'})[status]||String(status||'');
+    }
+    function servedErrorText(code, latestStatus){
+      code=String(code||'');
+      if(code==='not_found')return lang==='en'?'This order no longer exists. Refresh the order list.':'この注文は見つかりません。注文一覧を更新してください。';
+      if(code==='locked')return lang==='en'?'This order is already settled, voided, or otherwise locked.':'この注文は会計済・取消済などのため状態を変更できません。';
+      if(code==='state_changed')return lang==='en'?'Another device changed this order. The latest state has been reloaded.':'別の端末で注文状態が変更されました。最新状態を再読み込みしました。';
+      if(/^(?:status_update_failed|internal_error|api_error)$/.test(code))return lang==='en'?'The server could not update this order status. Wait a moment, then retry.':'サーバー側で注文ステータスを更新できませんでした。少し時間をおいて再試行してください。';
+      if(code==='invalid_server_response')return lang==='en'?'The server response was unexpected, so the served status could not be confirmed.':'サーバー応答が不正なため、提供済への更新を確認できませんでした。';
+      if(/failed to fetch|networkerror|aborterror|fetch is aborted|\baborted\b|timeout|^http_5\d\d$|^request_failed$/i.test(code)){
+        var suffix=latestStatus?(lang==='en'?' Latest status: "'+servedStatusLabel(latestStatus)+'".':' 最新状態は「'+servedStatusLabel(latestStatus)+'」です。'):'';
+        return (lang==='en'?'The update result could not be confirmed. Check the latest status before retrying.':'更新結果を確認できませんでした。再試行前に最新状態を確認してください。')+suffix;
+      }
+      return API.userErrorText(code);
+    }
+    function servedResponseError(r){
+      var d=r&&r.data;
+      if(d==='OK'||(d&&d.ok===true))return '';
+      if(d==='Not found')return 'not_found';
+      if(d==='Locked')return 'locked';
+      if(d==='State changed')return 'state_changed';
+      return (d&&d.error)||'invalid_server_response';
+    }
+    function servedNeedsReconcile(code){
+      return code==='state_changed'||/failed to fetch|networkerror|aborterror|fetch is aborted|\baborted\b|timeout|^http_5\d\d$|^request_failed$/i.test(String(code||''));
+    }
+    function reconcileServed(id){
+      return API.post('getOperationsDelta',{token:TOKEN,__silent:true,__noInternalRetry:true}).then(function(r){
+        var d=(r&&r.data)||{},list=Array.isArray(d.orders)?d.orders:null;
+        if(!list)throw new Error('invalid_server_response');
+        var latest=list.find(function(o){return String(o.id)===String(id);});
+        if(!latest)return {confirmed:false,missing:true,status:''};
+        noteStatusMutation();
+        var current=orders.find(function(o){return String(o.id)===String(id);});
+        if(current)current.status=latest.status;
+        return {confirmed:latest.status==='提供済',missing:false,status:latest.status};
+      });
+    }
     function render(){
       var active = orders.filter(function(o){ return o.status !== '会計済' && o.status !== '取消'; });
       document.getElementById('cnt').innerText = active.length;
@@ -318,10 +367,11 @@
         html += '<div class="tg"><div class="tg-h"><div class="ti">🪑 '+esc(seatLabel(tn))+dwellTag+'</div><div class="to">'+money(total)+'</div></div>';
         rows.forEach(function(o){
           var served = o.status === '提供済';
+          var servedBusy=!!servedPending[o.id],servedErr=servedErrors[o.id]?'<div style="margin-top:5px;color:#b91c1c;font-size:12px;font-weight:700;white-space:normal;">'+esc(servedErrors[o.id])+'</div>':'';
           html += '<div class="row'+(served?' served':'')+'"><div class="m"><div class="tm">🕐 '+fmtTime(o.date)+'</div>'+
-            '<div class="it">'+esc(orderDetailsText(o))+(o.demo?' <span class="prepaid" style="background:#dbeafe;color:#1d4ed8;">'+t().demoTag+'</span>':'')+(o.paid?' <span class="prepaid">💳前払い</span>':'')+'</div></div>'+
+            '<div class="it">'+esc(orderDetailsText(o))+(o.demo?' <span class="prepaid" style="background:#dbeafe;color:#1d4ed8;">'+t().demoTag+'</span>':'')+(o.paid?' <span class="prepaid">💳前払い</span>':'')+'</div>'+servedErr+'</div>'+
             '<div class="rt"><span class="pr">'+money(o.price||0)+'</span>'+
-            (served?('<span class="served-lbl">'+t().served+'</span>'):('<button class="b-xs b-warn" onclick="setServed(\''+o.id+'\')">'+t().servedBtn+'</button>'))+
+            (served?('<span class="served-lbl">'+t().served+'</span>'):('<button class="b-xs b-warn" '+(servedBusy?'disabled ':'')+'onclick="setServed(\''+o.id+'\')">'+(servedBusy?t().processing:t().servedBtn)+'</button>'))+
             '<button class="b-xs" style="background:#fee2e2;color:#b91c1c;margin-left:4px;" onclick="askVoid(\''+o.id+'\')">'+t().voidBtn+'</button>'+
             '</div></div>';
         });
@@ -359,8 +409,14 @@
     // [P0] getStaffCalls単独ポーリングは廃止し、getOperationsDelta（注文と統合）から呼び出しも一緒に受け取る。
     function loadCalls(){ return load(); }
 
-    // ── 注文取消（承認制） ──
-    window.askVoid = function(id){
+    function voidApprovalRequired(){var v=SETTINGS.orderVoidManagerApprovalRequired;if(v===undefined||v===null)return true;return !/^(?:|0|false|off|no)$/i.test(String(v).trim());}
+    // ── 注文取消 ──
+    window.askVoid = function(id, settingsFresh){
+      if(!settingsFresh){
+        API.post('getSettings', {}).then(function(r){ var d=(r&&r.settings)||(r&&r.data&&r.data.settings)||(r&&r.data)||r||{}; if(d.error) throw new Error(d.error); SETTINGS=Object.assign({},SETTINGS,d); window.askVoid(id,true); })
+          .catch(function(e){ showToast((lang==='en'?'Could not load approval settings: ':'承認設定を確認できません: ')+API.userErrorText(e)); });
+        return;
+      }
       var o = null; for(var i=0;i<orders.length;i++){ if(String(orders[i].id)===String(id)){ o=orders[i]; break; } }
       if(!o) return;
       voidId = id;
@@ -371,7 +427,8 @@
       document.getElementById('vdReason').value='';
       document.getElementById('vdLogin').value=''; document.getElementById('vdLogin').placeholder=t().loginPh;
       document.getElementById('vdPass').value=''; document.getElementById('vdPass').placeholder=t().passPh;
-      document.getElementById('vdGo').innerText = t().voidGo; document.getElementById('vdCxl').innerText = t().cancel;
+      var approvalRequired=voidApprovalRequired(); document.getElementById('vdApproverFields').style.display=approvalRequired?'':'none';
+      document.getElementById('vdGo').innerText = approvalRequired?t().voidGo:t().voidGoNoApproval; document.getElementById('vdCxl').innerText = t().cancel;
       var a=document.getElementById('vdAlert'); a.style.display='none';
       document.getElementById('voidModal').classList.add('on');
     };
@@ -382,6 +439,7 @@
       if(!reason){ vdErr(t().needReason); return; }
       var login = document.getElementById('vdLogin').value.trim();
       var pass = document.getElementById('vdPass').value;
+      if(voidApprovalRequired()&&(!login||!pass)){ vdErr(t().needApprover); return; }
       var btn = document.getElementById('vdGo'); btn.disabled=true;
       API.post('voidOrder', { id:voidId, reason:reason, approverLogin:login, approverPass:pass }).then(function(r){
         btn.disabled=false; var d=r.data||{};
@@ -393,28 +451,51 @@
       }).catch(function(e){ btn.disabled=false; vdErr('Error: '+API.userErrorText(e)); });
     };
 
-    window.setServed = function(id){ API.post('updateOrderStatus', { id:id, status:'提供済', token: TOKEN }).then(function(){ load(true); }).catch(function(){ load(true); }); };
+    window.setServed = function(id){
+      if(servedPending[id])return;
+      servedPending[id]=true;delete servedErrors[id];render();
+      API.post('updateOrderStatus', { id:id, status:'提供済', token: TOKEN }).then(function(r){
+        var code=servedResponseError(r);
+        if(code)throw new Error(code);
+        noteStatusMutation();
+        var current=orders.find(function(o){return String(o.id)===String(id);});if(current)current.status='提供済';delete servedErrors[id];render();
+        return load(true);
+      }).catch(function(e){
+        var code=String(e&&e.message||e||'request_failed');
+        if(!servedNeedsReconcile(code)){servedErrors[id]=servedErrorText(code);render();return;}
+        return reconcileServed(id).then(function(latest){
+          if(latest.confirmed){delete servedErrors[id];render();return;}
+          servedErrors[id]=servedErrorText(code,latest.status);render();
+        }).catch(function(){servedErrors[id]=servedErrorText(code);render();});
+      }).finally(function(){delete servedPending[id];render();});
+    };
     // [P0] getOrders・getStaffCallsの別々ポーリングをやめ、getOperationsDelta（統合API）を1本使う。
     // 直前に見たバージョンを送り、変化が無ければunchanged:trueだけ返る＝Spreadsheet読込自体を省略できる。
     var _opsVersion = null;
-    var _loadInFlight = false;
+    var _loadInFlight = false, _loadPromise = null;
     window.load = function(force){
-      if (_loadInFlight) return Promise.resolve(); // 前回リクエストが残っていれば重複送信しない（会計中呼び出し等が重ならないように）
+      if (_loadInFlight) { if(force)_forceLoadQueued=true; return _loadPromise || Promise.resolve(); } // status更新後のforceは前回poll完了後に必ず再実行
       _loadInFlight = true;
+      var startedMutationSeq = _statusMutationSeq;
       // [修正点一覧C-2対応] getOperationsDelta/getOrders/getStaffCallsが認証必須になったため、tokenを送る。
       var payload = (force || _opsVersion == null) ? { token: TOKEN } : { sinceVersion: _opsVersion, token: TOKEN };
-      return API.post('getOperationsDelta', payload).then(function(r){
-        _loadInFlight = false;
+      var p = API.post('getOperationsDelta', payload).then(function(r){
         var d = r.data || {};
+        if(startedMutationSeq !== _statusMutationSeq) return; // status更新より前に開始した古いsnapshotは適用しない
         _opsVersion = d.version != null ? d.version : _opsVersion;
         if (d.unchanged) return; // 変化なし：再描画不要
         orders = d.orders || []; calls = d.calls || [];
         if (d.partySizes) PARTY_SIZES = d.partySizes;
         render(); renderCalls();
       }).catch(function(){
-        _loadInFlight = false;
+        if(startedMutationSeq !== _statusMutationSeq) return;
         var lm=document.getElementById('loadMsg'); if(lm) lm.innerText='接続できません（自動再試行します）';
+      }).finally(function(){
+        _loadInFlight = false; _loadPromise = null;
+        if(_forceLoadQueued){ _forceLoadQueued=false; return load(true); }
       });
+      _loadPromise = p;
+      return p;
     };
     // 手動更新ボタン：getOrders自体はポーリング用に静音（ローディング非表示）のため、
     // 押した手応えが分かるようアイコンを一瞬回転させ、完了後トーストを出す。
@@ -666,7 +747,7 @@
     }
 
     // [要望対応] シニア/PWD割引を使う場合、実際の支払い開始（現金確定・オンライン決済QR発行）より前に
-    // 責任者（マネージャー以上）の承認を必須にする。オンライン決済は先に決済が動いてしまうため、
+    // マネージャー以上の承認を必須にする。オンライン決済は先に決済が動いてしまうため、
     // finalizeBillでの検証だけに頼らず、ここで事前確認する（finalizeBill側も二重防御として必ず再検証する）。
     function _dcAlert(msg){ var a=document.getElementById('dcApprAlert'); a.style.display='block'; a.innerText=msg; }
     function _dcVerifyThenGo(proceedFn){
@@ -805,8 +886,8 @@
       title: '注文管理画面の使い方',
       titleEn: 'How to use Orders',
       items: [
-        { ja: '① 未会計の注文が卓ごとにグループ表示されます。各明細の「提供済にする」ボタンで提供済みに、「取消」ボタンで注文取消（理由入力・責任者承認が必要）ができます。', en: '① Unpaid orders are grouped by table. Use "Mark served" on each line, or "Void" to cancel an order (requires a reason and manager approval).' },
-        { ja: '② 「💳会計する」ボタンで会計を開始し、設定画面で有効にした決済方法と割引から選べます。割引ごとに、ID提示・責任者承認・税免除の条件が自動適用されます。カード・QR決済は外部端末または決済サービスで入金を確認してから完了してください。', en: '② Tap "💳 Checkout" and choose an enabled payment method and discount. Each discount automatically applies its configured ID, manager-approval, and tax-exemption rules. Confirm card or QR payment externally before completing checkout.' },
+        { ja: '① 未会計の注文が卓ごとにグループ表示されます。各明細の「提供済にする」ボタンで提供済みに、「取消」ボタンで注文取消できます。取消理由は常に必須で、設定がONの場合はマネージャー以上の承認も必要です。', en: '① Unpaid orders are grouped by table. Use "Mark served" on each line, or "Void" to cancel an order. A reason is always required, and Manager-or-above approval is also required when enabled in Settings.' },
+        { ja: '② 「💳会計する」ボタンで会計を開始し、設定画面で有効にした決済方法と割引から選べます。割引ごとに、ID提示・マネージャー以上の承認・税免除の条件が自動適用されます。カード・QR決済は外部端末または決済サービスで入金を確認してから完了してください。', en: '② Tap "💳 Checkout" and choose an enabled payment method and discount. Each discount automatically applies its configured ID, Manager-or-above approval, and tax-exemption rules. Confirm card or QR payment externally before completing checkout.' },
         { ja: '③ 「🧾一部会計」ボタンで卓の中の特定の明細だけを選んで先に会計できます（割り勘の入力欄もあります）。', en: '③ Tap "🧾 Partial" to select specific items on a table and check them out separately (a bill-splitting field is also available).' },
         { ja: '④ 会計完了後は「🖨️レシート印刷」ボタンで領収書を印刷できます。会計時にeレシート送付先メールも入力できます。', en: '④ After checkout, tap "🖨️ Print receipt" to print a receipt. You can also enter an e-receipt email during checkout.' },
         { ja: '⑤ 画面上部の🔔呼び出し欄に、お客様の「スタッフ呼出」「お会計希望」がリアルタイムで表示され、「対応済」ボタンで消せます。', en: '⑤ Customer "Call staff" and "Bill please" requests appear at the top in real time — tap "Done" to clear them.' },

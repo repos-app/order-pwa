@@ -111,7 +111,8 @@ const CACHE_PREFIX = 'yuwaku-production-';
 // v255: refresh coupon form/list split and reservation Japanese date presentation.
 // v256: pin the applied-language i18n runtime for async completion messages.
 // v257: refresh printer persistence/error locality, runtime i18n, coupon concurrency, Bluetooth unregister and Pixabay/legal updates.
-const CACHE = CACHE_PREFIX + 'v258';
+// v259: cache the shared ESC/POS renderer used by the hosted print bridge.
+const CACHE = CACHE_PREFIX + 'v259';
 const SHELL = [
   './',
   './index.html',
@@ -165,6 +166,7 @@ const SHELL = [
   './external-browser.js?v=external1',
   './native-file-export.js?v=native-export1',
   './confirm.js?v=auth2',
+  './print-renderer.js?v=print2',
   './app.js?v=auth5',
   './help.js?v=auth2',
   './manifest.webmanifest',
