@@ -37,6 +37,7 @@
     .mtabs{ display:flex; gap:8px; overflow-x:auto; padding-bottom:12px; -webkit-overflow-scrolling:touch; }
     .mtab{ flex:0 0 auto; background:var(--surface); border:1px solid var(--border); color:var(--text-3); border-radius:999px; padding:9px 16px; font-size:14px; font-weight:800; cursor:pointer; font-family:inherit; white-space:nowrap; }
     .mtab.on{ background:var(--navy); color:#fff; border-color:var(--navy); }
+.deletion-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;padding:12px 14px;border:2px solid #dc2626;border-radius:13px;background:#fef2f2;color:#991b1b;font-size:13px;font-weight:900}.deletion-banner.hidden{display:none}.deletion-banner a{flex:none;border-radius:9px;background:#b91c1c;color:#fff;padding:8px 11px;text-decoration:none;font-weight:900}
   </style>
 </head>
 <body>
@@ -77,6 +78,7 @@
 
   <!-- Hub view -->
   <div class="wrap hidden" id="hubView">
+    <div class="deletion-banner hidden" id="deletionBanner"><span id="deletionBannerText"></span><a href="./account.html" id="deletionBannerLink">確認</a></div>
     <div class="mtabs" id="mtabs"></div>
     <div class="grid" id="tiles"></div>
   </div>
@@ -88,7 +90,7 @@
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
     var NAME = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtName') || '';
     var ROLE = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtRole') || '';
-    var lastAllowed = {};
+    var lastAllowed = {}, ACCOUNT_OWNER = false;
     var authAttempt = 0;
     var authCheckSeq = 0;
 
@@ -134,12 +136,14 @@
       // 削除・全置換・復元は統合画面内とAPI側の両方でシステムロールだけに限定する。
       { grp:'system', key:'backup', ic:'💾', tt:'データバックアップ・管理', ds:'書出・削除・復元', ttEn:'Data backup & management', dsEn:'Export · delete · restore', url:'./data_admin.html', active:true },
       { grp:'system', key:'settings', ic:'⚙️', tt:'設定', ds:'店舗設定', ttEn:'Settings', dsEn:'Store settings', url:'./settings.html', active:true },
-      { grp:'system', key:null, ic:'📖', tt:'全体利用ガイド', ds:'店舗運営の使い方・流れ', ttEn:'Store operations guide', dsEn:'Daily workflow · how to use', url:'./overview.html', active:true }
+      { grp:'system', key:null, ic:'📖', tt:'全体利用ガイド', ds:'店舗運営の使い方・流れ', ttEn:'Store operations guide', dsEn:'Daily workflow · how to use', url:'./overview.html', active:true },
+      { grp:'system', key:null, ownerOnly:true, ic:'👤', tt:'アカウントとデータ削除', ds:'オーナー本人による削除申請', ttEn:'Account & data deletion', dsEn:'Owner deletion request', url:'./account.html', active:true },
     ];
     var curTab = (function(){ try { return localStorage.getItem('mgmtTab') || null; } catch(e){ return null; } })();
 
-    function showLogin(){ document.getElementById('loadingView').classList.add('hidden'); document.getElementById('loginView').classList.remove('hidden'); document.getElementById('hubView').classList.add('hidden'); document.getElementById('logoutBtn').classList.add('hidden'); document.getElementById('who').innerText=''; var _lc=document.getElementById('loginCard'); if(_lc)_lc.classList.remove('hidden'); var _cc=document.getElementById('chgPwCard'); if(_cc)_cc.classList.add('hidden'); }
-    function showHub(allowed){
+    function showLogin(){ ACCOUNT_OWNER=false; var db=document.getElementById('deletionBanner');if(db)db.classList.add('hidden'); document.getElementById('loadingView').classList.add('hidden'); document.getElementById('loginView').classList.remove('hidden'); document.getElementById('hubView').classList.add('hidden'); document.getElementById('logoutBtn').classList.add('hidden'); document.getElementById('who').innerText=''; var _lc=document.getElementById('loginCard'); if(_lc)_lc.classList.remove('hidden'); var _cc=document.getElementById('chgPwCard'); if(_cc)_cc.classList.add('hidden'); }
+    function showHub(allowed, accountOwner){
+      ACCOUNT_OWNER=accountOwner===true;
       document.getElementById('loadingView').classList.add('hidden');
       document.getElementById('loginView').classList.add('hidden');
       document.getElementById('hubView').classList.remove('hidden');
@@ -147,6 +151,23 @@
       document.getElementById('who').innerText = NAME ? ('👤 '+NAME) : '';
       lastAllowed = allowed || {};
       renderHub();
+      loadDeletionBanner();
+    }
+    function deletionDeadlineText(value){
+      if(!value)return '-';
+      try{return new Intl.DateTimeFormat((window.I18n&&I18n.lang()==='en')?'en-US':'ja-JP',{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(value));}
+      catch(e){return String(value);}
+    }
+    function loadDeletionBanner(){
+      var box=document.getElementById('deletionBanner'),textEl=document.getElementById('deletionBannerText'),link=document.getElementById('deletionBannerLink');
+      if(!box||!textEl||!link)return;
+      if(!ACCOUNT_OWNER||!TOKEN){box.classList.add('hidden');return;}
+      API.post('rpc',{fn:'getAccountDeletionStatus',args:[],token:TOKEN,__silent:true,__noInternalRetry:true}).then(function(r){
+        var d=r&&r.data||{},en=window.I18n&&I18n.lang()==='en';
+        if(d.status!=='pending'){box.classList.add('hidden');return;}
+        textEl.textContent=d.phase==='processing'?(en?'Cancellation deadline passed. Deletion is being processed.':'取消期限を過ぎました。削除処理中です。'):(en?'Deletion request pending — Cancel by: ':'削除申請中　取消期限: ')+deletionDeadlineText(d.cancelDeadlineAt);
+        link.textContent=en?'Review':'確認';box.classList.remove('hidden');
+      }).catch(function(){box.classList.add('hidden');});
     }
     function renderHub(){
       var allowed = lastAllowed || {};
@@ -154,7 +175,7 @@
       var isSystem = ROLE==='システム' || ROLE==='system';
       // 権限のあるタイルを持つタブだけ表示
       var visGroups = GROUPS.filter(function(g){
-        return TILES.some(function(x){ return x.grp===g.id && (!x.sysOnly || isSystem) && (!x.key || allowed[x.key]); });
+        return TILES.some(function(x){ return x.grp===g.id && (!x.sysOnly || isSystem) && (!x.ownerOnly || ACCOUNT_OWNER) && (!x.key || allowed[x.key]); });
       });
       if (!visGroups.length){ document.getElementById('mtabs').innerHTML=''; document.getElementById('tiles').innerHTML=''; return; }
       if (!curTab || !visGroups.some(function(g){ return g.id===curTab; })) curTab = visGroups[0].id;
@@ -167,6 +188,7 @@
       TILES.forEach(function(x){
         if (x.grp!==curTab) return;
         if (x.sysOnly && !isSystem) return;
+        if (x.ownerOnly && !ACCOUNT_OWNER) return;
         if (x.key && !allowed[x.key]) return;
         var tt = (en && x.ttEn) ? x.ttEn : x.tt, ds = (en && x.dsEn) ? x.dsEn : x.ds;
         if (x.active){ html += '<a class="tile" href="'+x.url+'"><span class="ic">'+x.ic+'</span><span class="tt">'+tt+'</span><span class="ds">'+ds+'</span></a>'; }
@@ -196,7 +218,7 @@
         // [応答速度改善(2026-08-22)/ログイン再改善] loginレスポンスに権限メニュー(me)が
         // 同封されるようになったため、直後のcheckToken往復を省いて即座に表示する。
         // 念のため未同封（旧サーバー版との混在デプロイ等）の場合のみ従来通りcheckAndShowにフォールバック。
-        if (r.me) { showHub(r.me.allowed || {}); } else { checkAndShow(); }
+        if (r.me) { showHub(r.me.allowed || {}, r.me.accountOwner); } else { checkAndShow(); }
       }).catch(function(e){
         if (attempt !== authAttempt) return;
         btn.disabled=false;
@@ -246,7 +268,7 @@
           // という表示上のズレを防ぐ。実際の実行可否は常にサーバー側で再検証されるため、これは
           // あくまで表示の鮮度の話）。
           if (r.me.role !== undefined) { ROLE = r.me.role || ''; try { localStorage.setItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtRole', ROLE); } catch(e){} }
-          showHub(r.me.allowed || {});
+          showHub(r.me.allowed || {}, r.me.accountOwner);
         }
         else { logout(); }
       }).catch(function(){
@@ -266,7 +288,7 @@
     I18n.init({
       ja: { title:'管理', logout:'ログアウト', loading:'読み込み中…', login:'ログイン', loginSub:'ログインIDとパスワードを入力', loginErr:'IDまたはパスワードが違います', emailUnverified:'メールアドレスの確認が完了していません。確認メール内のリンクを開いてからログインしてください。', loginRateLimited:'ログイン失敗が続いたため一時的に制限しています。しばらく待って再試行してください。', authUnavailable:'認証サービスを利用できません。時間をおいて再試行してください。', needLogin:'ログインIDとパスワードを入力してください', ph_loginId:'ログインID', ph_pass:'パスワード', loginBtn:'🔓 ログイン', chgPwLink:'🔑 パスワードを変更', chgTitle:'パスワード変更', chgSub:'ログインIDと現在のパスワードで変更できます', ph_cpOld:'現在のパスワード', ph_cpNew:'新しいパスワード（8文字以上）', ph_cpNew2:'新しいパスワード（確認）', cpBtn:'🔑 変更する', backToLogin:'← ログインに戻る', m_needId:'ログインIDを入力してください', m_needOld:'現在のパスワードを入力してください', m_short:'新しいパスワードは8文字以上にしてください', m_mismatch:'新しいパスワードが一致しません', m_ok:'✅ 変更しました。新しいパスワードでログインしてください', m_wrong:'ログインIDまたは現在のパスワードが違います', m_err:'エラー: ' },
       en: { title:'Management', logout:'Logout', loading:'Loading…', login:'Login', loginSub:'Enter your login ID and password', loginErr:'Incorrect ID or password', emailUnverified:'Your email address is not verified. Open the link in the verification email, then log in.', loginRateLimited:'Too many failed attempts. Please wait and try again.', authUnavailable:'Authentication service is unavailable. Please wait and try again.', needLogin:'Please enter your login ID and password', ph_loginId:'Login ID', ph_pass:'Password', loginBtn:'🔓 Login', chgPwLink:'🔑 Change password', chgTitle:'Change password', chgSub:'Change it with your login ID and current password', ph_cpOld:'Current password', ph_cpNew:'New password (8+ chars)', ph_cpNew2:'New password (confirm)', cpBtn:'🔑 Change', backToLogin:'← Back to login', m_needId:'Please enter your login ID', m_needOld:'Please enter your current password', m_short:'New password must be 8+ characters', m_mismatch:'New passwords do not match', m_ok:'✅ Changed. Please log in with your new password', m_wrong:'Login ID or current password is incorrect', m_err:'Error: ' }
-    }, function(){ if(!document.getElementById('hubView').classList.contains('hidden')) showHub(lastAllowed); });
+    }, function(){ if(!document.getElementById('hubView').classList.contains('hidden')) showHub(lastAllowed, ACCOUNT_OWNER); });
     document.addEventListener('DOMContentLoaded', checkAndShow);
     window.addEventListener('pageshow', function(e){
       if(e.persisted && !document.getElementById('loadingView').classList.contains('hidden')) checkAndShow();

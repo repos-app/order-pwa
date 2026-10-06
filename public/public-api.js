@@ -44,6 +44,9 @@
     if (code === 'coupon_unavailable') return en
       ? 'This coupon is no longer available. Please remove it or choose another coupon, then submit the order again.'
       : 'このクーポンは現在ご利用いただけません。クーポンを外すか別のクーポンを選び、もう一度注文してください。';
+    if (code === 'request_timeout') return en ? 'The order request timed out. Please check the order status before trying again.' : '注文送信がタイムアウトしました。注文状況を確認してから再試行してください。';
+    if (/^http_5\d\d$/.test(code)) return en ? 'The server could not complete the order request. Please try again after a moment.' : 'サーバー側で注文処理を完了できませんでした。少し時間をおいて再試行してください。';
+    if (code === 'locked, please retry') return en ? 'The order could not be accepted because the server was busy. Please try again.' : 'サーバーが混み合っているため注文を受け付けられませんでした。もう一度お試しください。';
     if (/^(?:http_\d+|api_error|internal_error|save_failed|request_failed)$/.test(code)) return generic;
     if (/failed to fetch|networkerror|aborterror|fetch is aborted|\baborted\b|timeout/i.test(raw)) return network;
     if (/d1_error|sqlite|constraint|primary\s*key|foreign\s*key|sql\b|typeerror|referenceerror|syntaxerror|stack|\bat\s+[^\s]+\s*\(/i.test(raw)) return generic;
@@ -136,6 +139,22 @@
     };
   }
 
+  API.isOrderOfflineError = function (err) {
+    if (!err || err.__server) return false;
+    var name = String(err.name || '');
+    var raw = String(err.message || err || '');
+    var signal = name + ' ' + raw;
+    if (name === 'AbortError' || /(?:timeout|timed out|\baborted\b)/i.test(signal)) return false;
+    if (/^http_\d+$/i.test(raw) || /^(?:invalid_server_response|invalid_store_link|unauthorized)$/i.test(raw)) return false;
+    return /failed to fetch|networkerror|network request failed|load failed|internet disconnected|network connection was lost|could not connect/i.test(signal);
+  };
+  API.orderSubmitErrorCode = function (err) {
+    var name = String(err && err.name || '');
+    var raw = String(err && err.message || err || '').trim();
+    if (name === 'AbortError' || /(?:timeout|timed out|\baborted\b)/i.test(name + ' ' + raw)) return 'request_timeout';
+    return raw || 'request_failed';
+  };
+
   API.submitOrder = async function (order) {
     if (!order.clientId) order.clientId = 'c-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
     var rec = queueRecord(order);
@@ -149,11 +168,11 @@
         order:order, tableToken:rec.tableToken, __timeoutMs:TIMEOUT_MS.write
       });
       var d = res && res.data;
-      if (d === 'Locked, please retry') { await API.queuePut(rec); return 'queued'; }
+      if (d === 'Locked, please retry') return 'rejected:Locked, please retry';
       if (d && d !== 'OK') return 'rejected:' + ((typeof d === 'object' && d.error) ? d.error : d);
       return 'sent';
     } catch (err) {
-      if (err && err.__server) return 'rejected:' + (err.message || 'api_error');
+      if (!API.isOrderOfflineError(err)) return 'rejected:' + API.orderSubmitErrorCode(err);
       await API.queuePut(rec);
       return 'queued';
     }
@@ -172,18 +191,16 @@
           order:rec.order, tableToken:rec.tableToken, __timeoutMs:TIMEOUT_MS.write
         });
         var d = res && res.data;
-        if (d === 'Locked, please retry') { rec.attempts=(rec.attempts||0)+1; await API.queuePut(rec); continue; }
+        if (d === 'Locked, please retry') { rec.attempts=(rec.attempts||0)+1; rec.blocked=true; rec.lastError='Locked, please retry'; await API.queuePut(rec); quarantined++; continue; }
         if (d && d !== 'OK') { rec.attempts=(rec.attempts||0)+1; rec.blocked=true; rec.lastError=String((typeof d === 'object' && d.error) ? d.error : d); await API.queuePut(rec); quarantined++; continue; }
         await API.queueDel(rec.id); sent++;
       } catch (err) {
-        if (err && err.__server) {
-          rec.attempts = (rec.attempts || 0) + 1;
-          rec.blocked = true;
-          rec.lastError = String(err.message || err || 'server_error');
-          await API.queuePut(rec); quarantined++;
-          continue;
-        }
-        break;
+        if (API.isOrderOfflineError(err)) break;
+        rec.attempts = (rec.attempts || 0) + 1;
+        rec.blocked = true;
+        rec.lastError = API.orderSubmitErrorCode(err);
+        await API.queuePut(rec); quarantined++;
+        continue;
       }
     }
     var status = await API.pendingStatus();

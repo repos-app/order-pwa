@@ -227,6 +227,10 @@
       ? 'Automatic translation is temporarily unavailable. Please try saving again later, or enter both Japanese and English.'
       : '自動翻訳を一時的に利用できません。時間をおいて再度保存するか、日本語・英語の両方を入力してください。';
     if (code === 'no_printer') return en ? 'No enabled printer is configured. Open Printer Settings, configure or enable a printer, then try again.' : '有効なプリンタが設定されていません。プリンター設定でプリンタを登録・有効化してから、もう一度お試しください。';
+    if (code === 'printer_not_configured') return en ? 'Bluetooth is not configured for this printer on its assigned print-host device. Open Printer Settings on that device and connect the printer.' : 'このプリンタは印刷担当端末でBluetooth設定が完了していません。担当端末のプリンター設定から接続してください。';
+    if (/^(?:printer_assignment_required|printer_assignment_invalid|print_device_required)$/.test(code)) return en ? 'No valid print-host device is assigned to this printer. Assign a print host in Printer Settings and retry.' : 'このプリンタの印刷担当端末が未設定、または割当が無効です。プリンター設定で担当端末を設定してから再試行してください。';
+    if (code === 'printer_connect_failed') return en ? 'The assigned print host could not connect to the saved Bluetooth printer. Check printer power and the saved connection in Printer Settings.' : '印刷担当端末から保存済みBluetoothプリンタへ接続できませんでした。電源とプリンター設定の接続情報を確認してください。';
+    if (code === 'printer_profile_unavailable') return en ? 'The Bluetooth printer was found, but its saved print profile could not be restored. Reconnect it from Printer Settings.' : 'Bluetoothプリンタは見つかりましたが、保存済み印刷設定を復元できませんでした。プリンター設定から再接続してください。';
     if (code === 'bluetooth_permission_denied') return en ? 'Bluetooth permission is not allowed. Enable Bluetooth permission for this app in device settings, then retry.' : 'Bluetoothの権限が許可されていません。端末設定でこのアプリのBluetooth権限を許可してから、再試行してください。';
     if (code === 'bluetooth_unavailable') return en ? 'Bluetooth is unavailable or turned off. Turn Bluetooth on, then retry.' : 'Bluetoothを利用できないか、OFFになっています。BluetoothをONにしてから再試行してください。';
     if (/^(?:device_not_found|no_devices|scan_failed_\d+)$/.test(code)) return en ? 'The saved printer could not be found. Make sure the printer is powered on and nearby, then reconnect it from Printer Settings.' : '保存済みプリンタを見つけられません。プリンタの電源と距離を確認し、プリンター設定から再接続してください。';
@@ -251,6 +255,9 @@
     if (code === 'http_404') return en ? 'The image is no longer available. Choose another image.' : '画像が見つかりません。別の画像を選択してください。';
     if (code === 'http_429') return en ? 'The image provider is temporarily rate-limiting downloads. Try again later.' : '画像配信元の利用上限に達しています。時間をおいて再度お試しください。';
     if (code.indexOf('plan_feature_pro_required') === 0) return en ? 'This feature is available on the Pro plan.' : 'この機能はProプランでご利用いただけます。';
+    if (code === 'request_timeout') return en ? 'The order request timed out. Please check the order status before trying again.' : '注文送信がタイムアウトしました。注文状況を確認してから再試行してください。';
+    if (/^http_5\d\d$/.test(code)) return en ? 'The server could not complete the order request. Please try again after a moment.' : 'サーバー側で注文処理を完了できませんでした。少し時間をおいて再試行してください。';
+    if (code === 'locked, please retry') return en ? 'The order could not be accepted because the server was busy. Please try again.' : 'サーバーが混み合っているため注文を受け付けられませんでした。もう一度お試しください。';
     if (/^(?:http_\d+|api_error|internal_error|save_failed|delete_failed|request_failed|load_failed|server_busy_retry|environment_mismatch|auth_environment_not_configured)$/.test(code)) return generic;
     if (/failed to fetch|networkerror|aborterror|fetch is aborted|\baborted\b|timeout/i.test(raw)) return network;
     if (/d1_error|sqlite|constraint|primary\s*key|foreign\s*key|sql\b|typeerror|referenceerror|syntaxerror|stack|\bat\s+[^\s]+\s*\(/i.test(raw)) return generic;
@@ -550,6 +557,21 @@
   // ---- 注文送信（オフライン耐性つき） ----
   // 返り値: 'sent'（サーバ確定） / 'queued'（オフライン保留）
   // clientId でサーバ側が冪等化するため、再送しても二重登録されない。
+  API.isOrderOfflineError = function (err) {
+    if (!err || err.__server) return false;
+    var name = String(err.name || '');
+    var raw = String(err.message || err || '');
+    var signal = name + ' ' + raw;
+    if (name === 'AbortError' || /(?:timeout|timed out|\baborted\b)/i.test(signal)) return false;
+    if (/^http_\d+$/i.test(raw) || /^(?:environment_mismatch|invalid_server_response|stale_session_response|unauthorized)$/i.test(raw)) return false;
+    return /failed to fetch|networkerror|network request failed|load failed|internet disconnected|network connection was lost|could not connect/i.test(signal);
+  };
+  API.orderSubmitErrorCode = function (err) {
+    var name = String(err && err.name || '');
+    var raw = String(err && err.message || err || '').trim();
+    if (name === 'AbortError' || /(?:timeout|timed out|\baborted\b)/i.test(name + ' ' + raw)) return 'request_timeout';
+    return raw || 'request_failed';
+  };
   API.submitOrder = async function (order, authToken) {
     if (!order.clientId) order.clientId = 'c-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
     var currentQueueStoreId = API.currentStoreId() || '';
@@ -574,14 +596,14 @@
       if (authToken) payload.token = authToken;
       const res = await API.post('submitOrder', payload);
       const d = res && res.data;
-      // [H4] ロック競合による一時的な失敗はサーバー未登録なので再送キューへ（「拒否」扱いにしない）。
-      if (d === 'Locked, please retry') { await API.queuePut({ id: order.clientId, storeId: queueStoreId, sessionId: queueSessionId, userId: queueUserId, order: order, token: authToken || '', ts: Date.now(), attempts: 0 }); return 'queued'; }
+      if (d === 'Locked, please retry') return 'rejected:Locked, please retry';
       if (d && d !== 'OK') {
         var rejectReason = (typeof d === 'object' && d.error) ? d.error : d;
         return 'rejected:' + rejectReason;
       }   // サーバが拒否（例: Invalid table / coupon_unavailable）。キューせず即エラー通知
       return 'sent';
     } catch (err) {
+      if (!API.isOrderOfflineError(err)) return 'rejected:' + API.orderSubmitErrorCode(err);
       await API.queuePut({ id: order.clientId, storeId: queueStoreId, sessionId: queueSessionId, userId: queueUserId, order: order, token: authToken || '', ts: Date.now(), attempts: 0 });
       return 'queued';
     }
@@ -630,6 +652,8 @@
         const d = res && res.data;
         if (d === 'Locked, please retry') {
           rec.attempts = (rec.attempts || 0) + 1;
+          rec.blocked = true;
+          rec.lastError = 'Locked, please retry';
           await API.queuePut(rec);
           continue;
         }
@@ -643,14 +667,12 @@
         await API.queueDel(rec.id);
         sent++;
       } catch (err) {
-        if (err && err.__server) {
-          rec.attempts = (rec.attempts || 0) + 1;
-          rec.blocked = true;
-          rec.lastError = String(err.message || err || 'server_error');
-          await API.queuePut(rec);
-          continue; // 次の保留分へ
-        }
-        break; // ネットワーク不通。次の機会に。
+        if (API.isOrderOfflineError(err)) break; // ネットワーク不通。次の機会に。
+        rec.attempts = (rec.attempts || 0) + 1;
+        rec.blocked = true;
+        rec.lastError = API.orderSubmitErrorCode(err);
+        await API.queuePut(rec);
+        continue; // timeout/5xx/auth/permission等は原因を保持して要確認にする
       }
       }
       const remaining = await API.pendingCount();

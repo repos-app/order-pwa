@@ -135,6 +135,15 @@ function bridgeStoreId(){
     return value;
   }catch(e){ return ''; }
 }
+function bridgePrintHostDeviceId(){
+  var storeId=bridgeStoreId(),prefix=(window.APP_CONFIG&&window.APP_CONFIG.STORAGE_PREFIX)||'',key=prefix+'printHostDeviceId.'+encodeURIComponent(storeId||'unknown'),id='';
+  try{id=localStorage.getItem(key)||'';}catch(e){}
+  if(!/^[A-Za-z0-9][A-Za-z0-9._:-]{15,119}$/.test(id)){
+    try{id='webprint-'+crypto.randomUUID();}catch(e){id='webprint-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);}
+    try{localStorage.setItem(key,id);}catch(e){}
+  }
+  return id;
+}
 function bridgePayload(extra){
   var storeId=bridgeStoreId();
   if(!storeId) throw new Error('bridge_store_required');
@@ -263,12 +272,12 @@ async function tick(){
 }
 
 async function apiPoll(){
-  var j = await API.post('bridgePoll',bridgePayload({ key:getKey(), printerId:selectedLogicalPrinterId(), __silent:true, __noInternalRetry:true }));
+  var j = await API.post('bridgePoll',bridgePayload({ key:getKey(), printerId:selectedLogicalPrinterId(), deviceId:bridgePrintHostDeviceId(), __silent:true, __noInternalRetry:true }));
   if(!j.ok) throw new Error(j.error||'poll_ng');
   return j.jobs||[];
 }
 async function apiAck(id, ok){
-  await API.post('bridgeAck',bridgePayload({ id:id, ok:ok, key:getKey(), printerId:selectedLogicalPrinterId(), __silent:true, __noInternalRetry:true }));
+  await API.post('bridgeAck',bridgePayload({ id:id, ok:ok, key:getKey(), printerId:selectedLogicalPrinterId(), deviceId:bridgePrintHostDeviceId(), __silent:true, __noInternalRetry:true }));
 }
 
 // テキスト → 58mm幅の画像 → ESC/POSラスター送信
