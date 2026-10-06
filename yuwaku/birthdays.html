@@ -30,6 +30,7 @@
     .btn-sm{ background:#0f172a; color:#fff; border:0; border-radius:8px; padding:7px 11px; font-weight:800; cursor:pointer; }
     .code{ font-family:monospace; font-weight:800; color:#15803d; }
   </style>
+  <link rel="stylesheet" href="./date-controls.css?v=3">
 </head>
 <body>
   <div class="head"><h1 data-t="title">🎂 誕生日クーポン</h1><div style="display:flex;gap:8px;"><button class="hbtn" data-tlang onclick="I18n.toggle()">EN</button><a class="hbtn" href="./manage.html" data-t="back">← 管理へ</a></div></div>
@@ -44,9 +45,9 @@
     </div>
   </div></div>
 
-  <script src="./config.js?v=auth2"></script>
+  <script src="./date-display.js?v=auth4" data-iz-date-display></script><script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
   <script src="./confirm.js?v=auth2"></script>
   <script>
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
@@ -59,9 +60,9 @@
       if(!ROWS.length){ document.getElementById('rows').innerHTML='<tr><td colspan="5" class="muted" style="padding:16px;text-align:center;">'+I18n.t('empty')+'</td></tr>'; return; }
       document.getElementById('rows').innerHTML = ROWS.map(function(r){
         var iss = ISSUED[r.phone];
-        var cell = iss ? ('<span class="code">'+esc(iss.code)+'</span> <span class="muted">'+I18n.t('expTil')+' '+esc(iss.expiry||'')+'</span>')
+        var cell = iss ? ('<span class="code">'+esc(iss.code)+'</span> <span class="muted">'+I18n.t('expTil')+' '+esc(window.DateDisplay?DateDisplay.format(iss.expiry||''):(iss.expiry||''))+'</span>')
                        : ('<button class="btn-sm" onclick="issue(\''+esc(r.phone).replace(/'/g,"\\'")+'\')">'+I18n.t('issue')+'</button>');
-        return '<tr><td style="font-weight:800;">'+esc(r.name||'-')+'</td><td class="muted">'+esc(r.phone)+'</td><td>'+esc(r.birthday)+'</td><td class="muted">'+r.visits+'</td><td>'+cell+'</td></tr>';
+        return '<tr><td style="font-weight:800;">'+esc(r.name||'-')+'</td><td class="muted">'+esc(r.phone)+'</td><td>'+esc(window.DateDisplay?DateDisplay.format(r.birthday):r.birthday)+'</td><td class="muted">'+r.visits+'</td><td>'+cell+'</td></tr>';
       }).join('');
     }
     window.issue = function(phone){ rpc('issueBirthdayCoupon',[phone]).then(function(d){ d=d||{}; if(d.ok){ ISSUED[phone]=d; render(); } else { UIAlert(I18n.t('errPrefix')+API.userErrorText(d.error||'error')); } }).catch(function(e){ UIAlert(I18n.t('errPrefix')+API.userErrorText(e)); }); };

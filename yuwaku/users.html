@@ -90,7 +90,7 @@
 
   <script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
   <script src="./confirm.js?v=auth2"></script>
   <script>
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
@@ -114,14 +114,18 @@
       document.getElementById('uList').innerHTML = allUsers.map(function(u){
         return '<div class="u-row"><div style="flex:1;min-width:120px;"><div class="nm">'+esc(u.name)+'</div>'+
           '<div class="lid">'+(u.loginId?esc(u.loginId):'<span class="muted">'+I18n.t('notSet')+'</span>')+'</div></div>'+
-          '<span class="chip">'+esc(u.role)+'</span>'+
+          '<span class="chip">'+esc(I18n.systemText(u.role))+'</span>'+
           '<span class="muted">PW: '+(u.hasPassword?I18n.t('pwSet'):'—')+'</span>'+
           (u.status==='退職'?'<span class="muted">('+I18n.t('stLeft')+')</span>':'')+
           '<button class="btn-sm b-edit" onclick="editUser(\''+u.id+'\')">'+I18n.t('edit')+'</button>'+
           '<button class="btn-sm b-del" onclick="delUser(\''+u.id+'\')">'+I18n.t('del')+'</button></div>';
       }).join('');
     }
+    var EMPLOYEE_REQUEST_ID='', EMPLOYEE_REQUEST_SIG='';
+    function nextEmployeeRequestId(){ try{return crypto.randomUUID();}catch(e){return Date.now()+'-'+Math.random().toString(16).slice(2);} }
+    function resetEmployeeRequest(){ EMPLOYEE_REQUEST_ID=''; EMPLOYEE_REQUEST_SIG=''; }
     window.editUser = function(id){
+      resetEmployeeRequest();
       var u = allUsers.filter(function(x){return x.id===id;})[0]; if(!u) return;
       document.getElementById('uId').value=u.id; document.getElementById('uName').value=u.name;
       document.getElementById('uRole').value=u.role; document.getElementById('uLogin').value=u.loginId||'';
@@ -129,7 +133,7 @@
       document.getElementById('uStatus').value=u.status||'在籍';
       window.scrollTo({top:0,behavior:'smooth'});
     };
-    window.clearForm = function(){ ['uId','uName','uLogin','uWage','uPass'].forEach(function(id){ document.getElementById(id).value=''; }); document.getElementById('uRole').value='一般'; document.getElementById('uStatus').value='在籍'; document.getElementById('uMsg').style.display='none'; };
+    window.clearForm = function(){ resetEmployeeRequest(); ['uId','uName','uLogin','uWage','uPass'].forEach(function(id){ document.getElementById(id).value=''; }); document.getElementById('uRole').value='一般'; document.getElementById('uStatus').value='在籍'; document.getElementById('uMsg').style.display='none'; };
     window.saveUser = function(){
       var name = document.getElementById('uName').value.trim();
       if (!name){ msg('uMsg',I18n.t('needName'), false); document.getElementById('uName').focus(); return; }
@@ -138,17 +142,23 @@
         password:document.getElementById('uPass').value, status:document.getElementById('uStatus').value };
       if(!emp.id && emp.loginId && !emp.password){ msg('uMsg',I18n.t('needPassword'), false); document.getElementById('uPass').focus(); return; }
       if(emp.password && emp.password.length<8){ msg('uMsg',I18n.t('pwShort'), false); document.getElementById('uPass').focus(); return; }
+      if(!emp.id){ var sig=JSON.stringify(emp); if(!EMPLOYEE_REQUEST_ID||EMPLOYEE_REQUEST_SIG!==sig){ EMPLOYEE_REQUEST_SIG=sig; EMPLOYEE_REQUEST_ID=nextEmployeeRequestId(); } emp.clientRequestId=EMPLOYEE_REQUEST_ID; }
       var btn=document.getElementById('saveU'); btn.disabled=true;
       rpc('saveEmployee',[emp]).then(function(r){
         btn.disabled=false;
-        if (r && r.success){ msg('uMsg',I18n.t('saved'), true); clearForm(); return rpc('getAllEmployees',[]).then(function(l){ allUsers=l||[]; renderUsers(); }); }
+        if (r && r.success){
+          clearForm(); msg('uMsg',I18n.t('saved'), true);
+          rpc('getAllEmployees',[]).then(function(l){ allUsers=l||[]; renderUsers(); })
+            .catch(function(e){ document.getElementById('uList').innerHTML='<div style="color:#b91c1c;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</div>'; });
+          return;
+        }
         else { var er=r&&r.error; msg('uMsg', er==='duplicate_login_id'?I18n.t('dupLogin'):((er==='password_too_short'||er==='password_required')?I18n.t('pwShort'):(er==='forbidden'?I18n.t('forbidden'):(er==='invalid_role'?I18n.t('invalidRole'):I18n.t('errG')))), false); }
       }).catch(function(e){ btn.disabled=false; msg('uMsg',I18n.t('errPrefix')+API.userErrorText(e), false); });
     };
     window.delUser = function(id){
       UIConfirm(I18n.t('delConfirm')).then(function(ok){
         if (!ok) return;
-        rpc('deleteEmployee',[id]).then(function(){ return rpc('getAllEmployees',[]); }).then(function(l){ allUsers=l||[]; renderUsers(); })
+        rpc('deleteEmployee',[id]).then(function(r){ if(!r||r.success!==true) throw new Error((r&&r.error)||'delete_failed'); allUsers=allUsers.filter(function(u){return u.id!==id;}); renderUsers(); })
           .catch(function(e){ msg('uMsg',I18n.t('errPrefix')+API.userErrorText(e), false); });
       });
     };
@@ -164,7 +174,7 @@
       var nCol = roles.length + 1;
       // ヘッダ: メニュー + 各ロール
       var html = '<thead><tr><th style="text-align:left;">'+I18n.t('colMenu')+'</th>';
-      roles.forEach(function(r){ html += '<th>'+esc(r)+'</th>'; });
+      roles.forEach(function(r){ html += '<th>'+esc(I18n.systemText(r))+'</th>'; });
       html += '</tr></thead><tbody>';
       // タブ（グループ）ごとにセクション
       var order = (pmData.groupOrder||[]).length ? pmData.groupOrder : [null];

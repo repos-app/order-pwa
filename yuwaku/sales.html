@@ -60,6 +60,7 @@
     .hint{ color:var(--text-3); font-size:13px; }
     .row-click{ cursor:pointer; }
   </style>
+  <link rel="stylesheet" href="./date-controls.css?v=3">
 </head>
 <body>
   <div class="head"><h1 data-t="title">📊 売上管理</h1><div style="display:flex;gap:8px;"><button class="hbtn" data-tlang onclick="I18n.toggle()">EN</button><a class="hbtn" href="./manage.html" data-t="back">← 管理へ</a></div></div>
@@ -96,9 +97,9 @@
     </div>
   </div>
 
-  <script src="./config.js?v=auth2"></script>
+  <script src="./date-display.js?v=auth4" data-iz-date-display></script><script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
   <script>
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
     if (!TOKEN) location.href = './manage.html';
@@ -243,7 +244,7 @@
       document.getElementById('noData').innerText='';
       _startHeavyLoadsOnce();
       if (!data || !data.daily || !data.daily.length){ document.getElementById('noData').style.display='block'; document.getElementById('noData').innerText=I18n.t('noSales'); document.getElementById('monthly').innerHTML='<div class="hint">'+I18n.t('noData')+'</div>'; return; }
-      var labels = data.daily.map(function(r){ return r.date; });
+      var labels = data.daily.map(function(r){ return window.DateDisplay?DateDisplay.format(r.date):r.date; });
       var totals = data.daily.map(function(r){ return r.total; });
       if (dailyChart) dailyChart.destroy();
       dailyChart = new Chart(document.getElementById('dailyChart').getContext('2d'), {
@@ -259,7 +260,7 @@
         } }
       });
       var mh = '<table><thead><tr><th>'+I18n.t('colMonth')+'</th><th style="text-align:right;">'+I18n.t('colTotal')+'</th></tr></thead><tbody>';
-      data.monthly.forEach(function(r){ mh += '<tr><td>'+esc(r.month)+'</td><td style="text-align:right;"><strong>'+money(r.total)+'</strong></td></tr>'; });
+      data.monthly.forEach(function(r){ mh += '<tr><td>'+esc(window.DateDisplay?DateDisplay.formatMonth(r.month):r.month)+'</td><td style="text-align:right;"><strong>'+money(r.total)+'</strong></td></tr>'; });
       mh += '</tbody></table>';
       document.getElementById('monthly').innerHTML = mh;
     }

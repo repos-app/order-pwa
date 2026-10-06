@@ -83,13 +83,14 @@
 
   <script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
   <script>
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
     var NAME = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtName') || '';
     var ROLE = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtRole') || '';
     var lastAllowed = {};
     var authAttempt = 0;
+    var authCheckSeq = 0;
 
     // key: 権限キー（null=公開・常時表示）, active: 移設済みか
     var GROUPS = [
@@ -128,7 +129,6 @@
       { grp:'customer', key:'coupons', ic:'🎟️', tt:'クーポン', ds:'割引・バウチャー', ttEn:'Coupons', dsEn:'Discounts · vouchers', url:'./coupons.html', active:true },
       { grp:'customer', key:'reservations', ic:'🗓️', tt:'予約管理', ds:'受付・確定・来店', ttEn:'Reservations', dsEn:'Requests · status', url:'./reservations.html', active:true },
       { grp:'system', key:'printers', ic:'🖨️', tt:'プリンタ・出力設定', ds:'厨房印刷の設定と履歴', ttEn:'Printer & output settings', dsEn:'Kitchen printing setup and history', url:'./printers.html', active:true },
-      { grp:'system', key:null, ic:'📡', tt:'印刷待受（Bluetooth）', ds:'端末をプリンタへ接続して待機', ttEn:'Bluetooth print standby', dsEn:'Connect this device and wait for jobs', url:'./bridge.html', active:true, newTab:true },
       { grp:'system', key:'audit', ic:'🧾', tt:'監査ログ', ds:'注文取消・承認履歴', ttEn:'Audit log', dsEn:'Voids · approvals', url:'./audit.html', active:true },
       // バックアップとデータ管理を1画面へ統合。ZIP/CSV書き出しはbackup権限で利用でき、
       // 削除・全置換・復元は統合画面内とAPI側の両方でシステムロールだけに限定する。
@@ -151,9 +151,10 @@
     function renderHub(){
       var allowed = lastAllowed || {};
       var en = (window.I18n && I18n.lang()==='en');
+      var isSystem = ROLE==='システム' || ROLE==='system';
       // 権限のあるタイルを持つタブだけ表示
       var visGroups = GROUPS.filter(function(g){
-        return TILES.some(function(x){ return x.grp===g.id && (!x.sysOnly || ROLE==='システム') && (!x.key || allowed[x.key]); });
+        return TILES.some(function(x){ return x.grp===g.id && (!x.sysOnly || isSystem) && (!x.key || allowed[x.key]); });
       });
       if (!visGroups.length){ document.getElementById('mtabs').innerHTML=''; document.getElementById('tiles').innerHTML=''; return; }
       if (!curTab || !visGroups.some(function(g){ return g.id===curTab; })) curTab = visGroups[0].id;
@@ -165,7 +166,7 @@
       var html = '';
       TILES.forEach(function(x){
         if (x.grp!==curTab) return;
-        if (x.sysOnly && ROLE!=='システム') return;
+        if (x.sysOnly && !isSystem) return;
         if (x.key && !allowed[x.key]) return;
         var tt = (en && x.ttEn) ? x.ttEn : x.tt, ds = (en && x.dsEn) ? x.dsEn : x.ds;
         if (x.active){ html += '<a class="tile" href="'+x.url+'"><span class="ic">'+x.ic+'</span><span class="tt">'+tt+'</span><span class="ds">'+ds+'</span></a>'; }
@@ -226,6 +227,7 @@
       API.post('changePasswordByLogin',{loginId:id, oldPass:o, newPass:n}).then(function(r){
         b.disabled=false;
         if(r && r.data && r.data.success){ msg(I18n.t('m_ok'),true); g('cpOldPass').value=''; g('cpNewPass').value=''; g('cpNewPass2').value=''; }
+        else if(r&&r.data&&r.data.error==='password_change_rate_limited'){ msg(I18n.lang()==='en'?'Too many password-change attempts. Please wait and try again.':'パスワード変更の試行回数が上限に達しました。しばらく待ってから再試行してください。',false); }
         else { msg((r&&r.data&&r.data.error==='too_short')?I18n.t('m_short'):I18n.t('m_wrong'),false); }
       }).catch(function(e){ b.disabled=false; msg(I18n.t('m_err')+API.userErrorText(e),false); });
     };
@@ -233,9 +235,10 @@
     function checkAndShow(){
       if (!TOKEN){ showLogin(); return; }
       var attempt = authAttempt;
+      var checkSeq = ++authCheckSeq;
       var checkedToken = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || TOKEN;
-      API.post('checkToken', { token: checkedToken }).then(function(r){
-        if (attempt !== authAttempt || !API.isCurrentToken ||
+      API.post('checkToken', { token: checkedToken, __timeoutMs:6000, __noInternalRetry:true, __silent:true }).then(function(r){
+        if (attempt !== authAttempt || checkSeq !== authCheckSeq || !API.isCurrentToken ||
             (!API.isCurrentToken(checkedToken) && !API.isCurrentToken(r.newToken))) return;
         if (r.valid && r.me){
           // 2026-08-27追記: ROLEをここでもサーバー応答から更新する（ログイン後にロールが
@@ -247,8 +250,15 @@
         }
         else { logout(); }
       }).catch(function(){
-        if (attempt === authAttempt && (!localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') ||
-            (API.isCurrentToken && API.isCurrentToken(checkedToken)))) showLogin();
+        if (attempt !== authAttempt || checkSeq !== authCheckSeq) return;
+        var current = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
+        if (!current) { showLogin(); return; }
+        var p=document.querySelector('#loadingView p');
+        if(p){
+          p.textContent=I18n.lang()==='en'?'Could not connect. Tap to retry.':'接続できません。タップして再試行';
+          p.style.cursor='pointer';
+          p.onclick=function(){ p.textContent=I18n.t('loading'); p.style.cursor=''; p.onclick=null; checkAndShow(); };
+        }
       });
     }
     // ログイン画面の画像（設定で登録した画像を表示。getSettingsはログイン前でも公開）
@@ -258,6 +268,13 @@
       en: { title:'Management', logout:'Logout', loading:'Loading…', login:'Login', loginSub:'Enter your login ID and password', loginErr:'Incorrect ID or password', emailUnverified:'Your email address is not verified. Open the link in the verification email, then log in.', loginRateLimited:'Too many failed attempts. Please wait and try again.', authUnavailable:'Authentication service is unavailable. Please wait and try again.', needLogin:'Please enter your login ID and password', ph_loginId:'Login ID', ph_pass:'Password', loginBtn:'🔓 Login', chgPwLink:'🔑 Change password', chgTitle:'Change password', chgSub:'Change it with your login ID and current password', ph_cpOld:'Current password', ph_cpNew:'New password (8+ chars)', ph_cpNew2:'New password (confirm)', cpBtn:'🔑 Change', backToLogin:'← Back to login', m_needId:'Please enter your login ID', m_needOld:'Please enter your current password', m_short:'New password must be 8+ characters', m_mismatch:'New passwords do not match', m_ok:'✅ Changed. Please log in with your new password', m_wrong:'Login ID or current password is incorrect', m_err:'Error: ' }
     }, function(){ if(!document.getElementById('hubView').classList.contains('hidden')) showHub(lastAllowed); });
     document.addEventListener('DOMContentLoaded', checkAndShow);
+    window.addEventListener('pageshow', function(e){
+      if(e.persisted && !document.getElementById('loadingView').classList.contains('hidden')) checkAndShow();
+    });
+    document.addEventListener('visibilitychange', function(){
+      if(document.visibilityState && document.visibilityState!=='visible') return;
+      if(!document.getElementById('loadingView').classList.contains('hidden')) checkAndShow();
+    });
   </script>
   <script src="./help.js?v=auth2"></script>
   <script>

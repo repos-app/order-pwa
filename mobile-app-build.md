@@ -71,15 +71,9 @@ Before the first App Store upload, review every native dependency and decide the
 
 ## Public self-service onboarding
 
-Workspace-aware login is enabled in the app. New-store registration is available when the server and frontend release gates are intentionally enabled:
+Workspace-aware login is enabled in the app. New-store registration is Production-only and goes through the physical Tenant Provisioner. The public Router must keep `PHYSICAL_TENANT_SIGNUP_REQUIRED=1` and the `PROVISIONER` Service Binding; retired `SELF_SIGNUP_ENABLED` / `SIGNUP_ACCESS_CODE` Worker secrets must not be recreated.
 
-1. Set the Worker variable `SELF_SIGNUP_ENABLED` to `true` for the intended environment.
-2. Store a different `SIGNUP_RATE_LIMIT_SALT` secret in production and test. If omitted, the environment-specific `AUTH_SECRET` is used as the fallback salt.
-3. Optionally set `SIGNUP_RATE_LIMIT_MAX_ATTEMPTS` and `SIGNUP_RATE_LIMIT_WINDOW_SECONDS`; the safe defaults are 10 attempts per 15 minutes.
-4. Apply migration `0013_signup_rate_limits.sql` to that environment.
-5. Set `SELF_SIGNUP_AVAILABLE` to `true` only in that environment's frontend `config.js`, then rebuild the app.
-
-Before deploying the short-lived session-token build, apply `migrations/0020_auth_sessions.sql` to the matching production or test D1 database. Deploying the Worker before this migration would make new logins fail because the server cannot create refresh sessions.
+The Provisioner applies the complete tenant migration bundle, including auth-session and signup-rate-limit schema, to each newly created dedicated tenant D1 before activation. There is no shared remote TEST D1/Worker environment.
 
 New workspaces receive a system-owner account, five tables, safe zero-tax/zero-service defaults, and the Free plan. Invitation codes are not required. Email ownership verification is mandatory before login. Registration attempts are limited by a salted hash of Cloudflare's connection IP header; raw IP addresses are not stored, and stale aggregate rows are removed. Consider adding stronger bot protection such as Turnstile as public signup volume grows.
 
@@ -87,7 +81,7 @@ New workspaces receive a system-owner account, five tables, safe zero-tax/zero-s
 
 - [x] JavaScript and local regression tests pass for the current source.
 - [x] Native assets synchronize to both platform projects and the Android debug APK contains the current attendance assets.
-- [x] Production/test tenant and authentication separation tests pass.
+- [x] Production physical-tenant isolation and authentication regression tests pass.
 - [x] Native tokens use iOS Keychain / Android Keystore, with fail-closed behavior when the plugin is unavailable.
 - [x] Access tokens expire after 15 minutes; refresh tokens are separately stored, hash-only in D1, rotated on use, and revocable on logout or password change.
 - [x] Invite-only signup and owner-verified account deletion requests are implemented.

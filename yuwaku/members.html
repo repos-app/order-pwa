@@ -37,9 +37,9 @@
     </div>
   </div></div>
 
-  <script src="./config.js?v=auth2"></script>
+  <script src="./date-display.js?v=auth4" data-iz-date-display></script><script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
   <script>
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
     if (!TOKEN) location.href = './manage.html';
@@ -56,7 +56,7 @@
           '<td class="num pts">'+(Number(m.points)||0)+'</td>'+
           '<td class="num">'+(Number(m.visits)||0)+'</td>'+
           '<td class="num">'+(Number(m.totalSpent)||0).toLocaleString()+'</td>'+
-          '<td>'+esc(m.lastVisit||'')+'</td></tr>';
+          '<td>'+esc(window.DateDisplay?DateDisplay.formatDateTime(m.lastVisit||''):(m.lastVisit||''))+'</td></tr>';
       }).join('');
     };
 

@@ -37,7 +37,7 @@
     <div style="display:flex;gap:6px;flex:none"><button data-tlang onclick="I18n.toggle()">EN</button><a href="./manage.html" data-t="back">← 管理へ</a></div>
   </div>
   <main class="wrap">
-    <section class="hero">
+    <section class="hero" id="guide-overview-start" data-guide-anchor>
       <span class="badge required" data-t="minimumBadge">必須・まずはここから</span>
       <h2 data-t="minimumTitle">店員の端末1台だけで営業を始められます</h2>
       <p data-t="minimumLead">QR注文・厨房端末・プリンタは後から追加できます。最初から全部そろえる必要はありません。</p>
@@ -46,32 +46,32 @@
         <div class="step"><span class="num">2</span><span data-t="minimum2">店員が「オーダー入力」で注文を登録する</span></div>
         <div class="step"><span class="num">3</span><span data-t="minimum3">注文管理で状況を確認し、会計する</span></div>
       </div>
-      <div class="actions"><a class="primary" href="./menu_editor.html?from=overview#guide-menu-form" data-t="menuLink">メニューを設定</a><a href="./index.html?from=overview#guide-order-start" data-t="orderLink">オーダー入力を開く</a></div>
+      <div class="actions"><a class="primary" href="./menu_editor.html?from=overview&return=guide-overview-start#guide-menu-form" data-t="menuLink">メニューを設定</a><a href="./index.html?from=overview&return=guide-overview-start#guide-order-start" data-t="orderLink">オーダー入力を開く</a></div>
     </section>
 
     <div class="options-title" data-t="optionsTitle">必要になったら追加する3つのオプション</div>
     <p class="options-sub" data-t="optionsLead">店舗の運用に合わせて追加してください。使わない機能は設定不要です。</p>
     <div class="option-grid">
-      <section class="card option-card">
+      <section class="card option-card" id="guide-overview-qr" data-guide-anchor>
         <span class="badge optional" data-t="optionalBadge">オプション</span>
         <h3 data-t="qrTitle">📱 お客様がQRで注文</h3>
         <p data-t="qrLead">各席のQRを読み取り、お客様自身で注文してもらう運用です。</p>
         <ul class="prep"><li data-t="qrPrep1">席数・席名を設定</li><li data-t="qrPrep2">メニューを登録</li><li data-t="qrPrep3">設定画面から席QRを表示・印刷</li></ul>
-        <div class="actions"><a href="./settings.html?from=overview#guide-seat-qr" data-t="qrLink">QR注文を準備</a></div>
+        <div class="actions"><a href="./settings.html?from=overview&return=guide-overview-qr#guide-seat-qr" data-t="qrLink">QR注文を準備</a></div>
       </section>
-      <section class="card option-card">
+      <section class="card option-card" id="guide-overview-kitchen" data-guide-anchor>
         <span class="badge optional" data-t="optionalBadge">オプション</span>
         <h3 data-t="kitchenTitle">🍳 厨房に端末を置く</h3>
         <p data-t="kitchenLead">厨房端末で未提供注文を確認し、調理後に「提供済」へ更新できます。</p>
         <ul class="prep"><li data-t="kitchenPrep1">厨房表示する商品を確認</li><li data-t="kitchenPrep2">厨房端末でログイン</li><li data-t="kitchenPrep3">キッチン画面を開いたまま運用</li></ul>
-        <div class="actions"><a href="./menu_editor.html?from=overview#guide-kitchen-setting" data-t="kitchenMenuLink">厨房表示を設定</a><a href="./kds.html?from=overview#guide-kds-orders" data-t="kitchenLink">キッチン画面</a></div>
+        <div class="actions"><a href="./menu_editor.html?from=overview&return=guide-overview-kitchen#guide-kitchen-setting" data-t="kitchenMenuLink">厨房表示を設定</a><a href="./kds.html?from=overview&return=guide-overview-kitchen#guide-kds-orders" data-t="kitchenLink">キッチン画面</a></div>
       </section>
-      <section class="card option-card">
+      <section class="card option-card" id="guide-overview-printer" data-guide-anchor>
         <span class="badge optional" data-t="optionalBadge">オプション</span>
-        <h3 data-t="printerTitle">🖨️ プリンタを導入</h3>
-        <p data-t="printerLead">注文票やレシートを自動印刷したい店舗向けです。</p>
-        <ul class="prep"><li data-t="printerPrep1">プリンタ方式を確認</li><li data-t="printerPrep2">プリンタ設定とテスト印刷</li><li data-t="printerPrep3">Bluetoothの場合は印刷待受端末を用意</li></ul>
-        <div class="actions"><a href="./printers.html?from=overview#guide-printer-setup" data-t="printerLink">プリンタを設定</a><a href="./bridge.html?from=overview#guide-bridge-connect" target="_blank" rel="noopener" data-t="bridgeLink">Bluetooth印刷待受</a></div>
+        <h3 data-t="printerTitle">🖨️ Bluetoothプリンタを使う</h3>
+        <p data-t="printerLead">Bluetoothプリンタで注文票やレシートを印刷できます。動作確認済みプリンタ: PT-210</p>
+        <ul class="prep"><li data-t="printerPrep1">プリンタの電源・Bluetoothを確認</li><li data-t="printerPrep2">Bluetoothプリンタへ接続してテスト印刷</li><li data-t="printerPrep3">必要なら厨房用の出力先カテゴリを設定</li></ul>
+        <div class="actions"><a href="./printers.html?from=overview&return=guide-overview-printer#guide-printer-setup" data-t="printerLink">Bluetoothプリンタを設定</a></div>
       </section>
     </div>
 
@@ -86,12 +86,12 @@
     <div class="hint" data-t="hint">このページはスマホ幅のまま縦に読めます。ピンチ操作や横スクロールは不要です。</div>
   </main>
 
-  <script src="./config.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./config.js?v=auth2"></script><script src="./api.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
   <script>
     I18n.init({
-      ja:{title:'📖 全体利用ガイド',back:'← 管理へ',minimumBadge:'必須・まずはここから',minimumTitle:'店員の端末1台だけで営業を始められます',minimumLead:'QR注文・厨房端末・プリンタは後から追加できます。最初から全部そろえる必要はありません。',minimum1:'店舗基本設定とメニューを登録する',minimum2:'店員が「オーダー入力」で注文を登録する',minimum3:'注文管理で状況を確認し、会計する',menuLink:'メニューを設定',orderLink:'オーダー入力を開く',optionsTitle:'必要になったら追加する3つのオプション',optionsLead:'店舗の運用に合わせて追加してください。使わない機能は設定不要です。',optionalBadge:'オプション',qrTitle:'📱 お客様がQRで注文',qrLead:'各席のQRを読み取り、お客様自身で注文してもらう運用です。',qrPrep1:'席数・席名を設定',qrPrep2:'メニューを登録',qrPrep3:'設定画面から席QRを表示・印刷',qrLink:'QR注文を準備',kitchenTitle:'🍳 厨房に端末を置く',kitchenLead:'厨房端末で未提供注文を確認し、調理後に「提供済」へ更新できます。',kitchenPrep1:'厨房表示する商品を確認',kitchenPrep2:'厨房端末でログイン',kitchenPrep3:'キッチン画面を開いたまま運用',kitchenMenuLink:'厨房表示を設定',kitchenLink:'キッチン画面',printerTitle:'🖨️ プリンタを導入',printerLead:'注文票やレシートを自動印刷したい店舗向けです。',printerPrep1:'プリンタ方式を確認',printerPrep2:'プリンタ設定とテスト印刷',printerPrep3:'Bluetoothの場合は印刷待受端末を用意',printerLink:'プリンタを設定',bridgeLink:'Bluetooth印刷待受',dailyTitle:'営業の基本的な流れ',openTitle:'🏁 開店前',openText:'メニュー、価格、税・サービス料、スタッフ、必要なオプション機器を確認します。',serviceTitle:'🧾 営業中',serviceText:'店員入力またはQR注文 → 必要なら厨房連携 → 提供 → 会計の順に進めます。',closeTitle:'📊 閉店後',closeText:'売上・会計履歴、在庫、勤怠など必要な項目を確認します。',troubleTitle:'🆘 困ったとき',troubleText:'画面を開き直し、注文・会計履歴や権限を確認してください。解決しない場合はサポートから連絡できます。',responsibility:'取消・返金・割引・税率・勤怠・給与概算など重要な操作や数値は、店舗のルールに沿って最終確認してください。',hint:'このページはスマホ幅のまま縦に読めます。ピンチ操作や横スクロールは不要です。'},
-      en:{title:'📖 Store Operations Guide',back:'← Manage',minimumBadge:'Required · Start here',minimumTitle:'You can start with one staff device',minimumLead:'Customer QR ordering, a kitchen device, and printers are optional. Add them later when your store needs them.',minimum1:'Set basic store settings and add your menu',minimum2:'Staff enter orders from New Order',minimum3:'Track orders and complete checkout',menuLink:'Set up menu',orderLink:'Open New Order',optionsTitle:'3 optional setups to add when needed',optionsLead:'Add only what fits your operation. No setup is required for features you do not use.',optionalBadge:'Optional',qrTitle:'📱 Customer QR ordering',qrLead:'Guests scan a location QR and place their own orders.',qrPrep1:'Set locations and labels',qrPrep2:'Add your menu',qrPrep3:'Open and print location QR codes from Settings',qrLink:'Set up QR ordering',kitchenTitle:'🍳 Put a device in the kitchen',kitchenLead:'The kitchen can view pending orders and mark them Served after preparation.',kitchenPrep1:'Choose which items appear in Kitchen',kitchenPrep2:'Sign in on the kitchen device',kitchenPrep3:'Keep the Kitchen screen open during service',kitchenMenuLink:'Set kitchen display',kitchenLink:'Open Kitchen',printerTitle:'🖨️ Add a printer',printerLead:'For stores that want automatic order-ticket or receipt printing.',printerPrep1:'Choose the printer connection type',printerPrep2:'Configure and test print',printerPrep3:'For Bluetooth, prepare a print-standby device',printerLink:'Set up printer',bridgeLink:'Bluetooth print standby',dailyTitle:'Basic daily flow',openTitle:'🏁 Before opening',openText:'Check menu, prices, tax/service charge, staff, and any optional equipment you use.',serviceTitle:'🧾 During service',serviceText:'Staff entry or QR order → optional kitchen flow → serve → checkout.',closeTitle:'📊 After closing',closeText:'Review sales, receipts, stock, attendance, and other items your store uses.',troubleTitle:'🆘 If something goes wrong',troubleText:'Reopen the screen, then check order/receipt history and permissions. Contact Support if the issue remains.',responsibility:'Your store should make the final check for important operations and values such as voids, refunds, discounts, tax rates, attendance and payroll estimates.',hint:'This page is designed to read vertically on a phone. No pinch zoom or horizontal scrolling is needed.'}
+      ja:{title:'📖 全体利用ガイド',back:'← 管理へ',minimumBadge:'必須・まずはここから',minimumTitle:'店員の端末1台だけで営業を始められます',minimumLead:'QR注文・厨房端末・プリンタは後から追加できます。最初から全部そろえる必要はありません。',minimum1:'店舗基本設定とメニューを登録する',minimum2:'店員が「オーダー入力」で注文を登録する',minimum3:'注文管理で状況を確認し、会計する',menuLink:'メニューを設定',orderLink:'オーダー入力を開く',optionsTitle:'必要になったら追加する3つのオプション',optionsLead:'店舗の運用に合わせて追加してください。使わない機能は設定不要です。',optionalBadge:'オプション',qrTitle:'📱 お客様がQRで注文',qrLead:'各席のQRを読み取り、お客様自身で注文してもらう運用です。',qrPrep1:'席数・席名を設定',qrPrep2:'メニューを登録',qrPrep3:'設定画面から席QRを表示・印刷',qrLink:'QR注文を準備',kitchenTitle:'🍳 厨房に端末を置く',kitchenLead:'厨房端末で未提供注文を確認し、調理後に「提供済」へ更新できます。',kitchenPrep1:'厨房表示する商品を確認',kitchenPrep2:'厨房端末でログイン',kitchenPrep3:'キッチン画面を開いたまま運用',kitchenMenuLink:'厨房表示を設定',kitchenLink:'キッチン画面',printerTitle:'🖨️ Bluetoothプリンタを使う',printerLead:'Bluetoothプリンタで注文票やレシートを印刷できます。動作確認済みプリンタ: PT-210',printerPrep1:'プリンタの電源・Bluetoothを確認',printerPrep2:'Bluetoothプリンタへ接続してテスト印刷',printerPrep3:'必要なら厨房用の出力先カテゴリを設定',printerLink:'Bluetoothプリンタを設定',dailyTitle:'営業の基本的な流れ',openTitle:'🏁 開店前',openText:'メニュー、価格、税・サービス料、スタッフ、必要なオプション機器を確認します。',serviceTitle:'🧾 営業中',serviceText:'店員入力またはQR注文 → 必要なら厨房連携 → 提供 → 会計の順に進めます。',closeTitle:'📊 閉店後',closeText:'売上・会計履歴、在庫、勤怠など必要な項目を確認します。',troubleTitle:'🆘 困ったとき',troubleText:'画面を開き直し、注文・会計履歴や権限を確認してください。解決しない場合はサポートから連絡できます。',responsibility:'取消・返金・割引・税率・勤怠・給与概算など重要な操作や数値は、店舗のルールに沿って最終確認してください。',hint:'このページはスマホ幅のまま縦に読めます。ピンチ操作や横スクロールは不要です。'},
+      en:{title:'📖 Store Operations Guide',back:'← Manage',minimumBadge:'Required · Start here',minimumTitle:'You can start with one staff device',minimumLead:'Customer QR ordering, a kitchen device, and printers are optional. Add them later when your store needs them.',minimum1:'Set basic store settings and add your menu',minimum2:'Staff enter orders from New Order',minimum3:'Track orders and complete checkout',menuLink:'Set up menu',orderLink:'Open New Order',optionsTitle:'3 optional setups to add when needed',optionsLead:'Add only what fits your operation. No setup is required for features you do not use.',optionalBadge:'Optional',qrTitle:'📱 Customer QR ordering',qrLead:'Guests scan a location QR and place their own orders.',qrPrep1:'Set locations and labels',qrPrep2:'Add your menu',qrPrep3:'Open and print location QR codes from Settings',qrLink:'Set up QR ordering',kitchenTitle:'🍳 Put a device in the kitchen',kitchenLead:'The kitchen can view pending orders and mark them Served after preparation.',kitchenPrep1:'Choose which items appear in Kitchen',kitchenPrep2:'Sign in on the kitchen device',kitchenPrep3:'Keep the Kitchen screen open during service',kitchenMenuLink:'Set kitchen display',kitchenLink:'Open Kitchen',printerTitle:'🖨️ Use a Bluetooth printer',printerLead:'Print order tickets and receipts over Bluetooth. Verified printer: PT-210.',printerPrep1:'Check printer power and Bluetooth',printerPrep2:'Connect the Bluetooth printer and run a test print',printerPrep3:'Optionally assign kitchen output categories',printerLink:'Set up Bluetooth printer',dailyTitle:'Basic daily flow',openTitle:'🏁 Before opening',openText:'Check menu, prices, tax/service charge, staff, and any optional equipment you use.',serviceTitle:'🧾 During service',serviceText:'Staff entry or QR order → optional kitchen flow → serve → checkout.',closeTitle:'📊 After closing',closeText:'Review sales, receipts, stock, attendance, and other items your store uses.',troubleTitle:'🆘 If something goes wrong',troubleText:'Reopen the screen, then check order/receipt history and permissions. Contact Support if the issue remains.',responsibility:'Your store should make the final check for important operations and values such as voids, refunds, discounts, tax rates, attendance and payroll estimates.',hint:'This page is designed to read vertically on a phone. No pinch zoom or horizontal scrolling is needed.'}
     });
   </script>
   <script src="./help.js?v=auth2"></script>

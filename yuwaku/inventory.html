@@ -16,7 +16,7 @@
     body{ margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans JP',sans-serif; background:var(--bg); color:var(--navy); }
     .head{ position:sticky; top:0; z-index:20; background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:space-between; padding:12px 16px; }
     .head h1{ font-size:18px; margin:0; font-weight:900; }
-    .hbtn{ background:rgba(255,255,255,.14); color:#fff; border:0; border-radius:9px; padding:8px 12px; font-size:13px; font-weight:800; cursor:pointer; text-decoration:none; }
+    .hbtn{ background:rgba(255,255,255,.14); color:#fff; border:0; border-radius:9px; padding:8px 12px; font-size:13px; font-weight:800; cursor:pointer; text-decoration:none; white-space:nowrap; }
     .wrap{ padding:16px; max-width:900px; margin:0 auto; }
     .card{ background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; }
     .hint{ color:var(--text-3); font-size:13px; line-height:1.7; margin-bottom:12px; }
@@ -33,7 +33,7 @@
   </style>
 </head>
 <body>
-  <div class="head"><h1 data-t="title">📦 在庫管理</h1><div style="display:flex;gap:8px;"><button class="hbtn" data-tlang onclick="I18n.toggle()">EN</button><a class="hbtn" href="./moves.html" data-t="movesLink">📋 変動履歴</a><a class="hbtn" href="./manage.html" data-t="back">← 管理へ</a></div></div>
+  <div class="head"><h1 data-t="title">📦 在庫管理</h1><div style="display:flex;gap:8px;"><button class="hbtn" data-tlang onclick="I18n.toggle()">EN</button><a class="hbtn" href="./moves.html" data-t="movesLink">📋 履歴</a><a class="hbtn" href="./manage.html" data-t="back">← 管理へ</a></div></div>
   <div class="wrap"><div class="card">
     <div class="hint" data-t="hint">ドリンク・食材・備品などをまとめて数量管理できます。最小在庫を下回ると赤く表示され、日報・レポートに低在庫として通知。レシピ（材料名一致）で注文時に自動減算されます。</div>
     <div class="hint" data-t="scrollHint" style="margin:-6px 0 8px;font-size:11px;">👉 表は横にスクロールできます</div>
@@ -107,6 +107,7 @@
       </div>
       <input type="file" id="aiInput" accept="image/*" capture="environment" style="display:none;" onchange="onAiPhotoSelected(event)">
       <button class="btn btn-pri" id="aiAnalyzeBtn" style="display:none;" onclick="analyzeAiPhoto()" data-t="aiAnalyzeBtn">🤖 AI分析開始</button>
+      <div class="hint" style="margin-top:8px;" data-t="aiManualHint">AIを利用できない場合も、閉じて在庫表を手動で入力・保存できます。</div>
       <div id="aiResultWrap" style="display:none;margin-top:12px;">
         <div style="font-size:12px;font-weight:800;color:var(--text-3);margin-bottom:2px;" data-t="aiResultTitle">AI検出結果 — 商品名・数量は自由に編集できます</div>
         <div style="font-size:11px;color:var(--text-3);margin-bottom:8px;" data-t="aiResultHint">商品名は直接書き換えできます。下のプルダウンから既存の在庫を選ぶと自動で入力されます。✕で1件だけ除外できます。</div>
@@ -132,7 +133,7 @@
 
   <script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
   <script>
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
     if (!TOKEN) location.href = './manage.html';
@@ -195,16 +196,23 @@
       var clean = window.rows.filter(function(r){ return ((r.nameJa||'')+(r.nameEn||'')+(r.name||'')).trim(); })
         .map(function(r){ var x=Object.assign({},r); var ja=(x.nameJa!==undefined?x.nameJa:x.name||'').trim(), en=(x.nameEn||'').trim(); var cja=(x.categoryJa!==undefined?x.categoryJa:x.category||'').trim(), cen=(x.categoryEn||'').trim(); x.nameJa=ja; x.nameEn=en; x.name=ja||en; x.categoryJa=cja; x.categoryEn=cen; x.category=cja||cen; return x; });
       var btn = document.getElementById('saveBtn'); btn.disabled=true;
-      rpc('saveDrinkInventory',[clean]).then(function(){ return rpc('getDrinkInventory',[]); }).then(function(list){ btn.disabled=false; window.rows=(list||[]).slice(); render(); msg(I18n.t('saved'), true); })
-        .catch(function(e){ btn.disabled=false; msg(I18n.t('errPrefix')+API.userErrorText(e), false); });
+      rpc('saveDrinkInventory',[clean]).then(function(r){
+        if(!r||r.success!==true) throw new Error((r&&r.error)||'save_failed');
+        return rpc('getDrinkInventory',[]);
+      }).then(function(list){
+        window.rows=(list||[]).slice(); render(); btn.disabled=false; msg(I18n.t('saved'), true);
+      }).catch(function(e){ btn.disabled=false; msg(I18n.t('errPrefix')+API.userErrorText(e), false); });
     };
     function msg(text, ok){ var m=document.getElementById('msg'); m.style.display='block'; m.style.background=ok?'#dcfce7':'#fee2e2'; m.style.color=ok?'#15803d':'#b91c1c'; m.innerText=text; }
     // [性能改善] 一覧の読込では翻訳しない（読込を遅くしないため）。未翻訳分はここで明示的にまとめて翻訳する。
     // ── 在庫変動（入荷・廃棄・棚卸） ──
-    var mvIdx = -1, mvKind = 'in';
+    var mvIdx = -1, mvKind = 'in', mvRequestId = '', mvRequestSignature = '';
+    function nextMoveRequestId(){ return 'move-' + Date.now() + '-' + Math.random().toString(36).slice(2,10); }
+    function resetMoveRequestId(){ mvRequestId=''; mvRequestSignature=''; }
     window.openMove = function(i){
       var r = window.rows[i]; if(!r) return;
       if(!(r.name||r.nameJa||r.nameEn||'').trim()){ msg(I18n.t('mvNeedSave'), false); return; }
+      resetMoveRequestId();
       mvIdx = i;
       document.getElementById('mvItem').innerText = loc(r.nameJa!==undefined?r.nameJa:r.name, r.nameEn);
       document.getElementById('mvStockNow').innerText = I18n.t('mvStockNow')+': '+(Number(r.stock)||0)+' '+(r.unit||'');
@@ -234,16 +242,20 @@
       var qty = Number(document.getElementById('mvQty').value);
       if(!isFinite(qty) || qty<0){ mvErr(I18n.t('mvBad')); return; }
       var go = document.getElementById('mvGo'); go.disabled=true;
-      var p;
-      if(mvKind==='in'){ p = rpc('receiveStock',[r.name, qty, Number(document.getElementById('mvCost').value)||0]); }
-      else if(mvKind==='waste'){ p = rpc('logWaste',[r.name, qty, document.getElementById('mvReason').value]); }
-      else { p = rpc('stocktake',[r.name, qty]); }
+      var p, cost=Number(document.getElementById('mvCost').value)||0, reason=document.getElementById('mvReason').value;
+      var sig=JSON.stringify([mvKind,r.name,qty,cost,reason]);
+      if(!mvRequestId || mvRequestSignature!==sig){ mvRequestId=nextMoveRequestId(); mvRequestSignature=sig; }
+      if(mvKind==='in'){ p = rpc('receiveStock',[r.name, qty, cost, mvRequestId]); }
+      else if(mvKind==='waste'){ p = rpc('logWaste',[r.name, qty, reason, mvRequestId]); }
+      else { p = rpc('stocktake',[r.name, qty, mvRequestId]); }
       p.then(function(d){
         go.disabled=false; d=d||{};
-        if(d.error==='not_found'){ mvErr(I18n.t('mvNeedSave')); return; }
-        if(d.error){ mvErr(I18n.t('errPrefix')+API.userErrorText(d.error)); return; }
+        if(d.error==='not_found'){ resetMoveRequestId(); mvErr(I18n.t('mvNeedSave')); return; }
+        if(d.error){ resetMoveRequestId(); mvErr(I18n.t('errPrefix')+API.userErrorText(d.error)); return; }
+        resetMoveRequestId();
         closeMove(); msg(I18n.t('mvDone'), true);
-        return rpc('getDrinkInventory',[]).then(function(list){ window.rows=(list||[]).slice(); render(); });
+        rpc('getDrinkInventory',[]).then(function(list){ window.rows=(list||[]).slice(); render(); })
+          .catch(function(e){ document.getElementById('rows').innerHTML='<tr><td colspan="9" style="color:#b91c1c;padding:16px;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</td></tr>'; });
       }).catch(function(e){ go.disabled=false; mvErr(I18n.t('errPrefix')+API.userErrorText(e)); });
     };
 
@@ -296,9 +308,10 @@
     })();
 
     // ── AIスキャン（写真から複数商品の在庫数をまとめてAI判定・一括反映） ──
-    var aiFile=null, aiCounts=null, aiKeys=null;
+    var aiFile=null, aiCounts=null, aiKeys=null, aiRequestId='';
+    function nextAiRequestId(){ try{return crypto.randomUUID();}catch(e){return Date.now()+'-'+Math.random().toString(16).slice(2);} }
     window.openAiScan = function(){
-      aiFile=null; aiCounts=null; aiKeys=null;
+      aiFile=null; aiCounts=null; aiKeys=null; aiRequestId='';
       document.getElementById('aiPreview').style.display='none';
       document.getElementById('aiPreview').src='';
       document.getElementById('aiPlaceholder').style.display='block';
@@ -312,6 +325,7 @@
     window.onAiPhotoSelected = function(e){
       var file = e.target.files && e.target.files[0]; if(!file) return;
       aiFile = file;
+      aiRequestId = nextAiRequestId();
       var preview=document.getElementById('aiPreview'), url=URL.createObjectURL(file);
       preview.onload=function(){ URL.revokeObjectURL(url); };
       preview.onerror=function(){ URL.revokeObjectURL(url); aiErr(I18n.t('errPrefix')+'file_read_failed'); };
@@ -342,17 +356,17 @@
       var btn = document.getElementById('aiAnalyzeBtn'); btn.disabled=true; btn.innerText=I18n.t('aiAnalyzing');
       document.getElementById('aiAlert').style.display='none';
       aiResizeImage(aiFile, 1024, 768, 0.75, function(b64, mime){
-        // [P4] Gemini応答待ち（数秒〜25秒程度、実物のボトル画像ではさらに長くなり得る）の間、
+        // [P4] システムAI応答待ちの間、
         // 全画面のローディング表示で他操作までブロックしないようにする。ボタン自体は既にローカルの
         // 「解析中」busy表示になっているため、二重ブロックを避ける。
         // [タイムアウト共通化(2026-08-22)] 個別のマジックナンバーではなくapi.jsの共通設定
         // （API.TIMEOUT_MS.ai=45秒）を参照する。外部AI呼び出しは他の処理より大きく余裕を持たせている。
-        rpc('countDrinksWithAI',[b64, mime],{__silent:true,__timeoutMs:API.TIMEOUT_MS.ai,__noInternalRetry:true}).then(function(res){
+        rpc('countDrinksWithAI',[b64, mime, aiRequestId],{__silent:true,__timeoutMs:API.TIMEOUT_MS.ai,__noInternalRetry:true}).then(function(res){
           btn.disabled=false; btn.innerText=I18n.t('aiAnalyzeBtn');
           res = res || {};
-          if(res.error){ aiErr(res.error==='no_api_key' ? I18n.t('aiNoApiKey') : (I18n.t('errPrefix')+API.userErrorText(res.error))); return; }
+          if(res.error){ aiErr(I18n.t('aiUnavailable')); return; }
           renderAiResults(res.counts || res.raw || {});
-        }).catch(function(e){ btn.disabled=false; btn.innerText=I18n.t('aiAnalyzeBtn'); aiErr(I18n.t('errPrefix')+API.userErrorText(e)); });
+        }).catch(function(){ btn.disabled=false; btn.innerText=I18n.t('aiAnalyzeBtn'); aiErr(I18n.t('aiUnavailable')); });
       }, function(e){ btn.disabled=false; btn.innerText=I18n.t('aiAnalyzeBtn'); aiErr(I18n.t('errPrefix')+API.userErrorText(e)); });
     };
     function renderAiResults(countsOrRaw){
@@ -463,14 +477,14 @@
       .catch(function(e){ if(String(e.message||e).indexOf('unauthorized')>=0){ location.href='./manage.html'; return; } document.getElementById('rows').innerHTML='<tr><td colspan="8" style="color:#b91c1c;padding:16px;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</td></tr>'; });
 
     I18n.init({
-      ja:{ title:'📦 在庫管理', back:'← 管理へ', movesLink:'📋 変動履歴', hint:'ドリンク・食材・備品などをまとめて数量管理できます。最小在庫を下回ると赤く表示され、日報・レポートに低在庫として通知。レシピ（材料名一致）で注文時に自動減算されます。「変動」から入荷・廃棄・棚卸を記録すると履歴に残ります。', scrollHint:'👉 表は横にスクロールできます', thName:'商品名', thCat:'カテゴリ', thSupplier:'仕入先', thUnit:'単位', thStock:'在庫数', thMin:'最小在庫', thCost:'原価', addRow:'＋ 行を追加', save:'💾 保存', loading:'読み込み中…', empty:'「＋ 行を追加」で登録してください', saved:'✅ 保存しました', errPrefix:'エラー: ', loadErr:'読み込みエラー: ', moveBtn:'変動', mvIn:'＋ 入荷', mvWaste:'− 廃棄', mvCount:'棚卸', mvQty:'数量', mvCounted:'実棚卸数', mvCostL:'原価（任意・単価更新）', mvReasonL:'理由', mvStockNow:'現在庫', mvGo:'実行', mvClose:'閉じる', mvDone:'✅ 記録しました', mvBad:'数量を確認してください', mvNeedSave:'先に「保存」で商品を登録してください', camHintShoot:'📸を押して撮影 → 写真を1つずつタップして数えます', camHintTap:'商品を1つずつタップ。↩で取消、✓で数量を採用', camNoCam:'カメラを利用できません（権限/対応をご確認ください）',
-        aiScanBtn:'🤖 AIスキャン', aiTitle:'🤖 AI在庫スキャン', aiTapText:'タップして撮影', aiAnalyzeBtn:'🤖 AI分析開始', aiAnalyzing:'分析中…', aiResultTitle:'AI検出結果 — 商品名・数量は自由に編集できます', aiResultHint:'商品名は直接書き換えできます。下のプルダウンから既存の在庫を選ぶと自動で入力されます。✕で1件だけ除外できます。', aiApplyBtn:'✅ 在庫に反映', aiNoApiKey:'Gemini APIキーが未設定です。設定画面から追加してください。', aiNoDetect:'ドリンクが検出されませんでした。別の角度で撮り直してください。', aiSkip:'この項目を除外', aiPickPh:'（既存の在庫から選ぶ）', aiApplied:'✅ 反映しました（「💾 保存」で確定してください）',
+      ja:{ title:'📦 在庫管理', back:'← 管理へ', movesLink:'📋 履歴', hint:'ドリンク・食材・備品などをまとめて数量管理できます。最小在庫を下回ると赤く表示され、日報・レポートに低在庫として通知。レシピ（材料名一致）で注文時に自動減算されます。「変動」から入荷・廃棄・棚卸を記録すると履歴に残ります。', scrollHint:'👉 表は横にスクロールできます', thName:'商品名', thCat:'カテゴリ', thSupplier:'仕入先', thUnit:'単位', thStock:'在庫数', thMin:'最小在庫', thCost:'原価', addRow:'＋ 行を追加', save:'💾 保存', loading:'読み込み中…', empty:'「＋ 行を追加」で登録してください', saved:'✅ 保存しました', errPrefix:'エラー: ', loadErr:'読み込みエラー: ', moveBtn:'変動', mvIn:'＋ 入荷', mvWaste:'− 廃棄', mvCount:'棚卸', mvQty:'数量', mvCounted:'実棚卸数', mvCostL:'原価（任意・単価更新）', mvReasonL:'理由', mvStockNow:'現在庫', mvGo:'実行', mvClose:'閉じる', mvDone:'✅ 記録しました', mvBad:'数量を確認してください', mvNeedSave:'先に「保存」で商品を登録してください', camHintShoot:'📸を押して撮影 → 写真を1つずつタップして数えます', camHintTap:'商品を1つずつタップ。↩で取消、✓で数量を採用', camNoCam:'カメラを利用できません（権限/対応をご確認ください）',
+        aiScanBtn:'🤖 AIスキャン', aiTitle:'🤖 AI在庫スキャン', aiTapText:'タップして撮影', aiAnalyzeBtn:'🤖 システムAIで分析', aiAnalyzing:'システムAIで分析中…', aiManualHint:'AIを利用できない場合も、閉じて在庫表を手動で入力・保存できます。', aiUnavailable:'AI分析を利用できません。時間をおいて再度お試しください。手動での在庫入力・保存は引き続き利用できます。', aiResultTitle:'AI検出結果 — 商品名・数量は自由に編集できます', aiResultHint:'商品名は直接書き換えできます。下のプルダウンから既存の在庫を選ぶと自動で入力されます。✕で1件だけ除外できます。', aiApplyBtn:'✅ 在庫に反映', aiNoDetect:'ドリンクが検出されませんでした。別の角度で撮り直してください。', aiSkip:'この項目を除外', aiPickPh:'（既存の在庫から選ぶ）', aiApplied:'✅ 反映しました（「💾 保存」で確定してください）',
         linkFromMenuBtn:'🔗 メニューから追加', linkConfirmBtn:'🔗 リンク', linkPickPh:'メニューを選択…', linkNeedSel:'メニューを選択してください', linkRowNeedName:'先に商品名を入力してください',
         linkNewTitle:'🔗 メニューから在庫を追加', linkNewHint:'選んだメニューの商品名でそのまま在庫アイテムを追加し、紐づけます（在庫数・最小在庫は追加後に入力してください）。',
         linkExistingTitle:'🔗 メニューと紐づけ', linkExistingHint:'紐づけるメニューを選択: ', linkDone:'✅ 紐づけました', linkAddedNeedSave:'✅ 在庫に追加・紐づけしました（「💾 保存」で確定してください）',
         linkedWith:'紐づくメニュー: ', linkBtnTitle:'メニューと紐づけ（未設定）' },
       en:{ title:'📦 Inventory', back:'← Manage', movesLink:'📋 History', hint:'Track drinks, ingredients and supplies together by quantity. Rows below the minimum turn red and appear as low-stock in reports. Auto-deducted on orders via recipes (material-name match). Use “Move” to log receiving, waste and stocktake — all kept in history.', scrollHint:'👉 Swipe sideways to see the whole table', thName:'Item', thCat:'Category', thSupplier:'Supplier', thUnit:'Unit', thStock:'Stock', thMin:'Min stock', thCost:'Cost', addRow:'＋ Add row', save:'💾 Save', loading:'Loading…', empty:'Tap “＋ Add row” to register', saved:'✅ Saved', errPrefix:'Error: ', loadErr:'Load error: ', moveBtn:'Move', mvIn:'＋ Receive', mvWaste:'− Waste', mvCount:'Stocktake', mvQty:'Quantity', mvCounted:'Counted qty', mvCostL:'Cost (optional, updates unit cost)', mvReasonL:'Reason', mvStockNow:'Current', mvGo:'Apply', mvClose:'Close', mvDone:'✅ Recorded', mvBad:'Please check the quantity', mvNeedSave:'Please save the item first', camHintShoot:'Tap 📸 to capture, then tap each item to count', camHintTap:'Tap each item. ↩ to undo, ✓ to use the count', camNoCam:'Camera unavailable (check permission/support)',
-        aiScanBtn:'🤖 AI Scan', aiTitle:'🤖 AI Stocktake Scan', aiTapText:'Tap to take a photo', aiAnalyzeBtn:'🤖 Analyze with AI', aiAnalyzing:'Analyzing…', aiResultTitle:'AI results — item name & quantity are fully editable', aiResultHint:'Edit the name directly, or pick an existing item from the dropdown below to auto-fill it. Use ✕ to skip a single row.', aiApplyBtn:'✅ Apply to inventory', aiNoApiKey:'Gemini API key not set. Add it in Settings.', aiNoDetect:'No drinks detected. Try a different angle.', aiSkip:'Skip this item', aiPickPh:'(Pick from existing items)', aiApplied:'✅ Applied (press “💾 Save” to confirm)',
+        aiScanBtn:'🤖 AI Scan', aiTitle:'🤖 AI Stocktake Scan', aiTapText:'Tap to take a photo', aiAnalyzeBtn:'🤖 Analyze with system AI', aiAnalyzing:'Analyzing with system AI…', aiManualHint:'If AI is unavailable, close this dialog and continue entering and saving inventory manually.', aiUnavailable:'AI analysis is currently unavailable. Please try again later. Manual inventory entry and saving are still available.', aiResultTitle:'AI results — item name & quantity are fully editable', aiResultHint:'Edit the name directly, or pick an existing item from the dropdown below to auto-fill it. Use ✕ to skip a single row.', aiApplyBtn:'✅ Apply to inventory', aiNoDetect:'No drinks detected. Try a different angle.', aiSkip:'Skip this item', aiPickPh:'(Pick from existing items)', aiApplied:'✅ Applied (press “💾 Save” to confirm)',
         linkFromMenuBtn:'🔗 Add from menu', linkConfirmBtn:'🔗 Link', linkPickPh:'Select a menu item…', linkNeedSel:'Please select a menu item', linkRowNeedName:'Please enter an item name first',
         linkNewTitle:'🔗 Add inventory item from menu', linkNewHint:'Adds a new inventory item using the selected menu item’s name and links it (fill in stock/min after adding).',
         linkExistingTitle:'🔗 Link to a menu item', linkExistingHint:'Choose a menu item to link: ', linkDone:'✅ Linked', linkAddedNeedSave:'✅ Added and linked (press “💾 Save” to confirm)',

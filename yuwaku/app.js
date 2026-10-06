@@ -7,7 +7,7 @@
       confirm:'Send this order?', okTitle:'Order sent', okMsg:'Your order was received.',
       queuedTitle:'Saved (offline)', queuedMsg:'No connection now. It will be sent automatically when back online.',
       errTitle:'Error', ok:'OK', table:'Table', counter:'Counter', noTable:'Please scan the signed QR code at your location.',
-      offline:'OFFLINE\nYou can keep ordering. Orders are saved on this device and will be sent automatically when back online.', syncing:'Back online — syncing\nSending queued orders now…', pending:'Queued orders pending\nThey will be sent automatically when the connection is available.', invalidTableSession:'This table session is invalid. Staff should reselect the table; guests should rescan the table QR code.', lang:'JP',
+      offline:'OFFLINE\nYou can keep ordering. Orders are saved on this device and will be sent automatically when back online.', syncing:'Back online — syncing\nSending queued orders now…', pending:'Queued orders pending\nThey will be sent automatically when the connection is available.', attention:'A queued order needs attention\nIt was not accepted by the server and was kept on this device. Please review the order or ask a manager.', invalidTableSession:'This table session is invalid. Staff should reselect the table; guests should rescan the table QR code.', lang:'JP',
       svc:'Service', tax:'Tax', ranking:'🏆 Ranking',
       tblTitle:'Select a location', tblMsg:'Staff may select a location here. Guests must scan the signed QR code at their location.', tblGo:'Start',
       partyTitle:'How many guests?', partyLabel:'Guests', partyChoose:'Select party size', partyMsg:'Used for entry and extension fee billing.', partyMsgEntry:'Used for entry fee billing.', partyMsgExtension:'Used for extension fee billing.', partyGo:'OK',
@@ -30,7 +30,7 @@
       confirm:'この内容で注文しますか？', okTitle:'注文を送信しました', okMsg:'ご注文を承りました。',
       queuedTitle:'保留しました（オフライン）', queuedMsg:'今は接続がありません。オンライン復帰時に自動送信します。',
       errTitle:'エラー', ok:'OK', table:'卓', counter:'カウンター', noTable:'席に設置された署名付きQRコードを読み取ってください。',
-      offline:'オフライン中\nこのまま注文できます。注文は端末に保存し、オンライン復帰時に自動送信します。', syncing:'オンライン復帰 — 同期中\n未同期注文を送信しています…', pending:'未同期注文あり\n通信が利用可能になり次第、自動送信します。', invalidTableSession:'席のセッションが無効です。スタッフは席を選び直し、お客様は席のQRコードを再読み取りしてください。', lang:'EN',
+      offline:'オフライン中\nこのまま注文できます。注文は端末に保存し、オンライン復帰時に自動送信します。', syncing:'オンライン復帰 — 同期中\n未同期注文を送信しています…', pending:'未同期注文あり\n通信が利用可能になり次第、自動送信します。', attention:'未同期注文の確認が必要です\nサーバーで受け付けられなかった注文を端末に保持しています。内容を確認するか管理者へ連絡してください。', invalidTableSession:'席のセッションが無効です。スタッフは席を選び直し、お客様は席のQRコードを再読み取りしてください。', lang:'EN',
       svc:'サービス料', tax:'税', ranking:'🏆 ランキング',
       tblTitle:'席を選択', tblMsg:'スタッフはここで席を選べます。お客様は席の署名付きQRコードを読み取ってください。', tblGo:'開始',
       partyTitle:'ご来店人数は？', partyLabel:'人数', partyChoose:'人数を選択', partyMsg:'入場料・延長料の請求に使用します。', partyMsgEntry:'入場料の請求に使用します。', partyMsgExtension:'延長料の請求に使用します。', partyGo:'OK',
@@ -222,6 +222,7 @@
   function updateClock() {
     var el = $('appbarClock'); if (!el) return;
     var d = new Date();
+    if(window.DateDisplay){ el.textContent=DateDisplay.formatDateTime(d.toISOString()).slice(0,16); return; }
     var ymd = d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
     var hm = pad2(d.getHours()) + ':' + pad2(d.getMinutes());
     el.textContent = ymd + ' ' + hm;
@@ -489,9 +490,10 @@
     // 注文状況は集計画面ではないため、画面操作開始から5秒以内で必ず完了させる。
     // 共通APIの既定25秒・内部再送は使わず、4.5秒で成功または明確な通信エラーへ遷移する。
     API.post('getOrdersByTable', tablePayload({ table: state.table, __timeoutMs: 4500, __noInternalRetry: true, __silent: true })).then(function (r) {
+      var current = t();
       var list = (r && r.data) || [];
       if (!list.length) {
-        $('stBody').innerHTML = '<div style="text-align:center;color:var(--text-2);padding:14px;">' + escHtml(x.stEmpty) + '</div>';
+        $('stBody').innerHTML = '<div style="text-align:center;color:var(--text-2);padding:14px;">' + escHtml(current.stEmpty) + '</div>';
         $('stSubVal').textContent = money(0); $('stTotalVal').textContent = money(0);
         return;
       }
@@ -499,8 +501,8 @@
       list.forEach(function (o) {
         total += Number(o.price) || 0;
         var served = o.status === '提供済';
-        var badge = served ? ('<span style="background:#dcfce7;color:#15803d;border-radius:8px;padding:2px 8px;font-size:12px;font-weight:800;">✓ ' + escHtml(x.stServed) + '</span>')
-                           : ('<span style="background:#fef3c7;color:#92400e;border-radius:8px;padding:2px 8px;font-size:12px;font-weight:800;">🍳 ' + escHtml(x.stPending) + '</span>');
+        var badge = served ? ('<span style="background:#dcfce7;color:#15803d;border-radius:8px;padding:2px 8px;font-size:12px;font-weight:800;">✓ ' + escHtml(current.stServed) + '</span>')
+                           : ('<span style="background:#fef3c7;color:#92400e;border-radius:8px;padding:2px 8px;font-size:12px;font-weight:800;">🍳 ' + escHtml(current.stPending) + '</span>');
         html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);">' +
           '<div style="flex:1;"><div style="font-size:11px;color:var(--text-2);">🕐 ' + escHtml(o.time || '') + '</div><div>' + escHtml(orderDetailsText(o)) + '</div></div>' +
           '<div style="text-align:right;white-space:nowrap;"><div>' + money(o.price || 0) + '</div>' + badge + '</div></div>';
@@ -525,7 +527,8 @@
     UIConfirm(type === 'bill' ? x.billConfirm : x.callConfirm).then(function (ok) {
       if (!ok) return;
       API.post('callStaff', tablePayload({ table: state.table, type: type })).then(function () {
-        showOk(type === 'bill' ? x.billTitle : x.callTitle, type === 'bill' ? x.billMsg : x.callMsg, type === 'bill' ? '🧾' : '🔔');
+        var current = t();
+        showOk(type === 'bill' ? current.billTitle : current.callTitle, type === 'bill' ? current.billMsg : current.callMsg, type === 'bill' ? '🧾' : '🔔');
       }).catch(function (e) { showErr(apiErrorText(e)); });
     });
   }
@@ -550,17 +553,26 @@
       s.style.color = (Number(s.getAttribute('data-v')) <= n) ? '#f59e0b' : '#cbd5e1';
     });
   }
+  var feedbackRequestId = '', feedbackRequestSig = '';
+  function nextFeedbackRequestId() {
+    try { if (crypto && typeof crypto.randomUUID === 'function') return 'feedback-' + crypto.randomUUID(); } catch (e) {}
+    return 'feedback-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+  }
   function sendFeedback() {
     var x = t();
     if (fbRating < 1) { showErr(x.fbPick); return; }
     var _comment = $('fbComment').value.trim();
     if (!_comment) { showErr(x.fbCommentRequired); return; }
+    var sig = JSON.stringify([state.table, fbRating, _comment]);
+    if (!feedbackRequestId || feedbackRequestSig !== sig) { feedbackRequestSig = sig; feedbackRequestId = nextFeedbackRequestId(); }
     var btn = $('fbSend'); btn.disabled = true;
-    API.post('submitFeedback', tablePayload({ table: state.table, rating: fbRating, comment: _comment })).then(function (r) {
+    API.post('submitFeedback', tablePayload({ table: state.table, rating: fbRating, comment: _comment, clientRequestId: feedbackRequestId })).then(function (r) {
+      var current = t();
       var d = (r && r.data) || {};
-      if (d && d.error === 'comment_required') { showErr(x.fbCommentRequired); return; }
+      if (d && d.error) { feedbackRequestId = ''; feedbackRequestSig = ''; showErr(d.error === 'comment_required' ? current.fbCommentRequired : apiErrorText(d.error)); return; }
+      feedbackRequestId = ''; feedbackRequestSig = '';
       $('fbModal').classList.remove('show');
-      showOk(x.fbThanks, x.fbThanksMsg, '⭐');
+      showOk(current.fbThanks, current.fbThanksMsg, '⭐');
     }).catch(function (e) { showErr(apiErrorText(e)); })
       .then(function () { btn.disabled = false; });
   }
@@ -586,7 +598,16 @@
     var b = breakdown();
     var order = { tableNumber: state.table, items: items, totalPrice: b.total, phone: (!hasSample && state.member ? state.member.phone : ''), pointsUsed: (!hasSample && state.usePoints ? b.pointsUsed : 0),
       coupon: (!hasSample && state.coupon ? state.coupon.code : ''), couponDiscount: (!hasSample ? (b.couponDiscount || 0) : 0) };
-    UIConfirm(x.confirm).then(function (ok) {
+    var confirmLines = [x.confirm, ''];
+    items.forEach(function (it) { confirmLines.push('• ' + localizedOrderName(it.name) + ' ×' + it.count); });
+    confirmLines.push('');
+    confirmLines.push(x.stSubLbl + ': ' + money(b.sub));
+    if (b.service > 0) confirmLines.push((String(state.settings.serviceInclusive) === 'true' ? x.stSvcInclLbl : x.stSvcExclLbl) + ': ' + money(b.service));
+    if (b.tax > 0) confirmLines.push((String(state.settings.taxInclusive) === 'true' ? x.stTaxInclLbl : x.stTaxExclLbl).replace('{tax}', taxName()) + ': ' + money(b.tax));
+    if (b.couponDiscount > 0) confirmLines.push(x.couponLbl + ': -' + money(b.couponDiscount));
+    if (b.discount > 0) confirmLines.push(x.discountLbl + ': -' + money(b.discount));
+    confirmLines.push(x.total + ': ' + money(b.total));
+    UIConfirm(confirmLines.join('\n')).then(function (ok) {
       if (!ok) return;
       doSubmit(order, false);
     });
@@ -594,10 +615,10 @@
 
   function doSubmit(order, paid) {
     if (!order) return;
-    var x = t();
     order.paid = !!paid;
     var btn = $('sendBtn'); btn.disabled = true;
     API.submitOrder(order, state.staffMode ? staffAuthToken() : '').then(function (result) {
+      var x = t();
       // サーバ拒否（例: テーブル未選択/不正）はカートを消さずにエラー表示
       if (typeof result === 'string' && result.indexOf('rejected:') === 0) {
         var reason = result.slice(9);
@@ -652,10 +673,12 @@
   }
 
   function refreshPending() {
-    API.pendingCount().then(function (n) {
+    API.pendingStatus().then(function (status) {
+      var n=status.sendable||0, attention=status.attention||0;
       var pill = $('pendingPill');
-      if (n > 0) { pill.textContent = n; pill.classList.add('show'); } else { pill.classList.remove('show'); }
-      if (!navigator.onLine) renderOrderNetwork('offline', n);
+      if (n+attention > 0) { pill.textContent = n+attention; pill.classList.add('show'); } else { pill.classList.remove('show'); }
+      if (attention > 0 && navigator.onLine && !_orderSyncing) renderOrderNetwork('attention', attention);
+      else if (!navigator.onLine) renderOrderNetwork('offline', n+attention);
       else if (!_orderSyncing && n > 0) renderOrderNetwork('pending', n);
       else if (!_orderSyncing) renderOrderNetwork('online', 0);
     }).catch(function () {});
@@ -670,6 +693,7 @@
     if (mode === 'offline') tx.textContent = t().offline + (count > 0 ? '\n' + (state.lang === 'ja' ? '未同期注文 ' + count + '件' : count + ' queued order(s)') : '');
     else if (mode === 'syncing') tx.textContent = t().syncing + (count > 0 ? '\n' + (state.lang === 'ja' ? '未同期注文 ' + count + '件' : count + ' queued order(s)') : '');
     else if (mode === 'pending') tx.textContent = t().pending + (count > 0 ? '\n' + (state.lang === 'ja' ? '未同期注文 ' + count + '件' : count + ' queued order(s)') : '');
+    else if (mode === 'attention') tx.textContent = t().attention + (count > 0 ? '\n' + (state.lang === 'ja' ? '要確認 ' + count + '件' : count + ' order(s) need attention') : '');
     else tx.textContent = t().offline;
   }
   function syncQueuedOrders() {
@@ -825,11 +849,12 @@
     if (!/^\d{2}-\d{2}$/.test(bd)) { var m = $('memBdayMsg'); m.style.color = '#b91c1c'; m.textContent = x.bdayBad; return; }
     $('memBdaySave').disabled = true;
     API.post('setMemberBirthday', { phone: state.member.phone, birthday: bd, name: state.member.name }).then(function (r) {
+      var current = t();
       var d = r.data || {};
       var msg = $('memBdayMsg');
-      if (d.error) { msg.style.color = '#b91c1c'; msg.textContent = x.bdayBad; return; }
+      if (d.error) { msg.style.color = '#b91c1c'; msg.textContent = current.bdayBad; return; }
       // A public phone submission cannot prove ownership or confirm an existing update.
-      msg.style.color = '#15803d'; msg.textContent = x.bdaySaved;
+      msg.style.color = '#15803d'; msg.textContent = current.bdaySaved;
     }).catch(function () {}).then(function () { $('memBdaySave').disabled = false; });
   }
   function lookupMember() {
@@ -885,21 +910,22 @@
     var amount = b.sub + b.service + b.tax; // クーポン適用前の会計額
     $('cpApply').disabled = true;
     API.post('validateCoupon', { code: code, amount: amount }).then(function (r) {
+      var current = t();
       var d = r.data || {};
       if (!d.ok) {
         state.coupon = null; updateCouponBtn(); updateTotal();
         $('cpRemove').style.display = 'none';
         msg.style.color = 'var(--red)';
-        msg.textContent = '⚠️ ' + (x['cp' + (d.reason ? d.reason.charAt(0).toUpperCase() + d.reason.slice(1) : 'Invalid')] || x.cpInvalid) + (d.reason === 'min' && d.min ? '（' + money(d.min) + '）' : '');
+        msg.textContent = '⚠️ ' + (current['cp' + (d.reason ? d.reason.charAt(0).toUpperCase() + d.reason.slice(1) : 'Invalid')] || current.cpInvalid) + (d.reason === 'min' && d.min ? '（' + money(d.min) + '）' : '');
         return;
       }
       state.coupon = { code: d.code, type: d.type, value: d.value, discount: d.discount };
       updateCouponBtn(); updateTotal();
       $('cpRemove').style.display = 'block';
       msg.style.color = 'var(--green)';
-      msg.textContent = '✅ ' + x.cpApplied + '（-' + money(breakdown().couponDiscount) + '）';
+      msg.textContent = '✅ ' + current.cpApplied + '（-' + money(breakdown().couponDiscount) + '）';
     }).catch(function () {
-      msg.style.color = 'var(--red)'; msg.textContent = x.cpInvalid;
+      msg.style.color = 'var(--red)'; msg.textContent = t().cpInvalid;
     }).then(function () { $('cpApply').disabled = false; });
   }
   function removeCoupon() {

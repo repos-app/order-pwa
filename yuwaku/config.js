@@ -32,3 +32,12 @@ window.APP_CONFIG = {
   script.setAttribute('data-iz-common-header', '');
   document.head.appendChild(script);
 })();
+
+(function () {
+  if (typeof document === 'undefined' || document.querySelector('script[data-iz-date-display]')) return;
+  var script = document.createElement('script');
+  script.src = './date-display.js?v=auth4';
+  script.async = false;
+  script.setAttribute('data-iz-date-display', '');
+  document.head.appendChild(script);
+})();

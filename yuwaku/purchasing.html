@@ -115,7 +115,7 @@
 
   <script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
   <script src="./confirm.js?v=auth2"></script>
   <script>
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
@@ -212,6 +212,14 @@
         navigator.clipboard.writeText(text).then(done).catch(fail);
       } else { fail(); }
     }
+    var PO_EMAIL_REQUEST_ID='', PO_EMAIL_REQUEST_SIG='';
+    var REORDER_EMAIL_REQUESTS=Object.create(null);
+    function nextEmailRequestId(prefix){
+      try{ if(crypto&&typeof crypto.randomUUID==='function') return prefix+crypto.randomUUID(); }catch(e){}
+      return prefix+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
+    }
+    function emailRequestFor(sig,current){ return current&&current.sig===sig?current:{sig:sig,id:nextEmailRequestId('mail-')}; }
+    function deterministicEmailReject(code){ return /^(?:no_supplier|no_email|no_items|no_reorder_items|not_configured|monthly_limit_reached)$/.test(String(code||'')); }
     // 2026-08-27修正（GPT確認レポート_Claude追加修正依頼_2026-08-27.md 指摘事項）: poSendConfirm
     // 文言は定義済みだったが未使用で、確認なしにメールが即送信されていた。宛先・品目・数量を
     // 表示するUIConfirmを送信直前に追加する。
@@ -228,10 +236,12 @@
       UIConfirm(confirmMsg).then(function(ok){
         if(!ok) return;
         var btn = document.getElementById('poSendBtn'); if(btn) btn.disabled = true;
-        rpc('sendPurchaseOrderEmail', [supplierName, items]).then(function(r){
+        var sig=JSON.stringify([supplierName,sup.email||'',sup.language||'ja',items]);
+        if(!PO_EMAIL_REQUEST_ID||PO_EMAIL_REQUEST_SIG!==sig){ PO_EMAIL_REQUEST_SIG=sig; PO_EMAIL_REQUEST_ID=nextEmailRequestId('po-'); }
+        rpc('sendPurchaseOrderEmail', [supplierName, items, PO_EMAIL_REQUEST_ID]).then(function(r){
           if(btn) btn.disabled = false;
-          if(r && r.success){ poMsg(I18n.t('poSendDone'), true); }
-          else { poClipboardFallback(supplierName, items, I18n.t('sendMailFail')+API.userErrorText((r&&r.error)||'')); }
+          if(r && r.success){ PO_EMAIL_REQUEST_ID=''; PO_EMAIL_REQUEST_SIG=''; poMsg(I18n.t('poSendDone'), true); }
+          else { if(deterministicEmailReject(r&&r.error)){ PO_EMAIL_REQUEST_ID=''; PO_EMAIL_REQUEST_SIG=''; } poClipboardFallback(supplierName, items, I18n.t('sendMailFail')+API.userErrorText((r&&r.error)||'')); }
         }).catch(function(e){
           if(btn) btn.disabled = false;
           poClipboardFallback(supplierName, items, I18n.t('sendMailFail')+API.userErrorText(e));
@@ -279,10 +289,13 @@
       UIConfirm(confirmMsg).then(function(ok){
         if(!ok) return;
         var btn = document.getElementById('mailBtn'+gi); if(btn) btn.disabled = true;
-        rpc('sendReorderEmail', [g.supplier]).then(function(r){
+        var sup=SUPS.filter(function(s){ return s.name===g.supplier; })[0]||{};
+        var sig=JSON.stringify([g.supplier,sup.email||g.email||'',sup.language||'ja',(g.items||[]).map(function(it){return [it.name,it.nameJa,it.nameEn,it.suggest,it.unit];})]);
+        var req=emailRequestFor(sig,REORDER_EMAIL_REQUESTS[g.supplier]); REORDER_EMAIL_REQUESTS[g.supplier]=req;
+        rpc('sendReorderEmail', [g.supplier, req.id]).then(function(r){
           if(btn) btn.disabled = false;
-          if(r && r.success){ if(st) st.innerText = I18n.t('poSendDone'); }
-          else { reorderClipboardFallback(g, st, I18n.t('sendMailFail')+API.userErrorText((r&&r.error)||'')); }
+          if(r && r.success){ delete REORDER_EMAIL_REQUESTS[g.supplier]; if(st) st.innerText = I18n.t('poSendDone'); }
+          else { if(deterministicEmailReject(r&&r.error)) delete REORDER_EMAIL_REQUESTS[g.supplier]; reorderClipboardFallback(g, st, I18n.t('sendMailFail')+API.userErrorText((r&&r.error)||'')); }
         }).catch(function(e){
           if(btn) btn.disabled = false;
           reorderClipboardFallback(g, st, I18n.t('sendMailFail')+API.userErrorText(e));

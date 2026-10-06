@@ -8,7 +8,7 @@
   --temporal-field-w:196px;
   --temporal-field-w-compact:188px;
 }
-input[type="date"]{
+input[type="date"],input[type="month"]{
   display:block!important;
   inline-size:100%!important;
   width:100%!important;
@@ -26,20 +26,57 @@ input[type="date"]{
   padding-block:0!important;
   overflow:visible!important;
 }
-input[type="date"]::-webkit-date-and-time-value{
+input[type="date"]::-webkit-date-and-time-value,input[type="month"]::-webkit-date-and-time-value{
   min-width:0!important;
   height:42px!important;
   line-height:42px!important;
   padding-block:0!important;
   text-align:left!important;
 }
-input[type="date"]::-webkit-datetime-edit{
+input[type="date"]::-webkit-datetime-edit,input[type="month"]::-webkit-datetime-edit{
   height:42px!important;
   min-height:0!important;
   display:flex!important;
   align-items:center!important;
   padding-block:0!important;
 }
+.iz-date-display-wrap{
+  position:relative;
+  display:block;
+  inline-size:100%;
+  width:100%;
+  min-width:0;
+}
+.iz-date-display-wrap > input[type="date"].iz-date-display-native,
+.iz-date-display-wrap > input[type="month"].iz-date-display-native{
+  color:transparent!important;
+  -webkit-text-fill-color:transparent!important;
+  caret-color:transparent!important;
+}
+.iz-date-display-wrap > input[type="date"].iz-date-display-native::-webkit-datetime-edit,
+.iz-date-display-wrap > input[type="date"].iz-date-display-native::-webkit-date-and-time-value,
+.iz-date-display-wrap > input[type="month"].iz-date-display-native::-webkit-datetime-edit,
+.iz-date-display-wrap > input[type="month"].iz-date-display-native::-webkit-date-and-time-value{
+  color:transparent!important;
+  -webkit-text-fill-color:transparent!important;
+  opacity:0!important;
+}
+.iz-date-display-overlay{
+  position:absolute;
+  inset:0 34px 0 0;
+  z-index:1;
+  display:flex;
+  align-items:center;
+  padding:0 10px;
+  box-sizing:border-box;
+  pointer-events:none;
+  color:inherit;
+  font:inherit;
+  white-space:nowrap;
+  overflow:hidden;
+}
+.iz-date-display-wrap > input:disabled + .iz-date-display-overlay{ opacity:.55; }
+.iz-date-display-overlay.is-placeholder{ opacity:.55; }
 .temporal-action-row{
   display:flex;
   gap:var(--temporal-action-gap);
@@ -66,9 +103,10 @@ input[type="date"]::-webkit-datetime-edit{
   overflow:visible;
   box-sizing:border-box;
 }
-.temporal-input-shell > input[type="date"]{
+.temporal-input-shell > input[type="date"],.temporal-input-shell > input[type="month"]{
   margin:0;
 }
+.temporal-input-shell > .iz-date-display-wrap{ margin:0; }
 .temporal-action-row > .temporal-action{
   flex:0 0 auto;
   align-self:flex-end;

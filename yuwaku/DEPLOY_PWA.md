@@ -32,7 +32,7 @@ izakanpai/                    … Cloudflare Workers + D1のプロジェクト�
 
 `izakanpai\deploy_everything.bat`（フロント＋Cloudflare Worker本体すべて）、またはフロントのみでよければ`izakanpai\deploy_frontend.bat`をダブルクリック。
 
-`deploy_frontend.bat`は内部で`deploy.bat`（本番: git add+commit+push → `publish_pwa_mirror.bat`）→`deploy_test.bat`（テスト: docs/yuwaku/testへの同期 → git push → `publish_pwa_mirror.bat`）を順に呼び出す。GitHub Pages（本番・テスト双方）が更新されます。ログは`deploy.log`／`deploy_test.log`。
+`deploy_frontend.bat` ?Production? `deploy.bat` ?????????`deploy_test.bat` ?????fixture??????GitHub Pages?Cloudflare??????????????????? `deploy.log` ???
 
 ## ③ QRコードのURL
 

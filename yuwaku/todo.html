@@ -10,7 +10,7 @@
 
   <link rel="manifest" href="./todo.webmanifest">
   <title>To-dos</title>
-  <link rel="stylesheet" href="./date-controls.css?v=2">
+  <link rel="stylesheet" href="./date-controls.css?v=3">
   <style>
     :root{ --bg:#f6f7f9; --surface:#fff; --border:#e5e7eb; --navy:#0f172a; --text-3:#64748b; --green:#16a34a; }
     *{ box-sizing:border-box; }
@@ -75,9 +75,9 @@
 
   </div>
 
-  <script src="./config.js?v=auth2"></script>
+  <script src="./date-display.js?v=auth4" data-iz-date-display></script><script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
   <script src="./confirm.js?v=auth2"></script>
   <script>
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
@@ -87,6 +87,8 @@
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
 
     var ROWS = [], EMPLOYEES = [], __loaded = false;
+    var TODO_CLIENT_REQUEST_ID = '';
+    function nextTodoClientRequestId(){ return 'todo-' + Date.now() + '-' + Math.random().toString(36).slice(2,10); }
     var STORE_TODAY = API.dateKeysInTimeZone('UTC').date;
     function todayStr(){ return STORE_TODAY; }
     API.getStoreDateKeys().then(function(k){ STORE_TODAY=k.date; if(__loaded) render(); });
@@ -102,9 +104,9 @@
             '<div class="ttl">'+esc(r.title)+'</div>' +
             '<div class="meta">' +
               (r.assignee ? '<span class="badge">👤 '+esc(r.assignee)+'</span>' : '<span class="badge">'+esc(I18n.t('unassigned'))+'</span>') +
-              (r.due ? '<span class="badge'+(overdue?' overdue':'')+'">📅 '+esc(I18n.t('dueLbl'))+esc(r.due)+(overdue?(' '+esc(I18n.t('overdue'))):'')+'</span>' : '') +
+              (r.due ? '<span class="badge'+(overdue?' overdue':'')+'">📅 '+esc(I18n.t('dueLbl'))+esc(window.DateDisplay?DateDisplay.format(r.due):r.due)+(overdue?(' '+esc(I18n.t('overdue'))):'')+'</span>' : '') +
             '</div>' +
-            '<div class="meta created-line">🕒 '+esc(I18n.t('createdBy'))+esc(r.creator||'-')+' · '+esc(r.created) +
+            '<div class="meta created-line">🕒 '+esc(I18n.t('createdBy'))+esc(r.creator||'-')+' · '+esc(window.DateDisplay?DateDisplay.formatDateTime(r.created):r.created) +
               (r.done && r.doneAt ? ' · '+esc(I18n.t('doneAt'))+esc(r.doneAt) : '') +
             '</div>' +
           '</div>' +
@@ -128,11 +130,13 @@
       var assignee = $('newAssignee').value||'';
       var due = $('newDue').value||'';
       var btn = $('addBtn'); if (btn) btn.disabled = true;
-      rpc('saveTodo',[{ title: title, assignee: assignee, due: due }]).then(function(r){
+      var clientRequestId = TODO_CLIENT_REQUEST_ID || (TODO_CLIENT_REQUEST_ID = nextTodoClientRequestId());
+      rpc('saveTodo',[{ title: title, assignee: assignee, due: due, clientRequestId: clientRequestId }]).then(function(r){
         if (btn) btn.disabled = false;
-        if (r && r.row) { ROWS.unshift(r.row); render(); }
+        if (r && r.row) { ROWS.unshift(r.row); render(); TODO_CLIENT_REQUEST_ID=''; }
         else { return reload(); } // 想定外形状のフォールバックのみ再取得
         $('newTitle').value=''; $('newAssignee').value=''; $('newDue').value='';
+        if(window.DateDisplay)DateDisplay.refresh();
       }).catch(function(e){ if (btn) btn.disabled = false; errEl.textContent = I18n.t('errPrefix')+API.userErrorText(e); errEl.style.display='block'; });
     };
     window.toggleDone = function(id, done){
@@ -146,8 +150,9 @@
           if (row) { row.done = prevDone; row.doneAt = prevDoneAt; render(); }
           var e = $('addErr'); if (e) { e.textContent = I18n.t('errPrefix')+API.userErrorText((r&&r.error)||'save_failed'); e.style.display='block'; }
         }
-      }).catch(function(){
+      }).catch(function(err){
         if (row) { row.done = prevDone; row.doneAt = prevDoneAt; render(); } // 失敗時はロールバック
+        var e = $('addErr'); if (e) { e.textContent = I18n.t('errPrefix')+API.userErrorText(err); e.style.display='block'; }
       });
     };
     window.removeTodo = function(id){
@@ -158,7 +163,7 @@
         rpc('deleteTodo',[id]).then(function(r){
           if (r && r.success) { ROWS = ROWS.filter(function(r2){ return r2.id!==id; }); render(); }
           else { var e = $('addErr'); if (e) { e.textContent = I18n.t('errPrefix')+API.userErrorText((r&&r.error)||'delete_failed'); e.style.display='block'; } }
-        }).catch(function(){});
+        }).catch(function(err){ var e = $('addErr'); if (e) { e.textContent = I18n.t('errPrefix')+API.userErrorText(err); e.style.display='block'; } });
       });
     };
     window.reload = function(){

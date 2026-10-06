@@ -52,14 +52,17 @@
 
   <script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
+  <script src="./native-file-export.js?v=native-export1"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script>
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
     if (!TOKEN) location.href = './manage.html';
     function rpc(fn,args){ return API.post('rpc',{fn:fn,args:args||[],token:TOKEN}).then(function(r){ return r.data; }); }
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-    function alertBox(id, html, ok){ var m=document.getElementById(id); m.style.display='block'; m.style.background=ok?'#dcfce7':'#fee2e2'; m.style.color=ok?'#15803d':'#b91c1c'; m.innerHTML=html; }
+    function alertBox(id, html, ok){ var m=document.getElementById(id); m.style.display='block'; m.style.background=ok===true?'#dcfce7':ok===false?'#fee2e2':'#fef3c7'; m.style.color=ok===true?'#15803d':ok===false?'#b91c1c':'#92400e'; m.innerHTML=html; }
+    function exportDone(id,result,webKey){ if(result&&result.mode==='native'){ if(result.status==='shared') alertBox(id,I18n.t('nativeShared')+' '+esc(result.fileName),true); else alertBox(id,I18n.t('nativeDismissed')+' '+esc(result.fileName),null); return; } alertBox(id,I18n.t(webKey)+' '+esc(result&&result.fileName||''),true); }
+    function exportFailed(id,e,fileName){ if(window.NativeFileExport&&NativeFileExport.isCancellationError(e)){ alertBox(id,I18n.t('nativeDismissed')+' '+esc(e&&e.fileName||fileName||''),null); return; } var code=String(e&&e.message||e||''); if(code==='native_export_plugins_missing'||code==='native_share_unavailable'){ alertBox(id,I18n.t('nativeUnavailable'),false); return; } alertBox(id,I18n.t('errPrefix')+API.userErrorText(e),false); }
 
     function csvCell(v){ var s=(v==null)?'':String(v); if(/[",\n]/.test(s)) s='"'+s.replace(/"/g,'""')+'"'; return s; }
     function toCsv(rows){ return (rows||[]).map(function(row){ return row.map(csvCell).join(','); }).join('\r\n'); }
@@ -91,11 +94,9 @@
         var now = new Date();
         var stamp = now.getFullYear() + pad2(now.getMonth()+1) + pad2(now.getDate()) + '_' + pad2(now.getHours()) + pad2(now.getMinutes());
         var fname = 'izakanpai_backup_' + stamp + '.zip';
-        var url = URL.createObjectURL(blob); var a = document.createElement('a');
-        a.href = url; a.download = fname; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-        alertBox('bkMsg', I18n.t('bkDone') + ' ' + esc(fname), true);
+        return NativeFileExport.saveOrShare(blob,fname,{title:fname,dialogTitle:I18n.t('nativeShareTitle')}).then(function(result){ exportDone('bkMsg',result,'bkDone'); });
       }).catch(function(e){
-        alertBox('bkMsg', I18n.t('errPrefix') + API.userErrorText(e), false);
+        exportFailed('bkMsg',e,'');
       }).finally(function(){
         btn.disabled = false; btn.textContent = origTxt;
       });
@@ -105,18 +106,20 @@
       rpc('exportSheetData',[name]).then(function(d){ d=d||{};
         if(d.error){ alertBox('csvMsg', I18n.t('errPrefix')+API.userErrorText(d.error), false); return; }
         var blob=new Blob(['﻿'+toCsv(d.rows)], {type:'text/csv;charset=utf-8;'});
-        var url=URL.createObjectURL(blob); var a=document.createElement('a');
-        a.href=url; a.download=name+'.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-        alertBox('csvMsg', I18n.t('csvDone')+' '+esc(name)+'.csv', true);
-      }).catch(function(e){ alertBox('csvMsg', I18n.t('errPrefix')+API.userErrorText(e), false); });
+        var fileName=name+'.csv';
+        return NativeFileExport.saveOrShare(blob,fileName,{title:fileName,dialogTitle:I18n.t('nativeShareTitle')}).then(function(result){ exportDone('csvMsg',result,'csvDone'); });
+      }).catch(function(e){ exportFailed('csvMsg',e,name+'.csv'); });
     };
 
     rpc('getSheetNames',[]).then(function(names){ document.getElementById('sheetSel').innerHTML=(names||[]).map(function(n){ return '<option value="'+esc(n)+'">'+esc(n)+'</option>'; }).join(''); })
-      .catch(function(e){ if(String(e.message||e).indexOf('unauthorized')>=0){ location.href='./manage.html'; } });
+      .catch(function(e){
+        if(String(e.message||e).indexOf('unauthorized')>=0){ location.href='./manage.html'; return; }
+        alertBox('csvMsg', I18n.t('errPrefix')+API.userErrorText(e), false);
+      });
 
     I18n.init({
-      ja:{ title:'💾 バックアップ / 書き出し', back:'← 管理へ', bkTitle:'📦 全データを一括バックアップ', bkBtn:'📦 全データをZIPでダウンロード', bkWorking:'作成中…', bkDone:'✅ ダウンロードしました:', csvTitle:'📄 シートをCSVで書き出し', csvHint:'シートを選んでCSVをダウンロードできます（Excel等で開けます）。', csvBtn:'⬇ CSVを書き出し', csvDone:'✅ 書き出しました:', errPrefix:'エラー: ' },
-      en:{ title:'💾 Backup / Export', back:'← Manage', bkTitle:'📦 Back up all data', bkBtn:'📦 Download all data (ZIP)', bkWorking:'Preparing…', bkDone:'✅ Downloaded:', csvTitle:'📄 Export a sheet to CSV', csvHint:'Pick a sheet and download it as CSV (opens in Excel, etc.).', csvBtn:'⬇ Export CSV', csvDone:'✅ Exported:', errPrefix:'Error: ' }
+      ja:{ title:'💾 バックアップ / 書き出し', back:'← 管理へ', bkTitle:'📦 全データを一括バックアップ', bkBtn:'📦 全データをZIPでダウンロード', bkWorking:'作成中…', bkDone:'✅ ダウンロードしました:', csvTitle:'📄 シートをCSVで書き出し', csvHint:'シートを選んでCSVをダウンロードできます（Excel等で開けます）。', csvBtn:'⬇ CSVを書き出し', csvDone:'✅ 書き出しました:', nativeShareTitle:'保存 / 共有', nativeShared:'✅ 共有先へ渡しました:', nativeDismissed:'共有画面を閉じました。保存先を選択していない場合は未保存です:', nativeUnavailable:'この端末ではファイルの保存/共有機能を利用できません。アプリを最新版へ更新してください。', errPrefix:'エラー: ' },
+      en:{ title:'💾 Backup / Export', back:'← Manage', bkTitle:'📦 Back up all data', bkBtn:'📦 Download all data (ZIP)', bkWorking:'Preparing…', bkDone:'✅ Downloaded:', csvTitle:'📄 Export a sheet to CSV', csvHint:'Pick a sheet and download it as CSV (opens in Excel, etc.).', csvBtn:'⬇ Export CSV', csvDone:'✅ Exported:', nativeShareTitle:'Save / Share', nativeShared:'✅ Sent to the selected share destination:', nativeDismissed:'The share sheet was closed. If you did not choose a destination, the file was not saved:', nativeUnavailable:'File save/share is unavailable on this device. Update the app and try again.', errPrefix:'Error: ' }
     }, function(){});
   </script>
 

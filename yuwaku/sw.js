@@ -92,7 +92,26 @@ const CACHE_PREFIX = 'yuwaku-production-';
 // v220: 日英business fieldを対等化し、英語のみ/日本語のみ登録と相互fallbackを全機能へ横展開。
 // v221: 再監査対応。多言語メニューオプション、決済、注文管理/KDS、プリンタ表示を更新。
 // v228: オフライン注文再送のStore/token固定化を確実に配布する。
-const CACHE = CACHE_PREFIX + 'v228';
+// v229: 注文確定ダイアログへ商品明細と合計内訳を追加。
+// v232: 経費保存の冪等再送・レジ締め競合時の利用者向け案内を配布。
+// v235: UI監査の設定保存エラー表示・発注メール再試行ID・フィードバック更新エラーを配布。
+// v237: menu auto-translation restoration + localized save error/UI guidance.
+// v238: register open/close response-loss idempotency + retry recovery.
+// v239: Round 2-3 users/clock/menu fixes + offline query-navigation fallback.
+// v240: bfcache resume update check in the shared API client.
+// v242: Round 5 write-success/read-refresh separation across users/menu/inventory/settings.
+// v244: inventory header + attendance timeout/idempotency UXを全Web配布へ確実に反映。
+// v247: iOS date input overlay visibility + regional date text rerender.
+// v248: move receipt-print-only settings from settings to printers.
+// v249: print station requires an explicit logical printer and safely recovers ambiguous success ACKs.
+// v250: synchronously load DateDisplay before date-dependent page scripts.
+// v252: coupon expiry uses a collision-safe responsive phone layout.
+// v253: refresh dynamic system-label localization (roles, audit/order/printer status).
+// v254: cache external browser and native file export helpers used by shared-URL and backup flows.
+// v255: refresh coupon form/list split and reservation Japanese date presentation.
+// v256: pin the applied-language i18n runtime for async completion messages.
+// v257: refresh printer persistence/error locality, runtime i18n, coupon concurrency, Bluetooth unregister and Pixabay/legal updates.
+const CACHE = CACHE_PREFIX + 'v258';
 const SHELL = [
   './',
   './index.html',
@@ -134,13 +153,16 @@ const SHELL = [
   './system-overview.svg',
   './system-overview-en.svg',
   './styles.css',
-  './date-controls.css?v=2',
+  './date-controls.css?v=3',
+  './date-display.js?v=auth4',
   './config.js?v=auth2',
   './header.js?v=auth13',
   './api.js?v=auth2',
-  './i18n.js?v=auth2',
+  './i18n.js?v=auth3',
+  './external-browser.js?v=external1',
+  './native-file-export.js?v=native-export1',
   './confirm.js?v=auth2',
-  './app.js?v=auth3',
+  './app.js?v=auth5',
   './help.js?v=auth2',
   './manifest.webmanifest',
   './admin.webmanifest',
@@ -206,7 +228,7 @@ self.addEventListener('fetch', (event) => {
   // Cache reads are scoped to this environment AND release, never global caches.match.
   const critical = /\/(?:config|api|header)\.js$/.test(url.pathname);
   event.respondWith(caches.open(CACHE).then(async (cache) => {
-    const hit = await cache.match(req);
+    const hit = await cache.match(req, req.mode === 'navigate' ? { ignoreSearch: true } : undefined);
     if (!critical && req.mode !== 'navigate' && hit) return hit;
     try {
       const res = await fetch(req, critical ? { cache: 'no-store' } : undefined);

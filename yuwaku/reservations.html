@@ -42,10 +42,12 @@
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <input id="resUrl" readonly style="flex:1;min-width:220px;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#f8fafc;color:var(--navy);" onclick="this.select()">
         <button class="hbtn" style="background:var(--navy);" onclick="copyResUrl()" data-t="urlCopy">📋 コピー</button>
+        <button class="hbtn" id="resUrlOpenBtn" style="background:var(--navy);" onclick="openResUrl()" data-t="urlOpen" disabled>🌐 ブラウザで開く</button>
       </div>
-      <div id="urlMsg" style="display:none;margin-top:8px;font-size:12.5px;font-weight:700;color:#15803d;" data-t="urlCopied">✅ コピーしました</div>
+      <div id="urlMsg" style="display:none;margin-top:8px;font-size:12.5px;font-weight:700;"></div>
     </div>
     <div class="card">
+    <div id="statusMsg" style="display:none;color:#b91c1c;font-size:13px;font-weight:700;padding:0 0 10px;"></div>
     <div style="overflow:auto;">
       <table><colgroup><col style="width:145px"><col style="width:54px"><col style="width:130px"><col style="width:120px"><col style="width:210px"><col style="width:74px"><col style="width:190px"><col style="width:150px"></colgroup><thead><tr>
         <th data-t="thWhen">予約日時</th><th class="num" data-t="thPeople">人数</th><th data-t="thName">氏名</th>
@@ -55,9 +57,10 @@
     </div>
   </div></div>
 
-  <script src="./config.js?v=auth2"></script>
+  <script src="./date-display.js?v=auth4" data-iz-date-display></script><script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
+  <script src="./external-browser.js?v=external1"></script>
   <script>
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
     if (!TOKEN) location.href = './manage.html';
@@ -73,12 +76,18 @@
       if(!ROWS.length){ document.getElementById('rows').innerHTML='<tr><td colspan="8" class="muted" style="padding:16px;text-align:center;">'+I18n.t('empty')+'</td></tr>'; return; }
       document.getElementById('rows').innerHTML = ROWS.map(function(r){
         var opts = (NEXT[r.status]||[r.status]).map(function(s){ return '<option value="'+s+'"'+(s===r.status?' selected':'')+'>'+esc(stLabel(s))+'</option>'; }).join('');
-        return '<tr><td style="white-space:nowrap;font-weight:800;">'+esc(r.datetime)+'</td><td class="num">'+r.people+'</td><td>'+esc(r.name)+'</td>'+
+        return '<tr><td style="white-space:nowrap;font-weight:800;">'+esc(window.DateDisplay?DateDisplay.formatDateTime(r.datetime):r.datetime)+'</td><td class="num">'+r.people+'</td><td>'+esc(r.name)+'</td>'+
           '<td class="muted">'+esc(r.phone)+'</td><td class="email-cell">'+(r.email?'<a class="email-link" href="mailto:'+esc(r.email)+'">'+esc(r.email)+'</a>':'')+'</td><td>'+esc(r.seat)+'</td><td class="muted" style="white-space:normal;max-width:190px;">'+esc(r.notes)+'</td>'+
           '<td class="status-cell"><div class="status-stack"><span class="st '+(STCLS[r.status]||'')+'">'+esc(stLabel(r.status))+'</span><select class="mini" onchange="setStatus(\''+r.id+'\',this.value)">'+opts+'</select></div></td></tr>';
       }).join('');
     }
-    window.setStatus = function(id, status){ rpc('updateReservationStatus',[id,status]).then(function(){ return reload(); }).catch(function(){}); };
+    window.setStatus = function(id, status){
+      var row=ROWS.find(function(r){ return String(r.id)===String(id); });
+      if(!row || row.status===status){ render(); return; }
+      render();
+      var statusMsg=document.getElementById('statusMsg'); statusMsg.style.display='none'; statusMsg.textContent='';
+      rpc('updateReservationStatus',[id,status]).then(function(r){ if(!r||r.ok!==true) throw new Error((r&&r.error)||'save_failed'); row.status=status; render(); }).catch(function(e){ render(); statusMsg.textContent=I18n.t('statusSaveErr')+API.userErrorText(e); statusMsg.style.display='block'; });
+    };
     window.reload = function(){ return rpc('getReservations',[]).then(function(l){ ROWS=l||[]; render(); }); };
 
     // 予約フォームは店舗ID付きの外部公開URLを共有する。
@@ -88,21 +97,29 @@
       if(!/^https:\/\//i.test(base)||!storeId) return '';
       try{ var u=new URL(base); u.searchParams.set('store',storeId); return u.toString(); }catch(e){ return ''; }
     }
-    document.getElementById('resUrl').value = buildReservationUrl();
+    function showUrlMessage(text,ok){ var m=document.getElementById('urlMsg'); m.textContent=text; m.style.color=ok?'#15803d':'#b91c1c'; m.style.display='block'; }
+    var initialReservationUrl=buildReservationUrl();
+    document.getElementById('resUrl').value = initialReservationUrl;
+    document.getElementById('resUrlOpenBtn').disabled = !initialReservationUrl;
     window.copyResUrl = function(){
       var input = document.getElementById('resUrl');
-      if(!input.value){ return; }
-      var done = function(){ var m=document.getElementById('urlMsg'); m.style.display='block'; setTimeout(function(){ m.style.display='none'; }, 2200); };
+      if(!input.value){ showUrlMessage(I18n.t('urlUnavailable'),false); return; }
+      var done = function(){ showUrlMessage(I18n.t('urlCopied'),true); setTimeout(function(){ document.getElementById('urlMsg').style.display='none'; }, 2200); };
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(input.value).then(done).catch(function(){ input.select(); document.execCommand('copy'); done(); });
       } else { input.select(); document.execCommand('copy'); done(); }
+    };
+    window.openResUrl = function(){
+      var value=document.getElementById('resUrl').value;
+      if(!value){ showUrlMessage(I18n.t('urlUnavailable'),false); return; }
+      ExternalBrowser.open(value).then(function(){ showUrlMessage(I18n.t('urlOpened'),true); }).catch(function(){ showUrlMessage(I18n.t('urlOpenFailed'),false); });
     };
     rpc('getReservations',[]).then(function(l){ ROWS=l||[]; __loaded=true; render(); })
       .catch(function(e){ if(String(e.message||e).indexOf('unauthorized')>=0){ location.href='./manage.html'; return; } document.getElementById('rows').innerHTML='<tr><td colspan="8" style="color:#b91c1c;padding:16px;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</td></tr>'; });
 
     I18n.init({
-      ja:{ title:'🗓️ 予約管理', back:'← 管理へ', reload:'↻', urlTitle:'🔗 予約フォームの共有URL', urlHint:'お客様がこのURLを開くと予約をリクエストできます。SNSやGoogleビジネスプロフィールなどに貼ってご利用ください。', urlCopy:'📋 コピー', urlCopied:'✅ コピーしました', thWhen:'予約日時', thPeople:'人数', thName:'氏名', thPhone:'電話', thEmail:'メール', thSeat:'席', thNotes:'備考', thStatus:'状態', loading:'読み込み中…', empty:'予約はありません', loadErr:'読み込みエラー: ', stRecv:'受付', stOk:'確定', stCame:'来店済', stCxl:'キャンセル' },
-      en:{ title:'🗓️ Reservations', back:'← Manage', reload:'↻', urlTitle:'🔗 Reservation form URL', urlHint:'Customers who open this URL can request a reservation. Share it on social media, Google Business Profile, etc.', urlCopy:'📋 Copy', urlCopied:'✅ Copied', thWhen:'Date & time', thPeople:'Party', thName:'Name', thPhone:'Phone', thEmail:'Email', thSeat:'Seat', thNotes:'Notes', thStatus:'Status', loading:'Loading…', empty:'No reservations', loadErr:'Load error: ', stRecv:'Received', stOk:'Confirmed', stCame:'Arrived', stCxl:'Cancelled' }
+      ja:{ title:'🗓️ 予約管理', back:'← 管理へ', reload:'↻', urlTitle:'🔗 予約フォームの共有URL', urlHint:'お客様がこのURLを開くと予約をリクエストできます。SNSやGoogleビジネスプロフィールなどに貼ってご利用ください。', urlCopy:'📋 コピー', urlOpen:'🌐 ブラウザで開く', urlCopied:'✅ コピーしました', urlOpened:'✅ ブラウザで開きました', urlUnavailable:'公開予約URLまたは店舗IDを取得できません。ログインし直してから再度お試しください。', urlOpenFailed:'ブラウザで開けませんでした。URLをコピーしてブラウザへ貼り付けてください。', thWhen:'予約日時', thPeople:'人数', thName:'氏名', thPhone:'電話', thEmail:'メール', thSeat:'席', thNotes:'備考', thStatus:'状態', loading:'読み込み中…', empty:'予約はありません', loadErr:'読み込みエラー: ', statusSaveErr:'状態を保存できませんでした: ', stRecv:'受付', stOk:'確定', stCame:'来店済', stCxl:'キャンセル' },
+      en:{ title:'🗓️ Reservations', back:'← Manage', reload:'↻', urlTitle:'🔗 Reservation form URL', urlHint:'Customers who open this URL can request a reservation. Share it on social media or Google Business Profile.', urlCopy:'📋 Copy', urlOpen:'🌐 Open in browser', urlCopied:'✅ Copied', urlOpened:'✅ Opened in browser', urlUnavailable:'The public reservation URL or store ID is unavailable. Sign in again and retry.', urlOpenFailed:'Could not open the browser. Copy the URL and paste it into your browser.', thWhen:'Date & time', thPeople:'Party', thName:'Name', thPhone:'Phone', thEmail:'Email', thSeat:'Seat', thNotes:'Notes', thStatus:'Status', loading:'Loading…', empty:'No reservations', loadErr:'Load error: ', statusSaveErr:'Could not save status: ', stRecv:'Received', stOk:'Confirmed', stCame:'Arrived', stCxl:'Cancelled' }
     }, function(){ if(__loaded) render(); });
   </script>
 
@@ -112,7 +129,7 @@
       title: '予約管理',
       titleEn: 'Reservations',
       items: [
-        { ja: '① 画面上部の「予約フォームの共有URL」は、お客様が予約をリクエストできるページのリンクです。「📋 コピー」でコピーし、SNSやGoogleビジネスプロフィールなどに貼って使えます。', en: '① The “Reservation form URL” at the top links to the page where customers can request a reservation. Tap “📋 Copy” to copy it and share it on social media or Google Business Profile.' },
+        { ja: '① 画面上部の「予約フォームの共有URL」は、お客様が予約をリクエストできるページのリンクです。「📋 コピー」で共有でき、「🌐 ブラウザで開く」で公開ページをその場で確認できます。', en: '① The “Reservation form URL” links to the customer reservation page. Use “📋 Copy” to share it or “🌐 Open in browser” to check the public page directly.' },
         { ja: '② 一覧には予約日時・人数・氏名・電話番号・メールアドレス・希望席・備考が並び、新しい予約もこの一覧に自動で反映されます。', en: '② The list shows the reservation date/time, party size, name, phone, email, requested seat, and notes; new requests appear here automatically.' },
         { ja: '③ 各行右端のプルダウンで状態を「受付」「確定」「来店済」「キャンセル」に変更できます。変更は選択した瞬間に保存されます。', en: '③ Use the dropdown at the right of each row to change the status to Received, Confirmed, Arrived, or Cancelled. The change saves as soon as you select it.' },
         { ja: '④ 状態は色分けされたラベルでも表示され、一目で対応状況が分かります。', en: '④ The status is also shown as a color-coded badge so you can see the situation at a glance.' },

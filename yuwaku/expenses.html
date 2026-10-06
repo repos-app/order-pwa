@@ -10,7 +10,7 @@
 
   <link rel="manifest" href="./expenses.webmanifest">
   <title>Expenses</title>
-  <link rel="stylesheet" href="./date-controls.css?v=2">
+  <link rel="stylesheet" href="./date-controls.css?v=3">
   <style>
     :root{ --bg:#f6f7f9; --surface:#fff; --border:#e5e7eb; --navy:#0f172a; --text-3:#64748b; --red:#c62828; }
     *{ box-sizing:border-box; }
@@ -140,9 +140,9 @@
     </div>
   </div>
 
-  <script src="./config.js?v=auth2"></script>
+  <script src="./date-display.js?v=auth4" data-iz-date-display></script><script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
   <script src="./confirm.js?v=auth2"></script>
   <script>
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
@@ -181,7 +181,7 @@
         var purchaser=e.purchaser ? '<div><strong>'+I18n.t('lblPurchaser')+':</strong> '+esc(e.purchaser)+'</div>' : '';
         var memo=e.memo ? '<div><strong>'+I18n.t('lblMemoShort')+':</strong> '+esc(e.memo)+'</div>' : '';
         var receipt=e.receiptImageUrl ? '<div>'+receiptThumb(e)+'</div>' : '<div><strong>'+I18n.t('thReceipt')+':</strong> '+I18n.t('noReceipt')+'</div>';
-        return '<div class="expense-card-row"><div class="expense-card-head"><div><div class="expense-card-date">'+esc(e.date)+'</div><div class="expense-card-item">'+esc(e.item||I18n.t('noItem'))+'</div><span class="expense-card-cat">'+esc(catLabel(e.category))+'</span></div><div class="expense-card-amount">'+SYM+(Number(e.amount)||0).toLocaleString()+'</div></div><div class="expense-card-meta">'+purchaser+receipt+memo+'</div><div class="expense-card-actions"><button class="btn-sm" onclick="edit(\''+e.id+'\')">'+I18n.t('edit')+'</button><button class="btn-sm" onclick="del(\''+e.id+'\')">'+I18n.t('del')+'</button></div></div>';
+        return '<div class="expense-card-row"><div class="expense-card-head"><div><div class="expense-card-date">'+esc(window.DateDisplay?DateDisplay.format(e.date):e.date)+'</div><div class="expense-card-item">'+esc(e.item||I18n.t('noItem'))+'</div><span class="expense-card-cat">'+esc(catLabel(e.category))+'</span></div><div class="expense-card-amount">'+SYM+(Number(e.amount)||0).toLocaleString()+'</div></div><div class="expense-card-meta">'+purchaser+receipt+memo+'</div><div class="expense-card-actions"><button class="btn-sm" onclick="edit(\''+e.id+'\')">'+I18n.t('edit')+'</button><button class="btn-sm" onclick="del(\''+e.id+'\')">'+I18n.t('del')+'</button></div></div>';
       }).join('');
     }
 
@@ -198,15 +198,21 @@
       if(!list.length){ document.getElementById('rows').innerHTML='<tr><td colspan="8" style="color:#aaa;padding:16px;text-align:center;">'+I18n.t('empty')+'</td></tr>'; return; }
       document.getElementById('rows').innerHTML = list.map(function(e){
         var receiptCell = e.receiptImageUrl ? ('<button type="button" class="receipt-thumb-btn" data-receipt-url="'+esc(e.receiptImageUrl)+'" onclick="openReceipt(this.dataset.receiptUrl)"><img src="'+esc(e.receiptImageUrl)+'" style="width:36px;height:36px;object-fit:cover;border-radius:6px;border:1px solid var(--border);"></button>') : '';
-        return '<tr><td>'+esc(e.date)+'</td><td>'+esc(catLabel(e.category))+'</td><td>'+esc(e.item)+'</td>'+
+        return '<tr><td>'+esc(window.DateDisplay?DateDisplay.format(e.date):e.date)+'</td><td>'+esc(catLabel(e.category))+'</td><td>'+esc(e.item)+'</td>'+
           '<td class="num">'+SYM+(Number(e.amount)||0).toLocaleString()+'</td><td>'+esc(e.purchaser||'')+'</td>'+
           '<td>'+receiptCell+'</td><td class="muted" style="white-space:normal;max-width:180px;">'+esc(e.memo||'')+'</td>'+
           '<td><button class="btn-sm" onclick="edit(\''+e.id+'\')">'+I18n.t('edit')+'</button> '+
           '<button class="btn-sm" onclick="del(\''+e.id+'\')">'+I18n.t('del')+'</button></td></tr>';
       }).join('');
     }
+    var EXPENSE_CLIENT_REQUEST_ID='';
+    function nextExpenseClientRequestId(){
+      if(window.crypto && typeof window.crypto.randomUUID==='function') return 'exp-'+window.crypto.randomUUID();
+      return 'exp-'+Date.now()+'-'+Math.random().toString(36).slice(2,12);
+    }
     function msg(text, ok){ var m=document.getElementById('msg'); m.style.display='block'; m.style.background=ok?'#dcfce7':'#fee2e2'; m.style.color=ok?'#15803d':'#b91c1c'; m.innerText=text; }
     function clearForm(){
+      EXPENSE_CLIENT_REQUEST_ID='';
       document.getElementById('eId').value=''; document.getElementById('eItem').value=''; document.getElementById('eAmount').value='';
       document.getElementById('eMemo').value=''; document.getElementById('ePurchaser').value='';
       document.getElementById('eReceiptFile').value=''; updateEReceiptFileName(); document.getElementById('eReceiptImageId').value='';
@@ -215,7 +221,9 @@
 
     window.edit = function(id){
       var e = ALL.filter(function(x){return x.id===id;})[0]; if(!e) return;
+      EXPENSE_CLIENT_REQUEST_ID='';
       document.getElementById('eId').value=e.id; document.getElementById('eDate').value=e.date;
+      if(window.DateDisplay)DateDisplay.refresh();
       document.getElementById('eCat').value=e.category; document.getElementById('eItem').value=e.item;
       document.getElementById('eAmount').value=e.amount; document.getElementById('eMemo').value=e.memo||'';
       document.getElementById('ePurchaser').value=e.purchaser||'';
@@ -298,12 +306,18 @@
         amount:Number(document.getElementById('eAmount').value)||0, memo:document.getElementById('eMemo').value,
         purchaser:document.getElementById('ePurchaser').value.trim(),
         receiptImageId:document.getElementById('eReceiptImageId').value };
+      if(!exp.id) exp.clientRequestId=EXPENSE_CLIENT_REQUEST_ID || (EXPENSE_CLIENT_REQUEST_ID=nextExpenseClientRequestId());
       if(!exp.date){ msg(I18n.t('needDate'), false); return; }
       if(!(exp.amount>0)){ msg(I18n.t('needAmount'), false); return; }
       var btn=document.getElementById('saveBtn'); btn.disabled=true;
       var uploadStep = file
         ? prepareReceiptPayload(file).then(function(payload){ return rpc('uploadExpenseReceipt',[payload]); })
-            .then(function(r){ if(!(r && r.success && r.fileId)) throw new Error(receiptUploadError(r&&r.error)); exp.receiptImageId = r.fileId; })
+            .then(function(r){
+              if(!(r && r.success && r.fileId)) throw new Error(receiptUploadError(r&&r.error));
+              exp.receiptImageId = r.fileId;
+              document.getElementById('eReceiptImageId').value=r.fileId;
+              document.getElementById('eReceiptFile').value=''; updateEReceiptFileName();
+            })
         : Promise.resolve();
       // [応答速度対応] saveExpenseが保存済み行を返すので、全件再取得(getExpenses)せず
       // ローカル配列を新規追加/置換するだけで一覧に反映する。

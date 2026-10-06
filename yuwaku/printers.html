@@ -48,6 +48,20 @@
     .alert{ margin-top:10px; padding:10px 12px; border-radius:9px; font-size:13px; font-weight:700; }
     .alert-success{ background:var(--green-lt); color:var(--green-dk); } .alert-error{ background:#fee2e2; color:#b91c1c; }
     .loading{ text-align:center; color:var(--text-3); padding:16px; font-size:13px; }
+    .receipt-logo-row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .receipt-logo-preview{ display:none; max-width:200px; max-height:80px; background:#fff; border:1px solid var(--border); border-radius:8px; padding:4px; }
+    .receipt-scale-row{ display:flex; align-items:center; gap:10px; margin-top:8px; }
+    .receipt-scale-row .form-control{ width:90px; }
+    .bt-status{ padding:11px 12px; border:1px solid var(--border); border-radius:10px; background:var(--surface-2); font-size:13px; font-weight:800; margin:10px 0; }
+    .bt-status.ok{ background:var(--green-lt); color:var(--green-dk); border-color:#bbf7d0; }
+    .bt-status.run{ background:#eff6ff; color:#2563eb; border-color:#bfdbfe; }
+    .bt-status.err{ background:#fee2e2; color:#b91c1c; border-color:#fecaca; }
+    .bt-actions{ display:flex; gap:8px; flex-wrap:wrap; margin:10px 0; }
+    .bt-actions .btn{ flex:1 1 140px; }
+    .bt-inline-row{ display:flex; align-items:center; gap:8px; margin-top:10px; min-width:0; }
+    .bt-inline-row .form-label{ flex:0 0 auto; margin:0; }
+    .bt-inline-row .form-control{ min-width:0; }
+    @media(max-width:520px){ .bt-inline-row{ align-items:stretch; flex-direction:column; } .bt-inline-row .btn{ width:100%; } }
   </style>
 </head>
 <body>
@@ -66,35 +80,59 @@
           <div class="card-title" style="margin:0;">🖨️ <span id="t-enable">Printing</span></div>
           <div class="form-hint" id="enable-state" style="margin-top:2px;"></div>
         </div>
-        <label class="switch"><input type="checkbox" id="enableToggle" onchange="saveEnabled()"><span class="slider"></span></label>
+        <label class="switch"><input type="checkbox" id="enableToggle" onchange="saveEnabled()" disabled><span class="slider"></span></label>
       </div>
       <div class="toggle-row" style="margin-top:14px;border-top:1px solid #e5e7eb;padding-top:14px;">
         <div>
           <div class="card-title" style="margin:0;">🧾 <span id="t-receipt">Auto-print receipt on checkout</span></div>
           <div class="form-hint" id="t-receipt-hint" style="margin-top:2px;"></div>
         </div>
-        <label class="switch"><input type="checkbox" id="receiptToggle" onchange="saveReceipt()"><span class="slider"></span></label>
+        <label class="switch"><input type="checkbox" id="receiptToggle" onchange="saveReceipt()" disabled><span class="slider"></span></label>
       </div>
       <div class="toggle-row" style="margin-top:14px;border-top:1px solid #e5e7eb;padding-top:14px;">
         <div>
           <div class="card-title" style="margin:0;">🌐 <span id="t-plang">Print language</span></div>
           <div class="form-hint" id="t-plang-hint" style="margin-top:2px;"></div>
         </div>
-        <select id="printLangSel" onchange="savePrintLang()" style="padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;">
+        <select id="printLangSel" onchange="savePrintLang()" disabled style="padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;">
           <option value="ja">日本語</option>
           <option value="en">English</option>
           <option value="both">日本語 ＋ English</option>
         </select>
       </div>
+      <div id="printer-basic-msg" class="alert" style="display:none;" aria-live="polite"></div>
     </div>
 
-    <div class="card">
-      <div class="card-title">🔗 <span id="t-url">CloudPRNT Server URL</span></div>
-      <div class="form-hint" id="url-help" style="margin-bottom:8px;line-height:1.7;"></div>
-      <div class="form-hint" id="cp-unavail" style="font-size:13px;font-weight:700;color:#0c4a6e;background:#e0f2fe;border:1px solid #bae6fd;border-radius:9px;padding:10px 12px;margin-bottom:10px;line-height:1.6;"></div>
-      <div class="form-hint" id="bt-explain" style="font-size:13px;font-weight:700;color:#7c2d12;background:#fff7ed;border:1px solid #fed7aa;border-radius:9px;padding:10px 12px;margin-bottom:10px;line-height:1.6;"></div>
-      <div class="url-box" id="cpUrl">—</div>
-      <button class="btn btn-outline" style="margin-top:8px;" id="btn-copy" onclick="copyUrl()">📋 <span id="t-copy">Copy</span></button>
+    <div class="card" id="receipt-print-settings">
+      <div class="card-title">🧾 <span id="t-receipt-settings">レシート印刷設定</span></div>
+      <div class="form-group"><label class="form-label" id="t-shop-address">住所（レシート表示）</label><input id="shopAddress" class="form-control"></div>
+      <div class="form-group"><label class="form-label" id="t-shop-tin">税務登録番号（レシート表示）</label><input id="shopTin" class="form-control"></div>
+      <button class="btn btn-primary" type="button" id="btn-receipt-settings-save" onclick="saveReceiptSettings()">💾 <span id="t-receipt-settings-save">保存</span></button>
+      <div class="form-group" style="margin-top:14px;"><label class="form-label" id="t-shop-logo">レシートのロゴ（先頭に中央印字）</label><div class="receipt-logo-row"><input type="file" id="logoFile" accept="image/*" onchange="onLogoPick(event)"><button type="button" class="btn btn-secondary btn-sm" onclick="clearLogo()" id="t-logo-clear">クリア</button><img id="logoPrev" class="receipt-logo-preview" alt=""></div><div class="form-hint" id="t-logo-hint">白黒の感熱印刷用に自動で縮小・変換します。58mm幅を100%として、下の値で印字サイズを調整できます。</div><div class="receipt-scale-row"><label class="form-label" style="margin:0;" id="t-logo-size">印字サイズ（%）</label><input id="logoScale" type="number" min="20" max="100" step="5" class="form-control" oninput="saveLogoScale()" onchange="saveLogoScale()"><span class="form-hint" style="margin:0;">(20〜100)</span></div></div>
+      <div id="receipt-settings-msg" class="alert" style="display:none;"></div>
+    </div>
+
+    <div class="card" id="guide-printer-setup" data-guide-anchor>
+      <div class="card-title">🔵 <span id="t-pt210-title">Bluetoothプリンタ接続</span></div>
+      <div class="form-hint" id="t-pt210-help" style="font-size:13px;line-height:1.7;margin-bottom:12px;">この画面内でBluetoothプリンタの検索・接続・保存・再接続・切断・テスト印刷まで行えます。<b>動作確認済みプリンタ: PT-210</b></div>
+      <div class="bt-inline-row">
+        <label class="form-label" id="t-bt-scope" for="btProfileScope">接続設定の対象</label>
+        <select id="btProfileScope" class="form-control" onchange="btChangeScope()"><option value="general">レシート・一般</option></select>
+      </div>
+      <div class="form-hint" style="margin-top:8px;"><span id="t-bt-saved">保存済みプリンタ</span>: <strong id="btSavedPrinter">—</strong></div>
+      <div id="btStatus" class="bt-status" aria-live="polite">未接続</div>
+      <div class="bt-inline-row" id="btDeviceRow" style="display:none;">
+        <label class="form-label" id="t-bt-device" for="btDevice">検出したBluetooth機器</label>
+        <select id="btDevice" class="form-control"></select>
+      </div>
+      <div class="bt-actions">
+        <button class="btn btn-primary" id="btn-pt210-connect" type="button" onclick="btConnect()">🔎 <span id="t-pt210-connect">検索 / 接続</span></button>
+        <button class="btn btn-secondary" id="btn-bt-reconnect" type="button" onclick="btReconnect(false)">↻ <span id="t-bt-reconnect">保存済みに再接続</span></button>
+        <button class="btn btn-outline" id="btn-bt-disconnect" type="button" onclick="btDisconnect()"><span id="t-bt-disconnect">切断</span></button>
+        <button class="btn btn-danger" id="btn-bt-forget" type="button" onclick="btUnregister()"><span id="t-bt-forget">登録解除</span></button>
+        <button class="btn btn-primary" id="btn-bt-test" type="button" onclick="btTestPrint()">🧾 <span id="t-bt-test">テスト印刷</span></button>
+      </div>
+      <div id="btTestMsg" class="alert" style="display:none;" aria-live="polite"></div>
     </div>
 
     <div class="card">
@@ -112,23 +150,20 @@
         <button class="btn btn-warning btn-sm" id="btn-reall" onclick="reprintAll()">🔁 <span id="t-reall">Reprint failed</span></button>
         <button class="btn btn-secondary btn-sm" id="btn-clear" onclick="clearDone()">🧹 <span id="t-clear">Clear done</span></button>
       </div>
+      <div id="queue-msg" class="alert" style="display:none;" aria-live="polite"></div>
       <div style="overflow:auto;max-height:340px;">
         <table id="qTable"><tbody><tr><td style="text-align:center;color:#aaa;padding:20px;" id="q-empty">—</td></tr></tbody></table>
       </div>
     </div>
 
-    <div class="card" id="guide-printer-setup" data-guide-anchor>
-      <div class="card-title">➕ <span id="t-prform">Add / Edit Printer</span></div>
+    <div class="card">
+      <div class="card-title">➕ <span id="t-prform">印刷出力先の追加 / 編集</span></div>
       <div class="form-hint" id="t-prform-hint" style="margin:-6px 0 12px;"></div>
       <input type="hidden" id="prId">
+      <input type="hidden" id="prMac">
       <div class="form-group">
         <label class="form-label" id="lbl-prname">Printer Name</label>
         <input type="text" id="prName" class="form-control" placeholder="Kitchen">
-      </div>
-      <div class="form-group">
-        <label class="form-label" id="lbl-prmac">MAC Address</label>
-        <input type="text" id="prMac" class="form-control" placeholder="00:11:62:xx:xx:xx">
-        <div class="form-hint" id="hint-mac"></div>
       </div>
       <div class="form-group">
         <label class="form-label" id="lbl-prcat">Categories</label>
@@ -145,12 +180,13 @@
     </div>
 
     <div class="card">
-      <div class="card-title">🖨️ <span id="t-prlist">Printers</span></div>
+      <div class="card-title">🖨️ <span id="t-prlist">印刷出力先</span></div>
       <div id="prList"><div class="loading">…</div></div>
+      <div id="printer-list-msg" class="alert" style="display:none;" aria-live="polite"></div>
     </div>
   </div>
 
-  <script src="./config.js?v=auth2"></script>
+  <script src="./date-display.js?v=auth4" data-iz-date-display></script><script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
   <script src="./confirm.js?v=auth2"></script>
   <script>
@@ -158,64 +194,104 @@
     if (!TOKEN) location.href = './manage.html';
     function rpc(fn,args){ return API.post('rpc',{fn:fn,args:args||[],token:TOKEN}).then(function(r){ return r.data; }); }
     function onErr(e){ if(String(e&&(e.message||e)).indexOf('unauthorized')>=0){ location.href='./manage.html'; } }
-
+    function requireSaveSuccess(r){ if(!r||r.success!==true) throw new Error((r&&r.error)||'save_failed'); return r; }
     var currentLang = (function(){try{var s=localStorage.getItem('lang');if(s==='ja'||s==='en')return s;var first=(navigator.languages&&navigator.languages.length)?navigator.languages[0]:navigator.language;var d=String(first||'').toLowerCase().indexOf('ja')===0?'ja':'en';localStorage.setItem('lang',d);return d;}catch(e){return 'en';}})();
     var allPrinters = [], allCategories = [], selectedCats = [], refreshTimer = null, lastQueue = [];
 
     var i18n = {
-      ja: { title:'プリンタ設定', langBtn:'EN', enable:'プリンタ印刷', on:'✅ 有効（注文が自動で印刷されます）', off:'⛔ 無効（印刷しません）', receipt:'会計時にレシートを自動印刷', receiptHint:'会計確定時に登録プリンタへレシートを送信します',
-        url:'CloudPRNT サーバーURL', copy:'コピー', copied:'✅ コピーしました',
-        urlHelp:'Starプリンタの CloudPRNT 設定画面で、下記URLを「Server URL」に登録してください（この店舗の各プリンタ共通）。ポーリング間隔は5〜10秒推奨。',
-        cpUnavail:'ℹ️ このURLは「CloudPRNT」対応プリンター専用です（Star社の公開仕様書どおりにサーバー側は実装済みですが、実機での動作確認はまだ行っていません）。下の「プリンタの追加/編集」で登録するMACアドレス・カテゴリも、このCloudPRNTプリンター向けの設定です。CloudPRNT対応プリンター（Star Micronics製など）を導入する場合は、そのMACアドレスを登録し、プリンター側の設定画面で上記URLを「Server URL」に登録してください。導入時は必ず1台でテスト印字を試してからご利用ください。',
-        btExplain:'🔵 Bluetoothプリンタ（現在お使いのPT-210など）はCloudPRNTには対応していません。上の登録フォームは使わず、代わりにプリンタ本体とレジ横の端末（PC/スマホ）をBluetoothで直接ペアリングし、<a href="./bridge.html#guide-bridge-connect" style="color:#7c2d12;text-decoration:underline;font-weight:800;">🖨️ 印刷ステーション（bridge.html）</a>をその端末のChromeで開いたままにしてください。会計確定などで発生した印刷ジョブはこの画面が自動でポーリングして受け取り、Bluetooth経由でプリンタへ送信します。',
+      ja: { title:'プリンタ設定', langBtn:'EN', enable:'プリンタ印刷', on:'✅ 有効（注文が自動で印刷されます）', off:'⛔ 無効（印刷しません）', receipt:'会計時にレシートを自動印刷', receiptHint:'会計確定時に設定済みBluetoothプリンタへレシートを送信します', pt210Title:'Bluetoothプリンタ接続', pt210Help:'この画面内でBluetoothプリンタの検索・接続・保存・再接続・切断・テスト印刷まで行えます。動作確認済みプリンタ: PT-210', pt210Connect:'検索 / 接続', btScope:'接続設定の対象', btGeneral:'レシート・一般', btSaved:'保存済みプリンタ', btNone:'なし', btDevice:'検出したBluetooth機器', btReconnect:'保存済みに再接続', btDisconnect:'切断', btForget:'登録解除', btTest:'テスト印刷', btDisconnected:'未接続', btScanning:'Bluetooth機器を検索中…', btChooseDevice:'検出したBluetooth機器を選び、「検索 / 接続」をもう一度押してください', btNoDevices:'接続可能なBluetooth機器が見つかりません', btConnecting:'Bluetoothプリンタに接続中…', btResolving:'接続済み。印刷設定を確認しています…', btConnected:'接続完了', btNoWrite:'このBluetooth機器では印刷用の接続先を見つけられませんでした', btProfileUnknown:'このBluetooth機器では印刷設定を自動判定できませんでした', btNoSupport:'この端末はBluetooth直接接続に対応していません', btNoSaved:'保存済みプリンタがありません', btReconnecting:'保存済みプリンタへ再接続中…', btNeedConnection:'未接続です。接続後、自動でテスト印刷します。', btPrinting:'テスト印刷データを送信中…', btPrinted:'✅ テスト印刷を送信しました', btWriteFailed:'Bluetooth接続は維持されていますが、印刷データの送信に失敗しました', btForgetConfirm:'この接続設定に保存したBluetoothプリンタ登録を解除しますか？', btForgetDone:'Bluetoothプリンタ登録を解除しました', btDisconnectedUnexpected:'Bluetooth接続が切断されました',
         queue:'印刷キュー', pend:'未印刷', prog:'印刷中', done:'印刷済', fail:'失敗', reall:'失敗を再印刷', clear:'印刷済を削除',
-        prform:'プリンタの追加 / 編集', prformHint:'⚠️ CloudPRNT対応プリンタ専用です。Bluetoothプリンタ（PT-210等）はここに登録する必要はありません（上の説明を参照）。', prname:'プリンタ名', prmac:'MACアドレス', hintMac:'CloudPRNTプリンタのMAC。設定画面や本体ラベルで確認できます。',
-        prcat:'対応カテゴリ', hintCat:'選択したカテゴリの商品のみ印刷。未選択の場合は全カテゴリを印刷します。', prenabled:'有効', save:'保存', clear2:'クリア', prlist:'登録プリンタ',
+        prform:'印刷出力先の追加 / 編集', prformHint:'上の「Bluetoothプリンタ接続」で物理プリンタを接続します。ここでは印刷キューの論理出力先を設定します。カテゴリを選ぶと厨房用、未選択ならレシート・一般印刷用です。', prname:'出力先名',
+        prcat:'対応カテゴリ', hintCat:'厨房用は印刷する商品カテゴリを選択してください。未選択の場合はレシート・一般印刷用として扱います。', prenabled:'有効', save:'保存', clear2:'クリア', prlist:'印刷出力先', generalRoute:'レシート・一般',
         test:'テスト印刷', edit:'編集', del:'削除', delConfirm:'このプリンタを削除しますか？', saved:'✅ 保存しました', nameReq:'プリンタ名を入力してください', err:'エラー',
-        cTime:'時刻', cPrinter:'プリンタ', cTable:'卓', cStatus:'状態', cTry:'試行', reprint:'再印刷', noJobs:'ジョブはありません', noPrinters:'プリンタ未登録', testDone:'✅ テストジョブを登録しました', reprintDone:'再印刷キューに戻しました', clearDoneMsg:'✅ 印刷済を削除しました', plang:'印刷の言語', plangHint:'メニュー名の印刷言語（オーダ票・レシート共通）' },
-      en: { title:'Printers', langBtn:'JP', enable:'Printer Output', on:'✅ On (orders print automatically)', off:'⛔ Off (no printing)', receipt:'Auto-print receipt on checkout', receiptHint:'Sends a receipt to registered printers when a bill is settled',
-        url:'CloudPRNT Server URL', copy:'Copy', copied:'✅ Copied',
-        urlHelp:'In each Star printer\u2019s CloudPRNT settings, set the URL below as the "Server URL" (same for all printers in this store). Polling interval 5\u201310s recommended.',
-        cpUnavail:'\u2139\ufe0f This URL is only for \u201cCloudPRNT\u201d-capable printers (server-side support is built to Star\u2019s published protocol spec, but hasn\u2019t been tested against a real CloudPRNT printer yet). The MAC address and categories you register in \u201cAdd / Edit Printer\u201d below are also for this kind of CloudPRNT printer. If you get a CloudPRNT-capable printer (e.g. Star Micronics), register its MAC address and set the URL above as its \u201cServer URL\u201d in the printer\u2019s own settings screen. Always test-print on one unit before relying on it.',
-        btExplain:'\ud83d\udd35 Bluetooth printers (like the PT-210 currently in use) don\u2019t support CloudPRNT. Don\u2019t use the form above for them \u2014 instead, pair the printer directly over Bluetooth with the device sitting at the register (PC/phone), and keep the <a href="./bridge.html#guide-bridge-connect" style="color:#7c2d12;text-decoration:underline;font-weight:800;">\ud83d\udda8\ufe0f Print Station (bridge.html)</a> open in that device\u2019s Chrome. It automatically polls for print jobs (e.g. from finalized bills) and sends them to the printer over Bluetooth.',
+        cTime:'時刻', cPrinter:'プリンタ', cTable:'卓', cStatus:'状態', cTry:'試行', reprint:'再印刷', noJobs:'ジョブはありません', noPrinters:'プリンタ未登録', testDone:'✅ テストジョブを登録しました', reprintDone:'再印刷キューに戻しました', clearDoneMsg:'✅ 印刷済を削除しました', plang:'印刷の言語', plangHint:'メニュー名の印刷言語（オーダ票・レシート共通）', receiptSettings:'レシート印刷設定', shopAddress:'住所（レシート表示）', shopTin:'税務登録番号（レシート表示）', shopLogo:'レシートのロゴ（先頭に中央印字）', logoClear:'クリア', logoSize:'印字サイズ（%）', logoHint:'白黒の感熱印刷用に自動で縮小・変換します。58mm幅を100%として、下の値で印字サイズを調整できます。', receiptSettingsSave:'保存', receiptSettingsSaved:'✅ レシート印刷設定を保存しました' },
+      en: { title:'Printers', langBtn:'JP', enable:'Printer Output', on:'✅ On (orders print automatically)', off:'⛔ Off (no printing)', receipt:'Auto-print receipt on checkout', receiptHint:'Sends receipts to the configured Bluetooth printer when a bill is settled', pt210Title:'Bluetooth printer connection', pt210Help:'Search, connect, save, reconnect, disconnect, and test-print here. Verified printer: PT-210.', pt210Connect:'Scan / Connect', btScope:'Connection profile', btGeneral:'Receipt / General', btSaved:'Saved printer', btNone:'None', btDevice:'Detected Bluetooth devices', btReconnect:'Reconnect saved', btDisconnect:'Disconnect', btForget:'Unregister', btTest:'Test print', btDisconnected:'Not connected', btScanning:'Scanning for Bluetooth devices…', btChooseDevice:'Select a detected Bluetooth device, then press “Scan / Connect” again', btNoDevices:'No connectable Bluetooth device found', btConnecting:'Connecting to Bluetooth printer…', btResolving:'Connected. Checking the print setup…', btConnected:'Connected', btNoWrite:'No usable print endpoint was found on this Bluetooth device', btProfileUnknown:'The print setup for this Bluetooth device could not be determined automatically', btNoSupport:'This device cannot use direct Bluetooth printing', btNoSaved:'No saved printer', btReconnecting:'Reconnecting to saved printer…', btNeedConnection:'Not connected. Connect here and the test print will continue automatically.', btPrinting:'Sending test print…', btPrinted:'✅ Test print sent', btWriteFailed:'Bluetooth is still connected, but sending the print data failed', btForgetConfirm:'Unregister the Bluetooth printer saved for this connection profile?', btForgetDone:'Bluetooth printer unregistered', btDisconnectedUnexpected:'Bluetooth disconnected',
         queue:'Print Queue', pend:'Pending', prog:'Printing', done:'Done', fail:'Failed', reall:'Reprint failed', clear:'Clear done',
-        prform:'Add / Edit Printer', prformHint:'\u26a0\ufe0f For CloudPRNT-capable printers only. Bluetooth printers (e.g. PT-210) do not need to be registered here \u2014 see the note above.', prname:'Printer Name', prmac:'MAC Address', hintMac:'The CloudPRNT printer\u2019s MAC (see its settings screen or device label).',
-        prcat:'Categories', hintCat:'Prints only the selected categories. If none selected, prints all categories.', prenabled:'Enabled', save:'Save', clear2:'Clear', prlist:'Registered Printers',
+        prform:'Add / Edit print output', prformHint:'Use the “Bluetooth printer connection” section above to connect the physical printer. This section configures logical print destinations. Choose categories for a kitchen destination; leave categories empty for receipt/general printing.', prname:'Output name',
+        prcat:'Categories', hintCat:'For kitchen printing, choose the item categories to print. Leave empty for receipt/general printing.', prenabled:'Enabled', save:'Save', clear2:'Clear', prlist:'Print outputs', generalRoute:'Receipt / General',
         test:'Test print', edit:'Edit', del:'Delete', delConfirm:'Delete this printer?', saved:'✅ Saved', nameReq:'Please enter a printer name', err:'Error',
-        cTime:'Time', cPrinter:'Printer', cTable:'T', cStatus:'Status', cTry:'Try', reprint:'Reprint', noJobs:'No jobs', noPrinters:'No printers yet', testDone:'✅ Test job queued', reprintDone:'Requeued for printing', clearDoneMsg:'✅ Cleared printed jobs', plang:'Print language', plangHint:'Language of menu names on tickets & receipts' }
+        cTime:'Time', cPrinter:'Printer', cTable:'T', cStatus:'Status', cTry:'Try', reprint:'Reprint', noJobs:'No jobs', noPrinters:'No printers yet', testDone:'✅ Test job queued', reprintDone:'Requeued for printing', clearDoneMsg:'✅ Cleared printed jobs', plang:'Print language', plangHint:'Language of menu names on tickets & receipts', receiptSettings:'Receipt print settings', shopAddress:'Address (on receipt)', shopTin:'Tax registration number (on receipt)', shopLogo:'Receipt logo (centered on top)', logoClear:'Clear', logoSize:'Print size (%)', logoHint:'Auto-resized & converted for B/W thermal printing. 58mm width = 100%; adjust the print size below.', receiptSettingsSave:'Save', receiptSettingsSaved:'✅ Receipt print settings saved' }
     };
 
     function $(id){ return document.getElementById(id); }
     function escText(v){ return String(v==null?'':v).replace(/[&<>"']/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];}); }
-    function toggleLang(){ currentLang=currentLang==='ja'?'en':'ja'; localStorage.setItem('lang',currentLang); updateUI(); renderCatChips(); renderPrinters(); renderQueue(lastQueue); }
+    var BT_SERVICES=[0x18F0,0x18F1,0xFF00,0xFFE0,0xFFF0,0xFEE7,0xFB00,0xFEA0,0xE0FF,'000018f0-0000-1000-8000-00805f9b34fb','0000ff00-0000-1000-8000-00805f9b34fb','0000ffe0-0000-1000-8000-00805f9b34fb','0000fff0-0000-1000-8000-00805f9b34fb','49535343-fe7d-4ae5-8fa9-9fafd205e455','6e400001-b5a3-f393-e0a9-e50e24dcca9e','e7810a71-73ae-499d-8c15-faa9aef0c3f2'];
+    var btNative=null,btNativeConnected=false,btNativeReady=false,btDevice=null,btServer=null,btWriteChar=null,btPendingTest=false,btTestRunning=false,btInitialized=false,btStatusKey='btDisconnected',btStatusDetail='',btAutoReconnectBlocked=false,btProfileEpoch=0;
+    function btText(k){return (i18n[currentLang]&&i18n[currentLang][k])||k;}
+    function btShort(v){var s=String(v||''),m=/0000([0-9a-f]{4})-0000-1000-8000-00805f9b34fb/i.exec(s);return m?'0x'+m[1].toUpperCase():s;}
+    function btSetStatus(key,kind,detail){btStatusKey=key;btStatusDetail=detail||'';var el=$('btStatus');if(!el)return;el.textContent=btText(key)+(btStatusDetail?' — '+btStatusDetail:'');el.className='bt-status'+(kind?' '+kind:'');}
+    function btSetTest(text,ok){var el=$('btTestMsg');if(!el)return;el.textContent=text;el.className='alert '+(ok?'alert-success':'alert-error');el.style.display='block';}
+    function btStoreId(){try{var v=String((window.API&&API.currentStoreId&&API.currentStoreId())||(window.APP_CONFIG&&APP_CONFIG.STORE_ID)||'').trim().toLowerCase();return /^[a-z0-9][a-z0-9-]{2,31}$/.test(v)?v:'';}catch(e){return '';}}
+    function btScopeId(){return String(($('btProfileScope')&&$('btProfileScope').value)||'general').trim()||'general';}
+    function btStorageKey(suffix){var store=btStoreId();if(!store)return '';return ((window.APP_CONFIG&&APP_CONFIG.STORAGE_PREFIX)||'')+'nativePrinter.'+encodeURIComponent(store)+'.'+encodeURIComponent(btScopeId())+'.'+suffix;}
+    function btLegacyStorageKey(suffix){return ((window.APP_CONFIG&&APP_CONFIG.STORAGE_PREFIX)||'')+'nativePrinter.'+btScopeId()+'.'+suffix;}
+    function btLegacyOwnedByCurrentStore(){try{var store=btStoreId(),prefix=(window.APP_CONFIG&&APP_CONFIG.STORAGE_PREFIX)||'';if(!store)return false;var configured=String((window.APP_CONFIG&&APP_CONFIG.STORE_ID)||'').trim().toLowerCase(),marker=String(localStorage.getItem(prefix+'bridgeStoreId')||'').trim().toLowerCase();return configured===store||marker===store;}catch(e){return false;}}
+    function btScopeStorageKey(){var store=btStoreId();if(!store)return '';return ((window.APP_CONFIG&&APP_CONFIG.STORAGE_PREFIX)||'')+'bluetoothProfileScope.'+encodeURIComponent(store);}
+    function btReadProfile(){try{var pKey=btStorageKey('profile');if(!pKey)return {deviceId:'',serviceUUID:'',characteristicUUID:'',name:''};var raw=localStorage.getItem(pKey)||'',meta={};try{meta=raw?JSON.parse(raw):{};}catch(ignore){}var saved={deviceId:localStorage.getItem(btStorageKey('deviceId'))||meta.deviceId||'',serviceUUID:localStorage.getItem(btStorageKey('serviceUUID'))||meta.serviceUUID||'',characteristicUUID:localStorage.getItem(btStorageKey('characteristicUUID'))||meta.characteristicUUID||'',name:meta.name||''};if(!saved.deviceId&&btLegacyOwnedByCurrentStore()){var legacyRaw=localStorage.getItem(btLegacyStorageKey('profile'))||'',legacyMeta={};try{legacyMeta=legacyRaw?JSON.parse(legacyRaw):{};}catch(ignore2){}saved={deviceId:localStorage.getItem(btLegacyStorageKey('deviceId'))||legacyMeta.deviceId||'',serviceUUID:localStorage.getItem(btLegacyStorageKey('serviceUUID'))||legacyMeta.serviceUUID||'',characteristicUUID:localStorage.getItem(btLegacyStorageKey('characteristicUUID'))||legacyMeta.characteristicUUID||'',name:legacyMeta.name||''};if(saved.deviceId){localStorage.setItem(btStorageKey('deviceId'),saved.deviceId);if(saved.serviceUUID)localStorage.setItem(btStorageKey('serviceUUID'),saved.serviceUUID);if(saved.characteristicUUID)localStorage.setItem(btStorageKey('characteristicUUID'),saved.characteristicUUID);localStorage.setItem(pKey,JSON.stringify(saved));['deviceId','serviceUUID','characteristicUUID','profile'].forEach(function(s){localStorage.removeItem(btLegacyStorageKey(s));});}}return saved;}catch(e){return {deviceId:'',serviceUUID:'',characteristicUUID:'',name:''};}}
+    function btSaveProfile(deviceId,candidate,name){if(btAutoReconnectBlocked)return;try{var pKey=btStorageKey('profile');if(!pKey)return;if(deviceId)localStorage.setItem(btStorageKey('deviceId'),deviceId);if(candidate&&candidate.serviceUUID)localStorage.setItem(btStorageKey('serviceUUID'),candidate.serviceUUID);if(candidate&&candidate.characteristicUUID)localStorage.setItem(btStorageKey('characteristicUUID'),candidate.characteristicUUID);localStorage.setItem(pKey,JSON.stringify({deviceId:deviceId||'',serviceUUID:candidate&&candidate.serviceUUID||'',characteristicUUID:candidate&&candidate.characteristicUUID||'',name:name||''}));}catch(e){}btRefreshSaved();}
+    function btClearProfile(){try{['deviceId','serviceUUID','characteristicUUID','profile'].forEach(function(s){var k=btStorageKey(s);if(k)localStorage.removeItem(k);});if(btLegacyOwnedByCurrentStore())['deviceId','serviceUUID','characteristicUUID','profile'].forEach(function(s){localStorage.removeItem(btLegacyStorageKey(s));});}catch(e){}btRefreshSaved();}
+    function btRefreshSaved(){var p=btReadProfile();if($('btSavedPrinter'))$('btSavedPrinter').textContent=p.deviceId?(p.name||p.deviceId):btText('btNone');}
+    function btNativePlugin(){try{var c=window.Capacitor;if(!c)return null;if(typeof c.getPlatform==='function'){var p=c.getPlatform();if(p!=='ios'&&p!=='android')return null;}if(c.Plugins&&c.Plugins.BluetoothPrinter)return c.Plugins.BluetoothPrinter;if(typeof c.registerPlugin==='function')return c.registerPlugin('BluetoothPrinter');if(typeof c.nativePromise==='function')return {scan:function(o){return c.nativePromise('BluetoothPrinter','scan',o||{});},connect:function(o){return c.nativePromise('BluetoothPrinter','connect',o||{});},selectCharacteristic:function(o){return c.nativePromise('BluetoothPrinter','selectCharacteristic',o||{});},status:function(o){return c.nativePromise('BluetoothPrinter','status',o||{});},write:function(o){return c.nativePromise('BluetoothPrinter','write',o||{});},disconnect:function(o){return c.nativePromise('BluetoothPrinter','disconnect',o||{});}};}catch(e){}return null;}
+    function btReady(){return !!btNativeReady||!!btWriteChar;}
+    function btRenderDeviceOptions(devices){var sel=$('btDevice');sel.innerHTML='';(devices||[]).forEach(function(d){var o=document.createElement('option');o.value=d.id||'';o.disabled=d.connectable===false;o.textContent=(d.name||'(no name)')+(d.id?'  '+String(d.id).slice(0,12):'')+(d.connectable===false?' (not connectable)':'');sel.appendChild(o);});$('btDeviceRow').style.display=(devices&&devices.length)?'flex':'none';}
+    function btUuidToken(value){var s=String(value==null?'':value).trim().toLowerCase();if(/^\d+$/.test(s)){var n=Number(s);if(Number.isFinite(n))return n.toString(16).padStart(4,'0');}var m=/^0x([0-9a-f]{4})$/.exec(s)||/^([0-9a-f]{4})$/.exec(s)||/^0000([0-9a-f]{4})-0000-1000-8000-00805f9b34fb$/.exec(s);return m?m[1]:s;}
+    function btPreferredCandidate(candidates){var list=(candidates||[]).filter(Boolean);if(list.length===1)return list[0];var known=list.filter(function(c){var token=btUuidToken(c.serviceUUID);return BT_SERVICES.some(function(v){return btUuidToken(v)===token;});});if(known.length===1)return known[0];var both=list.filter(function(c){return c.withResponse&&c.withoutResponse;});if(both.length===1)return both[0];var ack=list.filter(function(c){return c.withResponse;});if(ack.length===1)return ack[0];return null;}
+    function btSavedCandidate(candidates,saved){return (candidates||[]).find(function(c){return saved&&saved.serviceUUID&&saved.characteristicUUID&&String(c.serviceUUID).toLowerCase()===saved.serviceUUID.toLowerCase()&&String(c.characteristicUUID).toLowerCase()===saved.characteristicUUID.toLowerCase();})||null;}
+    function btIsConnected(){return !!btNativeConnected||!!(btDevice&&btDevice.gatt&&btDevice.gatt.connected);}
+    function btDebugCandidates(stage,candidates){try{console.info('[BluetoothPrinter] '+String(stage||'resolve'),(candidates||[]).map(function(c){return {serviceUUID:c.serviceUUID,characteristicUUID:c.characteristicUUID,withResponse:!!c.withResponse,withoutResponse:!!c.withoutResponse};}));}catch(e){}}
+    async function btFinishNative(res,deviceId,allowSaved){if(!res||!res.connected)throw new Error('connect_failed');btNativeConnected=true;var candidates=res.candidates||[],saved=btReadProfile(),chosen=null;btSetStatus('btResolving','run',res.name||'');if(!res.ready){chosen=allowSaved?btSavedCandidate(candidates,saved):null;if(!chosen)chosen=btPreferredCandidate(candidates);if(chosen){res=await btNative.selectCharacteristic({serviceUUID:chosen.serviceUUID,characteristicUUID:chosen.characteristicUUID});candidates=res.candidates||candidates;btNativeConnected=!!res.connected;}}else{chosen=(candidates.length===1?candidates[0]:btSavedCandidate(candidates,saved))||btPreferredCandidate(candidates);}
+      if(!res.ready){btNativeReady=false;btDebugCandidates(res.stage,candidates);btSetStatus(candidates.length?'btProfileUnknown':'btNoWrite','err',res.name||'');return false;}btNativeReady=true;btWriteChar=null;btSaveProfile(deviceId||res.deviceId||'',chosen,res.name||'');btSetStatus('btConnected','ok',res.name||'');btMaybeRunPendingTest();return true;}
+    async function btFinishWeb(device,allowSaved){btDevice=device;device.addEventListener('gattserverdisconnected',btOnDisconnected);btSetStatus('btConnecting','run',device.name||'');btServer=await device.gatt.connect();btSetStatus('btResolving','run',device.name||'');var services=await btServer.getPrimaryServices(),candidates=[];for(var i=0;i<services.length;i++){var chars=[];try{chars=await services[i].getCharacteristics();}catch(e){continue;}for(var j=0;j<chars.length;j++){var p=chars[j].properties;if(p.write||p.writeWithoutResponse)candidates.push({serviceUUID:services[i].uuid,characteristicUUID:chars[j].uuid,withResponse:!!p.write,withoutResponse:!!p.writeWithoutResponse,characteristic:chars[j]});}}
+      if(!candidates.length){btWriteChar=null;btSetStatus('btNoWrite','err',device.name||'');return false;}var saved=btReadProfile(),chosen=(allowSaved?btSavedCandidate(candidates,saved):null)||btPreferredCandidate(candidates);if(!chosen){btWriteChar=null;btDebugCandidates('web_profile_unresolved',candidates);btSetStatus('btProfileUnknown','err',device.name||'');return false;}btWriteChar=chosen.characteristic;btSaveProfile(device.id||'',chosen,device.name||'');btSetStatus('btConnected','ok',device.name||'');btMaybeRunPendingTest();return true;}
+    window.btConnect=async function(){btAutoReconnectBlocked=false;btProfileEpoch++;var epoch=btProfileEpoch;btNative=btNativePlugin();try{if(btNative){var sel=$('btDevice');if(!sel.value){btSetStatus('btScanning','run');var scan=await btNative.scan({durationMs:4000}),found=(scan&&scan.devices)||[];if(btAutoReconnectBlocked||epoch!==btProfileEpoch)return false;btRenderDeviceOptions(found);var connectable=found.filter(function(d){return d.connectable!==false;});if(!connectable.length){btSetStatus('btNoDevices','err');return false;}if(connectable.length>1){sel.selectedIndex=-1;btSetStatus('btChooseDevice','run');return false;}sel.value=connectable[0].id;}if(!sel.value){btSetStatus('btChooseDevice','run');return false;}btSetStatus('btConnecting','run');var res=await btNative.connect({deviceId:sel.value,timeoutMs:15000});if(btAutoReconnectBlocked||epoch!==btProfileEpoch){try{await btNative.disconnect({});}catch(ignore){}return false;}return await btFinishNative(res,sel.value,true);}if(!navigator.bluetooth){btSetStatus('btNoSupport','err');return false;}btSetStatus('btScanning','run');var d=await navigator.bluetooth.requestDevice({acceptAllDevices:true,optionalServices:BT_SERVICES});if(btAutoReconnectBlocked||epoch!==btProfileEpoch)return false;btRenderDeviceOptions([{id:d.id||'',name:d.name||'(no name)',connectable:true}]);$('btDevice').value=d.id||'';return await btFinishWeb(d,true);}catch(e){btNativeConnected=false;btNativeReady=false;btWriteChar=null;btSetStatus('btDisconnected','err',API.userErrorText(e));return false;}};
+    window.btReconnect=async function(silent){if(btAutoReconnectBlocked)return false;var epoch=btProfileEpoch,p=btReadProfile();if(!p.deviceId){if(!silent)btSetStatus('btNoSaved','err');return false;}btNative=btNativePlugin();try{btSetStatus('btReconnecting','run',p.name||'');if(btNative){var res=await btNative.connect({deviceId:p.deviceId,timeoutMs:15000});if(btAutoReconnectBlocked||epoch!==btProfileEpoch){try{await btNative.disconnect({});}catch(ignore){}return false;}return await btFinishNative(res,p.deviceId,true);}if(!navigator.bluetooth||typeof navigator.bluetooth.getDevices!=='function'){if(!silent)btSetStatus('btNoSupport','err');return false;}var list=await navigator.bluetooth.getDevices();if(btAutoReconnectBlocked||epoch!==btProfileEpoch)return false;var d=list.find(function(x){return x.id===p.deviceId;});if(!d){if(!silent)btSetStatus('btNoSaved','err');return false;}btRenderDeviceOptions([{id:d.id||'',name:d.name||p.name||'(no name)',connectable:true}]);return await btFinishWeb(d,true);}catch(e){btNativeConnected=false;btNativeReady=false;btWriteChar=null;if(!silent)btSetStatus('btDisconnected','err',API.userErrorText(e));else btSetStatus('btDisconnected','');return false;}};
+    window.btDisconnect=async function(){try{if(btNative&&typeof btNative.disconnect==='function')await btNative.disconnect({});if(btDevice&&btDevice.gatt&&btDevice.gatt.connected)btDevice.gatt.disconnect();}catch(e){}btNativeConnected=false;btNativeReady=false;btWriteChar=null;btDevice=null;btServer=null;btSetStatus('btDisconnected','');};
+    function btOnDisconnected(){btNativeConnected=false;btNativeReady=false;btWriteChar=null;btSetStatus('btDisconnectedUnexpected','err');}
+    window.btUnregister=async function(){var ok=await UIConfirm(btText('btForgetConfirm'),{danger:true,okLabel:btText('btForget')});if(!ok)return;btAutoReconnectBlocked=true;btProfileEpoch++;await btDisconnect();btClearProfile();btSetTest(btText('btForgetDone'),true);};
+    function btBytesToBase64(bytes){var s='',step=0x8000;for(var i=0;i<bytes.length;i+=step)s+=String.fromCharCode.apply(null,bytes.subarray(i,Math.min(i+step,bytes.length)));return btoa(s);}
+    async function btWriteBytes(bytes){if(btNative&&btNativeReady){await btNative.write({data:btBytesToBase64(bytes),chunkBytes:20});return;}if(!btWriteChar)throw new Error('printer_not_ready');for(var i=0;i<bytes.length;i+=20){var part=bytes.slice(i,Math.min(i+20,bytes.length));if(btWriteChar.properties.writeWithoutResponse)await btWriteChar.writeValueWithoutResponse(part);else await btWriteChar.writeValue(part);}}
+    async function btSendTestPrint(){if(btTestRunning||!btReady())return;btTestRunning=true;btPendingTest=false;try{btSetTest(btText('btPrinting'),true);var body=new TextEncoder().encode('IZAKANPAI TEST PRINT\nBluetooth printer OK\n\n\n');var bytes=new Uint8Array(body.length+2);bytes[0]=0x1b;bytes[1]=0x40;bytes.set(body,2);await btWriteBytes(bytes);btSetTest(btText('btPrinted'),true);}catch(e){var code=String(e&&e.code||e&&e.message||e||'');btSetTest((i18n[currentLang].err||'Error')+': '+API.userErrorText(e),false);if(/printer_disconnected|not_connected/i.test(code)||!btIsConnected()){btNativeConnected=false;btNativeReady=false;btWriteChar=null;btSetStatus('btDisconnected','err',API.userErrorText(e));}else{btSetStatus('btWriteFailed','err');}}finally{btTestRunning=false;}}
+    function btMaybeRunPendingTest(){if(btPendingTest&&btReady())setTimeout(btSendTestPrint,0);}
+    window.btTestPrint=async function(){if(btReady()){await btSendTestPrint();return;}btPendingTest=true;if(btIsConnected()){btSetStatus('btResolving','run');if(btNative&&typeof btNative.status==='function'){try{var p0=btReadProfile(),status=await btNative.status({});if(await btFinishNative(status,p0.deviceId||status.deviceId||'',true))return;}catch(e){btDebugCandidates('status_retry_failed',[]);}}btPendingTest=false;btSetTest(btText('btProfileUnknown'),false);btSetStatus('btProfileUnknown','err');return;}btSetTest(btText('btNeedConnection'),false);var p=btReadProfile();if(p.deviceId){var ok=await btReconnect(false);if(ok)return;}await btConnect();};
+    function btRefreshScopes(){var sel=$('btProfileScope');if(!sel)return;var previous=sel.value||'',stored='',scopeKey=btScopeStorageKey();try{if(scopeKey)stored=localStorage.getItem(scopeKey)||'';}catch(e){}var wanted=btInitialized?(previous||stored||'general'):(stored||previous||'general');sel.innerHTML='';var base=document.createElement('option');base.value='general';base.textContent=btText('btGeneral');sel.appendChild(base);allPrinters.filter(function(p){return p&&p.enabled;}).forEach(function(p){var o=document.createElement('option');o.value=p.id;o.textContent=p.name;sel.appendChild(o);});if(Array.from(sel.options).some(function(o){return o.value===wanted;}))sel.value=wanted;else sel.value='general';btRefreshSaved();}
+    window.btChangeScope=async function(){await btDisconnect();try{var key=btScopeStorageKey();if(key)localStorage.setItem(key,btScopeId());}catch(e){}btRefreshSaved();};
+    function btInitOnce(){if(btInitialized)return;btRefreshScopes();btInitialized=true;btSetStatus('btDisconnected','');btReconnect(true);}
+    function btApplyLang(){var t=i18n[currentLang];[['t-bt-scope','btScope'],['t-bt-saved','btSaved'],['t-bt-device','btDevice'],['t-bt-reconnect','btReconnect'],['t-bt-disconnect','btDisconnect'],['t-bt-forget','btForget'],['t-bt-test','btTest']].forEach(function(pair){var el=$(pair[0]);if(el)el.textContent=t[pair[1]];});btRefreshScopes();btSetStatus(btStatusKey,$('btStatus').classList.contains('ok')?'ok':$('btStatus').classList.contains('run')?'run':$('btStatus').classList.contains('err')?'err':'',btStatusDetail);}
+    function toggleLang(){ currentLang=currentLang==='ja'?'en':'ja'; localStorage.setItem('lang',currentLang); updateUI(); renderCatChips(); renderPrinters(); renderQueue(lastQueue); btApplyLang(); }
 
     function updateUI(){
       var t=i18n[currentLang];
       $('page-title').innerText=t.title; $('langToggle').innerText=t.langBtn;
-      $('t-enable').innerText=t.enable; $('t-url').innerText=t.url; $('url-help').innerText=t.urlHelp; $('t-copy').innerText=t.copy;
-      if($('cp-unavail')) $('cp-unavail').innerText=t.cpUnavail||'';
-      if($('bt-explain')) $('bt-explain').innerHTML=t.btExplain||'';
+      $('t-enable').innerText=t.enable; $('t-pt210-title').innerText=t.pt210Title; $('t-pt210-help').innerText=t.pt210Help; $('t-pt210-connect').innerText=t.pt210Connect;
       if($('t-prform-hint')) $('t-prform-hint').innerText=t.prformHint||'';
       if($('t-receipt')) $('t-receipt').innerText=t.receipt||'会計時にレシートを自動印刷'; if($('t-receipt-hint')) $('t-receipt-hint').innerText=t.receiptHint||'';
       if($('t-plang')) $('t-plang').innerText=t.plang||''; if($('t-plang-hint')) $('t-plang-hint').innerText=t.plangHint||'';
+      $('t-receipt-settings').innerText=t.receiptSettings; $('t-shop-address').innerText=t.shopAddress; $('t-shop-tin').innerText=t.shopTin; $('t-shop-logo').innerText=t.shopLogo; $('t-logo-clear').innerText=t.logoClear; $('t-logo-size').innerText=t.logoSize; $('t-logo-hint').innerText=t.logoHint; $('t-receipt-settings-save').innerText=t.receiptSettingsSave;
       $('t-queue').innerText=t.queue; $('l-pend').innerText=t.pend; $('l-prog').innerText=t.prog; $('l-done').innerText=t.done; $('l-fail').innerText=t.fail;
       $('t-reall').innerText=t.reall; $('t-clear').innerText=t.clear; $('t-prform').innerText=t.prform; $('lbl-prname').innerText=t.prname;
-      $('lbl-prmac').innerText=t.prmac; $('hint-mac').innerText=t.hintMac; $('lbl-prcat').innerText=t.prcat; $('hint-cat').innerText=t.hintCat;
+      $('lbl-prcat').innerText=t.prcat; $('hint-cat').innerText=t.hintCat;
       $('lbl-prenabled').innerText=t.prenabled; $('t-save').innerText=t.save; $('btn-pr-clear').innerText=t.clear2; $('t-prlist').innerText=t.prlist;
       updateEnableState();
     }
+    var savedPrintEnabled=false, savedReceiptEnabled=false, savedPrintLang='ja';
+    var settingsMutationSeq={printEnabled:0,receiptPrintEnabled:0,printLang:0};
+    var settingsSaveQueue={printEnabled:Promise.resolve(),receiptPrintEnabled:Promise.resolve(),printLang:Promise.resolve()};
+    function messageAt(id,text,ok){var m=$(id);if(!m)return;m.innerText=text;m.className='alert '+(ok?'alert-success':'alert-error');m.style.display='block';}
+    function clearMessageAt(id){var m=$(id);if(m){m.innerText='';m.style.display='none';}}
+    function nextSettingMutation(key){settingsMutationSeq[key]=(settingsMutationSeq[key]||0)+1;clearMessageAt('printer-basic-msg');return settingsMutationSeq[key];}
+    function enqueueSettingSave(key,task){var run=settingsSaveQueue[key].catch(function(){}).then(task);settingsSaveQueue[key]=run.catch(function(){});return run;}
+    function setBasicSettingsReady(ready){$('enableToggle').disabled=!ready;$('receiptToggle').disabled=!ready;$('printLangSel').disabled=!ready;}
+    function settingSaveError(e){onErr(e);messageAt('printer-basic-msg',(i18n[currentLang].err||'Error')+': '+API.userErrorText(e),false);}
     function updateEnableState(){ $('enable-state').innerText = $('enableToggle').checked ? i18n[currentLang].on : i18n[currentLang].off; }
-    function saveEnabled(){ updateEnableState(); rpc('saveSettings',[{ printEnabled: $('enableToggle').checked ? 'true' : 'false' }]).catch(onErr); }
-    window.saveReceipt=function(){ rpc('saveSettings',[{ receiptPrintEnabled: $('receiptToggle').checked ? 'true' : 'false' }]).catch(onErr); };
-    window.savePrintLang=function(){ rpc('saveSettings',[{ printLang: $('printLangSel').value }]).catch(onErr); };
-
-    function copyUrl(){
-      var txt=$('cpUrl').innerText;
-      if(txt.indexOf('&key=')===-1) return; // Never copy a non-authenticated printer URL.
-      if(navigator.clipboard){ navigator.clipboard.writeText(txt); } else { var ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');}catch(e){} document.body.removeChild(ta); }
-      $('btn-copy').innerHTML='📋 '+i18n[currentLang].copied;
-      setTimeout(function(){ $('btn-copy').innerHTML='📋 <span id="t-copy">'+i18n[currentLang].copy+'</span>'; },1500);
-    }
+    function verifyPrinterSetting(key,expected){return rpc('getPrinterSettings',[]).then(function(s){var actual=String((s||{})[key]??'');if(actual!==String(expected))throw new Error('setting_verify_failed');return s||{};});}
+    function saveEnabled(){var next=$('enableToggle').checked,seq=nextSettingMutation('printEnabled');updateEnableState();enqueueSettingSave('printEnabled',function(){return rpc('saveSettings',[{printEnabled:next?'true':'false'}]).then(requireSaveSuccess).then(function(){return verifyPrinterSetting('printEnabled',next?'true':'false');});}).then(function(){savedPrintEnabled=next;if(seq!==settingsMutationSeq.printEnabled)return;messageAt('printer-basic-msg',i18n[currentLang].saved,true);}).catch(function(e){if(seq!==settingsMutationSeq.printEnabled)return;$('enableToggle').checked=savedPrintEnabled;updateEnableState();settingSaveError(e);});}
+    window.saveReceipt=function(){var next=$('receiptToggle').checked,seq=nextSettingMutation('receiptPrintEnabled');enqueueSettingSave('receiptPrintEnabled',function(){return rpc('saveSettings',[{receiptPrintEnabled:next?'true':'false'}]).then(requireSaveSuccess).then(function(){return verifyPrinterSetting('receiptPrintEnabled',next?'true':'false');});}).then(function(){savedReceiptEnabled=next;if(seq!==settingsMutationSeq.receiptPrintEnabled)return;messageAt('printer-basic-msg',i18n[currentLang].saved,true);}).catch(function(e){if(seq!==settingsMutationSeq.receiptPrintEnabled)return;$('receiptToggle').checked=savedReceiptEnabled;settingSaveError(e);});};
+    window.savePrintLang=function(){var next=$('printLangSel').value,seq=nextSettingMutation('printLang');enqueueSettingSave('printLang',function(){return rpc('saveSettings',[{printLang:next}]).then(requireSaveSuccess).then(function(){return verifyPrinterSetting('printLang',next);});}).then(function(){savedPrintLang=next;if(seq!==settingsMutationSeq.printLang)return;messageAt('printer-basic-msg',i18n[currentLang].saved,true);}).catch(function(e){if(seq!==settingsMutationSeq.printLang)return;$('printLangSel').value=savedPrintLang;settingSaveError(e);});};
+    function receiptSettingsMessage(text,ok){var m=$('receipt-settings-msg');m.innerText=text;m.className='alert '+(ok?'alert-success':'alert-error');m.style.display='block';}
+    window.saveReceiptSettings=function(){rpc('saveSettings',[{shopAddress:$('shopAddress').value,shopTin:$('shopTin').value}]).then(function(r){requireSaveSuccess(r);receiptSettingsMessage(i18n[currentLang].receiptSettingsSaved,true);}).catch(function(e){onErr(e);receiptSettingsMessage((i18n[currentLang].err||'Error')+': '+API.userErrorText(e),false);});};
+    window.onLogoPick=function(ev){var f=ev.target.files&&ev.target.files[0];if(!f)return;API.readFileAsDataURL(f).then(function(dataUrl){var im=new Image();im.onload=function(){var maxW=384,maxH=160,sc=Math.min(maxW/im.width,maxH/im.height,1),w=Math.max(1,Math.round(im.width*sc)),h=Math.max(1,Math.round(im.height*sc)),c=document.createElement('canvas');c.width=w;c.height=h;var cx=c.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,w,h);cx.drawImage(im,0,0,w,h);var url=c.toDataURL('image/png');$('logoPrev').src=url;$('logoPrev').style.display='inline-block';rpc('saveReceiptLogo',[url]).then(function(r){requireSaveSuccess(r);receiptSettingsMessage(i18n[currentLang].saved,true);}).catch(function(e){onErr(e);receiptSettingsMessage((i18n[currentLang].err||'Error')+': '+API.userErrorText(e),false);});};im.src=dataUrl;}).catch(function(e){onErr(e);receiptSettingsMessage((i18n[currentLang].err||'Error')+': '+API.userErrorText(e),false);});};
+    var _logoScaleTimer=null; window.saveLogoScale=function(){var v=Math.max(20,Math.min(100,Number($('logoScale').value)||100));$('logoScale').value=v;clearTimeout(_logoScaleTimer);_logoScaleTimer=setTimeout(function(){rpc('saveSettings',[{logoScalePct:String(v)}]).then(function(r){requireSaveSuccess(r);receiptSettingsMessage(i18n[currentLang].saved,true);}).catch(function(e){onErr(e);receiptSettingsMessage((i18n[currentLang].err||'Error')+': '+API.userErrorText(e),false);});},400);};
+    window.clearLogo=function(){rpc('saveReceiptLogo',['']).then(function(r){requireSaveSuccess(r);$('logoPrev').removeAttribute('src');$('logoPrev').style.display='none';$('logoFile').value='';receiptSettingsMessage(i18n[currentLang].saved,true);}).catch(function(e){onErr(e);receiptSettingsMessage((i18n[currentLang].err||'Error')+': '+API.userErrorText(e),false);});};
 
     function renderCatChips(){
       var box=$('catChips');
@@ -224,73 +300,68 @@
     }
     window.toggleCat=function(c){ var i=selectedCats.indexOf(c); if(i===-1) selectedCats.push(c); else selectedCats.splice(i,1); renderCatChips(); };
 
-    function loadPrinters(){ rpc('getAllPrinters',[]).then(function(d){ allPrinters=d||[]; renderPrinters(); }).catch(onErr); }
+    function loadPrinters(){ rpc('getAllPrinters',[]).then(function(d){ allPrinters=d||[]; renderPrinters(); btRefreshScopes(); btInitOnce(); }).catch(function(e){onErr(e);btInitOnce();}); }
     function renderPrinters(){
       var t=i18n[currentLang], el=$('prList');
       if(!allPrinters.length){ el.innerHTML='<div class="loading">'+t.noPrinters+'</div>'; return; }
       el.innerHTML=allPrinters.map(function(p){
-        var cats=p.categories&&p.categories.length?p.categories.map(function(key){var c=allCategories.find(function(x){return x.key===key;});return c?(currentLang==='en'?(c.en||c.ja||c.key):(c.ja||c.en||c.key)):key;}).join(', '):'ALL';
+        var cats=p.categories&&p.categories.length?p.categories.map(function(key){var c=allCategories.find(function(x){return x.key===key;});return c?(currentLang==='en'?(c.en||c.ja||c.key):(c.ja||c.en||c.key)):key;}).join(', '):t.generalRoute;
         return '<div class="pr-row"'+(p.enabled?'':' style="opacity:.5;"')+'>'+
-          '<div style="flex:1;min-width:120px;"><span class="nm">'+p.name+'</span> <span class="mac">'+(p.mac||'-')+'</span><br><span class="form-hint">'+cats+'</span></div>'+
+          '<div style="flex:1;min-width:120px;"><span class="nm">'+p.name+'</span><br><span class="form-hint">'+cats+'</span></div>'+
           '<button class="btn btn-outline btn-xs" onclick=\'editPr('+JSON.stringify(p).replace(/'/g,"&#39;")+')\'>'+t.edit+'</button>'+
           '<button class="btn btn-secondary btn-xs" onclick="testPr(\''+p.id+'\')">'+t.test+'</button>'+
           '<button class="btn btn-danger btn-xs" onclick="delPr(\''+p.id+'\')">'+t.del+'</button>'+
         '</div>';
       }).join('');
     }
-    window.editPr=function(p){ $('prId').value=p.id; $('prName').value=p.name; $('prMac').value=p.mac||''; $('prEnabled').checked=!!p.enabled; selectedCats=(p.categories||[]).slice(); renderCatChips(); window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'}); };
-    window.clearPrForm=function(){ $('prId').value=''; $('prName').value=''; $('prMac').value=''; $('prEnabled').checked=true; selectedCats=[]; renderCatChips(); $('pr-msg').style.display='none'; };
+    var PRINTER_SAVE_REQUEST_ID='', PRINTER_SAVE_REQUEST_SIG='';
+    function resetPrinterSaveRequest(){ PRINTER_SAVE_REQUEST_ID=''; PRINTER_SAVE_REQUEST_SIG=''; }
+    window.editPr=function(p){ resetPrinterSaveRequest(); $('prId').value=p.id; $('prName').value=p.name; $('prMac').value=p.mac||''; $('prEnabled').checked=!!p.enabled; selectedCats=(p.categories||[]).slice(); renderCatChips(); window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'}); };
+    window.clearPrForm=function(preserveMessage){resetPrinterSaveRequest();$('prId').value='';$('prName').value='';$('prMac').value='';$('prEnabled').checked=true;selectedCats=[];renderCatChips();if(!preserveMessage)$('pr-msg').style.display='none';};
+    var TEST_PRINT_REQUESTS=Object.create(null);
+    function nextPrintRequestId(prefix){ try{ if(crypto&&typeof crypto.randomUUID==='function') return prefix+crypto.randomUUID(); }catch(e){} return prefix+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2); }
     window.savePr=function(){
       var t=i18n[currentLang], name=$('prName').value.trim(), msg=$('pr-msg');
       if(!name){ msg.innerText=t.nameReq; msg.className='alert alert-error'; msg.style.display='block'; return; }
       var p={ id:$('prId').value, name:name, mac:$('prMac').value.trim(), categories:selectedCats.slice(), enabled:$('prEnabled').checked };
+      if(!p.id){ var sig=JSON.stringify(p); if(!PRINTER_SAVE_REQUEST_ID||PRINTER_SAVE_REQUEST_SIG!==sig){ PRINTER_SAVE_REQUEST_SIG=sig; PRINTER_SAVE_REQUEST_ID=nextPrintRequestId('printer-save-'); } p.clientRequestId=PRINTER_SAVE_REQUEST_ID; } else { resetPrinterSaveRequest(); }
       $('btn-pr-save').disabled=true;
-      rpc('savePrinter',[p]).then(function(){ $('btn-pr-save').disabled=false; msg.innerText=t.saved; msg.className='alert alert-success'; msg.style.display='block'; clearPrForm(); loadPrinters(); })
-        .catch(function(e){ $('btn-pr-save').disabled=false; onErr(e); msg.innerText=t.err+': '+API.userErrorText(e); msg.className='alert alert-error'; msg.style.display='block'; });
+      rpc('savePrinter',[p]).then(function(r){ if(!r||r.success!==true){ resetPrinterSaveRequest(); throw new Error((r&&r.error)||'save_failed'); } resetPrinterSaveRequest(); $('btn-pr-save').disabled=false; msg.innerText=i18n[currentLang].saved; msg.className='alert alert-success'; msg.style.display='block'; clearPrForm(true); loadPrinters(); })
+        .catch(function(e){ $('btn-pr-save').disabled=false; onErr(e); msg.innerText=i18n[currentLang].err+': '+API.userErrorText(e); msg.className='alert alert-error'; msg.style.display='block'; });
     };
-    window.delPr=function(id){ UIConfirm(i18n[currentLang].delConfirm).then(function(ok){ if(!ok) return; rpc('deletePrinter',[id]).then(loadPrinters).catch(onErr); }); };
-    window.testPr=function(id){ rpc('testPrint',[id]).then(function(){ toast(i18n[currentLang].testDone); refreshQueue(); }).catch(onErr); };
+    function actionError(e,targetId){onErr(e);messageAt(targetId,(i18n[currentLang].err||'Error')+': '+API.userErrorText(e),false);}
+    window.delPr=function(id){UIConfirm(i18n[currentLang].delConfirm).then(function(ok){if(!ok)return;rpc('deletePrinter',[id]).then(function(){clearMessageAt('printer-list-msg');loadPrinters();}).catch(function(e){actionError(e,'printer-list-msg');});});};
+    window.testPr=function(id){var requestId=TEST_PRINT_REQUESTS[id]||(TEST_PRINT_REQUESTS[id]=nextPrintRequestId('test-print-'));rpc('testPrint',[id,requestId]).then(function(r){delete TEST_PRINT_REQUESTS[id];if(!r||r.success!==true)throw new Error((r&&r.error)||'test_print_failed');toast(i18n[currentLang].testDone,'printer-list-msg');refreshQueue();}).catch(function(e){actionError(e,'printer-list-msg');});};
 
     function refreshQueue(){
       rpc('getPrintQueueCounts',[]).then(function(c){ $('c-pend').innerText=c['未印刷']||0; $('c-prog').innerText=c['印刷中']||0; $('c-done').innerText=c['印刷済']||0; $('c-fail').innerText=c['失敗']||0; }).catch(onErr);
       rpc('getPrintQueue',[60]).then(function(rows){ lastQueue=rows||[]; renderQueue(lastQueue); }).catch(onErr);
     }
     var STCLASS={ '未印刷':'s-pend','印刷中':'s-prog','印刷済':'s-done','失敗':'s-fail' };
+    function queueStatusLabel(v){ var raw=String(v||''); if(currentLang!=='en') return raw; return ({'未印刷':'Pending','印刷中':'Printing','印刷済':'Done','失敗':'Failed'})[raw]||raw; }
+    function queueTableLabel(v){ var raw=String(v||''); if(currentLang!=='en') return raw; var m=/^(テーブル|カウンター)(\d+)$/.exec(raw); return m?((m[1]==='テーブル'?'Table ':'Counter ')+m[2]):raw; }
     function renderQueue(rows){
       var t=i18n[currentLang], tb=document.querySelector('#qTable tbody');
       if(!rows||!rows.length){ tb.innerHTML='<tr><td style="text-align:center;color:#aaa;padding:20px;">'+t.noJobs+'</td></tr>'; return; }
       var html='<tr><th>'+t.cTime+'</th><th>'+t.cPrinter+'</th><th>'+t.cTable+'</th><th>'+t.cStatus+'</th><th>'+t.cTry+'</th><th></th></tr>';
       rows.forEach(function(r){
         var canRe=(r.status==='失敗'||r.status==='未印刷'||r.status==='印刷中');
-        html+='<tr><td>'+r.created+'</td><td>'+r.printerName+'</td><td>'+r.table+'</td>'+
-          '<td><span class="st-badge '+(STCLASS[r.status]||'')+'">'+r.status+'</span>'+(r.error?' <span class="form-hint">'+escText(API.userErrorText(r.error))+'</span>':'')+'</td>'+
+        html+='<tr><td>'+escText(window.DateDisplay?DateDisplay.formatDateTime(r.created):r.created)+'</td><td>'+escText(r.printerName)+'</td><td>'+escText(queueTableLabel(r.table))+'</td>'+
+          '<td><span class="st-badge '+(STCLASS[r.status]||'')+'">'+escText(queueStatusLabel(r.status))+'</span>'+(r.error?' <span class="form-hint">'+escText(API.userErrorText(r.error))+'</span>':'')+'</td>'+
           '<td>'+r.attempts+'</td>'+
           '<td>'+(canRe?'<button class="btn btn-outline btn-xs" onclick="reJob(\''+r.id+'\')">'+t.reprint+'</button>':'')+'</td></tr>';
       });
       tb.innerHTML=html;
     }
-    window.reJob=function(id){ rpc('reprintJob',[id]).then(function(){ toast(i18n[currentLang].reprintDone); refreshQueue(); }).catch(onErr); };
-    window.reprintAll=function(){ rpc('reprintAllFailed',[]).then(refreshQueue).catch(onErr); };
-    window.clearDone=function(){ rpc('clearPrintedJobs',[]).then(function(){ toast(i18n[currentLang].clearDoneMsg); refreshQueue(); }).catch(onErr); };
+    window.reJob=function(id){rpc('reprintJob',[id]).then(function(r){if(!r||r.success!==true)throw new Error((r&&r.error)||'reprint_failed');toast(i18n[currentLang].reprintDone,'queue-msg');refreshQueue();}).catch(function(e){actionError(e,'queue-msg');});};
+    window.reprintAll=function(){rpc('reprintAllFailed',[]).then(function(){clearMessageAt('queue-msg');refreshQueue();}).catch(function(e){actionError(e,'queue-msg');});};
+    window.clearDone=function(){rpc('clearPrintedJobs',[]).then(function(){toast(i18n[currentLang].clearDoneMsg,'queue-msg');refreshQueue();}).catch(function(e){actionError(e,'queue-msg');});};
 
-    function toast(m){ var msg=$('pr-msg'); msg.innerText=m; msg.className='alert alert-success'; msg.style.display='block'; setTimeout(function(){ msg.style.display='none'; },2200); }
+    function toast(m,targetId){var msg=$(targetId||'queue-msg');if(!msg)return;msg.innerText=m;msg.className='alert alert-success';msg.style.display='block';setTimeout(function(){if(msg.innerText===m)msg.style.display='none';},2200);}
 
     // init
     updateUI();
-    (function(){
-      var base=(window.APP_CONFIG&&window.APP_CONFIG.API_URL)||'', storeId=(API.currentStoreId&&API.currentStoreId())||'';
-      $('cpUrl').innerText = '\u2014';
-      if (base && storeId) {
-        // Do not expose the public URL before a permission-checked printer RPC
-        // supplies its own secret (independent of the Bluetooth bridgeKey).
-        rpc('getOrCreateCloudPrntKey', []).then(function(result){
-          var key = String(result && result.key || '');
-          if (!/^[a-f0-9]{48}$/.test(key)) throw new Error('cloudprnt_key_unavailable');
-          $('cpUrl').innerText = base + '?cp=1&store=' + encodeURIComponent(storeId) + '&key=' + encodeURIComponent(key);
-        }).catch(function(){ $('cpUrl').innerText = '\u2014'; });
-      }
-    })();
-    rpc('getSettings',[]).then(function(s){ $('enableToggle').checked=(s && String(s.printEnabled)==='true'); $('receiptToggle').checked=(s && String(s.receiptPrintEnabled)==='true'); if($('printLangSel')) $('printLangSel').value=(s && s.printLang) || 'ja'; updateEnableState(); }).catch(onErr);
+    var initialSettingsSeq={printEnabled:settingsMutationSeq.printEnabled,receiptPrintEnabled:settingsMutationSeq.receiptPrintEnabled,printLang:settingsMutationSeq.printLang};rpc('getPrinterSettings',[]).then(function(s){s=s||{};if(initialSettingsSeq.printEnabled===settingsMutationSeq.printEnabled){savedPrintEnabled=(String(s.printEnabled)==='true');$('enableToggle').checked=savedPrintEnabled;}if(initialSettingsSeq.receiptPrintEnabled===settingsMutationSeq.receiptPrintEnabled){savedReceiptEnabled=(String(s.receiptPrintEnabled)==='true');$('receiptToggle').checked=savedReceiptEnabled;}if(initialSettingsSeq.printLang===settingsMutationSeq.printLang){savedPrintLang=s.printLang||'ja';if($('printLangSel'))$('printLangSel').value=savedPrintLang;}$('shopAddress').value=s.shopAddress||'';$('shopTin').value=s.shopTin||'';$('logoScale').value=Math.max(20,Math.min(100,Number(s.logoScalePct)||100));if(s.receiptLogo){$('logoPrev').src=s.receiptLogo;$('logoPrev').style.display='inline-block';}updateEnableState();setBasicSettingsReady(true);}).catch(function(e){setBasicSettingsReady(false);settingSaveError(e);});
     rpc('getAllMenuForAdmin',[]).then(function(items){ var set={}; (items||[]).forEach(function(i){ var key=i['カテゴリ']; if(key&&!set[key])set[key]={key:key,ja:(i['カテゴリ_JA']!==undefined?i['カテゴリ_JA']:key),en:i['カテゴリ_EN']||''}; }); allCategories=Object.keys(set).map(function(k){return set[k];}); renderCatChips(); }).catch(onErr);
     loadPrinters();
     refreshQueue();
@@ -306,9 +377,9 @@
         { ja: '① 「プリンタ印刷」スイッチで印刷全体のON/OFFを切替。OFFにすると注文が自動印刷されなくなります。', en: '① The "Printer Output" switch turns automatic order printing on or off.' },
         { ja: '② 「会計時にレシートを自動印刷」スイッチで、会計確定時にレシートを自動送信するかどうかを設定。', en: '② The receipt toggle controls whether a receipt is auto-printed when a bill is settled.' },
         { ja: '③ 「印刷の言語」でメニュー名の印刷言語（日本語／English／両方）を選択できます。', en: '③ "Print language" sets the language used for menu names on printed tickets/receipts.' },
-        { ja: '④ CloudPRNT対応プリンタ用のサーバーURLを表示・コピーできます。Bluetoothプリンタ（PT-210等）の場合はここは使わず、印刷ステーション（bridge.html）を使う旨の案内が表示されます。', en: '④ Shows/copies the CloudPRNT server URL for CloudPRNT-capable printers. For Bluetooth printers, use the Print Station (bridge.html) instead — the page explains this.' },
+        { ja: '④ 「Bluetoothプリンタ接続」で検索・候補選択・Characteristic選択・再接続・切断・登録解除・テスト印刷までこのページ本文内で行えます。接続情報はこの端末に保存されます。動作確認済みプリンタはPT-210です。', en: '④ The “Bluetooth printer connection” section keeps scanning, device/characteristic selection, reconnect, disconnect, unregister, and test printing in this page body. The profile is saved on this device. PT-210 is the verified model.' },
         { ja: '⑤ 「印刷キュー」で未印刷・印刷中・印刷済・失敗の件数を確認でき、「失敗を再印刷」で失敗分を一括再送、「印刷済を削除」でキューを掃除できます。', en: '⑤ The Print Queue shows pending/printing/done/failed counts; "Reprint failed" requeues failures, "Clear done" removes completed jobs.' },
-        { ja: '⑥ 「プリンタの追加/編集」でプリンタ名・MACアドレス・対応カテゴリ・有効/無効を登録。下の一覧からテスト印刷・編集・削除ができます（CloudPRNT対応プリンタ専用）。', en: '⑥ "Add / Edit Printer" registers a printer name, MAC address, categories and enabled state (CloudPRNT printers only); the list below offers test print, edit, and delete.' }
+        { ja: '⑥ 「印刷出力先」で印刷先名・対応カテゴリ・有効/無効を設定します。カテゴリを選ぶと厨房用、未選択ならレシート・一般印刷用です。', en: '⑥ “Print outputs” configures output names, categories, and enabled state. Category-assigned outputs are for kitchen tickets; outputs with no category are for receipts/general printing.' }
       ]
     });
   </script>

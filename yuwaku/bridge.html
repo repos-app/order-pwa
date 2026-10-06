@@ -6,9 +6,9 @@
 <meta name="theme-color" content="#0f172a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="apple-mobile-web-app-title" content="Print Station">
+<meta name="apple-mobile-web-app-title" content="Bluetooth Printer">
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
-<title>印刷ステーション（PT-210）</title>
+<title>Bluetooth Printer</title>
 <style>
   *{ box-sizing:border-box; }
   body{ margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans JP',sans-serif; background:#0f172a; color:#e2e8f0; padding:14px; }
@@ -24,6 +24,7 @@
   #btnStart{ background:#22c55e; color:#052e16; }
   #btnStop{ background:#ef4444; color:#450a0a; }
   #btnConn{ background:#38bdf8; color:#082f49; }
+  #btnForget{ background:#fee2e2; color:#991b1b; }
   button:disabled{ opacity:.4; }
   .kv{ display:flex; gap:14px; flex-wrap:wrap; margin:4px 0 12px; font-size:13px; color:#cbd5e1; }
   .kv b{ color:#fff; font-size:16px; }
@@ -32,14 +33,17 @@
   #log{ background:#020617; border:1px solid #1e293b; border-radius:10px; padding:10px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11.5px; white-space:pre-wrap; word-break:break-all; height:34vh; overflow:auto; }
   canvas{ display:none; }
   .note{ font-size:11.5px; color:#64748b; margin-top:10px; line-height:1.7; }
+  body.setup-only #btnStart,body.setup-only #btnStop,body.setup-only label.opt:has(#key),body.setup-only label.opt:has(#safeMode),body.setup-only .kv,body.setup-only #log,body.setup-only .note{ display:none!important; }
+  body.embedded{padding:0;background:transparent;}
+  body.embedded > div:first-child{display:none!important;}
 </style>
 </head>
 <body>
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
-    <h1 data-i="title">🖨️ 印刷ステーション（PT-210）</h1>
+    <h1 data-i="title">🖨️ Bluetoothプリンタ</h1>
     <button id="langBtn" onclick="toggleLang()" style="flex:0 0 auto;background:#334155;color:#fff;border:0;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;">EN</button>
   </div>
-  <p class="sub" data-i="sub">Chrome専用（Android・Windows・Mac・LinuxのいずれのChromeでも可。iOSのSafari/Chromeは非対応）。この端末を据え置き、電源ON・画面ON・この画面を開いたままにしてください。<br>①「プリンタに接続」→ ②「監視開始」。以降は自動でレシートを印刷します。</p>
+  <p class="sub" data-i="sub">Bluetoothプリンタを検索・接続します。Android・Windows・Mac・Linuxの対応Chromeで利用できます（iOSブラウザは非対応。iOSはネイティブアプリを利用してください）。<br><b>動作確認済みプリンタ: PT-210</b></p>
 
   <div class="stat" id="stat"><span class="dot"></span><span id="statText">未接続</span></div>
 
@@ -50,20 +54,23 @@
   </div>
 
   <div class="row" id="guide-bridge-connect" data-guide-anchor>
-    <button id="btnConn" onclick="connect()" data-i="bConn">🔗 プリンタに接続</button>
+    <button id="btnConn" onclick="connect()" data-i="bConn">🔗 Bluetoothプリンタに接続</button>
+    <button id="btnDisconnect" onclick="disconnectPrinter()" data-i="bDisconnect">切断</button>
+    <button id="btnForget" onclick="unregisterPrinter()" data-i="bForget">登録解除</button>
     <button id="btnStart" onclick="startLoop()" disabled data-i="bStart">▶ 監視開始</button>
     <button id="btnStop" onclick="stopLoop()" disabled data-i="bStop">■ 停止</button>
   </div>
 
+  <label class="opt"><span>担当プリンタ：</span><select id="logicalPrinter" style="flex:1;min-width:0;padding:10px;border-radius:8px;border:1px solid #475569;"></select></label>
   <label class="opt"><span data-i="keyLabel">キー(任意)：</span><input type="text" id="key" placeholder="BRIDGE_KEY を設定した場合のみ" style="flex:1;"></label>
   <label class="opt"><input type="checkbox" id="safeMode"> <span data-i="safe">低速安全モード（20バイト送信）</span></label>
 
   <div id="log"></div>
-  <p class="note" data-i="note">画面が消えると印刷が止まります（Wake Lockで常時点灯を試みます）。Bluetoothが切れたら「プリンタに接続」で再接続してください。困ったらこのログを共有してください。</p>
+  <p class="note" data-i="note">画面が消えると印刷が止まります（Wake Lockで常時点灯を試みます）。Bluetoothが切れたら再接続してください。困ったらこのログを共有してください。</p>
 
   <canvas id="cv" width="384" height="10"></canvas>
 
-<script src="./config.js?v=auth2"></script>
+<script src="./config.js?v=auth2"></script><script src="./api.js?v=auth2"></script><script src="./confirm.js?v=auth2"></script>
 <script>
 // 2026-08-24: このページ自体はBRIDGE_KEY(任意)だけでバックエンド呼び出しをしており、
 // URLを直接開けばログイン無しで店舗設定(getSettings)等が見える状態だった。
@@ -74,6 +81,9 @@
   if (!__t) { location.href = './manage.html'; }
 })();
 var PRINT_WIDTH = 384;
+var SETUP_ONLY=(function(){try{return new URLSearchParams(location.search).get('setup')==='1';}catch(e){return false;}})();
+var EMBEDDED=(function(){try{return new URLSearchParams(location.search).get('embedded')==='1';}catch(e){return false;}})();
+var PRINT_CHANNEL=(function(){try{return new URLSearchParams(location.search).get('channel')||'general';}catch(e){return 'general';}})();
 var API_URL = (window.APP_CONFIG && window.APP_CONFIG.API_URL) || '';
 var device=null, server=null, writeChar=null;
 var looping=false, busy=false, timer=null, wakeLock=null;
@@ -91,10 +101,10 @@ var CANDIDATE_SERVICES = [
 ];
 
 var T={
-  ja:{ title:'🖨️ 印刷ステーション（PT-210）', sub:'Chrome専用（Android・Windows・Mac・LinuxのいずれのChromeでも可。iOSのSafari/Chromeは非対応）。この端末を据え置き、電源ON・画面ON・この画面を開いたままにしてください。<br>①「プリンタに接続」→ ②「監視開始」。以降は自動でレシートを印刷します。', kDone:'印刷済', kFail:'失敗', kConn:'接続', bConn:'🔗 プリンタに接続', bStart:'▶ 監視開始', bStop:'■ 停止', keyLabel:'キー(任意)：', keyPh:'BRIDGE_KEY を設定した場合のみ', safe:'低速安全モード（20バイト送信）', note:'画面が消えると印刷が止まります（Wake Lockで常時点灯を試みます）。Bluetoothが切れたら「プリンタに接続」で再接続してください。困ったらこのログを共有してください。', langBtn:'EN',
-    disconnected:'未接続', selecting:'デバイス選択中…', noWrite:'書き込み可能な特性なし', connFail:'接続失敗', connected:'接続完了（監視開始できます）', needConn:'先に接続してください', watching:'監視中…', stopped:'停止中', disconnErr:'切断：再接続してください', noBt:'この端末は Web Bluetooth 非対応' },
-  en:{ title:'🖨️ Print Station (PT-210)', sub:'Chrome only (Android, Windows, Mac, or Linux Chrome all work; iOS Safari/Chrome is not supported). Keep this device on, screen on, and this page open.<br>① “Connect printer” → ② “Start”. Receipts then print automatically.', kDone:'Printed', kFail:'Failed', kConn:'Printer', bConn:'🔗 Connect printer', bStart:'▶ Start', bStop:'■ Stop', keyLabel:'Key (optional): ', keyPh:'Only if BRIDGE_KEY is set', safe:'Safe slow mode (20-byte writes)', note:'If the screen sleeps, printing stops (Wake Lock tries to keep it on). If Bluetooth drops, tap “Connect printer”. Share this log if stuck.', langBtn:'日本語',
-    disconnected:'Not connected', selecting:'Selecting device…', noWrite:'No writable characteristic', connFail:'Connection failed', connected:'Connected (you can start)', needConn:'Connect first', watching:'Monitoring…', stopped:'Stopped', disconnErr:'Disconnected: reconnect', noBt:'This device has no Web Bluetooth' }
+  ja:{ title:'🖨️ Bluetoothプリンタ', sub:'Bluetoothプリンタを検索・接続します。Android・Windows・Mac・Linuxの対応Chromeで利用できます（iOSブラウザは非対応。iOSはネイティブアプリを利用してください）。<br><b>動作確認済みプリンタ: PT-210</b>', kDone:'印刷済', kFail:'失敗', kConn:'接続', bConn:'🔗 Bluetoothプリンタに接続', bDisconnect:'切断', bForget:'登録解除', bStart:'▶ 監視開始', bStop:'■ 停止', keyLabel:'キー(任意)：', keyPh:'BRIDGE_KEY を設定した場合のみ', safe:'低速安全モード（20バイト送信）', note:'画面が消えると印刷が止まります。Bluetoothが切れたら再接続してください。困ったらこのログを共有してください。', langBtn:'EN',
+    disconnected:'未接続', selecting:'デバイス選択中…', noWrite:'このBluetooth機器では印刷設定を自動判定できませんでした', connFail:'接続失敗', connected:'接続完了（監視開始できます）', needConn:'先に接続してください', watching:'監視中…', stopped:'停止中', disconnErr:'切断：再接続してください', noBt:'この端末は Web Bluetooth 非対応', forgetConfirm:'この出力先のBluetoothプリンタ登録を解除しますか？ 現在の接続を切り、Izakanpai内の接続情報を削除します。ブラウザのBluetooth許可は残る場合があります。', forgetDone:'登録解除しました。Izakanpai内の接続情報を削除しました。ブラウザのBluetooth許可を消す場合はブラウザのサイト設定から解除してください。', forgetFailed:'登録解除に失敗しました' },
+  en:{ title:'🖨️ Bluetooth Printer', sub:'Search for and connect to a Bluetooth printer in supported Chrome on Android, Windows, Mac, or Linux (iOS browsers are not supported; use the native iOS app).<br><b>Verified printer: PT-210</b>', kDone:'Printed', kFail:'Failed', kConn:'Printer', bConn:'🔗 Connect Bluetooth printer', bDisconnect:'Disconnect', bForget:'Unregister', bStart:'▶ Start', bStop:'■ Stop', keyLabel:'Key (optional): ', keyPh:'Only if BRIDGE_KEY is set', safe:'Safe slow mode (20-byte writes)', note:'If the screen sleeps, printing stops. Reconnect if Bluetooth drops and share this log if troubleshooting is needed.', langBtn:'日本語',
+    disconnected:'Not connected', selecting:'Selecting device…', noWrite:'Print settings could not be detected automatically for this Bluetooth device', connFail:'Connection failed', connected:'Connected (you can start)', needConn:'Connect first', watching:'Monitoring…', stopped:'Stopped', disconnErr:'Disconnected: reconnect', noBt:'This device has no Web Bluetooth', forgetConfirm:'Unregister the Bluetooth printer for this output? Izakanpai will disconnect it and clear its app-side connection profile. Browser Bluetooth permission may remain.', forgetDone:'Printer unregistered in Izakanpai. To remove browser Bluetooth permission too, use the browser site settings.', forgetFailed:'Could not unregister the printer' }
 };
 var curLang=(function(){ try{ var s=localStorage.getItem('lang');if(s==='ja'||s==='en')return s;var first=(navigator.languages&&navigator.languages.length)?navigator.languages[0]:navigator.language;var d=String(first||'').toLowerCase().indexOf('ja')===0?'ja':'en';localStorage.setItem('lang',d);return d;}catch(e){ return 'en'; } })();
 function tt(k){ return (T[curLang]&&T[curLang][k])||k; }
@@ -130,6 +140,29 @@ function bridgePayload(extra){
   if(!storeId) throw new Error('bridge_store_required');
   return Object.assign({storeId:storeId},extra||{});
 }
+function selectedLogicalPrinterId(){var el=document.getElementById('logicalPrinter');return String(el&&el.value||'').trim();}
+function printerProfileScopeId(){return selectedLogicalPrinterId()||String(PRINT_CHANNEL||'general').trim()||'general';}
+function printerProfileStorageKey(suffix){var storeId=bridgeStoreId();if(!storeId)return '';return ((window.APP_CONFIG&&window.APP_CONFIG.STORAGE_PREFIX)||'')+'nativePrinter.'+encodeURIComponent(storeId)+'.'+encodeURIComponent(printerProfileScopeId())+'.'+suffix;}
+function clearSavedPrinterProfile(){['deviceId','serviceUUID','characteristicUUID','profile'].forEach(function(s){var key=printerProfileStorageKey(s);if(key)localStorage.removeItem(key);});}
+function bridgePrinterStorageKey(){var storeId=bridgeStoreId();return ((window.APP_CONFIG&&window.APP_CONFIG.STORAGE_PREFIX)||'')+'bridgePrinterId.'+encodeURIComponent(storeId||'unknown');}
+function legacyBridgePrinterStorageKey(){return ((window.APP_CONFIG&&window.APP_CONFIG.STORAGE_PREFIX)||'')+'bridgePrinterId';}
+function pendingPrintAckKey(){return ((window.APP_CONFIG&&window.APP_CONFIG.STORAGE_PREFIX)||'')+'print.pendingSuccessAck.bridge.'+(selectedLogicalPrinterId()||'none');}
+function rememberPendingSuccessAck(id){try{if(id)localStorage.setItem(pendingPrintAckKey(),String(id));}catch(e){}}
+function clearPendingSuccessAck(){try{localStorage.removeItem(pendingPrintAckKey());}catch(e){}}
+async function recoverPendingSuccessAck(){var id='';try{id=localStorage.getItem(pendingPrintAckKey())||'';}catch(e){}if(!id)return false;await apiAck(id,true);clearPendingSuccessAck();log('前回印刷済みジョブの完了通知を復旧しました');return true;}
+async function loadLogicalPrinters(){
+  try{
+    var token=localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX+'mgmtToken')||'';
+    if(!token)throw new Error('unauthorized');
+    var r=await API.post('rpc',{fn:'getAllPrinters',args:[],token:token,__silent:true,__noInternalRetry:true});
+    var list=(r&&r.data)||[],sel=document.getElementById('logicalPrinter'),key=bridgePrinterStorageKey(),legacyKey=legacyBridgePrinterStorageKey(),saved=localStorage.getItem(key)||'';
+    if(!saved){saved=localStorage.getItem(legacyKey)||'';if(saved){localStorage.setItem(key,saved);localStorage.removeItem(legacyKey);}}
+    sel.innerHTML='<option value="">--</option>';
+    list.filter(function(p){return p&&p.enabled;}).forEach(function(p){var o=document.createElement('option');o.value=p.id;o.textContent=p.name+(p.categories&&p.categories.length?' / '+p.categories.join(', '):' / General');sel.appendChild(o);});
+    if(saved&&list.some(function(p){return p.id===saved&&p.enabled;}))sel.value=saved;
+    sel.onchange=function(){try{localStorage.setItem(bridgePrinterStorageKey(),sel.value||'');}catch(e){}};
+  }catch(e){log('プリンタ一覧取得失敗: '+API.userErrorText(e));}
+}
 
 // URLの ?key= を初期値に
 (function(){ try{ var sk=(window.APP_CONFIG.STORAGE_PREFIX||'')+'bridgeKey'; var k=new URLSearchParams(location.search).get('key'); if(k){ document.getElementById('key').value=k; localStorage.setItem(sk,k);} else { var s=localStorage.getItem(sk); if(s) document.getElementById('key').value=s; } }catch(e){} })();
@@ -153,6 +186,17 @@ async function connect(){
     document.getElementById('btnStart').disabled=false;
   }catch(err){ setStat(tt('connFail'),'err'); log('接続エラー: '+API.userErrorText(err)); }
 }
+async function disconnectPrinter(){
+  stopLoop();
+  try{if(device&&device.gatt&&device.gatt.connected)device.gatt.disconnect();}catch(e){log('切断処理: '+API.userErrorText(e));}
+  writeChar=null;server=null;device=null;document.getElementById('cntPrinter').textContent='—';document.getElementById('btnStart').disabled=true;setStat(tt('disconnected'),'');
+}
+async function unregisterPrinter(){
+  var ok=await UIConfirm(tt('forgetConfirm'),{danger:true,okLabel:tt('bForget')});
+  if(!ok)return;
+  try{await disconnectPrinter();clearSavedPrinterProfile();log(tt('forgetDone'));await UIAlert(tt('forgetDone'));}
+  catch(e){var detail=API.userErrorText(e);log(tt('forgetFailed')+': '+detail);setStat(tt('forgetFailed'),'err');await UIAlert(tt('forgetFailed')+': '+detail);}
+}
 function onDisconnect(){
   writeChar=null; document.getElementById('cntPrinter').textContent='—';
   log('！ プリンタ切断');
@@ -161,6 +205,7 @@ function onDisconnect(){
 
 async function startLoop(){
   if(!writeChar){ setStat(tt('needConn'),'err'); return; }
+  if(!selectedLogicalPrinterId()){setStat(curLang==='en'?'Select the assigned printer first':'先に担当プリンタを選択してください','err');return;}
   looping=true;
   document.getElementById('btnStart').disabled=true;
   document.getElementById('btnStop').disabled=false;
@@ -193,20 +238,22 @@ async function tick(){
   if(!writeChar){ return; } // 切断中はスキップ
   busy=true;
   try{
+    try{await recoverPendingSuccessAck();}catch(recoverErr){log('完了通知の復旧待ち: '+API.userErrorText(recoverErr));stopLoop();return;}
     var jobs = await apiPoll();
     for(var i=0;i<jobs.length && looping && writeChar;i++){
       var job=jobs[i];
       try{
         log('印刷: '+job.id.slice(0,8)+'…');
         await printText(job.content||'');
-        await apiAck(job.id, true);
-        cntOk++; document.getElementById('cntOk').textContent=cntOk;
       }catch(pe){
         log('印刷失敗: '+API.userErrorText(pe)+' → 再キュー');
-        await apiAck(job.id, false);
+        try{await apiAck(job.id,false);}catch(ae){log('失敗ACKも送信できませんでした: '+API.userErrorText(ae));}
         cntErr++; document.getElementById('cntErr').textContent=cntErr;
         break; // 失敗したら今サイクルは中断（次周期で再試行）
       }
+      try{await apiAck(job.id,true);}
+      catch(ae1){try{await sleep(500);await apiAck(job.id,true);}catch(ae2){rememberPendingSuccessAck(job.id);log('印刷済みですが完了通知を確認できません。二重印刷防止のため監視を停止します: '+API.userErrorText(ae2));stopLoop();cntErr++;document.getElementById('cntErr').textContent=cntErr;break;}}
+      cntOk++; document.getElementById('cntOk').textContent=cntOk;
     }
     if(looping && writeChar) setStat(tt('watching')+'（'+cntOk+'）','run');
     if(jobs.length && looping) setTimeout(function(){ tick(); }, 300); // 連続ジョブは待たず即処理
@@ -216,12 +263,12 @@ async function tick(){
 }
 
 async function apiPoll(){
-  var j = await API.post('bridgePoll',bridgePayload({ key:getKey(), __silent:true, __noInternalRetry:true }));
+  var j = await API.post('bridgePoll',bridgePayload({ key:getKey(), printerId:selectedLogicalPrinterId(), __silent:true, __noInternalRetry:true }));
   if(!j.ok) throw new Error(j.error||'poll_ng');
   return j.jobs||[];
 }
 async function apiAck(id, ok){
-  await API.post('bridgeAck',bridgePayload({ id:id, ok:ok, key:getKey(), __silent:true, __noInternalRetry:true }));
+  await API.post('bridgeAck',bridgePayload({ id:id, ok:ok, key:getKey(), printerId:selectedLogicalPrinterId(), __silent:true, __noInternalRetry:true }));
 }
 
 // テキスト → 58mm幅の画像 → ESC/POSラスター送信
@@ -441,21 +488,25 @@ function loadImageAsync(src){
 async function requestWake(){ try{ if('wakeLock' in navigator){ wakeLock=await navigator.wakeLock.request('screen'); log('画面常時点灯ON'); } }catch(e){ log('WakeLock不可: '+API.userErrorText(e)); } }
 function releaseWake(){ try{ if(wakeLock){ wakeLock.release(); wakeLock=null; } }catch(e){} }
 document.addEventListener('visibilitychange', async function(){ if(document.visibilityState==='visible' && looping && !wakeLock){ await requestWake(); } });
+if(EMBEDDED){ document.body.classList.add('embedded'); }
+if(SETUP_ONLY){ document.body.classList.add('setup-only'); }
+loadLogicalPrinters();
 </script>
 
 <script src="./help.js?v=auth2"></script>
 <script>
   HelpUI.register({
-    title: '印刷ステーション（Bluetoothプリンタ）',
-    titleEn: 'Print Station (Bluetooth Printer)',
+    title: 'Bluetoothプリンタ',
+    titleEn: 'Bluetooth Printer',
     items: [
-      { ja: '① レジ横などに置いた端末（Android/Windows/Mac/LinuxのChrome。iOSは非対応）で、Bluetoothプリンタ(PT-210等)への出力を待ち受けるための画面です。電源・画面をONにして開いたままにしてください。', en: '① Runs on a fixed device near the register (Chrome on Android/Windows/Mac/Linux — iOS not supported), waiting to send jobs to a Bluetooth printer (e.g. PT-210). Keep the device powered, screen on, and this page open.' },
-      { ja: '② 「プリンタに接続」ボタンでBluetoothプリンタをペアリング（初回はデバイス選択ダイアログが出ます）。', en: '② "Connect printer" pairs the Bluetooth printer (a device picker appears the first time).' },
-      { ja: '③ 「監視開始」ボタンを押すと、注文・会計確定などで発生した印刷ジョブを自動的にポーリングして受け取り、Bluetooth経由でプリンタに送信します。', en: '③ "Start" begins automatically polling for print jobs (from orders/checkout) and sending them to the printer over Bluetooth.' },
-      { ja: '④ 「停止」ボタンで監視を止められます。', en: '④ "Stop" halts the monitoring loop.' },
-      { ja: '⑤ 画面上部に印刷済み件数・失敗件数・接続中のプリンタ名が表示されます。', en: '⑤ The top of the screen shows printed count, failed count, and the connected printer name.' },
-      { ja: '⑥ 「低速安全モード」にチェックを入れると送信を遅くし、文字化けや印字欠けが出る場合の改善を試せます。', en: '⑥ "Safe slow mode" sends data more slowly, useful if printouts are garbled or missing parts.' },
-      { ja: '⑦ 下のログ欄に接続状況・印刷結果・エラーが表示されます。うまくいかない時はこのログを共有してください。', en: '⑦ The log at the bottom shows connection status, print results, and errors — share it if something goes wrong.' }
+      { ja: '① 対応ChromeではBluetoothプリンタを検索・接続できます。iOSはネイティブアプリから接続してください。動作確認済みプリンタはPT-210です。', en: '① Supported Chrome browsers can scan and connect to Bluetooth printers. Use the native app on iOS. PT-210 is the verified model.' },
+      { ja: '② 「Bluetoothプリンタに接続」でOSのデバイス選択画面を開きます。', en: '② “Connect Bluetooth printer” opens the operating system device picker.' },
+      { ja: '③ 「登録解除」は現在の接続を切り、現在の店舗・出力先に対するIzakanpai内の接続情報だけを削除します。ブラウザのBluetoothサイト許可は別管理です。', en: '③ “Unregister” disconnects the current device and clears only Izakanpai app-side connection data for the current store/output. Browser Bluetooth site permission is managed separately.' },
+      { ja: '④ 「監視開始」ボタンを押すと、注文・会計確定などで発生した印刷ジョブを自動的にポーリングして受け取り、Bluetooth経由でプリンタに送信します。', en: '④ "Start" begins automatically polling for print jobs (from orders/checkout) and sending them to the printer over Bluetooth.' },
+      { ja: '⑤ 「停止」ボタンで監視を止められます。', en: '⑤ "Stop" halts the monitoring loop.' },
+      { ja: '⑥ 画面上部に印刷済み件数・失敗件数・接続中のプリンタ名が表示されます。', en: '⑥ The top of the screen shows printed count, failed count, and the connected printer name.' },
+      { ja: '⑦ 「低速安全モード」にチェックを入れると送信を遅くし、文字化けや印字欠けが出る場合の改善を試せます。', en: '⑦ "Safe slow mode" sends data more slowly, useful if printouts are garbled or missing parts.' },
+      { ja: '⑧ 下のログ欄に接続状況・印刷結果・エラーが表示されます。うまくいかない時はこのログを共有してください。', en: '⑧ The log at the bottom shows connection status, print results, and errors — share it if something goes wrong.' }
     ]
   });
 </script>

@@ -7,8 +7,9 @@
     submitOrder:1, getOrdersByTable:1, getTableCheckoutStamp:1,
     setTablePartySize:1, getTablePartySize:1, callStaff:1, submitFeedback:1
   };
-  var TIMEOUT_MS = { fast:4500, default:30000, write:30000 };
+  var TIMEOUT_MS = { fast:4500, read:8000, default:30000, write:30000 };
   API.TIMEOUT_MS = TIMEOUT_MS;
+  function isReadOnly(action) { return /^(?:get|check|list|count|fetch|bootstrap|validate)/i.test(String(action || '')); }
 
   function validStoreId(value) {
     return /^[a-z0-9][a-z0-9-]{2,31}$/.test(String(value || ''));
@@ -40,8 +41,12 @@
     if (code === 'invalid_table_session') return en ? 'This table link is no longer valid. Please scan the QR code again.' : 'この席のリンクは無効になっています。QRコードをもう一度読み取ってください。';
     if (code === 'invalid_store_link' || code === 'store_not_found') return en ? 'This store link is not valid.' : 'この店舗リンクは無効です。';
     if (code === 'rate_limited') return en ? 'Too many attempts were made. Please wait a while and try again.' : '操作回数が多すぎます。しばらく待ってからもう一度お試しください。';
+    if (code === 'coupon_unavailable') return en
+      ? 'This coupon is no longer available. Please remove it or choose another coupon, then submit the order again.'
+      : 'このクーポンは現在ご利用いただけません。クーポンを外すか別のクーポンを選び、もう一度注文してください。';
     if (/^(?:http_\d+|api_error|internal_error|save_failed|request_failed)$/.test(code)) return generic;
-    if (/d1_error|sqlite|constraint|primary\s*key|foreign\s*key|sql\b|typeerror|referenceerror|syntaxerror|stack|\bat\s+[^\s]+\s*\(|failed to fetch|networkerror|aborterror|timeout/i.test(raw)) return /fetch|network|abort|timeout/i.test(raw) ? network : generic;
+    if (/failed to fetch|networkerror|aborterror|fetch is aborted|\baborted\b|timeout/i.test(raw)) return network;
+    if (/d1_error|sqlite|constraint|primary\s*key|foreign\s*key|sql\b|typeerror|referenceerror|syntaxerror|stack|\bat\s+[^\s]+\s*\(/i.test(raw)) return generic;
     if (/[ぁ-んァ-ヶ一-龠]/.test(raw)) return raw;
     if (/\s/.test(raw) && !/^[A-Za-z]+(?:Error|Exception)\b/.test(raw)) return raw;
     return generic;
@@ -70,7 +75,7 @@
   API.post = async function (action, payload) {
     if (!configReady()) throw new Error('invalid_store_link');
     payload = payload || {};
-    var timeoutMs = typeof payload.__timeoutMs === 'number' ? payload.__timeoutMs : TIMEOUT_MS.default;
+    var timeoutMs = typeof payload.__timeoutMs === 'number' ? payload.__timeoutMs : (isReadOnly(action) ? TIMEOUT_MS.read : TIMEOUT_MS.default);
     var send = Object.assign({}, payload);
     delete send.__silent; delete send.__msg; delete send.__timeoutMs; delete send.__noInternalRetry;
     send.storeId = CFG.STORE_ID;
@@ -145,7 +150,7 @@
       });
       var d = res && res.data;
       if (d === 'Locked, please retry') { await API.queuePut(rec); return 'queued'; }
-      if (d && d !== 'OK') return 'rejected:' + d;
+      if (d && d !== 'OK') return 'rejected:' + ((typeof d === 'object' && d.error) ? d.error : d);
       return 'sent';
     } catch (err) {
       if (err && err.__server) return 'rejected:' + (err.message || 'api_error');
@@ -155,30 +160,45 @@
   };
 
   API.flush = async function () {
-    var pending = await API.queueAll(), sent = 0, dropped = 0;
+    var pending = await API.queueAll(), sent = 0, dropped = 0, quarantined = 0;
     for (var i = 0; i < pending.length; i++) {
       var rec = pending[i];
+      if (rec.blocked) { quarantined++; continue; }
       if (rec.storeId !== CFG.STORE_ID || !rec.tableToken) {
-        await API.queueDel(rec.id); dropped++; continue;
+        rec.blocked = true; rec.lastError = 'invalid_queue_context'; await API.queuePut(rec); quarantined++; continue;
       }
       try {
-        await API.post('submitOrder', {
+        var res = await API.post('submitOrder', {
           order:rec.order, tableToken:rec.tableToken, __timeoutMs:TIMEOUT_MS.write
         });
+        var d = res && res.data;
+        if (d === 'Locked, please retry') { rec.attempts=(rec.attempts||0)+1; await API.queuePut(rec); continue; }
+        if (d && d !== 'OK') { rec.attempts=(rec.attempts||0)+1; rec.blocked=true; rec.lastError=String((typeof d === 'object' && d.error) ? d.error : d); await API.queuePut(rec); quarantined++; continue; }
         await API.queueDel(rec.id); sent++;
       } catch (err) {
         if (err && err.__server) {
           rec.attempts = (rec.attempts || 0) + 1;
-          if (rec.attempts >= 5) { await API.queueDel(rec.id); dropped++; }
-          else await API.queuePut(rec);
+          rec.blocked = true;
+          rec.lastError = String(err.message || err || 'server_error');
+          await API.queuePut(rec); quarantined++;
           continue;
         }
         break;
       }
     }
-    return { sent:sent, dropped:dropped, remaining:(await API.queueAll()).length };
+    var status = await API.pendingStatus();
+    return { sent:sent, dropped:dropped, remaining:status.sendable, quarantined:quarantined, attention:status.attention };
   };
-  API.pendingCount = async function () { return (await API.queueAll()).length; };
+  API.pendingCount = async function () { return (await API.pendingStatus()).sendable; };
+  API.pendingStatus = async function () {
+    var all=await API.queueAll(), sendable=0, attention=0;
+    all.forEach(function(rec){
+      if (!rec || rec.storeId !== CFG.STORE_ID) return;
+      if (rec.blocked || !rec.tableToken) attention++;
+      else sendable++;
+    });
+    return { sendable:sendable, attention:attention };
+  };
 
   window.API = API;
 })();

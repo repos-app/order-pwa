@@ -65,6 +65,7 @@
     .alert{ margin-top:10px; display:none; padding:11px; border-radius:9px; font-size:14px; font-weight:700; }
     .divider{ height:1px; background:var(--border); margin:12px 0; }
   </style>
+  <link rel="stylesheet" href="./date-controls.css?v=3">
 </head>
 <body>
   <div class="head"><h1 data-t="title">📐 営業利益シミュレーション</h1><div style="display:flex;gap:8px;"><button class="hbtn" data-tlang onclick="I18n.toggle()">EN</button><a class="hbtn" href="./manage.html" data-t="back">← 管理へ</a></div></div>
@@ -340,9 +341,9 @@
     </div>
   </div>
 
-  <script src="./config.js?v=auth2"></script>
+  <script src="./date-display.js?v=auth4" data-iz-date-display></script><script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
   <script src="./confirm.js?v=auth2"></script>
   <script>
     // 2026-08-24修正: このページは元々「ログイン不要の公開ツール」として管理メニューにも
@@ -783,7 +784,7 @@
       if (errors.length){ msg('saveMsg', I18n.t('cannotSaveInvalidInputs'), false); return; }
       var data = {};
       Object.keys(SETTINGS_MAP).forEach(function(id){ data[SETTINGS_MAP[id]] = document.getElementById(id).value || ''; });
-      rpc('profitSimSaveSettings',[data]).then(function(){ msg('saveMsg', I18n.t('saved'), true); })
+      rpc('profitSimSaveSettings',[data]).then(function(r){ if(!r||r.success===false||r.error) throw new Error((r&&r.error)||'save_failed'); msg('saveMsg', I18n.t('saved'), true); })
         .catch(function(e){ msg('saveMsg', _authErrMsg(e), false); });
     };
 

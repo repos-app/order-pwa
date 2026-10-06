@@ -10,7 +10,7 @@
 
   <link rel="manifest" href="./requests.webmanifest">
   <title>Staff requests</title>
-  <link rel="stylesheet" href="./date-controls.css?v=2">
+  <link rel="stylesheet" href="./date-controls.css?v=3">
   <style>
     :root{ --bg:#f6f7f9; --surface:#fff; --border:#e5e7eb; --navy:#0f172a; --text-3:#64748b; }
     *{ box-sizing:border-box; }
@@ -68,7 +68,7 @@
         <label class="form-label" data-t="contentLabel">内容</label>
         <textarea id="newContent" class="fc" data-tph="contentPh"></textarea>
       </div>
-      <button class="btn" onclick="submitReq()" data-t="submitBtn">📮 送信</button>
+      <button class="btn" id="submitReqBtn" onclick="submitReq()" data-t="submitBtn">📮 送信</button>
       <div id="subErr" class="muted" style="margin-top:8px;display:none;color:#b91c1c;"></div>
     </div>
 
@@ -79,21 +79,23 @@
 
   </div>
 
-  <script src="./config.js?v=auth2"></script>
+  <script src="./date-display.js?v=auth4" data-iz-date-display></script><script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
   <script src="./confirm.js?v=auth2"></script>
   <script>
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
     if (!TOKEN) location.href = './manage.html';
     var MY_NAME = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtName') || '';
     var MY_ROLE = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtRole') || '';
-    var CAN_MANAGE = (MY_ROLE === 'マネージャー' || MY_ROLE === '管理者' || MY_ROLE === 'システム');
+    var CAN_MANAGE = (MY_ROLE === 'マネージャー' || MY_ROLE === '管理者' || MY_ROLE === 'システム' || MY_ROLE === 'manager' || MY_ROLE === 'admin' || MY_ROLE === 'system');
     function rpc(fn,args){ return API.post('rpc',{fn:fn,args:args||[],token:TOKEN}).then(function(r){ return r.data; }); }
     function $(id){ return document.getElementById(id); }
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
 
     var ROWS = [], __loaded = false;
+    var REQUEST_CLIENT_REQUEST_ID = '';
+    function nextRequestClientRequestId(){ return 'request-' + Date.now() + '-' + Math.random().toString(36).slice(2,10); }
     var STATUSES = ['未対応','対応中','解決済み'];
     var CAT_CLS = { '不具合':'cat-bug', '運営':'cat-ops' };
     var ST_CLS = { '未対応':'st-open', '対応中':'st-prog', '解決済み':'st-done' };
@@ -122,9 +124,9 @@
           mgmtHtml = '<div class="note">💬 '+esc(r.note)+'</div>';
         }
         return '<div class="item">' +
-          '<div class="top"><span class="who">👤 '+esc(r.author||I18n.t('anon'))+'</span><span class="when">🕒 '+esc(r.created)+'</span></div>' +
+          '<div class="top"><span class="who">👤 '+esc(r.author||I18n.t('anon'))+'</span><span class="when">🕒 '+esc(window.DateDisplay?DateDisplay.formatDateTime(r.created):r.created)+'</span></div>' +
           '<div style="margin-top:6px;"><span class="badge '+(CAT_CLS[r.category]||'cat-other')+'">'+esc(catLabel(r.category))+'</span><span class="badge '+(ST_CLS[r.status]||'st-open')+'">'+esc(stLabel(r.status))+'</span>' +
-            (r.due ? '<span class="badge'+(overdue?' overdue':'')+'">📅 '+esc(I18n.t('dueLbl'))+esc(r.due)+(overdue?(' '+esc(I18n.t('overdue'))):'')+'</span>' : '') +
+              (r.due ? '<span class="badge'+(overdue?' overdue':'')+'">📅 '+esc(I18n.t('dueLbl'))+esc(window.DateDisplay?DateDisplay.format(r.due):r.due)+(overdue?(' '+esc(I18n.t('overdue'))):'')+'</span>' : '') +
           '</div>' +
           '<div class="content">'+esc(r.content)+'</div>' +
           mgmtHtml +
@@ -139,11 +141,15 @@
       var errEl = $('subErr'); errEl.style.display='none';
       if (!content){ errEl.textContent = I18n.t('needContent'); errEl.style.display='block'; return; }
       var category = $('newCat').value||'その他';
-      rpc('submitRequest',[{ category: category, content: content }]).then(function(r){
-        if (r && r.row) { ROWS.unshift(r.row); render(); }
+      var btn = $('submitReqBtn'); if (btn) btn.disabled = true;
+      var clientRequestId = REQUEST_CLIENT_REQUEST_ID || (REQUEST_CLIENT_REQUEST_ID = nextRequestClientRequestId());
+      rpc('submitRequest',[{ category: category, content: content, clientRequestId: clientRequestId }]).then(function(r){
+        if (r && r.error) throw new Error(r.error);
+        if (r && r.row) { ROWS.unshift(r.row); render(); REQUEST_CLIENT_REQUEST_ID=''; }
         else { return reload(); } // 想定外形状のフォールバックのみ再取得
         $('newContent').value='';
-      }).catch(function(e){ errEl.textContent = I18n.t('errPrefix')+API.userErrorText(e); errEl.style.display='block'; });
+      }).catch(function(e){ errEl.textContent = I18n.t('errPrefix')+API.userErrorText(e); errEl.style.display='block'; })
+        .finally(function(){ if (btn) btn.disabled = false; });
     };
     window.setStatus = function(id, status, note, due){
       var row = ROWS.filter(function(r){ return r.id===id; })[0]; if (!row) return;
@@ -153,8 +159,8 @@
       var prev = { status: row.status, note: row.note, due: row.due };
       row.status = s; row.note = n; row.due = d; render(); // 楽観的更新
       rpc('updateRequestStatus',[id, s, n, d]).then(function(r){
-        if (!(r && r.success)) { row.status=prev.status; row.note=prev.note; row.due=prev.due; render(); }
-      }).catch(function(){ row.status=prev.status; row.note=prev.note; row.due=prev.due; render(); });
+        if (!(r && r.success)) { row.status=prev.status; row.note=prev.note; row.due=prev.due; render(); var e=$('subErr'); if(e){ e.textContent=I18n.t('errPrefix')+API.userErrorText((r&&r.error)||'save_failed'); e.style.display='block'; } }
+      }).catch(function(err){ row.status=prev.status; row.note=prev.note; row.due=prev.due; render(); var e=$('subErr'); if(e){ e.textContent=I18n.t('errPrefix')+API.userErrorText(err); e.style.display='block'; } });
     };
     window.removeReq = function(id){
       // [負荷試験レビュー対応/優先#6] deleteRequestも失敗時は例外を投げず{success:false}を返すため、
@@ -164,7 +170,7 @@
         rpc('deleteRequest',[id]).then(function(r){
           if (r && r.success) { ROWS = ROWS.filter(function(r2){ return r2.id!==id; }); render(); }
           else { var e = $('subErr'); if (e) { e.textContent = I18n.t('errPrefix')+API.userErrorText((r&&r.error)||'delete_failed'); e.style.display='block'; } }
-        }).catch(function(){});
+        }).catch(function(e){ var box = $('subErr'); if (box) { box.textContent = I18n.t('errPrefix')+API.userErrorText(e); box.style.display='block'; } });
       });
     };
     window.reload = function(){

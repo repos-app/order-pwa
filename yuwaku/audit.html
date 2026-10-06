@@ -57,9 +57,9 @@
     </div>
   </div>
 
-  <script src="./config.js?v=auth2"></script>
+  <script src="./date-display.js?v=auth4" data-iz-date-display></script><script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
   <script>
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
     if (!TOKEN) location.href = './manage.html';
@@ -77,17 +77,17 @@
       if(s && s.indexOf('Z')===-1 && s.indexOf('+')===-1){ s = s.replace(' ','T')+'Z'; }
       return new Date(s);
     }
-    function fmt(ts){ try{ return toUtcDate(ts).toLocaleString(); }catch(e){ return esc(ts); } }
+    function fmt(ts){ try{ var d=toUtcDate(ts); return window.DateDisplay?DateDisplay.formatDateTime(d.toISOString()):d.toLocaleString(); }catch(e){ return esc(ts); } }
     function render(){
       if(!ROWS.length){ document.getElementById('rows').innerHTML='<tr><td colspan="7" style="color:#aaa;padding:16px;text-align:center;">'+I18n.t('empty')+'</td></tr>'; return; }
       document.getElementById('rows').innerHTML = ROWS.map(function(r){
         return '<tr><td class="muted" style="white-space:nowrap;">'+esc(fmt(r.ts))+'</td>'+
-          '<td><span class="badge">'+esc(r.action)+'</span></td>'+
-          '<td>'+esc(r.table)+'</td>'+
+          '<td><span class="badge">'+esc(I18n.systemText(r.action))+'</span></td>'+
+          '<td>'+esc(I18n.systemText(r.table))+'</td>'+
           '<td>'+esc(r.details)+'</td>'+
           '<td class="num">'+SYM+(Number(r.price)||0).toLocaleString()+'</td>'+
           '<td>'+esc(r.reason)+'</td>'+
-          '<td class="appr">'+esc(r.approver)+(r.role?(' <span class="muted">('+esc(r.role)+')</span>'):'')+'</td></tr>';
+          '<td class="appr">'+esc(r.approver)+(r.role?(' <span class="muted">('+esc(I18n.systemText(r.role))+')</span>'):'')+'</td></tr>';
       }).join('');
     }
     var OPS = [];
@@ -95,13 +95,14 @@
       if(!OPS.length){ document.getElementById('opRows').innerHTML='<tr><td colspan="5" style="color:#aaa;padding:16px;text-align:center;">'+I18n.t('empty')+'</td></tr>'; return; }
       document.getElementById('opRows').innerHTML = OPS.map(function(r){
         return '<tr><td class="muted" style="white-space:nowrap;">'+esc(fmt(r.ts))+'</td>'+
-          '<td style="font-weight:700;">'+esc(r.actor)+'</td><td class="muted">'+esc(r.role)+'</td>'+
-          '<td><span class="badge" style="background:#e0e7ff;color:#3730a3;">'+esc(r.fn)+'</span></td>'+
+          '<td style="font-weight:700;">'+esc(r.actor)+'</td><td class="muted">'+esc(I18n.systemText(r.role))+'</td>'+
+          '<td><span class="badge" style="background:#e0e7ff;color:#3730a3;">'+esc(I18n.systemText(r.fn))+'</span></td>'+
           '<td class="muted" style="max-width:360px;overflow:hidden;text-overflow:ellipsis;">'+esc(r.summary)+'</td></tr>';
       }).join('');
     }
-    function loadOps(){ rpc('getOpLog',[300]).then(function(l){ OPS=l||[]; renderOps(); }).catch(function(){}); }
-    window.reload = function(){ rpc('getAuditLog',[200]).then(function(l){ ROWS=l||[]; render(); }).catch(function(){}); loadOps(); };
+    function loadError(target, colspan, e){ document.getElementById(target).innerHTML='<tr><td colspan="'+colspan+'" style="color:#b91c1c;padding:16px;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</td></tr>'; }
+    function loadOps(){ rpc('getOpLog',[300]).then(function(l){ OPS=l||[]; renderOps(); }).catch(function(e){ loadError('opRows',5,e); }); }
+    window.reload = function(){ rpc('getAuditLog',[200]).then(function(l){ ROWS=l||[]; __loaded=true; render(); }).catch(function(e){ loadError('rows',7,e); }); loadOps(); };
 
     API.post('getSettings', {}).then(function(r){ if(r.data && r.data.currencySymbol) SYM=r.data.currencySymbol; render(); }).catch(function(){});
     rpc('getAuditLog',[200]).then(function(l){ ROWS=l||[]; __loaded=true; render(); })

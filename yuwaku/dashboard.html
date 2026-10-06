@@ -42,7 +42,7 @@
 
   <script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
   <script>
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
     if (!TOKEN) location.href = './manage.html';
@@ -94,12 +94,12 @@
       });
     }
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-    var SYM='₱', D=null;
+    var SYM='₱', D=null, targetSaveError='';
     function money(v){ return SYM+(Math.round(Number(v)||0)).toLocaleString(); }
 
     window.saveTarget = function(){
       var v = Number(document.getElementById('tgt').value)||0;
-      rpc('saveSettings',[{ salesTargetMonthly:v }]).then(function(){ if(D){ D.target=v; render(); } });
+      rpc('saveSettings',[{ salesTargetMonthly:v }]).then(function(r){ if(!r||r.success!==true) throw new Error((r&&r.error)||'save_failed'); targetSaveError=''; if(D){ D.target=v; render(); } }).catch(function(e){ targetSaveError=I18n.t('saveErr')+API.userErrorText(e); render(); });
     };
 
     function render(){
@@ -132,7 +132,7 @@
       }
       html += '<div style="display:flex;gap:8px;align-items:center;margin-top:10px;"><span class="muted">'+I18n.t('setTarget')+'</span>'
         + '<input id="tgt" type="number" min="0" class="fc" style="width:140px;" value="'+(tgt||'')+'">'
-        + '<button class="hbtn" style="background:var(--navy);" onclick="saveTarget()">'+I18n.t('save')+'</button></div></div>';
+        + '<button class="hbtn" style="background:var(--navy);" onclick="saveTarget()">'+I18n.t('save')+'</button></div>'+(targetSaveError?('<div style="color:var(--red);font-size:12px;margin-top:7px;">'+esc(targetSaveError)+'</div>'):'')+'</div>';
 
       // 原価内訳
       html += '<div class="card"><div class="card-title">'+I18n.t('costTitle')+'</div>'
@@ -171,8 +171,8 @@
     // そのまま表示されていた。I18n.init()（同期的にDICTを設定してapply()する）を先に呼んでから
     // loadDashboard()を呼ぶ順序に修正する。
     I18n.init({
-      ja:{ title:'📊 ダッシュボード', back:'← 管理へ', loading:'読み込み中…', todaySales:'本日の売上', monthSales:'今月の売上', ordersU:'件', avg:'客単価', grossProfit:'今月の粗利', margin:'粗利率', primeRate:'プライムコスト率', primeSub:'(原価+人件費)÷売上', targetTitle:'🎯 月間売上目標', monthVsTarget:'今月 / 目標', setTarget:'目標を設定:', save:'保存', costTitle:'💴 今月の原価内訳', cogs:'商品原価(自動)', wages:'従業員給与', expenses:'経費(固定費・備品・その他)', costNote:'詳細・仕入実績での計算は', toProfit:'月間粗利へ', lowStock:'低在庫アラート', toInv:'在庫管理へ', menuAlert:'要注意メニュー', toSales:'売上分析へ', loadErr:'読み込みエラー: ', busyErr:'集計が混み合っています。数秒後に再試行してください。' },
-      en:{ title:'📊 Dashboard', back:'← Manage', loading:'Loading…', todaySales:"Today's sales", monthSales:'This month', ordersU:' orders', avg:'Avg/order', grossProfit:'Gross profit (month)', margin:'Margin', primeRate:'Prime cost %', primeSub:'(COGS+labor)÷sales', targetTitle:'🎯 Monthly sales target', monthVsTarget:'Month / Target', setTarget:'Set target:', save:'Save', costTitle:'💴 Cost breakdown (month)', cogs:'Product cost (auto)', wages:'Wages', expenses:'Expenses (fixed/supplies/other)', costNote:'For detail & purchase-based calc →', toProfit:'Gross profit', lowStock:'Low-stock alerts', toInv:'Inventory', menuAlert:'Menu to review', toSales:'Sales analytics', loadErr:'Load error: ', busyErr:'Sales analysis is busy. Please retry in a few seconds.' }
+      ja:{ title:'📊 ダッシュボード', back:'← 管理へ', loading:'読み込み中…', todaySales:'本日の売上', monthSales:'今月の売上', ordersU:'件', avg:'客単価', grossProfit:'今月の粗利', margin:'粗利率', primeRate:'プライムコスト率', primeSub:'(原価+人件費)÷売上', targetTitle:'🎯 月間売上目標', monthVsTarget:'今月 / 目標', setTarget:'目標を設定:', save:'保存', saveErr:'保存エラー: ', costTitle:'💴 今月の原価内訳', cogs:'商品原価(自動)', wages:'従業員給与', expenses:'経費(固定費・備品・その他)', costNote:'詳細・仕入実績での計算は', toProfit:'月間粗利へ', lowStock:'低在庫アラート', toInv:'在庫管理へ', menuAlert:'要注意メニュー', toSales:'売上分析へ', loadErr:'読み込みエラー: ', busyErr:'集計が混み合っています。数秒後に再試行してください。' },
+      en:{ title:'📊 Dashboard', back:'← Manage', loading:'Loading…', todaySales:"Today's sales", monthSales:'This month', ordersU:' orders', avg:'Avg/order', grossProfit:'Gross profit (month)', margin:'Margin', primeRate:'Prime cost %', primeSub:'(COGS+labor)÷sales', targetTitle:'🎯 Monthly sales target', monthVsTarget:'Month / Target', setTarget:'Set target:', save:'Save', saveErr:'Save error: ', costTitle:'💴 Cost breakdown (month)', cogs:'Product cost (auto)', wages:'Wages', expenses:'Expenses (fixed/supplies/other)', costNote:'For detail & purchase-based calc →', toProfit:'Gross profit', lowStock:'Low-stock alerts', toInv:'Inventory', menuAlert:'Menu to review', toSales:'Sales analytics', loadErr:'Load error: ', busyErr:'Sales analysis is busy. Please retry in a few seconds.' }
     }, function(){ if(D) render(); });
 
     loadDashboard();

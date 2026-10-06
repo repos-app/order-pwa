@@ -7,7 +7,7 @@
       confirm:'Send this order?', okTitle:'Order sent', okMsg:'Your order was received.',
       queuedTitle:'Saved (offline)', queuedMsg:'No connection now. It will be sent automatically when back online.',
       errTitle:'Error', ok:'OK', table:'Table', counter:'Counter', noTable:'Please scan the signed QR code at your location.',
-      offline:'Offline — orders will be sent automatically when back online', invalidTableSession:'This table session is invalid. Staff should reselect the table; guests should rescan the table QR code.', lang:'JP',
+      offline:'Offline — orders will be sent automatically when back online', attention:'A queued order needs attention. It was kept on this device because the server did not accept it.', invalidTableSession:'This table session is invalid. Staff should reselect the table; guests should rescan the table QR code.', lang:'JP',
       svc:'Service', tax:'Tax', ranking:'🏆 Ranking',
       tblTitle:'Select a location', tblMsg:'Staff may select a location here. Guests must scan the signed QR code at their location.', tblGo:'Start',
       partyTitle:'How many guests?', partyLabel:'Guests', partyChoose:'Select party size', partyMsg:'Used for entry and extension fee billing.', partyMsgEntry:'Used for entry fee billing.', partyMsgExtension:'Used for extension fee billing.', partyGo:'OK',
@@ -30,7 +30,7 @@
       confirm:'この内容で注文しますか？', okTitle:'注文を送信しました', okMsg:'ご注文を承りました。',
       queuedTitle:'保留しました（オフライン）', queuedMsg:'今は接続がありません。オンライン復帰時に自動送信します。',
       errTitle:'エラー', ok:'OK', table:'卓', counter:'カウンター', noTable:'席に設置された署名付きQRコードを読み取ってください。',
-      offline:'オフライン — 復帰時に自動送信します', invalidTableSession:'席のセッションが無効です。スタッフは席を選び直し、お客様は席のQRコードを再読み取りしてください。', lang:'EN',
+      offline:'オフライン — 復帰時に自動送信します', attention:'未同期注文の確認が必要です。サーバーで受け付けられなかった注文を端末に保持しています。', invalidTableSession:'席のセッションが無効です。スタッフは席を選び直し、お客様は席のQRコードを再読み取りしてください。', lang:'EN',
       svc:'サービス料', tax:'税', ranking:'🏆 ランキング',
       tblTitle:'席を選択', tblMsg:'スタッフはここで席を選べます。お客様は席の署名付きQRコードを読み取ってください。', tblGo:'開始',
       partyTitle:'ご来店人数は？', partyLabel:'人数', partyChoose:'人数を選択', partyMsg:'入場料・延長料の請求に使用します。', partyMsgEntry:'入場料の請求に使用します。', partyMsgExtension:'延長料の請求に使用します。', partyGo:'OK',
@@ -532,15 +532,23 @@
       s.style.color = (Number(s.getAttribute('data-v')) <= n) ? '#f59e0b' : '#cbd5e1';
     });
   }
+  var feedbackRequestId = '', feedbackRequestSig = '';
+  function nextFeedbackRequestId() {
+    try { if (crypto && typeof crypto.randomUUID === 'function') return 'feedback-' + crypto.randomUUID(); } catch (e) {}
+    return 'feedback-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+  }
   function sendFeedback() {
     var x = t();
     if (fbRating < 1) { showErr(x.fbPick); return; }
     var _comment = $('fbComment').value.trim();
     if (!_comment) { showErr(x.fbCommentRequired); return; }
+    var sig = JSON.stringify([state.table, fbRating, _comment]);
+    if (!feedbackRequestId || feedbackRequestSig !== sig) { feedbackRequestSig = sig; feedbackRequestId = nextFeedbackRequestId(); }
     var btn = $('fbSend'); btn.disabled = true;
-    API.post('submitFeedback', tablePayload({ table: state.table, rating: fbRating, comment: _comment })).then(function (r) {
+    API.post('submitFeedback', tablePayload({ table: state.table, rating: fbRating, comment: _comment, clientRequestId: feedbackRequestId })).then(function (r) {
       var d = (r && r.data) || {};
-      if (d && d.error === 'comment_required') { showErr(x.fbCommentRequired); return; }
+      if (d && d.error) { feedbackRequestId = ''; feedbackRequestSig = ''; showErr(d.error === 'comment_required' ? x.fbCommentRequired : apiErrorText(d.error)); return; }
+      feedbackRequestId = ''; feedbackRequestSig = '';
       $('fbModal').classList.remove('show');
       showOk(x.fbThanks, x.fbThanksMsg, '⭐');
     }).catch(function (e) { showErr(apiErrorText(e)); })
@@ -566,7 +574,16 @@
     var b = breakdown();
     var order = { tableNumber: state.table, items: items, totalPrice: b.total, phone: (state.member ? state.member.phone : ''), pointsUsed: (state.usePoints ? b.pointsUsed : 0),
       coupon: (state.coupon ? state.coupon.code : ''), couponDiscount: (b.couponDiscount || 0) };
-    UIConfirm(x.confirm).then(function (ok) {
+    var confirmLines = [x.confirm, ''];
+    items.forEach(function (it) { confirmLines.push('• ' + localizedOrderName(it.name) + ' ×' + it.count); });
+    confirmLines.push('');
+    confirmLines.push(x.stSubLbl + ': ' + money(b.sub));
+    if (b.service > 0) confirmLines.push((String(state.settings.serviceInclusive) === 'true' ? x.stSvcInclLbl : x.stSvcExclLbl) + ': ' + money(b.service));
+    if (b.tax > 0) confirmLines.push((String(state.settings.taxInclusive) === 'true' ? x.stTaxInclLbl : x.stTaxExclLbl).replace('{tax}', taxName()) + ': ' + money(b.tax));
+    if (b.couponDiscount > 0) confirmLines.push(x.couponLbl + ': -' + money(b.couponDiscount));
+    if (b.discount > 0) confirmLines.push(x.discountLbl + ': -' + money(b.discount));
+    confirmLines.push(x.total + ': ' + money(b.total));
+    UIConfirm(confirmLines.join('\n')).then(function (ok) {
       if (!ok) return;
       doSubmit(order, false);
     });
@@ -632,9 +649,14 @@
   }
 
   function refreshPending() {
-    API.pendingCount().then(function (n) {
+    API.pendingStatus().then(function (status) {
+      var n=(status.sendable||0)+(status.attention||0);
       var pill = $('pendingPill');
       if (n > 0) { pill.textContent = n; pill.classList.add('show'); } else { pill.classList.remove('show'); }
+      if (status.attention > 0 && navigator.onLine) {
+        $('offlineText').textContent=t().attention;
+        $('offlineBanner').style.display='flex';
+      } else if (navigator.onLine) $('offlineBanner').style.display='';
     }).catch(function () {});
   }
 

@@ -13,15 +13,42 @@
 //   それ以外はEnglishをlocalStorage.langへ保存する。以降はユーザーが切替えたlangを維持する。
 //   既存環境でlangDefaultCacheだけが残っている場合は移行互換としてその値を優先する。
 (function () {
-  var DICT = {}, cb = null;
+  var DICT = {}, cb = null, APPLIED_LANG = null;
   function explicitLang() { try { var v = localStorage.getItem('lang'); return (v === 'en' || v === 'ja') ? v : null; } catch (e) { return null; } }
   function cachedDefault() { try { var v = localStorage.getItem('langDefaultCache'); return (v === 'en' || v === 'ja') ? v : null; } catch (e) { return null; } }
   function deviceLang() { try { var a=(navigator.languages&&navigator.languages.length)?navigator.languages[0]:navigator.language; return String(a||'').toLowerCase().indexOf('ja')===0?'ja':'en'; } catch (e) { return 'en'; } }
   function initFirstRunLang() { if(explicitLang()||cachedDefault())return; var d=deviceLang(); try{localStorage.setItem('lang',d);}catch(e){} }
   initFirstRunLang();
-  function lang() { return explicitLang() || cachedDefault() || deviceLang(); }
+  function resolvedLang() { return explicitLang() || cachedDefault() || deviceLang(); }
+  // Dynamic messages must use the language currently rendered on this page.
+  // Reading localStorage on every t()/d() call can split the UI: the static DOM
+  // remains EN while an async completion reads a later JA storage value.
+  function lang() { return APPLIED_LANG || resolvedLang(); }
+  // Backend/API values intentionally keep their existing Japanese storage codes
+  // for auth/permission/business logic. Convert only known system-owned display
+  // values here; user-entered names, menu text and free-form notes pass through.
+  var SYSTEM_TEXT_EN = {
+    '管理者':'Admin','システム':'System','マネージャー':'Manager','スタッフ':'Staff','一般':'General',
+    '在籍':'Active','退職':'Left',
+    '出勤':'Clock in','退勤':'Clock out','休憩開始':'Start break','休憩終了':'End break',
+    '未出勤':'Not clocked in','勤務中':'Working','休憩中':'On break','退勤済':'Clocked out',
+    '未設定':'Not set','記録なし':'Not recorded',
+    '会計確定':'Bill finalized','会計返金':'Refund','会計取消':'Bill voided','注文取消':'Order voided','割引承認':'Discount approved',
+    '未対応':'Pending','調理中':'Preparing','提供済':'Served','会計済':'Paid','取消':'Voided','キャンセル':'Cancelled',
+    '受付':'Received','確定':'Confirmed','来店済':'Arrived','受渡済':'Picked up',
+    'saveSettings':'Save settings','reprintReceipt':'Reprint receipt'
+  };
+  function systemText(value) {
+    var raw = String(value == null ? '' : value);
+    if (lang() !== 'en') return raw;
+    if (Object.prototype.hasOwnProperty.call(SYSTEM_TEXT_EN, raw)) return SYSTEM_TEXT_EN[raw];
+    var seat = /^(テーブル|カウンター)(\d+)$/.exec(raw);
+    if (seat) return (seat[1] === 'テーブル' ? 'Table ' : 'Counter ') + seat[2];
+    return raw;
+  }
   function apply() {
-    var l = lang(), d = DICT[l] || {};
+    var l = resolvedLang(), d = DICT[l] || {};
+    APPLIED_LANG = l;
     document.querySelectorAll('[data-t]').forEach(function (el) { var k = el.getAttribute('data-t'); if (d[k] != null) el.textContent = d[k]; });
     // ★2026-08-23: data-t-html（固定文言の<br>/<a>等をHTMLとして描画する用途のみ）を追加。
     document.querySelectorAll('[data-t-html]').forEach(function (el) { var k = el.getAttribute('data-t-html'); if (d[k] != null) el.innerHTML = d[k]; });
@@ -35,14 +62,24 @@
     toggle: function () { try { localStorage.setItem('lang', lang() === 'ja' ? 'en' : 'ja'); } catch (e) {} apply(); },
     lang: lang,
     t: function (k) { var d = DICT[lang()] || {}; return d[k] != null ? d[k] : k; },
+    systemText: systemText,
     // 現在言語の辞書オブジェクト全体を返す（t(key)ではなく t().key スタイルで多数参照する画面向け）。
     d: function () { return DICT[lang()] || {}; }
   };
 
+  // Keep another tab/window changing the shared language from leaving this page
+  // visually stale. Same-window callers should use I18n.toggle() (or reload);
+  // until apply() runs, dynamic messages intentionally stay aligned with the
+  // language already painted in the DOM.
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    window.addEventListener('storage', function (e) {
+      if (e && (e.key === 'lang' || e.key === 'langDefaultCache')) apply();
+    });
+  }
+
   // 店舗設定の「既定言語」をバックグラウンドで取得し、ユーザーが手動切替していない場合のみ反映する。
   // 取得完了まではキャッシュ値（無ければ英語）で表示し、完了後に差分があれば再描画する。
   function fetchDefaultLang() {
-    if (explicitLang()) return; // ユーザーが既に手動で選択済みなら何もしない
     try {
       if (typeof window === 'undefined' || !window.APP_CONFIG || !window.APP_CONFIG.API_URL) return;
       var storeId = String(window.APP_CONFIG.STORE_ID || '').trim().toLowerCase();
@@ -53,8 +90,17 @@
         body: JSON.stringify({ action: 'getSettings', storeId: storeId }),
         redirect: 'follow'
       }).then(function (res) { return res.json(); }).then(function (json) {
-        if (explicitLang()) return; // 応答待ちの間にユーザーが手動切替していたら上書きしない
         var d = (json && json.ok && json.data) || {};
+        try {
+          var regional={countryCode:d.countryCode||'',locale:d.locale||'',currencyCode:d.currencyCode||'',dateFormat:d.dateFormat||'',timezone:d.timezone||''};
+          localStorage.setItem('izakanpai:date-display-settings',JSON.stringify(regional));
+          if(window.DateDisplay) window.DateDisplay.setSettings(regional);
+          window.dispatchEvent(new CustomEvent('iz:regional-settings',{detail:regional}));
+          // DateDisplayの状態更新後、一覧/カード等ですでに描画済みの日付文字列も
+          // 店舗の地域設定で描き直す。言語が変わらない場合も再描画が必要。
+          if (cb) try { cb(lang()); } catch (e) {}
+        } catch (e) {}
+        if (explicitLang()) return; // 手動言語は保持するが、地域/日付設定の同期は上で行う
         var def = (d.defaultLang === 'ja') ? 'ja' : 'en';
         var cur = cachedDefault();
         try { localStorage.setItem('langDefaultCache', def); } catch (e) {}

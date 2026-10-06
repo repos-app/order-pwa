@@ -48,22 +48,6 @@
     <div class="card">
       <div class="card-title" data-t="shopTitle">🏪 店舗設定</div>
       <div class="fg"><label class="form-label" data-t="shopName">店舗名</label><input id="shopName" class="fc"></div>
-      <div class="fg"><label class="form-label" data-t="shopAddress">住所（レシート表示）</label><input id="shopAddress" class="fc"></div>
-      <div class="fg"><label id="shopTinLabel" class="form-label" data-t="shopTin">税務登録番号（レシート表示）</label><input id="shopTin" class="fc"></div>
-      <div class="fg">
-        <label class="form-label" data-t="shopLogo">レシートのロゴ（先頭に中央印字）</label>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-          <input type="file" id="logoFile" accept="image/*" onchange="onLogoPick(event)">
-          <button type="button" class="btn" style="width:auto;padding:8px 12px;background:#64748b;" onclick="clearLogo()" data-t="logoClear">クリア</button>
-          <img id="logoPrev" alt="" style="display:none;max-width:200px;max-height:80px;background:#fff;border:1px solid var(--border);border-radius:8px;padding:4px;">
-        </div>
-        <div class="hint" data-t="logoHint">白黒の感熱印刷用に自動で縮小・変換します。58mm幅を100%として、下の値で印字サイズを調整できます。</div>
-        <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
-          <label class="form-label" style="margin:0;" data-t="logoSize">印字サイズ（%）</label>
-          <input id="logoScale" type="number" min="20" max="100" step="5" class="fc" style="width:90px;" oninput="saveLogoScale()" onchange="saveLogoScale()">
-          <span style="color:var(--text-3);font-size:12px;">(20〜100)</span>
-        </div>
-      </div>
       <div class="grid2">
         <div class="fg"><label class="form-label" id="tableCountLabel" data-t="tableCount">テーブル数</label><input id="tableCount" type="number" min="0" class="fc"></div>
         <div class="fg"><label class="form-label" id="counterCountLabel" data-t="counterCount">カウンター数</label><input id="counterCount" type="number" min="0" class="fc"></div>
@@ -94,7 +78,10 @@
       <div class="card-title" data-t="takeoutShareTitle">🥡 テイクアウト共有URL</div>
       <p class="hint" data-t="takeoutShareDesc" style="margin-bottom:10px;line-height:1.7;">お客様へ共有するテイクアウト注文ページです。この店舗専用URLをSNS・Webサイト・メッセージ等で共有できます。</p>
       <input id="takeoutPublicUrl" class="fc" type="text" readonly>
-      <button class="btn sec" type="button" style="margin-top:8px;" onclick="copyTakeoutUrl()" data-t="takeoutShareCopy">📋 URLをコピー</button>
+      <div class="row" style="margin-top:8px;">
+        <button class="btn sec" type="button" onclick="copyTakeoutUrl()" data-t="takeoutShareCopy">📋 URLをコピー</button>
+        <button class="btn sec" id="takeoutOpenBtn" type="button" onclick="openTakeoutUrl()" data-t="takeoutShareOpen" disabled>🌐 ブラウザで開く</button>
+      </div>
       <div class="st" id="st-takeout-url"></div>
     </div>
 
@@ -111,6 +98,7 @@
       <div class="grid2">
         <div class="fg"><label class="form-label" data-t="countryCode">国・地域コード</label><select id="countryCode" class="fc"><option value="PH">PH — Philippines</option><option value="JP">JP — Japan</option><option value="SG">SG — Singapore</option><option value="US">US — United States</option><option value="GB">GB — United Kingdom</option><option value="AU">AU — Australia</option></select></div>
         <div class="fg"><label class="form-label" data-t="localeCode">地域形式（ロケール）</label><select id="locale" class="fc"><option value="en-PH">en-PH — Philippines</option><option value="ja-JP">ja-JP — 日本</option><option value="en-SG">en-SG — Singapore</option><option value="en-US">en-US — United States</option><option value="en-GB">en-GB — United Kingdom</option><option value="en-AU">en-AU — Australia</option></select></div>
+        <div class="fg"><label class="form-label" data-t="dateFormat">日付表示形式</label><select id="dateFormat" class="fc"><option value="YYYY/MM/DD">YYYY/MM/DD</option><option value="MM/DD/YYYY">MM/DD/YYYY</option><option value="DD/MM/YYYY">DD/MM/YYYY</option></select></div>
         <div class="fg"><label class="form-label" data-t="curCode">通貨コード</label><select id="currencyCode" class="fc"><option value="PHP">PHP — Philippine Peso</option><option value="JPY">JPY — Japanese Yen</option><option value="SGD">SGD — Singapore Dollar</option><option value="USD">USD — US Dollar</option><option value="GBP">GBP — Pound Sterling</option><option value="AUD">AUD — Australian Dollar</option></select></div>
         <div class="fg"><label class="form-label" data-t="curSym">通貨記号</label><select id="currencySymbol" class="fc"><option value="₱">₱ — PHP</option><option value="¥">¥ — JPY</option><option value="S$">S$ — SGD</option><option value="$">$ — USD</option><option value="£">£ — GBP</option><option value="A$">A$ — AUD</option></select></div>
         <div class="fg"><label class="form-label" data-t="curDigits">通貨の小数桁</label><select id="currencyDecimalDigits" class="fc"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></div>
@@ -230,20 +218,20 @@
       <div class="st" id="st-gcash"></div>
     </div>
 
+    <div class="card" id="aiUsageCard">
+      <div class="card-title" data-t="aiUsageTitle">🤖 AI利用状況</div>
+      <div class="hint" data-t="aiUsageHint" style="font-size:12px;color:var(--text-3);margin-bottom:10px;">AI在庫スキャンと自動翻訳はシステム側で管理されます。現在の利用量とプラン上限を表示します。</div>
+      <div id="aiUsageSummary" style="font-size:13px;line-height:1.7;white-space:pre-line;">読み込み中…</div>
+    </div>
     <div class="card">
-      <div class="card-title" data-t="gemTitle">🤖 Gemini APIキー（画像検索用・任意）</div>
-      <div class="row" style="margin-bottom:8px;"><span data-t="status">状態:</span> <span class="badge offb" id="gemBadge" data-t="unset">未設定</span></div>
-      <div class="fg"><label class="form-label" data-t="apiKey">APIキー</label><input id="gemKey" type="password" class="fc" autocomplete="off" placeholder="貼り付けて保存" data-tph="phPaste"></div>
-      <button class="btn" onclick="saveGemKey()" data-t="save">💾 保存</button>
-      <div class="st" id="st-gem"></div>
-    </div>`r`n<div class="card">
       <div class="card-title" data-t="geoTitle">📍 勤怠・店舗位置</div>
       <div class="grid2">
         <div class="fg"><label class="form-label" data-t="lat">緯度</label><input id="storeLat" class="fc"></div>
         <div class="fg"><label class="form-label" data-t="lng">経度</label><input id="storeLng" class="fc"></div>
       </div>
       <div class="fg"><label class="form-label" data-t="radius">許容半径 (m)</label><input id="storeRadius" type="number" min="0" class="fc"></div>
-      <div class="row"><button class="btn sec" onclick="getLoc()" data-t="getLoc">📡 現在地を取得</button><button class="btn" onclick="saveGeo()" data-t="save">💾 保存</button></div>
+      <div class="hint" style="font-size:12px;color:var(--text-3);margin:2px 0 10px;" data-t="geoNoCheckHint">店舗位置（緯度・経度・許容半径）が未設定の場合、出勤時のGPS距離チェックは行いません。</div>
+      <div class="row"><button class="btn sec" onclick="getLoc()" data-t="getLoc">📡 現在地を取得</button><button class="btn" onclick="saveGeo()" data-t="save">💾 保存</button><button class="btn sec" onclick="clearGeo()" data-t="geoClear">🧹 クリア</button></div>
       <div class="st" id="st-geo"></div>
     </div>
 
@@ -300,7 +288,7 @@
       <div class="st" id="st-report"></div>
     </div>
 
-    <div class="card">
+    <div class="card" hidden aria-hidden="true" style="display:none;" data-internal-only="pt210-bridge">
       <div class="card-title" data-t="bridgeTitle">🖶 印刷ブリッジ（プリンタ連携）</div>
       <div class="fg" style="max-width:220px;"><label class="form-label" data-t="bridgeInterval">キュー確認間隔（秒）</label><input id="bridgePollSec" type="number" min="1" max="60" step="0.1" class="fc" placeholder="1.2"></div>
       <div class="hint" data-t="bridgeHint" style="font-size:12px;color:var(--text-3);margin:2px 0 10px;">印刷キュー（bridge.html）がサーバーへ確認しにいく頻度です。短いほど印刷が早く始まりますが、サーバー負荷は増えます。既定値は1.2秒です。</div>
@@ -350,15 +338,17 @@
           <button class="btn" style="padding:8px 12px;" onclick="enqueueAllQr()" data-t="qrEnqueueAllBtn">全卓をキューへ</button>
         </div>
         <div class="st" id="st-qr-bridge" style="margin-top:8px;"></div>
+        <div class="st" id="st-qr-open" style="margin-top:8px;"></div>
       </div>
       <div id="qrGrid" style="padding:18px;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;"></div>
     </div>
   </div>
 
-  <script src="./config.js?v=auth2"></script>
+  <script src="./date-display.js?v=auth4" data-iz-date-display></script><script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
   <script src="./confirm.js?v=auth2"></script>
+  <script src="./external-browser.js?v=external1"></script>
   <script>
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
     if (!TOKEN) location.href = './manage.html';
@@ -387,7 +377,9 @@
     }
     function _refreshPublicTakeoutUrl(){
       var input=$('takeoutPublicUrl'); if(!input)return;
-      input.value=_publicTakeoutUrl();
+      var value=_publicTakeoutUrl();
+      input.value=value;
+      var openBtn=$('takeoutOpenBtn'); if(openBtn) openBtn.disabled=!value;
     }
     window.copyTakeoutUrl=function(){
       var value=_publicTakeoutUrl();
@@ -395,6 +387,11 @@
       var done=function(){ st('st-takeout-url',I18n.t('copied'),true); };
       if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(value).then(done).catch(function(){});
       else { var input=$('takeoutPublicUrl'); input.focus(); input.select(); try{document.execCommand('copy');done();}catch(e){} }
+    };
+    window.openTakeoutUrl=function(){
+      var value=_publicTakeoutUrl();
+      if(!value){ st('st-takeout-url',I18n.t('takeoutShareUnavailable'),false); return; }
+      ExternalBrowser.open(value).then(function(){ st('st-takeout-url',I18n.t('publicUrlOpened'),true); }).catch(function(){ st('st-takeout-url',I18n.t('publicUrlOpenFailed'),false); });
     };
     _refreshPublicTakeoutUrl();
     window.showQrModal = function(){
@@ -413,7 +410,10 @@
             '<img src="' + qrSrc + '" width="120" height="120" style="display:block;margin:0 auto 8px;border-radius:6px;" loading="lazy">' +
             '<div style="font-weight:900;font-size:13px;color:var(--navy);">' + esc(_seatLabel(tableNum)) + '</div>' +
             (shopName ? '<div style="font-size:12px;color:var(--text-3);font-weight:600;">' + esc(shopName) + '</div>' : '') +
-            '<button type="button" class="btn sec" style="margin-top:8px;padding:5px 8px;font-size:12px;" onclick="enqueueOneQr(\'' + esc(tableNum).replace(/'/g, "\\'") + '\')" data-t="qrEnqueueOneBtn">🖶 印刷キューへ</button>' +
+            '<div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:8px;">' +
+              '<button type="button" class="btn sec" style="padding:5px 8px;font-size:12px;" onclick="enqueueOneQr(\'' + esc(tableNum).replace(/'/g, "\\'") + '\')">' + esc(I18n.t('qrEnqueueOneBtn')) + '</button>' +
+              '<button type="button" class="btn sec" style="padding:5px 8px;font-size:12px;" onclick="openQrPublicUrl(\'' + esc(tableNum).replace(/'/g, "\\'") + '\')">' + esc(I18n.t('publicUrlOpen')) + '</button>' +
+            '</div>' +
           '</div>';
         });
         grid.innerHTML = html;
@@ -436,25 +436,42 @@
       var entry = tableListForQr.find(function(x){ return x.table === tableNum; });
       return _publicOrderUrl(tableNum,entry ? entry.token : '');
     }
+    window.openQrPublicUrl=function(tableNum){
+      var value=_qrUrlFor(tableNum);
+      if(!value){ st('st-qr-open',I18n.t('qrPublicUrlUnavailable'),false); return; }
+      ExternalBrowser.open(value).then(function(){ st('st-qr-open',I18n.t('publicUrlOpened'),true); }).catch(function(){ st('st-qr-open',I18n.t('publicUrlOpenFailed'),false); });
+    };
+    var qrEnqueuePending = false, qrEnqueueRequestId='', qrEnqueueRequestSig='';
+    function nextQrEnqueueRequestId(){ try{ if(crypto&&typeof crypto.randomUUID==='function') return 'qr-print-'+crypto.randomUUID(); }catch(e){} return 'qr-print-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2); }
+    function qrEnqueueIdFor(pid,items){ var sig=JSON.stringify([pid,items]); if(!qrEnqueueRequestId||qrEnqueueRequestSig!==sig){ qrEnqueueRequestSig=sig; qrEnqueueRequestId=nextQrEnqueueRequestId(); } return qrEnqueueRequestId; }
+    function resetQrEnqueueRequest(){ qrEnqueueRequestId=''; qrEnqueueRequestSig=''; }
     window.enqueueAllQr = function(){
+      if(qrEnqueuePending) return;
       var sel = $('qrPrinterSel'); var pid = sel && sel.value;
       if (!pid){ st('st-qr-bridge', I18n.t('qrNoPrinters'), false); return; }
       if (!tableListForQr.length) return;
       st('st-qr-bridge', I18n.t('sending'), true);
       var items = tableListForQr.map(function(t){ return { table: t.table, url: _qrUrlFor(t.table) }; });
-      rpc('enqueueQrPrintJobs',[pid, items]).then(function(r){
-        if (r && r.success) st('st-qr-bridge', I18n.t('qrQueued').replace('{n}', r.count), true);
+      var requestId=qrEnqueueIdFor(pid,items);
+      qrEnqueuePending = true;
+      rpc('enqueueQrPrintJobs',[pid, items, requestId]).then(function(r){
+        if (r && r.success && !(r.errors&&r.errors.length)){ resetQrEnqueueRequest(); st('st-qr-bridge', I18n.t('qrQueued').replace('{n}', r.count), true); }
         else st('st-qr-bridge', I18n.t('errPrefix')+API.userErrorText((r&&r.error)||''), false);
-      }).catch(function(e){ st('st-qr-bridge', I18n.t('errPrefix')+API.userErrorText(e), false); });
+      }).catch(function(e){ st('st-qr-bridge', I18n.t('errPrefix')+API.userErrorText(e), false); })
+        .finally(function(){ qrEnqueuePending = false; });
     };
     window.enqueueOneQr = function(tableNum){
+      if(qrEnqueuePending) return;
       var sel = $('qrPrinterSel'); var pid = sel && sel.value;
       if (!pid){ st('st-qr-bridge', I18n.t('qrNoPrinters'), false); return; }
       st('st-qr-bridge', I18n.t('sending'), true);
-      rpc('enqueueQrPrintJobs',[pid, [{ table: tableNum, url: _qrUrlFor(tableNum) }]]).then(function(r){
-        if (r && r.success) st('st-qr-bridge', I18n.t('qrQueued').replace('{n}', r.count), true);
+      var items=[{ table: tableNum, url: _qrUrlFor(tableNum) }], requestId=qrEnqueueIdFor(pid,items);
+      qrEnqueuePending = true;
+      rpc('enqueueQrPrintJobs',[pid, items, requestId]).then(function(r){
+        if (r && r.success && !(r.errors&&r.errors.length)){ resetQrEnqueueRequest(); st('st-qr-bridge', I18n.t('qrQueued').replace('{n}', r.count), true); }
         else st('st-qr-bridge', I18n.t('errPrefix')+API.userErrorText((r&&r.error)||''), false);
-      }).catch(function(e){ st('st-qr-bridge', I18n.t('errPrefix')+API.userErrorText(e), false); });
+      }).catch(function(e){ st('st-qr-bridge', I18n.t('errPrefix')+API.userErrorText(e), false); })
+        .finally(function(){ qrEnqueuePending = false; });
     };
     window.printQrCodes = function(){
       if (!tableListForQr.length) return;
@@ -504,32 +521,7 @@
 
     var BUSINESS_PROFILES={restaurant:{tableLabelJa:'テーブル',tableLabelEn:'Table',counterLabelJa:'カウンター',counterLabelEn:'Counter',seatGroupLabelJa:'席',seatGroupLabelEn:'Seating'},bar:{tableLabelJa:'卓',tableLabelEn:'Table',counterLabelJa:'カウンター',counterLabelEn:'Bar seat',seatGroupLabelJa:'席',seatGroupLabelEn:'Seating'},cafe:{tableLabelJa:'テーブル',tableLabelEn:'Table',counterLabelJa:'カウンター',counterLabelEn:'Counter',seatGroupLabelJa:'席',seatGroupLabelEn:'Seating'},counter_service:{tableLabelJa:'受取番号',tableLabelEn:'Order no.',counterLabelJa:'受取口',counterLabelEn:'Pickup',seatGroupLabelJa:'注文',seatGroupLabelEn:'Order'},service:{tableLabelJa:'受付',tableLabelEn:'Station',counterLabelJa:'ブース',counterLabelEn:'Booth',seatGroupLabelJa:'利用枠',seatGroupLabelEn:'Station'}};
     window.applyBusinessProfile=function(){var code=$('businessProfile').value,p=BUSINESS_PROFILES[code];if(!p)return;Object.keys(p).forEach(function(k){$(k).value=p[k];});syncSeatCountLabels();st('st-shop',I18n.t('businessProfileApplied'),true);};
-    window.saveShop = function(){ var profile={shopName:$('shopName').value,shopAddress:$('shopAddress').value,shopTin:$('shopTin').value,businessProfile:$('businessProfile').value,tableLabelJa:$('tableLabelJa').value,tableLabelEn:$('tableLabelEn').value,counterLabelJa:$('counterLabelJa').value,counterLabelEn:$('counterLabelEn').value,seatGroupLabelJa:$('seatGroupLabelJa').value,seatGroupLabelEn:$('seatGroupLabelEn').value}; Promise.all([ rpc('saveSettings',[profile]), rpc('saveSeatCounts',[Number($('tableCount').value)||0, Number($('counterCount').value)||0]) ]).then(function(){ st('st-shop',I18n.t('saved'), true); }).catch(function(e){ st('st-shop',I18n.t('errPrefix')+API.userErrorText(e), false); }); };
-    window.onLogoPick = function(ev){
-      var f = ev.target.files && ev.target.files[0]; if(!f) return;
-      API.readFileAsDataURL(f).then(function(dataUrl){
-        var im = new Image();
-        im.onload = function(){
-          var maxW=384, maxH=160, sc=Math.min(maxW/im.width, maxH/im.height, 1);
-          var w=Math.max(1,Math.round(im.width*sc)), h=Math.max(1,Math.round(im.height*sc));
-          var c=document.createElement('canvas'); c.width=w; c.height=h;
-          var cx=c.getContext('2d'); cx.fillStyle='#fff'; cx.fillRect(0,0,w,h); cx.drawImage(im,0,0,w,h);
-          var url=c.toDataURL('image/png');
-          $('logoPrev').src=url; $('logoPrev').style.display='inline-block';
-          rpc('saveReceiptLogo',[url]).then(function(r){ requireRpcSuccess(r,'logo_save_failed'); st('st-shop', I18n.t('saved'), true); }).catch(function(e){ st('st-shop', I18n.t('errPrefix')+API.userErrorText(e), false); });
-        };
-        im.src = dataUrl;
-      }).catch(function(e){ st('st-shop', I18n.t('errPrefix')+API.userErrorText(e), false); });
-    };
-    var _logoScaleTimer=null;
-    window.saveLogoScale = function(){
-      var v = Math.max(20, Math.min(100, Number($('logoScale').value)||100));
-      clearTimeout(_logoScaleTimer);
-      _logoScaleTimer = setTimeout(function(){ rpc('saveSettings',[{ logoScalePct: String(v) }]).then(function(){ st('st-shop', I18n.t('saved'), true); }).catch(function(e){ st('st-shop', I18n.t('errPrefix')+API.userErrorText(e), false); }); }, 400);
-    };
-    window.clearLogo = function(){
-      rpc('saveReceiptLogo',['']).then(function(r){ requireRpcSuccess(r,'logo_clear_failed'); $('logoPrev').src=''; $('logoPrev').style.display='none'; $('logoFile').value=''; st('st-shop', I18n.t('saved'), true); }).catch(function(e){ st('st-shop', I18n.t('errPrefix')+API.userErrorText(e), false); });
-    };
+    window.saveShop = function(){ var profile={shopName:$('shopName').value,businessProfile:$('businessProfile').value,tableLabelJa:$('tableLabelJa').value,tableLabelEn:$('tableLabelEn').value,counterLabelJa:$('counterLabelJa').value,counterLabelEn:$('counterLabelEn').value,seatGroupLabelJa:$('seatGroupLabelJa').value,seatGroupLabelEn:$('seatGroupLabelEn').value}; Promise.all([ rpc('saveSettings',[profile]), rpc('saveSeatCounts',[Number($('tableCount').value)||0, Number($('counterCount').value)||0]) ]).then(function(res){ requireRpcSuccess(res[0]); requireRpcSuccess(res[1]); st('st-shop',I18n.t('saved'), true); }).catch(function(e){ st('st-shop',I18n.t('errPrefix')+API.userErrorText(e), false); }); };
     // "HH:MM" 形式のtime inputから[時,分]を取り出す（未入力なら[0,0]）。
     function _splitTime(v){ var m=/^(\d{1,2}):(\d{2})$/.exec(v||''); return m? [Number(m[1]), Number(m[2])] : [0,0]; }
     // 時・分（数値）からtime input用の"HH:MM"文字列を作る。
@@ -541,15 +533,15 @@
       if(v&&!found){var opt=document.createElement('option');opt.value=v;opt.textContent=v+' — '+I18n.t('currentSetting');el.appendChild(opt);}
       el.value=v;
     }
-    var COUNTRY_PROFILES={PH:{locale:'en-PH',currencyCode:'PHP',currencySymbol:'₱',currencyDecimalDigits:2,timezone:'Asia/Manila',taxDisplayName:'VAT',taxIdLabel:'TIN',receiptNumberPrefix:'OR',receiptDocumentTitleJa:'レシート',receiptDocumentTitleEn:'Receipt'},JP:{locale:'ja-JP',currencyCode:'JPY',currencySymbol:'¥',currencyDecimalDigits:0,timezone:'Asia/Tokyo',taxDisplayName:'消費税',taxIdLabel:'適格請求書発行事業者登録番号',receiptNumberPrefix:'R',receiptDocumentTitleJa:'領収書',receiptDocumentTitleEn:'Receipt'},SG:{locale:'en-SG',currencyCode:'SGD',currencySymbol:'S$',currencyDecimalDigits:2,timezone:'Asia/Singapore',taxDisplayName:'GST',taxIdLabel:'UEN / GST Reg. No.',receiptNumberPrefix:'R',receiptDocumentTitleJa:'レシート',receiptDocumentTitleEn:'Receipt'},US:{locale:'en-US',currencyCode:'USD',currencySymbol:'$',currencyDecimalDigits:2,timezone:'America/New_York',taxDisplayName:'Sales Tax',taxIdLabel:'Tax ID',receiptNumberPrefix:'R',receiptDocumentTitleJa:'レシート',receiptDocumentTitleEn:'Receipt'},GB:{locale:'en-GB',currencyCode:'GBP',currencySymbol:'£',currencyDecimalDigits:2,timezone:'Europe/London',taxDisplayName:'VAT',taxIdLabel:'VAT Registration No.',receiptNumberPrefix:'R',receiptDocumentTitleJa:'レシート',receiptDocumentTitleEn:'Receipt'},AU:{locale:'en-AU',currencyCode:'AUD',currencySymbol:'A$',currencyDecimalDigits:2,timezone:'Australia/Sydney',taxDisplayName:'GST',taxIdLabel:'ABN',receiptNumberPrefix:'R',receiptDocumentTitleJa:'レシート',receiptDocumentTitleEn:'Receipt'}};
+    var COUNTRY_PROFILES={PH:{locale:'en-PH',dateFormat:'MM/DD/YYYY',currencyCode:'PHP',currencySymbol:'₱',currencyDecimalDigits:2,timezone:'Asia/Manila',taxDisplayName:'VAT',taxIdLabel:'TIN',receiptNumberPrefix:'OR',receiptDocumentTitleJa:'レシート',receiptDocumentTitleEn:'Receipt'},JP:{locale:'ja-JP',dateFormat:'YYYY/MM/DD',currencyCode:'JPY',currencySymbol:'¥',currencyDecimalDigits:0,timezone:'Asia/Tokyo',taxDisplayName:'消費税',taxIdLabel:'適格請求書発行事業者登録番号',receiptNumberPrefix:'R',receiptDocumentTitleJa:'領収書',receiptDocumentTitleEn:'Receipt'},SG:{locale:'en-SG',dateFormat:'DD/MM/YYYY',currencyCode:'SGD',currencySymbol:'S$',currencyDecimalDigits:2,timezone:'Asia/Singapore',taxDisplayName:'GST',taxIdLabel:'UEN / GST Reg. No.',receiptNumberPrefix:'R',receiptDocumentTitleJa:'レシート',receiptDocumentTitleEn:'Receipt'},US:{locale:'en-US',dateFormat:'MM/DD/YYYY',currencyCode:'USD',currencySymbol:'$',currencyDecimalDigits:2,timezone:'America/New_York',taxDisplayName:'Sales Tax',taxIdLabel:'Tax ID',receiptNumberPrefix:'R',receiptDocumentTitleJa:'レシート',receiptDocumentTitleEn:'Receipt'},GB:{locale:'en-GB',dateFormat:'DD/MM/YYYY',currencyCode:'GBP',currencySymbol:'£',currencyDecimalDigits:2,timezone:'Europe/London',taxDisplayName:'VAT',taxIdLabel:'VAT Registration No.',receiptNumberPrefix:'R',receiptDocumentTitleJa:'レシート',receiptDocumentTitleEn:'Receipt'},AU:{locale:'en-AU',dateFormat:'DD/MM/YYYY',currencyCode:'AUD',currencySymbol:'A$',currencyDecimalDigits:2,timezone:'Australia/Sydney',taxDisplayName:'GST',taxIdLabel:'ABN',receiptNumberPrefix:'R',receiptDocumentTitleJa:'レシート',receiptDocumentTitleEn:'Receipt'}};
     window.applyCountryProfile=function(){var code=String($('countryCode').value||'').trim().toUpperCase(),p=COUNTRY_PROFILES[code];if(!p){st('st-locale',I18n.t('unknownCountry'),false);return;}Object.keys(p).forEach(function(k){if($(k))$(k).value=String(p[k]);});st('st-locale',I18n.t('countryApplied'),true);};
     window.saveLocale = function(){
       var bc=_splitTime($('bizDayCutoff').value), tz=String($('timezone').value||'').trim();
       try { if(!tz) throw new Error('blank'); new Intl.DateTimeFormat('en-US',{timeZone:tz}).format(); }
       catch(e){ st('st-locale',I18n.t('invalidTimezone'), false); return; }
-      rpc('saveSettings',[{ countryCode:$('countryCode').value, locale:$('locale').value, timezone:tz, currencyCode:$('currencyCode').value, currencySymbol:$('currencySymbol').value, currencyDecimalDigits:$('currencyDecimalDigits').value, serviceRate:$('serviceRate').value, taxRate:$('taxRate').value, taxDisplayName:$('taxDisplayName').value, taxIdLabel:$('taxIdLabel').value, receiptNumberPrefix:$('receiptNumberPrefix').value, receiptDocumentTitleJa:$('receiptDocumentTitleJa').value, receiptDocumentTitleEn:$('receiptDocumentTitleEn').value, taxRoundingMode:$('taxRoundingMode').value, serviceInclusive:$('serviceInclusive').checked?'true':'false', taxInclusive:$('taxInclusive').checked?'true':'false', defaultLang:$('defaultLang').value, accentColor:$('accentColor').value, bizDayCutoffHour:bc[0], bizDayCutoffMin:bc[1] }]).then(function(d){
+      rpc('saveSettings',[{ regionalSettingsVersion:'2', countryCode:$('countryCode').value, locale:$('locale').value, dateFormat:$('dateFormat').value, timezone:tz, currencyCode:$('currencyCode').value, currencySymbol:$('currencySymbol').value, currencyDecimalDigits:$('currencyDecimalDigits').value, serviceRate:$('serviceRate').value, taxRate:$('taxRate').value, taxDisplayName:$('taxDisplayName').value, taxIdLabel:$('taxIdLabel').value, receiptNumberPrefix:$('receiptNumberPrefix').value, receiptDocumentTitleJa:$('receiptDocumentTitleJa').value, receiptDocumentTitleEn:$('receiptDocumentTitleEn').value, taxRoundingMode:$('taxRoundingMode').value, serviceInclusive:$('serviceInclusive').checked?'true':'false', taxInclusive:$('taxInclusive').checked?'true':'false', defaultLang:$('defaultLang').value, accentColor:$('accentColor').value, bizDayCutoffHour:bc[0], bizDayCutoffMin:bc[1] }]).then(function(d){
         if(!d || d.success===false){ st('st-locale',I18n.t('errPrefix')+API.userErrorText((d&&d.error)||'save_failed'), false); return; }
-        $('timezone').value=d.timezone||tz; st('st-locale',I18n.t('saved'), true);
+        $('timezone').value=d.timezone||tz; if(window.DateDisplay)DateDisplay.setSettings({countryCode:$('countryCode').value,locale:$('locale').value,currencyCode:$('currencyCode').value,dateFormat:$('dateFormat').value,timezone:d.timezone||tz}); st('st-locale',I18n.t('saved'), true);
       }).catch(function(e){ st('st-locale',I18n.t('errPrefix')+API.userErrorText(e), false); });
     };
     // 2026-08-25追加: ログイン保持時間（あつしさんのご要望「設定画面に持ち、操作があればログイン
@@ -559,7 +551,7 @@
     window.saveSecurity = function(){
       var v = Number($('sessionTimeoutHours').value) || 8;
       if (v < 1) v = 1; if (v > 720) v = 720;
-      rpc('saveSettings',[{ sessionTimeoutHours: v }]).then(function(){ st('st-security',I18n.t('saved'), true); }).catch(function(e){ st('st-security',I18n.t('errPrefix')+API.userErrorText(e), false); });
+      rpc('saveSettings',[{ sessionTimeoutHours: v }]).then(function(r){ requireRpcSuccess(r); st('st-security',I18n.t('saved'), true); }).catch(function(e){ st('st-security',I18n.t('errPrefix')+API.userErrorText(e), false); });
     };
     function _settingEnabled(d, key, amountKey){
       if(Object.prototype.hasOwnProperty.call(d, key)) return d[key]===true || d[key]===1 || d[key]==='1' || d[key]==='on' || d[key]==='true';
@@ -583,7 +575,7 @@
       if(!Number.isFinite(partyMax) || partyMax<1 || partyMax>100){ st('st-entry',I18n.t('partySizeMaxRequired'),false); return; }
       rpc('saveSettings',[{ entryFeeEnabled:entryOn?'on':'', extensionFeeEnabled:extensionOn?'on':'', entryFeeAmount:entryAmount, baseUsageMinutes:Number($('baseUsageMinutes').value)||0,
         extensionFeeAmount:extensionAmount, extensionUnitMinutes:extensionUnit, partySizeMax:partyMax }])
-        .then(function(){ st('st-entry',I18n.t('saved'), true); }).catch(function(e){ st('st-entry',I18n.t('errPrefix')+API.userErrorText(e), false); });
+        .then(function(r){ requireRpcSuccess(r); st('st-entry',I18n.t('saved'), true); }).catch(function(e){ st('st-entry',I18n.t('errPrefix')+API.userErrorText(e), false); });
     };
     // 2026-08-24: メール送信基盤（Resend）実装に伴い、eレシート送付先の保存を実装。
     window.saveEreceiptFixedEmails = function(){
@@ -594,11 +586,11 @@
       }).catch(function(e){ st('st-ereceipt',I18n.t('errPrefix')+API.userErrorText(e), false); });
     };
     window.saveEreceiptEnabled = function(){
-      rpc('saveEreceiptEnabled',[$('ereceiptEnabled').checked, $('ereceiptLang').value]).then(function(){ st('st-emailOutbox',I18n.t('saved'), true); }).catch(function(e){ st('st-emailOutbox',I18n.t('errPrefix')+API.userErrorText(e), false); });
+      rpc('saveEreceiptEnabled',[$('ereceiptEnabled').checked, $('ereceiptLang').value]).then(function(r){ requireRpcSuccess(r); st('st-emailOutbox',I18n.t('saved'), true); }).catch(function(e){ st('st-emailOutbox',I18n.t('errPrefix')+API.userErrorText(e), false); });
     };
     window.saveSeniorDiscount = function(){
       rpc('saveSettings',[{ seniorDiscountEnabled:$('seniorDiscountEnabled').checked?'on':'' }])
-        .then(function(){ st('st-senior',I18n.t('saved'), true); }).catch(function(e){ st('st-senior',I18n.t('errPrefix')+API.userErrorText(e), false); });
+        .then(function(r){ requireRpcSuccess(r); st('st-senior',I18n.t('saved'), true); }).catch(function(e){ st('st-senior',I18n.t('errPrefix')+API.userErrorText(e), false); });
     };
     var DISCOUNT_RULES=[];
     function discountIsEn(){return !!(window.I18n&&I18n.lang&&I18n.lang()==='en');}
@@ -641,7 +633,7 @@
       var rule={id:$('discountRuleId').value,name:name,nameJa:nameJa,nameEn:nameEn,code:code,
       calculationType:calculationType,value:value,sortOrder:$('discountSortOrder').value,taxExempt:$('discountTaxExempt').checked,
       idRequired:$('discountIdRequired').checked,managerApprovalRequired:$('discountManagerApproval').checked,enabled:$('discountEnabled').checked};
-      rpc('saveDiscountRule',[rule]).then(function(r){if(!r||!r.success){st('st-discount','Error: '+API.userErrorText((r&&r.error)||'save_failed'),false);return;}return rpc('getDiscountRules',[]).then(function(list){DISCOUNT_RULES=list||[];renderDiscountRules();newDiscountRule();st('st-discount',I18n.t('saved'),true);});}).catch(function(e){st('st-discount',I18n.t('errPrefix')+API.userErrorText(e),false);});
+      rpc('saveDiscountRule',[rule]).then(function(r){if(!r||!r.success){st('st-discount','Error: '+API.userErrorText((r&&r.error)||'save_failed'),false);return;}newDiscountRule();st('st-discount',I18n.t('saved'),true);rpc('getDiscountRules',[]).then(function(list){DISCOUNT_RULES=list||[];renderDiscountRules();}).catch(function(){});}).catch(function(e){st('st-discount',I18n.t('errPrefix')+API.userErrorText(e),false);});
     };
     window.deleteDiscountRule=function(id){rpc('deleteDiscountRule',[id]).then(function(r){if(!r||!r.success){st('st-discount','Error: '+API.userErrorText((r&&r.error)||'delete_failed'),false);return;}DISCOUNT_RULES=DISCOUNT_RULES.filter(function(x){return x.id!==id;});renderDiscountRules();newDiscountRule();st('st-discount',I18n.t('saved'),true);}).catch(function(e){st('st-discount',I18n.t('errPrefix')+API.userErrorText(e),false);});};
     // 2026-08-23: クレジットカードは別のカード決済端末で処理する運用のため、アプリ側は
@@ -652,7 +644,7 @@
       if(!$('cashPaymentEnabled').checked && !$('creditCardEnabled').checked && !$('qrPaymentEnabled').checked){ st('st-cc',I18n.t('paymentRequired'),false); return; }
       var vals={};['cashPaymentLabel','cashReceiptLabel','cardPaymentLabel','cardReceiptLabel','cardPaymentInstruction','qrPaymentLabel','qrReceiptLabel','qrPaymentInstruction'].forEach(function(k){var ja=$(k+'Ja').value.trim(),en=$(k+'En').value.trim();vals[k+'Ja']=ja;vals[k+'En']=en;vals[k]=ja||en;});
       rpc('saveSettings',[Object.assign({ cashPaymentEnabled:$('cashPaymentEnabled').checked?'on':'', creditCardEnabled:$('creditCardEnabled').checked?'on':'', qrPaymentEnabled:$('qrPaymentEnabled').checked?'on':'' },vals)])
-        .then(function(){ st('st-cc',I18n.t('saved'), true); }).catch(function(e){ st('st-cc',I18n.t('errPrefix')+API.userErrorText(e), false); });
+        .then(function(r){ requireRpcSuccess(r); st('st-cc',I18n.t('saved'), true); }).catch(function(e){ st('st-cc',I18n.t('errPrefix')+API.userErrorText(e), false); });
     };
     function loadPaymentPair(d,key){var legacy=String(d[key]||''),ja=Object.prototype.hasOwnProperty.call(d,key+'Ja')?String(d[key+'Ja']||''):legacy,en=Object.prototype.hasOwnProperty.call(d,key+'En')?String(d[key+'En']||''):legacy;$(key+'Ja').value=ja;$(key+'En').value=en;}
     function syncPaymentLanguageOrder(){var en=window.I18n&&I18n.lang&&I18n.lang()==='en';document.querySelectorAll('.payment-lang-grid').forEach(function(grid){var ja=Array.from(grid.querySelectorAll('.payment-lang-ja')),ee=Array.from(grid.querySelectorAll('.payment-lang-en'));ja.forEach(function(x,i){x.style.order=String(i*2+(en?2:1));});ee.forEach(function(x,i){x.style.order=String(i*2+(en?1:2));});});}
@@ -666,7 +658,6 @@
     window.clearGcashQr = function(){
       rpc('saveGcashQr',['']).then(function(r){ requireRpcSuccess(r,'qr_clear_failed'); $('gcashQrPrev').src=''; $('gcashQrPrev').style.display='none'; $('gcashQrFile').value=''; st('st-gcash', I18n.t('saved'), true); }).catch(function(e){ st('st-gcash', I18n.t('errPrefix')+API.userErrorText(e), false); });
     };
-    window.saveGemKey = function(){ var k=$('gemKey').value.trim(); if(!k){ st('st-gem',I18n.t('needKey'), false); return; } rpc('saveGeminiKey',[k]).then(function(){ $('gemKey').value=''; st('st-gem',I18n.t('saved'), true); return rpc('getGeminiKeyStatus',[]); }).then(function(s){ if(s) setBadge('gemBadge', s.configured); }).catch(function(e){ st('st-gem',I18n.t('errPrefix')+API.userErrorText(e), false); }); };
     var _nativeGeoPlugin=null;
     function nativeGeoPlugin(){
       try{
@@ -706,8 +697,9 @@
       if(!navigator.geolocation){ st('st-geo',I18n.t('noGeoDev'), false); return; }
       navigator.geolocation.getCurrentPosition(function(p){ try{ applyCurrentLocation(p); }catch(e){ st('st-geo',I18n.t('noLoc'), false); } }, function(){ st('st-geo',I18n.t('noLoc'), false); }, { enableHighAccuracy:true, timeout:12000, maximumAge:0 });
     };
-    window.saveGeo = function(){ rpc('saveSettings',[{ storeLat:$('storeLat').value, storeLng:$('storeLng').value, storeRadius:Number($('storeRadius').value)||0 }]).then(function(){ st('st-geo',I18n.t('saved'), true); }).catch(function(e){ st('st-geo',I18n.t('errPrefix')+API.userErrorText(e), false); }); };
-    window.saveLoy = function(){ rpc('saveSettings',[{ loyaltyEnabled:$('loyaltyEnabled').checked?'on':'', loyaltyEarnRate:Number($('loyaltyEarnRate').value)||20, loyaltyRedeemValue:Number($('loyaltyRedeemValue').value)||1 }]).then(function(){ st('st-loy',I18n.t('saved'), true); }).catch(function(e){ st('st-loy',I18n.t('errPrefix')+API.userErrorText(e), false); }); };
+    window.saveGeo = function(){ rpc('saveSettings',[{ storeLat:$('storeLat').value, storeLng:$('storeLng').value, storeRadius:Number($('storeRadius').value)||0 }]).then(function(r){ requireRpcSuccess(r); st('st-geo',I18n.t('saved'), true); }).catch(function(e){ st('st-geo',I18n.t('errPrefix')+API.userErrorText(e), false); }); };
+    window.clearGeo = function(){ rpc('saveSettings',[{ storeLat:'', storeLng:'', storeRadius:0 }]).then(function(r){ requireRpcSuccess(r); $('storeLat').value=''; $('storeLng').value=''; $('storeRadius').value=''; st('st-geo',I18n.t('geoCleared'), true); }).catch(function(e){ st('st-geo',I18n.t('errPrefix')+API.userErrorText(e), false); }); };
+    window.saveLoy = function(){ rpc('saveSettings',[{ loyaltyEnabled:$('loyaltyEnabled').checked?'on':'', loyaltyEarnRate:Number($('loyaltyEarnRate').value)||20, loyaltyRedeemValue:Number($('loyaltyRedeemValue').value)||1 }]).then(function(r){ requireRpcSuccess(r); st('st-loy',I18n.t('saved'), true); }).catch(function(e){ st('st-loy',I18n.t('errPrefix')+API.userErrorText(e), false); }); };
     // 2026-08-23: メール送信の仕組み（Resend経由）を実装したため、保存・テスト送信とも
     // 実際にrpc()でサーバーへ送るよう復元した。実際の自動送信にはResend APIキー・送信元
     // アドレスの設定（上のカード）が別途必要。
@@ -722,41 +714,49 @@
         Number($('reportWeeklyDay').value)||1, Number(wdt[0])||23, Number(wdt[1])||0,
         Number($('reportMonthlyDay').value)||1, Number(mdt[0])||23, Number(mdt[1])||0,
         $('reportLang').value||'ja'
-      ]).then(function(){ st('st-report',I18n.t('saved'), true); }).catch(function(e){ st('st-report',I18n.t('errPrefix')+API.userErrorText(e), false); });
+      ]).then(function(r){ requireRpcSuccess(r); reportTestRequestIds=Object.create(null); st('st-report',I18n.t('saved'), true); }).catch(function(e){ st('st-report',I18n.t('errPrefix')+API.userErrorText(e), false); });
     };
+    var reportTestPending = false;
+    var reportTestRequestIds = Object.create(null);
+    function nextSettingsRequestId(prefix){ try{ if(crypto&&typeof crypto.randomUUID==='function') return prefix+crypto.randomUUID(); }catch(e){} return prefix+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2); }
     window.testReport = function(kind){
+      if(reportTestPending) return;
+      reportTestPending = true;
       st('st-report',I18n.t('sending'), true);
-      rpc('sendTestReport',[kind]).then(function(r){
-        if(r && r.success){ st('st-report',I18n.t('testSent'), true); }
-        else { st('st-report',I18n.t('testFailed')+(r&&r.error?(': '+API.userErrorText(r.error)):''), false); }
-      }).catch(function(e){ st('st-report',I18n.t('errPrefix')+API.userErrorText(e), false); });
+      var requestId=reportTestRequestIds[kind]||(reportTestRequestIds[kind]=nextSettingsRequestId('report-test-'));
+      rpc('sendTestReport',[kind, requestId]).then(function(r){
+        if(r && r.success){ delete reportTestRequestIds[kind]; st('st-report',I18n.t('testSent'), true); }
+        else { if(r&&r.error==='no_recipient_configured') delete reportTestRequestIds[kind]; st('st-report',I18n.t('testFailed')+(r&&r.error?(': '+API.userErrorText(r.error)):''), false); }
+      }).catch(function(e){ st('st-report',I18n.t('errPrefix')+API.userErrorText(e), false); })
+        .finally(function(){ reportTestPending = false; });
     };
     window.saveEmailKey = function(){
       var k=$('emailApiKey').value.trim();
       if(!k){ st('st-emailKey',I18n.t('needKey'), false); return; }
-      rpc('saveEmailApiKey',[k]).then(function(){ $('emailApiKey').value=''; st('st-emailKey',I18n.t('saved'), true); return rpc('getEmailApiKeyStatus',[]); })
-        .then(function(s){ if(s) setBadge('emailKeyBadge', s.hasKey); })
+      rpc('saveEmailApiKey',[k]).then(function(r){ requireRpcSuccess(r); $('emailApiKey').value=''; st('st-emailKey',I18n.t('saved'), true); rpc('getEmailApiKeyStatus',[]).then(function(s){ if(s) setBadge('emailKeyBadge', s.hasKey); }).catch(function(){}); })
         .catch(function(e){ st('st-emailKey',I18n.t('errPrefix')+API.userErrorText(e), false); });
     };
     window.saveEmailFrom = function(){
       var a=$('emailFromAddress').value.trim();
       if(!a){ st('st-emailFrom',I18n.t('needFrom'), false); return; }
-      rpc('saveEmailFromAddress',[a]).then(function(){ st('st-emailFrom',I18n.t('saved'), true); return rpc('getEmailApiKeyStatus',[]); })
-        .then(function(s){ if(s) setBadge('emailKeyBadge', s.configured); })
+      rpc('saveEmailFromAddress',[a]).then(function(r){ requireRpcSuccess(r); st('st-emailFrom',I18n.t('saved'), true); rpc('getEmailApiKeyStatus',[]).then(function(s){ if(s) setBadge('emailKeyBadge', s.configured); }).catch(function(){}); })
         .catch(function(e){ st('st-emailFrom',I18n.t('errPrefix')+API.userErrorText(e), false); });
     };
     window.saveBridgePoll = function(){
       var sec = Number($('bridgePollSec').value) || 1.2;
       sec = Math.min(60, Math.max(0.5, sec));   // 0.5〜60秒の範囲にクランプ（極端な値によるサーバー過負荷／印刷遅延を防止）
       $('bridgePollSec').value = sec;
-      rpc('saveSettings',[{ bridgePollMs: Math.round(sec * 1000) }]).then(function(){ st('st-bridge',I18n.t('saved'), true); }).catch(function(e){ st('st-bridge',I18n.t('errPrefix')+API.userErrorText(e), false); });
+      rpc('saveSettings',[{ bridgePollMs: Math.round(sec * 1000) }]).then(function(r){ requireRpcSuccess(r); st('st-bridge',I18n.t('saved'), true); }).catch(function(e){ st('st-bridge',I18n.t('errPrefix')+API.userErrorText(e), false); });
     };
     window.copyBridgeKey = function(){
       var v = $('bridgeKey').value;
       if(!v) return;
       navigator.clipboard.writeText(v).then(function(){ st('st-bridgeKey',I18n.t('copied'), true); }).catch(function(e){ st('st-bridgeKey',I18n.t('errPrefix')+API.userErrorText(e), false); });
     };
+    var bridgeKeyRotationPending = false;
     window.rotateBridgeKey = function(){
+      if(bridgeKeyRotationPending) return;
+      bridgeKeyRotationPending = true;
       UIConfirm(I18n.t('bridgeKeyRotateConfirm'), { danger:true, okLabel:I18n.t('bridgeKeyRotate') }).then(function(ok){
         if(!ok) return;
         return rpc('rotateBridgeKey',[]).then(function(k){
@@ -764,7 +764,8 @@
           $('bridgeKey').value = k.key;
           st('st-bridgeKey',I18n.t('bridgeKeyRotated'), true);
         });
-      }).catch(function(e){ st('st-bridgeKey',I18n.t('errPrefix')+API.userErrorText(e), false); });
+      }).catch(function(e){ st('st-bridgeKey',I18n.t('errPrefix')+API.userErrorText(e), false); })
+        .finally(function(){ bridgeKeyRotationPending = false; });
     };
     // 2026-08-24: 監査ログ/操作ログの「記録キュー」カード自体を画面から撤去した
     // （Cloudflare D1版では既に即時反映されており、GAS時代のキュー＋時間主導トリガー方式の
@@ -772,29 +773,31 @@
     // eレシート機能自体は2026-08-24にメール送信基盤実装済みのため、上のsaveEreceiptEnabled/
     // saveEreceiptFixedEmailsで有効化する方式に変更した（setupEmailOutboxは撤去）。
     function setBadge(id, on){ var b=$(id); b.className='badge '+(on?'on':'offb'); b.innerText=on?I18n.t('set'):I18n.t('unset'); b.removeAttribute('data-t'); }
+    function renderAiUsage(u){
+      var box=$('aiUsageSummary'); if(!box||!u||!u.services) return;
+      var en=window.I18n&&I18n.lang&&I18n.lang()==='en';
+      function row(label,key){ var s=u.services[key]||{}; var used=Number(s.used??s.requests??s.count??0); var limit=s.limit??s.quota??'—'; return label+': '+used+' / '+limit; }
+      box.textContent=(en?'Plan: ':'プラン: ')+(u.plan||'-')+'\n'+row(en?'Inventory scan':'在庫スキャン','workers_ai_vision')+'\n'+row(en?'Automatic translation':'自動翻訳','workers_ai_translation');
+    }
+    function loadAiUsage(){
+      return rpc('getWorkersAiStoreUsage',[]).then(function(u){ renderAiUsage(u); }).catch(function(){ var c=$('aiUsageCard'); if(c)c.style.display='none'; });
+    }
 
     // ---- load ----
-    // 以前はgetSettings/getReceiptLogo/getPaymongoKeyStatus/getGeminiKeyStatusを
-    // 個別に（一部は同時並行で）呼んでおり、GAS側の実行が競合して初期表示が
-    // 遅くなる原因になっていた（体感10秒前後）。1回のRPCにまとめて往復回数を減らす。
-    var gemConfigured = false;
+    // 設定本体はまとめて取得し、AI利用量はシステム管理APIから独立して取得する。
+    loadAiUsage();
     rpc('getSettingsBundle',[]).then(function(bundle){
       bundle = bundle || {};
       var d = bundle.settings || {};
       DISCOUNT_RULES = bundle.discountRules || [];
       renderDiscountRules();
-      if(bundle.receiptLogo){ $('logoPrev').src=bundle.receiptLogo; $('logoPrev').style.display='inline-block'; }
       $('creditCardEnabled').checked = (d.creditCardEnabled==='on'||d.creditCardEnabled===true||d.creditCardEnabled==='true');
       $('cashPaymentEnabled').checked = !(d.cashPaymentEnabled===''||d.cashPaymentEnabled==='off'||d.cashPaymentEnabled==='false'||d.cashPaymentEnabled===false);
       $('qrPaymentEnabled').checked = d.qrPaymentEnabled!==undefined ? (d.qrPaymentEnabled==='on'||d.qrPaymentEnabled===true||d.qrPaymentEnabled==='true') : !!d.gcashQr;
       ['cashPaymentLabel','cashReceiptLabel','cardPaymentLabel','cardReceiptLabel','cardPaymentInstruction','qrPaymentLabel','qrReceiptLabel','qrPaymentInstruction'].forEach(function(k){loadPaymentPair(d,k);});syncPaymentLanguageOrder();
       if(d.gcashQr){ $('gcashQrPrev').src=d.gcashQr; $('gcashQrPrev').style.display='inline-block'; }
-      if(bundle.gemini){ gemConfigured = !!bundle.gemini.configured; setBadge('gemBadge', gemConfigured); }
       if(bundle.email){ setBadge('emailKeyBadge', !!bundle.email.configured); if(d.emailFromAddress) $('emailFromAddress').value = d.emailFromAddress; }
       $('shopName').value = d.shopName || '';
-      if($('shopAddress')) $('shopAddress').value = d.shopAddress || '';
-      if($('shopTin')) $('shopTin').value = d.shopTin || '';
-      if($('logoScale')) $('logoScale').value = Number(d.logoScalePct)||100;
       $('tableCount').value = (d.tableCount!==undefined && d.tableCount!=='') ? d.tableCount : 20;
       $('counterCount').value = (d.counterCount!==undefined && d.counterCount!=='') ? d.counterCount : 0;
       $('businessProfile').value = d.businessProfile || 'restaurant';
@@ -812,6 +815,7 @@
       _setSelectValue('currencySymbol',d.currencySymbol,'₱');
       var inferredCountry = String(d.countryCode || ({JPY:'JP',PHP:'PH',SGD:'SG',USD:'US',GBP:'GB',AUD:'AU'}[d.currencyCode] || '')).toUpperCase();
       var inferredProfile = COUNTRY_PROFILES[inferredCountry] || {};
+      _setSelectValue('dateFormat',d.dateFormat,inferredProfile.dateFormat || (inferredCountry==='JP'?'YYYY/MM/DD':'MM/DD/YYYY'));
       $('currencyDecimalDigits').value = (d.currencyDecimalDigits!==undefined&&d.currencyDecimalDigits!=='')?String(d.currencyDecimalDigits):'0';
       $('serviceRate').value = d.serviceRate || '';
       $('taxRate').value = d.taxRate || '';
@@ -857,11 +861,11 @@
     I18n.init({
       ja:{ title:'⚙️ 設定', back:'← 管理へ', save:'💾 保存', status:'状態:', unset:'未設定', set:'設定済', phPaste:'貼り付けて保存', close:'閉じる',
         qrCardTitle:'📱 席QRコード', qrCardDesc:'各席のQRコードを印刷して設置してください。お客様がスキャンするとその席専用の注文画面が開きます。表示名は保存した業態・呼称設定に従います。', qrShowBtn:'📱 QRコードを表示', qrModalTitle:'席 QRコード', qrModalSub:'スキャンで注文画面を開く', qrPrintBtn:'🖨️ 印刷', qrNoTables:'席が設定されていません。先に席数を保存してください。',
-        qrBridgeLabel:'🖶 プリンタへ送信', qrEnqueueAllBtn:'全卓をキューへ', qrEnqueueOneBtn:'🖶 印刷キューへ', qrNoPrinters:'有効なプリンタがありません（プリンタ設定を確認してください）', qrQueued:'✅ {n}件を印刷キューへ送信しました', qrPublicUrlUnavailable:'公開注文URLまたは店舗IDを取得できません。ログインし直してから再度お試しください。',
-        takeoutShareTitle:'🥡 テイクアウト共有URL', takeoutShareDesc:'お客様へ共有するこの店舗専用のテイクアウト注文URLです。SNS・Webサイト・メッセージ等で共有できます。', takeoutShareCopy:'📋 URLをコピー', takeoutShareUnavailable:'公開テイクアウトURLまたは店舗IDを取得できません。ログインし直してから再度お試しください。',
+        qrBridgeLabel:'🖶 プリンタへ送信', qrEnqueueAllBtn:'全卓をキューへ', qrEnqueueOneBtn:'🖶 印刷キューへ', qrNoPrinters:'有効なプリンタがありません（プリンタ設定を確認してください）', qrQueued:'✅ {n}件を印刷キューへ送信しました', qrPublicUrlUnavailable:'公開注文URLまたは店舗IDを取得できません。ログインし直してから再度お試しください。', publicUrlOpen:'🌐 ブラウザで開く', publicUrlOpened:'✅ ブラウザで開きました', publicUrlOpenFailed:'ブラウザで開けませんでした。URLをコピーしてブラウザへ貼り付けてください。',
+        takeoutShareTitle:'🥡 テイクアウト共有URL', takeoutShareDesc:'お客様へ共有するこの店舗専用のテイクアウト注文URLです。SNS・Webサイト・メッセージ等で共有できます。', takeoutShareCopy:'📋 URLをコピー', takeoutShareOpen:'🌐 ブラウザで開く', takeoutShareUnavailable:'公開テイクアウトURLまたは店舗IDを取得できません。ログインし直してから再度お試しください。',
         shopTitle:'🏪 店舗設定', shopName:'店舗名', shopAddress:'住所（レシート表示）', shopTin:'税務登録番号（レシート表示）', shopLogo:'レシートのロゴ（先頭に中央印字）', logoClear:'クリア', logoSize:'印字サイズ（%）', logoHint:'白黒の感熱印刷用に自動で縮小・変換します。58mm幅を100%として、下の値で印字サイズを調整できます。', tableCount:'テーブル数', counterCount:'カウンター数', businessProfileLbl:'業態プロファイル', profileRestaurant:'レストラン', profileBar:'バー・居酒屋', profileCafe:'カフェ', profileCounterService:'カウンターサービス', profileService:'サービス・施設', applyBusinessProfile:'業態の呼称初期値を適用', businessProfileApplied:'業態の呼称初期値を入力しました。内容を確認して保存してください。', tableLabelJaLbl:'主な席の呼称（日本語）', tableLabelEnLbl:'主な席の呼称（英語）', counterLabelJaLbl:'もう一つの席の呼称（日本語）', counterLabelEnLbl:'もう一つの席の呼称（英語）', seatGroupLabelJaLbl:'席全体の呼称（日本語）', seatGroupLabelEnLbl:'席全体の呼称（英語）', seatHint:'業態プロファイルは呼称の初期値を入力します。保存後、注文・注文管理・厨房・会計履歴・レシートで共通表示されます。0にした席種は非表示です。', tableHint:'注文画面に表示する主な席の最大数。',
         imgTitle:'🖼️ トップ画像', orderImg:'オーダートップ画像（注文画面）', loginImg:'ログイン画面の画像（管理ログイン画面に表示）', upload:'⬆️ アップロード',
-        localeTitle:'🌐 表示・地域', countryCode:'国・地域コード', localeCode:'地域形式（ロケール）', curCode:'通貨コード', curSym:'通貨記号', curDigits:'通貨の小数桁', svcRate:'サービス料 (%)', taxRate:'税率 (%)', taxName:'税の表示名', taxIdName:'税務登録番号の表示名', receiptPrefix:'レシート番号の接頭辞', receiptTitleJa:'帳票名（日本語）', receiptTitleEn:'帳票名（英語）', taxRound:'税・料金の端数処理', roundNearest:'四捨五入', roundFloor:'切り捨て', roundCeil:'切り上げ', applyCountry:'国別初期値を適用', countryHint:'国別初期値は通貨・標準時間・税名称・帳票名を選択・入力欄へ反映します。保存するまでは確定されません。法定帳票名は店舗所在地の専門家へ確認してください。', unknownCountry:'この国のプリセットはありません。現在の設定値を保持します。', countryApplied:'国別初期値を反映しました。内容を確認して保存してください。', timezoneLbl:'標準時間（タイムゾーン）', timezoneHint:'店舗所在地のIANAタイムゾーンを選択してください。営業日、売上集計、勤怠、提供時間、定期レポートの時刻へ共通反映されます。', invalidTimezone:'有効なタイムゾーンを選択してください（例：Asia/Manila）。', currentSetting:'現在の設定', defLang:'既定言語', accent:'アクセント色',
+        localeTitle:'🌐 表示・地域', countryCode:'国・地域コード', localeCode:'地域形式（ロケール）', dateFormat:'日付表示形式', curCode:'通貨コード', curSym:'通貨記号', curDigits:'通貨の小数桁', svcRate:'サービス料 (%)', taxRate:'税率 (%)', taxName:'税の表示名', taxIdName:'税務登録番号の表示名', receiptPrefix:'レシート番号の接頭辞', receiptTitleJa:'帳票名（日本語）', receiptTitleEn:'帳票名（英語）', taxRound:'税・料金の端数処理', roundNearest:'四捨五入', roundFloor:'切り捨て', roundCeil:'切り上げ', applyCountry:'国別初期値を適用', countryHint:'国別初期値は通貨・標準時間・税名称・帳票名を選択・入力欄へ反映します。保存するまでは確定されません。法定帳票名は店舗所在地の専門家へ確認してください。', unknownCountry:'この国のプリセットはありません。現在の設定値を保持します。', countryApplied:'国別初期値を反映しました。内容を確認して保存してください。', timezoneLbl:'標準時間（タイムゾーン）', timezoneHint:'店舗所在地のIANAタイムゾーンを選択してください。営業日、売上集計、勤怠、提供時間、定期レポートの時刻へ共通反映されます。', invalidTimezone:'有効なタイムゾーンを選択してください（例：Asia/Manila）。', currentSetting:'現在の設定', defLang:'既定言語', accent:'アクセント色',
         svcInclLabel:'内税（価格に含む）', taxInclLabel:'内税（価格に含む）', chargesHint:'チェックなし＝外税（表示価格に加算）。チェックあり＝内税（表示価格に含む）。一般的には税＝内税、サービス料＝外税です。',
         bizCutoff:'営業日切替時刻', bizCutoffHint:'深夜営業の場合に設定してください。例：2:30を設定すると、午前2時30分までの売上は前日の営業日として日報・週報・月報・売上集計に計上されます。0:00＝通常どおり午前0時で区切り。指定できるのは0:00〜11:59の範囲です（それ以外は0:00として扱われます）。',
         securityTitle:'🔐 セキュリティ', sessionTimeout:'ログイン保持時間（時間）', sessionTimeoutHint:'スタッフの管理画面ログインが自動的に切れるまでの時間です。未設定の場合は8時間。ログイン中に管理画面を操作していれば、その都度この時間だけ自動延長されます（ログインしたまま何も操作しない状態がこの時間続くと自動的にログアウトされます）。最大720時間（30日）まで設定できます。',
@@ -870,8 +874,8 @@
         seniorTitle:'🧓 シニア/PWD割引', seniorEnable:'有効にする（無効の場合、会計画面から選択肢自体が消えます）',
         seniorHint:'有効にした場合でも、実際に割引を適用するには会計時に責任者（マネージャー以上）のログイン承認が必要です。従業員が無断で割引を適用することを防ぐための仕組みです。',
         payTitle:'💳 決済方法', payHint:'会計画面に表示する決済方法と、画面・レシートに印字する名称を設定します。', cashEnable:'現金を表示する', ccEnable:'カードを表示する', qrEnable:'QR決済を表示する', screenLabel:'画面表示名', receiptLabel:'レシート表記', screenLabelJa:'画面表示名（日本語）', screenLabelEn:'画面表示名（English）', receiptLabelJa:'レシート表記（日本語）', receiptLabelEn:'レシート表記（English）', cardInstructionJa:'カード決済案内（日本語・任意）', cardInstructionEn:'カード決済案内（English・任意）', qrInstructionJa:'QR決済案内（日本語・任意）', qrInstructionEn:'QR決済案内（English・任意）', paymentLangHint:'表示名・レシート表記・案内文は日本語/英語の片方だけでも設定できます。未入力側はもう一方へフォールバックします。', cardInstructionLbl:'カード決済の案内文（任意）', qrInstructionLbl:'QR決済の案内文（任意）', paymentRequired:'決済方法を1つ以上有効にしてください。', ccWarn:'⚠️ カード・QRとも、この画面自体は請求処理を行いません。外部端末・決済サービスで入金を確認してから会計を確定してください。', gcashQrLbl:'QR決済コード（画像）', gcashQrHint:'利用するQR決済サービスのコード画像を登録します。入金確認はスタッフが決済サービス側で行ってください。', remove:'🗑️ 削除',
-        gemTitle:'🤖 Gemini APIキー（画像検索・在庫AIスキャン用・任意）', apiKey:'APIキー',
-        geoTitle:'📍 勤怠・店舗位置', lat:'緯度', lng:'経度', radius:'許容半径 (m)', getLoc:'📡 現在地を取得',
+        aiUsageTitle:'🤖 AI利用状況', aiUsageHint:'AI在庫スキャンと自動翻訳はシステム側で管理されます。現在の利用量とプラン上限を表示します。',
+        geoTitle:'📍 勤怠・店舗位置', lat:'緯度', lng:'経度', radius:'許容半径 (m)', getLoc:'📡 現在地を取得', geoClear:'🧹 クリア', geoCleared:'✅ 店舗位置をクリアしました', geoNoCheckHint:'店舗位置（緯度・経度・許容半径）が未設定の場合、出勤時のGPS距離チェックは行いません。',
         loyTitle:'🎁 ロイヤリティ（ポイント）', loyEnable:'有効にする', loyEarn:'付与レート（何円で1pt）', loyRedeem:'利用価値（1pt=何円）',
         repTitle:'📧 定期レポート（自動メール）', repNowWorks:'✅ 2026-08-23よりメール送信の仕組みが実装され、この機能が使えるようになりました（上の「メール送信設定」でResend APIキー・送信元アドレスの設定が必要です）。実際の送信は15分間隔のスケジュール実行のため、設定した時刻ちょうどではなく、その後の直近15分枠内（最大約15分遅れ）で届きます。', repDaily:'日次日報（毎日）', repWeekly:'週次レポート', repMonthly:'月次レポート', repEmail:'送信先メール（複数可・カンマか改行区切り）', repHour:'送信時刻', repWeekDay:'送信曜日', repMonthDay:'送信日（1〜28）', dow0:'日曜', dow1:'月曜', dow2:'火曜', dow3:'水曜', dow4:'木曜', dow5:'金曜', dow6:'土曜', repSave:'💾 保存＆スケジュール', repTestD:'✉️ 日次テスト', repTestW:'✉️ 週次テスト', repTestM:'✉️ 月次テスト', testFailed:'❌ 送信に失敗しました', needFrom:'送信元アドレスを入力してください',
         repLang:'出力言語', repLangJa:'日本語', repLangEn:'英語', repLangBoth:'日本語＋英語（両方）',
@@ -883,11 +887,11 @@
         saved:'✅ 保存しました', savedSched:'✅ 保存＆スケジュール設定しました', uploaded:'✅ アップロードしました', pickImg:'画像を選択してください', needKey:'キーを入力してください', noGeoDev:'この端末は位置情報に対応していません', gotLoc:'現在地を取得しました。「保存」を押してください。', noLoc:'位置情報を取得できませんでした。手動入力してください。', sending:'送信中…', testSent:'✅ テスト送信しました。受信箱をご確認ください', sendFail:'送信できませんでした', scopeReauth:'認証(スコープ)の再承認が必要かもしれません', errPrefix:'エラー: ' },
       en:{ title:'⚙️ Settings', back:'← Manage', save:'💾 Save', status:'Status:', unset:'Not set', set:'Set', phPaste:'Paste and save', close:'Close',
         qrCardTitle:'📱 Location QR Codes', qrCardDesc:'Print and place a QR code at each configured location. Scanning opens the order screen locked to that location. Display names follow the saved business terminology.', qrShowBtn:'📱 Show QR Codes', qrModalTitle:'Location QR Codes', qrModalSub:'Scan to open the order screen', qrPrintBtn:'🖨️ Print', qrNoTables:'No locations are set up yet. Save the location counts first.',
-        qrBridgeLabel:'🖶 Send to printer', qrEnqueueAllBtn:'Queue all tables', qrEnqueueOneBtn:'🖶 Queue print', qrNoPrinters:'No enabled printer found (check printer settings)', qrQueued:'✅ Sent {n} to the print queue', qrPublicUrlUnavailable:'The public order URL or store ID is unavailable. Sign in again and retry.',
-        takeoutShareTitle:'🥡 Takeout share URL', takeoutShareDesc:'This is the public takeout-order URL for this store. Share it on social media, your website, or messages.', takeoutShareCopy:'📋 Copy URL', takeoutShareUnavailable:'The public takeout URL or store ID is unavailable. Sign in again and retry.',
+        qrBridgeLabel:'🖶 Send to printer', qrEnqueueAllBtn:'Queue all tables', qrEnqueueOneBtn:'🖶 Queue print', qrNoPrinters:'No enabled printer found (check printer settings)', qrQueued:'✅ Sent {n} to the print queue', qrPublicUrlUnavailable:'The public order URL or store ID is unavailable. Sign in again and retry.', publicUrlOpen:'🌐 Open in browser', publicUrlOpened:'✅ Opened in browser', publicUrlOpenFailed:'Could not open the browser. Copy the URL and paste it into your browser.',
+        takeoutShareTitle:'🥡 Takeout share URL', takeoutShareDesc:'This is the public takeout-order URL for this store. Share it on social media, your website, or messages.', takeoutShareCopy:'📋 Copy URL', takeoutShareOpen:'🌐 Open in browser', takeoutShareUnavailable:'The public takeout URL or store ID is unavailable. Sign in again and retry.',
         shopTitle:'🏪 Store settings', shopName:'Store name', shopAddress:'Address (on receipt)', shopTin:'Tax registration number (on receipt)', shopLogo:'Receipt logo (centered on top)', logoClear:'Clear', logoSize:'Print size (%)', logoHint:'Auto-resized & converted for B/W thermal printing. 58mm width = 100%; adjust the print size below.', tableCount:'Table count', counterCount:'Counter count', businessProfileLbl:'Business profile', profileRestaurant:'Restaurant', profileBar:'Bar / izakaya', profileCafe:'Cafe', profileCounterService:'Counter service', profileService:'Service / facility', applyBusinessProfile:'Apply profile terminology', businessProfileApplied:'Profile terminology filled in. Review it, then save.', tableLabelJaLbl:'Main seating label (Japanese)', tableLabelEnLbl:'Main seating label (English)', counterLabelJaLbl:'Other seating label (Japanese)', counterLabelEnLbl:'Other seating label (English)', seatGroupLabelJaLbl:'Group label (Japanese)', seatGroupLabelEnLbl:'Group label (English)', seatHint:'A business profile fills terminology defaults. After saving, the same terms appear in ordering, operations, kitchen, receipt history and receipts. Set a location count to 0 to hide it.', tableHint:'Maximum number of main seating locations shown on the order screen.',
         imgTitle:'🖼️ Top images', orderImg:'Order top image (order screen)', loginImg:'Login screen image (shown on admin login)', upload:'⬆️ Upload',
-        localeTitle:'🌐 Display & region', countryCode:'Country/region code', localeCode:'Number/date locale', curCode:'Currency code', curSym:'Currency symbol', curDigits:'Currency decimal digits', svcRate:'Service charge (%)', taxRate:'Tax (%)', taxName:'Tax display name', taxIdName:'Tax registration label', receiptPrefix:'Receipt number prefix', receiptTitleJa:'Document title (Japanese)', receiptTitleEn:'Document title (English)', taxRound:'Tax/charge rounding', roundNearest:'Round to nearest', roundFloor:'Round down', roundCeil:'Round up', applyCountry:'Apply country defaults', countryHint:'Country defaults fill the available selections plus tax labels and receipt titles. Nothing is final until you save. Confirm legally required document wording with a local professional.', unknownCountry:'No preset is available for that country. The current saved values are kept.', countryApplied:'Country defaults applied. Review them, then save.', timezoneLbl:'Standard time (time zone)', timezoneHint:'Choose the store location’s IANA time zone. It is applied consistently to business dates, sales totals, attendance, service hours, and scheduled reports.', invalidTimezone:'Choose a valid time zone (for example, Asia/Manila).', currentSetting:'Current setting', defLang:'Default language', accent:'Accent color',
+        localeTitle:'🌐 Display & region', countryCode:'Country/region code', localeCode:'Number/date locale', dateFormat:'Date format', curCode:'Currency code', curSym:'Currency symbol', curDigits:'Currency decimal digits', svcRate:'Service charge (%)', taxRate:'Tax (%)', taxName:'Tax display name', taxIdName:'Tax registration label', receiptPrefix:'Receipt number prefix', receiptTitleJa:'Document title (Japanese)', receiptTitleEn:'Document title (English)', taxRound:'Tax/charge rounding', roundNearest:'Round to nearest', roundFloor:'Round down', roundCeil:'Round up', applyCountry:'Apply country defaults', countryHint:'Country defaults fill the available selections plus tax labels and receipt titles. Nothing is final until you save. Confirm legally required document wording with a local professional.', unknownCountry:'No preset is available for that country. The current saved values are kept.', countryApplied:'Country defaults applied. Review them, then save.', timezoneLbl:'Standard time (time zone)', timezoneHint:'Choose the store location’s IANA time zone. It is applied consistently to business dates, sales totals, attendance, service hours, and scheduled reports.', invalidTimezone:'Choose a valid time zone (for example, Asia/Manila).', currentSetting:'Current setting', defLang:'Default language', accent:'Accent color',
         svcInclLabel:'Tax-inclusive (included in price)', taxInclLabel:'Tax-inclusive (included in price)', chargesHint:'Unchecked = exclusive (added on top of the listed price). Checked = inclusive (already included in the listed price). Typically tax is inclusive and the service charge is exclusive.',
         bizCutoff:'Business day cutoff time', bizCutoffHint:'Set this if you stay open past midnight. E.g. setting 2:30 means sales up to 2:30am count toward the previous day’s business day in the daily/weekly/monthly reports and sales totals. 0:00 = normal midnight cutoff. Valid range is 0:00–11:59 (anything else is treated as 0:00).',
         securityTitle:'🔐 Security', sessionTimeout:'Login session length (hours)', sessionTimeoutHint:'How long a staff management login stays valid before it automatically expires. Defaults to 8 hours if unset. Each action taken while logged in extends the session by this amount (staying logged in with no activity for this long logs you out automatically). Max 720 hours (30 days).',
@@ -896,8 +900,8 @@
         seniorTitle:'🧓 Senior/PWD discount', seniorEnable:'Enable (when off, the option disappears entirely from checkout)',
         seniorHint:'Even when enabled, actually applying the discount at checkout requires a manager-or-above login approval. This prevents staff from applying it without authorization.',
         payTitle:'💳 Payment methods', payHint:'Choose the methods shown at checkout and customize their screen and receipt labels.', cashEnable:'Show cash', ccEnable:'Show card', qrEnable:'Show QR payment', screenLabel:'Screen label', receiptLabel:'Receipt label', screenLabelJa:'Screen label (Japanese)', screenLabelEn:'Screen label (English)', receiptLabelJa:'Receipt label (Japanese)', receiptLabelEn:'Receipt label (English)', cardInstructionJa:'Card instructions (Japanese, optional)', cardInstructionEn:'Card instructions (English, optional)', qrInstructionJa:'QR instructions (Japanese, optional)', qrInstructionEn:'QR instructions (English, optional)', paymentLangHint:'Screen labels, receipt labels and instructions may be entered in either English or Japanese. A blank language falls back to the other one.', cardInstructionLbl:'Card payment instructions (optional)', qrInstructionLbl:'QR payment instructions (optional)', paymentRequired:'Enable at least one payment method.', ccWarn:'⚠️ Card and QR buttons do not charge the customer. Confirm payment on the external terminal or service before finalizing checkout.', gcashQrLbl:'QR payment code (image)', gcashQrHint:'Upload the code image for the QR payment service you use. Staff must confirm receipt in that payment service.', remove:'🗑️ Remove',
-        gemTitle:'🤖 Gemini API key (image search & inventory AI scan, optional)', apiKey:'API key',
-        geoTitle:'📍 Attendance / store location', lat:'Latitude', lng:'Longitude', radius:'Allowed radius (m)', getLoc:'📡 Get current location',
+        aiUsageTitle:'🤖 AI usage', aiUsageHint:'Inventory AI scanning and automatic translation are managed by the system. Current usage and plan limits are shown here.',
+        geoTitle:'📍 Attendance / store location', lat:'Latitude', lng:'Longitude', radius:'Allowed radius (m)', getLoc:'📡 Get current location', geoClear:'🧹 Clear', geoCleared:'✅ Store location cleared', geoNoCheckHint:'If store location (latitude, longitude, and allowed radius) is not configured, the GPS distance check is skipped when clocking in.',
         loyTitle:'🎁 Loyalty (points)', loyEnable:'Enable', loyEarn:'Earn rate (amount per 1pt)', loyRedeem:'Redeem value (1pt = amount)',
         repTitle:'📧 Scheduled reports (auto email)', repNowWorks:'✅ As of 2026-08-23 email sending has been implemented and this feature now works (set your Resend API key & from-address in the "Email settings" card above). Actual sending runs on a 15-minute schedule, so mail arrives within the next 15-minute window after your set time, not exactly on the minute (up to ~15 min delay).', repDaily:'Daily report (every day)', repWeekly:'Weekly report', repMonthly:'Monthly report', repEmail:'Recipient emails (multiple, comma/newline separated)', repHour:'Send time', repWeekDay:'Send day', repMonthDay:'Send day (1–28)', dow0:'Sun', dow1:'Mon', dow2:'Tue', dow3:'Wed', dow4:'Thu', dow5:'Fri', dow6:'Sat', repSave:'💾 Save & schedule', repTestD:'✉️ Daily test', repTestW:'✉️ Weekly test', repTestM:'✉️ Monthly test', testFailed:'❌ Failed to send', needFrom:'Please enter a from-address',
         repLang:'Output language', repLangJa:'Japanese', repLangEn:'English', repLangBoth:'Japanese + English (both)',
@@ -907,7 +911,7 @@
         emailOutboxTitle:'📧 e-Receipt', emailOutboxHint:'As of 2026-08-24, e-receipts can be sent by email when a bill is finalized. This requires the API key and from-address in the "Email sending (Resend)" section above to be configured.<br>When enabled, an e-receipt is sent automatically every time a bill is finalized — to whatever the customer entered at checkout (the <code>#payEmail</code> field), and to the fixed recipients registered below.', emailOutboxBtn:'Enable e-receipts',
         ereceiptSaveBtn:'💾 Save', ereceiptEmailsLbl:'Recipient email(s) — fixed, multiple allowed, comma or newline separated', ereceiptHint:'Every time a bill is finalized, a copy of the e-receipt is automatically sent to the addresses registered here — separate from, and in addition to, whatever the customer optionally enters at checkout. Useful for accounting/owner copies. Leave blank to send nothing. Nothing is sent while "Enable e-receipts" above is off.',
         saved:'✅ Saved', savedSched:'✅ Saved & scheduled', uploaded:'✅ Uploaded', pickImg:'Please select an image', needKey:'Please enter a key', noGeoDev:'This device does not support location', gotLoc:'Location acquired. Please press Save.', noLoc:'Could not get location. Please enter manually.', sending:'Sending…', testSent:'✅ Test sent. Please check your inbox', sendFail:'Could not send', scopeReauth:'You may need to re-authorize (scopes)', errPrefix:'Error: ' }
-    }, function(){ syncSeatLanguageOrder(); syncSeatCountLabels(); syncReceiptTitleOrder(); syncPaymentLanguageOrder(); syncDiscountNameOrder(); renderDiscountRules(); setBadge('gemBadge', gemConfigured); });
+    }, function(){ syncSeatLanguageOrder(); syncSeatCountLabels(); syncReceiptTitleOrder(); syncPaymentLanguageOrder(); syncDiscountNameOrder(); renderDiscountRules(); });
   </script>
 
   <script src="./help.js?v=auth2"></script>
@@ -916,14 +920,14 @@
       title: '店舗設定',
       titleEn: 'Store settings',
       items: [
-        { ja: '「席QRコード」は店舗ID・席・署名トークンを含む公開HTTPS注文URLを生成します。「テイクアウト共有URL」はこの店舗専用の公開テイクアウトURLを表示し、コピーしてSNS・Webサイト・メッセージ等で共有できます。どちらもアプリ内部URLは使用しません。', en: '"Location QR Codes" generates public HTTPS order URLs containing the store ID, location and signed token. "Takeout share URL" shows this store’s public takeout URL for sharing on social media, websites or messages. Neither feature uses an app-internal URL.' },
+        { ja: '「席QRコード」は店舗ID・席・署名トークンを含む公開HTTPS注文URLを生成し、各席の「ブラウザで開く」で実ページを確認できます。「テイクアウト共有URL」もコピーに加えてブラウザで開けます。どちらもアプリ内部URLは使用しません。', en: '"Location QR Codes" generates public HTTPS order URLs containing the store ID, location and signed token, and each location can be checked with “Open in browser.” The takeout share URL can also be copied or opened in a browser. Neither feature uses an app-internal URL.' },
         { ja: '① 「🏪 店舗設定」で業態プロファイルを選ぶと席の呼称初期値が入ります。日本語・英語の主な席、もう一つの席、全体呼称は個別編集でき、席数0でその席種を非表示にできます。', en: '① In "Store settings", choose a business profile to fill terminology defaults. You can edit the Japanese and English main, other seating, and group labels, and set a location count to 0 to hide that type.' },
-        { ja: '② 「📱 席QRコード」の「QRコードを表示」ボタンで、店舗ID・席・署名トークンを含む公開HTTPS注文URLのQRコードを一覧表示します。Native内部URLは使わず、印刷や対応プリンタへの送信もこの公開URLを使います。', en: '② "Location QR Codes" → "Show QR Codes" creates public HTTPS order URLs containing the store ID, location and signed table token. Native internal URLs are never used; printing and printer queues use the same public URLs.' },
+        { ja: '② 「📱 席QRコード」の「QRコードを表示」ボタンで公開HTTPS注文URLのQRコードを一覧表示します。各席の「ブラウザで開く」、印刷、対応プリンタへの送信はすべて同じ店舗ID・席・署名トークン付きURLを使います。', en: '② "Location QR Codes" → "Show QR Codes" lists QR codes for the public HTTPS order URLs. “Open in browser,” printing, and printer queues all use the same URL with its store ID, location, and signed token.' },
         { ja: '③ 「🌐 表示・地域」で店舗所在地の標準時間（IANAタイムゾーン）、通貨、税・サービス料、言語、色、営業日切替時刻を設定できます。標準時間は売上集計・勤怠・提供時間・定期レポートへ共通反映されます。', en: '③ "Display & region" sets the store’s standard time (IANA time zone), currency, tax/service charge, language, color, and business-day cutoff. The time zone is shared by sales totals, attendance, service hours, and scheduled reports.' },
         { ja: '④ 「🏷️ 割引マスタ」では、割引名・率または固定額・税免除・ID提示・責任者承認の要否を割引ごとに登録できます。この誘惑店Webではフィリピン向けSenior/PWDプリセットと旧端末互換設定も残しています。', en: '④ "Discount rules" lets you configure each discount name, percentage or fixed amount, tax exemption, ID requirement, and manager approval. This Yuwaku-specific Web app also retains Philippines Senior/PWD presets and its legacy-client compatibility switch.' },
-        { ja: '⑤ 「🤖 Gemini APIキー」「📧 メール送信設定（Resend）」のAPIキー欄は、貼り付けて保存すると即座に入力欄がクリアされ、以後は上の「設定済/未設定」バッジのみで状態を確認します（安全のため、保存後にキーの値がこの画面に表示され続けることはありません）。', en: '⑤ For the Gemini and Resend email API key fields: after you paste and save, the field is cleared immediately — from then on only the "Set / Not set" badge above shows the status (for safety, the saved key value is never redisplayed on this screen).' },
+        { ja: '⑤ AI在庫スキャンや自動翻訳はシステム側AIを利用するため、店舗側でAIサービスのAPIキーを取得・設定する必要はありません。', en: '⑤ Inventory AI scanning and automatic translation use the system AI service, so stores do not need to obtain or configure an AI-provider API key.' },
         { ja: '⑥ 「📧 定期レポート」では送信先メール・日次/週次/月次の送信タイミングと出力言語を設定し、「保存＆スケジュール」で反映、「日次/週次/月次テスト」ボタンで実際にテストメールを送信して確認できます（メール送信設定でAPIキー・送信元アドレスの登録が必要）。', en: '⑥ "Scheduled reports" sets recipient emails, daily/weekly/monthly send times, and output language; "Save & schedule" applies it, and the "Daily/Weekly/Monthly test" buttons send an actual test email to verify (requires the API key and from-address to be configured above).' },
-        { ja: '⑦ 「🖶 印刷ブリッジ」でプリンタ連携の確認間隔とBRIDGE_KEY（共有シークレット）を、「📧 eレシート機能」で会計確定時の自動メール送付を設定できます。', en: '⑦ "Print bridge" sets the printer-polling interval and an optional shared-secret BRIDGE_KEY; "e-Receipt" sets automatic email delivery on bill finalization.' },
+        { ja: '⑦ PT-210のBluetooth接続は「プリンタ設定」画面から行います。内部用のブリッジ設定は通常画面には表示しません。', en: '⑦ Connect the PT-210 from Printer Settings. Internal bridge settings are not shown in the normal settings screen.' },
         { ja: '⑧ 「🎫 入場料・延長料」の「人数選択の最大値」で、注文時の人数ドロップダウン上限（1〜100）を設定できます。未設定時は20人です。', en: '⑧ In "Entry & extension fee", "Maximum party size" controls the order-screen party-size dropdown limit (1–100). The default is 20.' }
       ]
     });

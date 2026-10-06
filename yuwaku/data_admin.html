@@ -122,10 +122,11 @@
     </div>
   </div>
 
-  <script src="./config.js?v=auth2"></script>
+  <script src="./date-display.js?v=auth4" data-iz-date-display></script><script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
   <script src="./confirm.js?v=auth2"></script>
+  <script src="./native-file-export.js?v=native-export1"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script>
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
@@ -133,7 +134,9 @@
     if (!TOKEN) location.href = './manage.html';
     function rpc(fn,args){ return API.post('rpc',{fn:fn,args:args||[],token:TOKEN}).then(function(r){ return r.data; }); }
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-    function alertBox(id, text, ok){ var m=document.getElementById(id); m.style.display='block'; m.style.background=ok?'#dcfce7':'#fee2e2'; m.style.color=ok?'#15803d':'#b91c1c'; m.innerText=text; }
+    function alertBox(id, text, ok){ var m=document.getElementById(id); m.style.display='block'; m.style.background=ok===true?'#dcfce7':ok===false?'#fee2e2':'#fef3c7'; m.style.color=ok===true?'#15803d':ok===false?'#b91c1c':'#92400e'; m.innerText=text; }
+    function exportDone(id,result,webKey){ if(result&&result.mode==='native'){ if(result.status==='shared') alertBox(id,I18n.t('nativeShared')+' '+result.fileName,true); else alertBox(id,I18n.t('nativeDismissed')+' '+result.fileName,null); return; } alertBox(id,I18n.t(webKey)+' '+String(result&&result.fileName||''),true); }
+    function exportFailed(id,e,fileName){ if(window.NativeFileExport&&NativeFileExport.isCancellationError(e)){ alertBox(id,I18n.t('nativeDismissed')+' '+String(e&&e.fileName||fileName||''),null); return; } var code=String(e&&e.message||e||''); if(code==='native_export_plugins_missing'||code==='native_share_unavailable'){ alertBox(id,I18n.t('nativeUnavailable'),false); return; } alertBox(id,I18n.t('errPrefix')+API.userErrorText(e),false); }
 
     var DEL_ROWS = 0;
     var ALL_TABLES_VALUE = '__all__';
@@ -170,12 +173,9 @@
         var now = new Date();
         var stamp = now.getFullYear()+pad2(now.getMonth()+1)+pad2(now.getDate())+'_'+pad2(now.getHours())+pad2(now.getMinutes());
         var name = 'izakanpai_backup_'+stamp+'.zip';
-        var url = URL.createObjectURL(blob);
-        var link = document.createElement('a');
-        link.href = url; link.download = name; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
-        alertBox('exportAllMsg', I18n.t('exportDone')+' '+name, true);
+        return NativeFileExport.saveOrShare(blob,name,{title:name,dialogTitle:I18n.t('nativeShareTitle')}).then(function(result){ exportDone('exportAllMsg',result,'exportDone'); });
       }).catch(function(e){
-        alertBox('exportAllMsg', I18n.t('errPrefix')+API.userErrorText(e), false);
+        exportFailed('exportAllMsg',e,'');
       }).finally(function(){ btn.disabled = false; btn.textContent = original; });
     };
     window.exportCsv = function(){
@@ -185,11 +185,9 @@
         data = data || {};
         if (data.error) { alertBox('csvExportMsg', I18n.t('errPrefix')+API.userErrorText(data.error), false); return; }
         var blob = new Blob(['﻿'+toCsv(data.rows)], {type:'text/csv;charset=utf-8;'});
-        var url = URL.createObjectURL(blob);
-        var link = document.createElement('a');
-        link.href = url; link.download = name+'.csv'; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
-        alertBox('csvExportMsg', I18n.t('csvExportDone')+' '+name+'.csv', true);
-      }).catch(function(e){ alertBox('csvExportMsg', I18n.t('errPrefix')+API.userErrorText(e), false); });
+        var fileName=name+'.csv';
+        return NativeFileExport.saveOrShare(blob,fileName,{title:fileName,dialogTitle:I18n.t('nativeShareTitle')}).then(function(result){ exportDone('csvExportMsg',result,'csvExportDone'); });
+      }).catch(function(e){ exportFailed('csvExportMsg',e,name+'.csv'); });
     };
     // RFC4180寄りの簡易CSVパーサ（引用符内のカンマ・改行・""エスケープに対応）。
     // backup.htmlのtoCsv()が生成する形式と対で使う想定。
@@ -345,7 +343,7 @@
         var rows = (d && d.backups) || [];
         document.getElementById('bkRows').innerHTML = rows.length ? rows.map(function(b){
           return '<tr><td>'+esc(b.table_name)+'</td><td><span class="tag '+esc(b.action)+'">'+esc(actionLabel(b.action))+'</span></td>'+
-            '<td>'+esc(b.row_count)+'</td><td>'+esc(b.actor_name)+'</td><td>'+esc(b.created_at)+'</td>'+
+            '<td>'+esc(b.row_count)+'</td><td>'+esc(b.actor_name)+'</td><td>'+esc(window.DateDisplay?DateDisplay.formatDateTime(b.created_at):b.created_at)+'</td>'+
             '<td><button class="btn-sm" onclick="openRestore(\''+esc(b.backup_id)+'\',\''+esc(b.table_name)+'\','+Number(b.row_count)+')">'+I18n.t('bkRestore')+'</button></td></tr>';
         }).join('') : '<tr><td colspan="6" style="color:#aaa;text-align:center;padding:10px;">'+I18n.t('bkEmpty')+'</td></tr>';
       }).catch(function(e){ alertBox('bkMsg', I18n.t('errPrefix')+API.userErrorText(e), false); });
@@ -375,7 +373,7 @@
     I18n.init({
       ja:{
         title:'💾 データバックアップ・管理', back:'← 管理へ',
-        exportAllTitle:'📦 全データを一括バックアップ', exportAllBtn:'📦 全データをZIPでダウンロード', exportWorking:'作成中…', exportDone:'✅ ダウンロードしました:',
+        exportAllTitle:'📦 全データを一括バックアップ', exportAllBtn:'📦 全データをZIPでダウンロード', exportWorking:'作成中…', exportDone:'✅ ダウンロードしました:', nativeShareTitle:'保存 / 共有', nativeShared:'✅ 共有先へ渡しました:', nativeDismissed:'共有画面を閉じました。保存先を選択していない場合は未保存です:', nativeUnavailable:'この端末ではファイルの保存/共有機能を利用できません。アプリを最新版へ更新してください。',
         csvExportTitle:'📄 テーブルをCSVで書き出し', csvExportHint:'テーブルを選んでCSVをダウンロードできます（Excel等で開けます）。', csvExportBtn:'⬇ CSVを書き出し', csvExportDone:'✅ 書き出しました:',
         adminOnlyTitle:'🔒 削除・復元', adminOnlyBody:'テーブルの削除、CSV全置換、バックアップからの復元はシステム管理者だけが実施できます。',
         warnTitle:'⚠️ ご注意', warnBody:'この画面の操作（テーブルの全件削除・CSVインポートによる全置換・バックアップからの復元）は取り返しがつきません。実行するとご本人のログインパスワードの再入力を求めます。実行の直前に自動でバックアップが作られ、下部の「バックアップ履歴」から復元できます。',
@@ -393,7 +391,7 @@
       },
       en:{
         title:'💾 Data Backup & Management', back:'← Manage',
-        exportAllTitle:'📦 Back up all data', exportAllBtn:'📦 Download all data (ZIP)', exportWorking:'Preparing…', exportDone:'✅ Downloaded:',
+        exportAllTitle:'📦 Back up all data', exportAllBtn:'📦 Download all data (ZIP)', exportWorking:'Preparing…', exportDone:'✅ Downloaded:', nativeShareTitle:'Save / Share', nativeShared:'✅ Sent to the selected share destination:', nativeDismissed:'The share sheet was closed. If you did not choose a destination, the file was not saved:', nativeUnavailable:'File save/share is unavailable on this device. Update the app and try again.',
         csvExportTitle:'📄 Export a table to CSV', csvExportHint:'Select a table and download it as CSV (opens in Excel, etc.).', csvExportBtn:'⬇ Export CSV', csvExportDone:'✅ Exported:',
         adminOnlyTitle:'🔒 Delete & restore', adminOnlyBody:'Deleting tables, replacing data via CSV, and restoring backups are restricted to the System role.',
         warnTitle:'⚠️ Warning', warnBody:'Actions on this page (wiping a table, replacing it via CSV import, or restoring a backup) cannot be undone. Each one requires re-entering your own login password. A backup is taken automatically right before the action runs, and can be restored from "Backup history" below.',
@@ -416,7 +414,7 @@
     // 表示ガードはUX用で、実際の権限はサーバー側（src/dataAdmin.js）が再検証する。
     document.getElementById('mainView').style.display = 'block';
     loadExportTables();
-    if (ROLE === 'システム') {
+    if (ROLE === 'システム' || ROLE === 'system') {
       document.getElementById('systemAdminView').style.display = 'block';
       init();
     } else {

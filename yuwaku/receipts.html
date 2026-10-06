@@ -30,6 +30,7 @@
     td.num,th.num{ text-align:right; font-variant-numeric:tabular-nums; }
     .btn-sm{ background:#eef2f7; color:var(--navy); border:0; border-radius:8px; padding:6px 10px; font-weight:800; cursor:pointer; }
   </style>
+  <link rel="stylesheet" href="./date-controls.css?v=3">
 </head>
 <body>
   <div class="head"><h1 data-t="title">🧾 会計履歴</h1><div style="display:flex;gap:8px;"><button class="hbtn" data-tlang onclick="I18n.toggle()">EN</button><a class="hbtn" href="./admin.html" data-t="toOrders">← 注文一覧</a><a class="hbtn" href="./manage.html" data-t="back">管理へ</a></div></div>
@@ -49,9 +50,9 @@
     <div style="text-align:center;margin-top:12px;"><button class="btn-sm" id="moreBtn" style="display:none;" onclick="loadMore()" data-t="loadMore">さらに読み込む</button></div>
   </div></div>
 
-  <script src="./config.js?v=auth2"></script>
+  <script src="./date-display.js?v=auth4" data-iz-date-display></script><script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
   <script src="./confirm.js?v=auth2"></script>
   <script>
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
@@ -92,7 +93,7 @@
       if(!ROWS.length){ document.getElementById('rows').innerHTML='<tr><td colspan="7" class="muted" style="padding:16px;text-align:center;">'+I18n.t('empty')+'</td></tr>'; return; }
       document.getElementById('rows').innerHTML = ROWS.map(function(r){
         var disc = (Number(r.discountAmount)>0) ? ('-'+SYM+(Number(r.discountAmount)||0).toLocaleString()+(r.discountType?(' '+esc(r.discountType)):'')) : '';
-        var main = '<tr><td class="muted">'+esc(r.datetime)+'</td><td style="font-weight:800;">'+esc(r.orNo)+'</td><td>'+esc(seatLabel(r.table))+'</td>'+
+        var main = '<tr><td class="muted">'+esc(window.DateDisplay?DateDisplay.formatDateTime(r.datetime):r.datetime)+'</td><td style="font-weight:800;">'+esc(r.orNo)+'</td><td>'+esc(seatLabel(r.table))+'</td>'+
           '<td class="num" style="font-weight:800;">'+SYM+(Number(r.total)||0).toLocaleString()+'</td><td>'+esc(en?(r.methodLabelEn||r.methodLabelJa||r.methodLabel||r.method):(r.methodLabelJa||r.methodLabelEn||r.methodLabel||r.method))+'</td><td class="muted">'+disc+'</td>'+
           '<td><button class="btn-sm" onclick="reprint(\''+esc(r.orNo).replace(/'/g,"\\'")+'\')">'+I18n.t('reprint')+'</button></td></tr>';
         // 明細（あれば2行目に表示）
@@ -101,7 +102,10 @@
         return main + detRow;
       }).join('');
     }
-    window.reprint = function(orNo){ rpc('reprintReceipt',[orNo]).then(function(d){ d=d||{}; if(d.ok){ UIAlert(I18n.t('sent')); } else { UIAlert(I18n.t('errPrefix')+API.userErrorText(d.error||'error')); } }).catch(function(e){ UIAlert(I18n.t('errPrefix')+API.userErrorText(e)); }); };
+    var REPRINT_REQUESTS=Object.create(null);
+    function nextReprintRequestId(){ try{ if(crypto&&typeof crypto.randomUUID==='function') return 'receipt-reprint-'+crypto.randomUUID(); }catch(e){} return 'receipt-reprint-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2); }
+    function showReprintError(error){ var code=String(error&&error.message||error||''); var msg=I18n.t('errPrefix')+API.userErrorText(error); if(code==='no_printer'){ var en=I18n.lang&&I18n.lang()==='en'; UIConfirm(msg,{okLabel:en?'Printer Settings':'プリンター設定へ',cancelLabel:en?'Close':'閉じる'}).then(function(ok){ if(ok) location.href='./printers.html'; }); } else UIAlert(msg); }
+    window.reprint = function(orNo){ var requestId=REPRINT_REQUESTS[orNo]||(REPRINT_REQUESTS[orNo]=nextReprintRequestId()); rpc('reprintReceipt',[orNo,requestId]).then(function(d){ delete REPRINT_REQUESTS[orNo]; d=d||{}; if(d.ok){ UIAlert(I18n.t('sent')); } else { showReprintError(d.error||'error'); } }).catch(function(e){ showReprintError(e); }); };
     function load(){
       var mo=document.getElementById('month').value;
       PAGE=1; ROWS=[];

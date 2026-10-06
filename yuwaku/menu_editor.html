@@ -66,7 +66,7 @@
         <div class="fg" id="fieldNameEn"><label class="form-label" data-t="lblNameEn">商品名（English）</label><input id="mNameEn" class="fc"></div>
         <div class="fg" id="fieldCatEn"><label class="form-label" data-t="lblCatEn">カテゴリ（English）</label><select id="mCatEn" class="fc" onchange="onCatSel('mCatEn','mCatEnNew')"></select><input id="mCatEnNew" class="fc" style="display:none;margin-top:6px;" placeholder="New category" data-tph="phNewCatEn"></div>
       </div>
-      <div class="muted" style="margin:-2px 0 8px;" data-t="langHint">商品名は日本語・英語のどちらか一方だけでも登録できます。未入力側は空欄のまま保存され、あとから追加できます。</div>
+      <div class="muted" style="margin:-2px 0 8px;" data-t="langHint">商品名・カテゴリ・オプションは日本語・英語のどちらか一方だけでも登録できます。未入力側は保存時に自動翻訳されます（あとで編集可）。</div>
       <div class="fg"><label class="form-label" data-t="lblImg">画像（任意・変更時のみ選択）</label><input id="mFile" type="file" accept="image/*" class="fc" onchange="onFilePicked()">
         <div style="display:flex;gap:6px;margin-top:6px;">
           <input id="mImgQuery" class="fc" style="flex:1;" placeholder="検索キーワード（空欄なら商品名で検索）" data-tph="phImgQuery">
@@ -74,7 +74,7 @@
         </div>
         <div id="imgSearchMsg" class="muted" style="margin-top:4px;display:none;"></div>
         <div id="imgResults" style="display:none;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;margin-top:8px;"></div>
-        <div id="pexelsCredit" class="muted" style="margin-top:6px;display:none;"><a href="https://www.pexels.com/" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">Photos provided by Pexels</a></div>
+        <div id="pixabayCredit" class="muted" style="margin-top:6px;display:none;"><a href="https://pixabay.com/" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;" data-t="pixabayCredit">Images provided by Pixabay</a></div>
         <details style="margin-top:8px;">
           <summary class="muted" style="cursor:pointer;" data-t="urlAltTitle">画像のURLを直接指定する場合はこちら</summary>
           <div style="margin-top:6px;"><button type="button" class="btn-sm" onclick="openImgSearch()" data-t="btnImgWebSearch">🔍 Web画像検索を開く</button></div>
@@ -124,12 +124,12 @@
 
   <script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
   <script src="./confirm.js?v=auth2"></script>
   <script>
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
     if (!TOKEN) location.href = './manage.html';
-    function rpc(fn,args){ return API.post('rpc',{fn:fn,args:args||[],token:TOKEN}).then(function(r){ return r.data; }); }
+    function rpc(fn,args,timeoutMs){ var p={fn:fn,args:args||[],token:TOKEN}; if(timeoutMs)p.__timeoutMs=timeoutMs; return API.post('rpc',p).then(function(r){ return r.data; }); }
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
     // 言語切替の一元ヘルパー（新しい選択肢・候補リストを追加する際は必ずこれを通すこと）
     function isEN(){ return !!(window.I18n && I18n.lang && I18n.lang()==='en'); }
@@ -163,12 +163,12 @@
       var btn = e && e.target; if (btn) btn.disabled = true;
       showMsg('imgUrlMsg', I18n.t('imgFetching'), true);
       rpc('fetchImageFromUrl',[url]).then(function(r){ if (btn) btn.disabled = false; _applyFetchedImage(r, 'imgUrlMsg'); })
-        .catch(function(e2){ if (btn) btn.disabled=false; showMsg('imgUrlMsg', I18n.t('imgFetchErr')+(e2.message||e2), false); });
+        .catch(function(e2){ if (btn) btn.disabled=false; showMsg('imgUrlMsg', I18n.t('imgFetchErr')+API.userErrorText(e2), false); });
     };
     window.searchImgs = function(e){
       var q = document.getElementById('mImgQuery').value.trim() || loc(document.getElementById('mName').value,document.getElementById('mNameEn').value);
       var grid = document.getElementById('imgResults'); grid.style.display='none'; grid.innerHTML='';
-      document.getElementById('pexelsCredit').style.display='none';
+      document.getElementById('pixabayCredit').style.display='none';
       if (!q){ showMsg('imgSearchMsg', I18n.t('imgNeedQuery'), false); return; }
       var btn = e && e.target; if (btn) btn.disabled = true;
       showMsg('imgSearchMsg', I18n.t('imgSearching'), true);
@@ -184,8 +184,8 @@
         hideMsg('imgSearchMsg');
         grid.innerHTML = r.items.map(function(it){ return '<img src="'+esc(it.thumbnail)+'" data-url="'+esc(it.url)+'" title="'+esc(it.title)+'" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;border:2px solid var(--border);cursor:pointer;" onclick="selectSearchImg(this)" alt="">'; }).join('');
         grid.style.display='grid';
-        document.getElementById('pexelsCredit').style.display='block';
-      }).catch(function(e2){ if (btn) btn.disabled=false; showMsg('imgSearchMsg', I18n.t('imgFetchErr')+(e2.message||e2), false); });
+        document.getElementById('pixabayCredit').style.display='block';
+      }).catch(function(e2){ if (btn) btn.disabled=false; showMsg('imgSearchMsg', I18n.t('imgFetchErr')+API.userErrorText(e2), false); });
     };
     window.selectSearchImg = function(el){
       document.querySelectorAll('#imgResults img').forEach(function(im){ im.style.borderColor='var(--border)'; });
@@ -222,6 +222,7 @@
 
     // ── オプション（サイズ・トッピング等） ──
     var curOpts = [];
+    var editSnapshot = null;
     function optLangPairInputs(gi, ci, jaValue, enValue, kind){
       var enFirst = I18n.lang()==='en';
       var baseStyle='flex:1;min-width:110px;padding:7px;border:1px solid var(--border);border-radius:8px;font-family:inherit;';
@@ -257,8 +258,8 @@
     function cleanOpts(){
       return curOpts.map(function(g){
         var gja=String(g.nameJa!==undefined?g.nameJa:(g.name||'')).trim(),gen=String(g.nameEn||'').trim();
-        var ch=(g.choices||[]).map(function(c){var cja=String(c.labelJa!==undefined?c.labelJa:(c.label||'')).trim(),cen=String(c.labelEn||'').trim();return {label:cja||cen,labelJa:cja,labelEn:cen,price:Number(c.price)||0};}).filter(function(c){return !!c.label;});
-        return { name:gja||gen, nameJa:gja, nameEn:gen, type:(g.type==='multi'?'multi':'single'), required:!!g.required, choices:ch };
+        var ch=(g.choices||[]).map(function(c){var cja=String(c.labelJa!==undefined?c.labelJa:(c.label||'')).trim(),cen=String(c.labelEn||'').trim(),canonical=String(c.label||'').trim()||cja||cen;return {label:canonical,labelJa:cja,labelEn:cen,price:Number(c.price)||0};}).filter(function(c){return !!c.label;});
+        return { name:String(g.name||'').trim()||gja||gen, nameJa:gja, nameEn:gen, type:(g.type==='multi'?'multi':'single'), required:!!g.required, choices:ch };
       }).filter(function(g){ return g.name && g.choices.length; });
     }
 
@@ -351,7 +352,7 @@
       UIConfirm(loc(m['商品名_JA'],m['商品名_EN'])+' — '+I18n.t('delConfirm')).then(function(ok){
         if(!ok) return;
         rpc('deleteMenuItem',[m['商品名']]).then(function(res){
-          if(String(res).indexOf('Error')===0){ msg(I18n.t('errPrefix')+res, false); return; }
+          if(!res||res.success===false||String(res).indexOf('Error')===0){ msg(I18n.t('errPrefix')+API.userErrorText((res&&res.error)||res||'delete_failed'), false); return; }
           msg(I18n.t('deleted'), true); if(document.getElementById('oldName').value===m['商品名']) clearForm();
           MENU.splice(i,1); render();
         }).catch(function(e){ msg(I18n.t('errPrefix')+API.userErrorText(e), false); });
@@ -370,6 +371,7 @@
     };
     window.edit = function(i){
       var m = MENU[i]; if(!m) return;
+      editSnapshot={name:String(m['商品名']||''),category:String(m['カテゴリ']||''),nameJa:String(m['商品名_JA']||''),nameEn:String(m['商品名_EN']||''),categoryJa:String(m['カテゴリ_JA']||''),categoryEn:String(m['カテゴリ_EN']||'')};
       document.getElementById('oldName').value = m['商品名'];
       document.getElementById('mName').value = m['商品名_JA']!==undefined ? m['商品名_JA'] : m['商品名'];
       document.getElementById('mPrice').value = Number(m['価格'])||0;
@@ -389,7 +391,7 @@
       renderOpts();
       window.scrollTo({top:0,behavior:'smooth'});
     };
-    window.clearForm = function(){ ['oldName','mName','mPrice','mNameEn','mFile','mSvcStart','mSvcEnd','mAllergens'].forEach(function(id){ document.getElementById(id).value=''; }); setCatSel('mCat','mCatNew',''); setCatSel('mCatEn','mCatEnNew',''); document.getElementById('mStatus').value='販売中'; document.getElementById('mSpicy').value='0'; document.getElementById('mKitchen').checked=true; document.getElementById('mLinkInv').value=''; curOpts=[]; renderOpts(); document.getElementById('msg').style.display='none'; URL_IMG_DATA=null; document.getElementById('mImgUrl').value=''; document.getElementById('mImgQuery').value=''; hideMsg('imgUrlMsg'); hideMsg('imgSearchMsg'); var ir=document.getElementById('imgResults'); ir.innerHTML=''; ir.style.display='none'; document.getElementById('imgPreview').style.display='none'; };
+    window.clearForm = function(){ editSnapshot=null; ['oldName','mName','mPrice','mNameEn','mFile','mSvcStart','mSvcEnd','mAllergens'].forEach(function(id){ document.getElementById(id).value=''; }); setCatSel('mCat','mCatNew',''); setCatSel('mCatEn','mCatEnNew',''); document.getElementById('mStatus').value='販売中'; document.getElementById('mSpicy').value='0'; document.getElementById('mKitchen').checked=true; document.getElementById('mLinkInv').value=''; curOpts=[]; renderOpts(); document.getElementById('msg').style.display='none'; URL_IMG_DATA=null; document.getElementById('mImgUrl').value=''; document.getElementById('mImgQuery').value=''; hideMsg('imgUrlMsg'); hideMsg('imgSearchMsg'); var ir=document.getElementById('imgResults'); ir.innerHTML=''; ir.style.display='none'; document.getElementById('imgPreview').style.display='none'; };
     function msg(text, ok){ var m=document.getElementById('msg'); m.style.display='block'; m.style.background=ok?'#dcfce7':'#fee2e2'; m.style.color=ok?'#15803d':'#b91c1c'; m.innerText=text; }
 
     window.save = function(){
@@ -399,15 +401,18 @@
       var categoryJa=(catSel==='__new__')?document.getElementById('mCatNew').value.trim():catSel;
       var catEnSel=document.getElementById('mCatEn').value;
       var categoryEn=(catEnSel==='__new__')?document.getElementById('mCatEnNew').value.trim():catEnSel;
-      var item = { oldName:document.getElementById('oldName').value, name:nameJa||nameEn, nameJa:nameJa, nameEn:nameEn, price:document.getElementById('mPrice').value,
-        category:categoryJa||categoryEn, categoryJa:categoryJa, categoryEn:categoryEn, status:document.getElementById('mStatus').value, desc:'', options:JSON.stringify(cleanOpts()),
+      var sameCategory=!!editSnapshot&&categoryJa===editSnapshot.categoryJa&&categoryEn===editSnapshot.categoryEn;
+      var canonicalName=editSnapshot?editSnapshot.name:(nameJa||nameEn);
+      var canonicalCategory=sameCategory?editSnapshot.category:((window.I18n&&I18n.lang()==='en')?(categoryEn||categoryJa):(categoryJa||categoryEn));
+      var item = { oldName:document.getElementById('oldName').value, canonicalName:canonicalName, name:canonicalName, nameJa:nameJa, nameEn:nameEn, price:document.getElementById('mPrice').value,
+        canonicalCategory:canonicalCategory, category:canonicalCategory, categoryJa:categoryJa, categoryEn:categoryEn, status:document.getElementById('mStatus').value, desc:'', options:JSON.stringify(cleanOpts()),
         svcStart:document.getElementById('mSvcStart').value, svcEnd:document.getElementById('mSvcEnd').value,
         allergens:document.getElementById('mAllergens').value.trim(), spicy:document.getElementById('mSpicy').value,
         kitchenDisplay:document.getElementById('mKitchen').checked, inventoryLink:document.getElementById('mLinkInv').value };
       var btn=document.getElementById('saveBtn'); btn.disabled=true;
       var file = document.getElementById('mFile').files[0];
       function send(fd){
-        rpc('saveMenuItem',[item, fd]).then(function(res){ btn.disabled=false; if(String(res).indexOf('Error')===0){ msg(I18n.t('errPrefix')+res, false); return; } msg(I18n.t('saved'), true); clearForm(); return rpc('getAllMenuForAdmin',[]).then(function(l){ MENU=l||[]; render(); }); })
+        rpc('saveMenuItem',[item, fd],(API.TIMEOUT_MS&&API.TIMEOUT_MS.ai)||45000).then(function(res){ btn.disabled=false; if(!res||res.success===false||String(res).indexOf('Error')===0){ var er=res&&res.error; msg(er==='plan_limit_menu_items'?I18n.t('planLimit'):I18n.t('errPrefix')+API.userErrorText(er||res||'error'), false); return; } clearForm(); msg(I18n.t('saved'), true); rpc('getAllMenuForAdmin',[]).then(function(l){ MENU=l||[]; render(); }).catch(function(e){ document.getElementById('list').innerHTML='<div style="color:#b91c1c;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</div>'; }); })
           .catch(function(e){ btn.disabled=false; msg(I18n.t('errPrefix')+API.userErrorText(e), false); });
       }
       if (file){ API.fileToBase64(file).then(function(b64){ send({ data:b64, type:file.type, name:file.name }); }).catch(function(e){ btn.disabled=false; msg(I18n.t('errPrefix')+API.userErrorText(e), false); }); }
@@ -422,11 +427,11 @@
       .catch(function(e){ if(String(e.message||e).indexOf('unauthorized')>=0){ location.href='./manage.html'; return; } document.getElementById('list').innerHTML='<div style="color:#b91c1c;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</div>'; });
 
     I18n.init({
-      ja:{ title:'🍽️ メニュー編集', back:'← 管理へ', formTitle:'➕ 商品の追加 / 編集', lblNameJa:'商品名（日本語）', lblPrice:'価格', lblCatJa:'カテゴリ（日本語）', lblStatus:'ステータス', onSale:'販売中', stopped:'販売停止', lblNameEn:'商品名（English）', lblCatEn:'カテゴリ（English）', catUnset:'（未選択）', catNew:'＋ 新規カテゴリ…', phNewCatJa:'新規カテゴリ名', phNewCatEn:'New category', langHint:'商品名は日本語・英語のどちらか一方だけでも登録できます。未入力側は空欄のまま保存され、あとから追加できます。', optTitle:'🎛️ オプション（サイズ・トッピング等）', optHint:'グループ名・選択肢も日本語/英語のどちらか一方だけで登録できます。例）サイズ＝単一選択、トッピング＝複数選択。追加料金は差額（+のみ）。', addGroup:'＋ オプショングループ追加', phGroupJa:'グループ名（例: サイズ）', phGroupEn:'Group name (e.g. Size)', phChoiceJa:'選択肢（例: 大盛り）', phChoiceEn:'Choice (e.g. Large)', single:'単一選択', multi:'複数選択', required:'必須', addChoice:'選択肢を追加', lblImg:'画像（任意・変更時のみ選択）', save:'💾 保存', clear:'クリア', sampleCardTitle:'🧪 サンプルデータ', sampleCardText:'初回体験用のサンプル商品です。お客様QRには表示されず、デモ注文の会計は売上・ポイント・在庫へ反映されません。', sampleDelete:'🗑️ サンプルデータを一括削除', sampleDeleteConfirm:'サンプル商品とデモ注文をすべて削除しますか？通常の商品・売上は削除しません。', sampleDeleted:'✅ サンプルデータを削除しました', sampleTag:'サンプル', listTitle:'🍽️ 商品一覧', loading:'読み込み中…', noItems:'商品がありません', edit:'編集', del:'削除', delConfirm:'この商品を削除しますか？', deleted:'✅ 削除しました', needName:'商品名は日本語または英語のどちらかを入力してください', saved:'✅ 保存しました', errPrefix:'エラー: ', loadErr:'読み込みエラー: ', allCat:'すべて', reorderHint:'▲▼ で並び替え（客の注文画面の表示順に反映）。カテゴリタブで絞り込めます。', orderSaved:'✅ 並び順を保存しました', availTitle:'⏰ 提供時間帯・タグ', availHint:'提供時間は空欄なら常時提供。深夜跨ぎ（例 22:00〜02:00）も可。', lblSvcStart:'提供開始', lblSvcEnd:'提供終了', lblAllerg:'アレルゲン（任意・カンマ区切り）', phAllerg:'例: 卵, 小麦, えび', lblSpicy:'辛さ', spicy0:'なし', soldOut:'本日売切', markSold:'売切にする', markAvail:'売切解除', lblKitchen:'🍳 キッチン画面に表示する（ドリンク等、調理不要な商品はオフ）', kdsOn:'🍳キッチン表示ON', kdsOff:'🚫🍳キッチン表示OFF',
+      ja:{ title:'🍽️ メニュー編集', back:'← 管理へ', formTitle:'➕ 商品の追加 / 編集', lblNameJa:'商品名（日本語）', lblPrice:'価格', lblCatJa:'カテゴリ（日本語）', lblStatus:'ステータス', onSale:'販売中', stopped:'販売停止', lblNameEn:'商品名（English）', lblCatEn:'カテゴリ（English）', catUnset:'（未選択）', catNew:'＋ 新規カテゴリ…', phNewCatJa:'新規カテゴリ名', phNewCatEn:'New category', langHint:'商品名・カテゴリ・オプションは日本語・英語のどちらか一方だけでも登録できます。未入力側は保存時に自動翻訳されます（あとで編集可）。', optTitle:'🎛️ オプション（サイズ・トッピング等）', optHint:'グループ名・選択肢も日本語/英語のどちらか一方だけで登録できます。未入力側は保存時に自動翻訳されます。例）サイズ＝単一選択、トッピング＝複数選択。追加料金は差額（+のみ）。', addGroup:'＋ オプショングループ追加', phGroupJa:'グループ名（例: サイズ）', phGroupEn:'Group name (e.g. Size)', phChoiceJa:'選択肢（例: 大盛り）', phChoiceEn:'Choice (e.g. Large)', single:'単一選択', multi:'複数選択', required:'必須', addChoice:'選択肢を追加', lblImg:'画像（任意・変更時のみ選択）', save:'💾 保存', clear:'クリア', sampleCardTitle:'🧪 サンプルデータ', sampleCardText:'初回体験用のサンプル商品です。お客様QRには表示されず、デモ注文の会計は売上・ポイント・在庫へ反映されません。', sampleDelete:'🗑️ サンプルデータを一括削除', sampleDeleteConfirm:'サンプル商品とデモ注文をすべて削除しますか？通常の商品・売上は削除しません。', sampleDeleted:'✅ サンプルデータを削除しました', sampleTag:'サンプル', listTitle:'🍽️ 商品一覧', loading:'読み込み中…', noItems:'商品がありません', edit:'編集', del:'削除', delConfirm:'この商品を削除しますか？', deleted:'✅ 削除しました', needName:'商品名は日本語または英語のどちらかを入力してください', saved:'✅ 保存しました', errPrefix:'エラー: ', loadErr:'読み込みエラー: ', allCat:'すべて', reorderHint:'▲▼ で並び替え（客の注文画面の表示順に反映）。カテゴリタブで絞り込めます。', orderSaved:'✅ 並び順を保存しました', availTitle:'⏰ 提供時間帯・タグ', availHint:'提供時間は空欄なら常時提供。深夜跨ぎ（例 22:00〜02:00）も可。', lblSvcStart:'提供開始', lblSvcEnd:'提供終了', lblAllerg:'アレルゲン（任意・カンマ区切り）', phAllerg:'例: 卵, 小麦, えび', lblSpicy:'辛さ', spicy0:'なし', soldOut:'本日売切', markSold:'売切にする', markAvail:'売切解除', lblKitchen:'🍳 キッチン画面に表示する（ドリンク等、調理不要な商品はオフ）', kdsOn:'🍳キッチン表示ON', kdsOff:'🚫🍳キッチン表示OFF',
         lblLinkInv:'🔗 在庫紐づけ（任意）', linkInvNone:'（紐づけなし）', linkInvHint:'ドリンク等、注文1点で在庫を1点そのまま自動減算したい商品に設定します（レシピ不要）。複数材料を消費するフード等は「レシピ・原価」ページで設定してください。',
-        btnImgSearch2:'🔍 画像検索', phImgQuery:'検索キーワード（空欄なら商品名で検索）', urlAltTitle:'画像のURLを直接指定する場合はこちら', btnImgWebSearch:'🔍 Web画像検索を開く', phImgUrl:'画像のURLを貼り付け', btnImgFetch:'⬇️ 取得', imgNeedUrl:'URLを入力してください', imgNeedQuery:'検索キーワードを入力してください', imgSearching:'検索中…', imgNoResults:'画像が見つかりませんでした', imgNotConfigured:'画像検索は現在利用できません。運営側のPexels設定を確認してください。', imgRateLimited:'画像検索の利用上限に達しました。時間をおいて再度お試しください。', pexelsCredit:'Photos provided by Pexels', imgFetching:'取得中…', imgFetchOk:'✅ 画像を取得しました（保存を押すと登録されます）', imgFetchErr:'取得エラー: ' },
-      en:{ title:'🍽️ Menu Editor', back:'← Manage', formTitle:'➕ Add / Edit item', lblNameJa:'Name (Japanese)', lblPrice:'Price', lblCatJa:'Category (Japanese)', lblStatus:'Status', onSale:'On sale', stopped:'Stopped', lblNameEn:'Name (English)', lblCatEn:'Category (English)', catUnset:'(none)', catNew:'＋ New category…', phNewCatJa:'New Japanese category', phNewCatEn:'New category', langHint:'Enter either the English or Japanese item name. The other language can stay blank and be added later.', optTitle:'🎛️ Options (size, toppings, etc.)', optHint:'Option-group and choice names can also be entered in either English or Japanese. e.g. Size = single choice, Toppings = multiple. Extra charge = price delta (+ only).', addGroup:'＋ Add option group', phGroupJa:'Japanese group name', phGroupEn:'Group name (e.g. Size)', phChoiceJa:'Japanese choice', phChoiceEn:'Choice (e.g. Large)', single:'Single', multi:'Multiple', required:'Required', addChoice:'Add choice', lblImg:'Image (optional, only to change)', save:'💾 Save', clear:'Clear', sampleCardTitle:'🧪 Sample data', sampleCardText:'These sample items are for first-time practice. They are hidden from customer QR ordering, and demo checkout does not affect sales, points, or inventory.', sampleDelete:'🗑️ Delete all sample data', sampleDeleteConfirm:'Delete all sample items and demo orders? Regular menu items and sales will not be deleted.', sampleDeleted:'✅ Sample data deleted', sampleTag:'SAMPLE', listTitle:'🍽️ Menu items', loading:'Loading…', noItems:'No items', edit:'Edit', del:'Delete', delConfirm:'Delete this item?', deleted:'✅ Deleted', needName:'Enter an item name in either English or Japanese', saved:'✅ Saved', errPrefix:'Error: ', loadErr:'Load error: ', allCat:'All', reorderHint:'Use ▲▼ to reorder (reflected in the customer order screen). Filter by category tabs.', orderSaved:'✅ Order saved', availTitle:'⏰ Service hours & tags', availHint:'Leave times blank for always-available. Overnight (e.g. 22:00–02:00) supported.', lblSvcStart:'Serve from', lblSvcEnd:'Serve until', lblAllerg:'Allergens (optional, comma-separated)', phAllerg:'e.g. egg, wheat, shrimp', lblSpicy:'Spiciness', spicy0:'None', soldOut:'Sold out today', markSold:'Mark sold out', markAvail:'Undo sold out', lblKitchen:'🍳 Show on kitchen display (turn off for drinks etc. that need no cooking)', kdsOn:'🍳Kitchen: shown', kdsOff:'🚫🍳Kitchen: hidden',
-        btnImgSearch2:'🔍 Search images', phImgQuery:'Search keywords (uses item name if blank)', urlAltTitle:'Or enter an image URL directly', btnImgWebSearch:'🔍 Open web image search', phImgUrl:'Paste image URL', btnImgFetch:'⬇️ Fetch', imgNeedUrl:'Please enter a URL', imgNeedQuery:'Please enter search keywords', imgSearching:'Searching…', imgNoResults:'No images found', imgNotConfigured:'Image search is currently unavailable. Please contact the service operator.', imgRateLimited:'The image-search usage limit has been reached. Please try again later.', pexelsCredit:'Photos provided by Pexels', imgFetching:'Fetching…', imgFetchOk:'✅ Image fetched (press Save to register)', imgFetchErr:'Fetch error: ',
+        btnImgSearch2:'🔍 画像検索', phImgQuery:'検索キーワード（空欄なら商品名で検索）', urlAltTitle:'画像のURLを直接指定する場合はこちら', btnImgWebSearch:'🔍 Web画像検索を開く', phImgUrl:'画像のURLを貼り付け', btnImgFetch:'⬇️ 取得', imgNeedUrl:'URLを入力してください', imgNeedQuery:'検索キーワードを入力してください', imgSearching:'検索中…', imgNoResults:'画像が見つかりませんでした', imgNotConfigured:'画像検索は現在利用できません。運営側のPixabay設定を確認してください。', imgRateLimited:'画像検索の利用上限に達しました。時間をおいて再度お試しください。', pixabayCredit:'Pixabay提供画像', imgFetching:'取得中…', imgFetchOk:'✅ 画像を取得しました（保存を押すと登録されます）', imgFetchErr:'取得エラー: ' },
+      en:{ title:'🍽️ Menu Editor', back:'← Manage', formTitle:'➕ Add / Edit item', lblNameJa:'Name (Japanese)', lblPrice:'Price', lblCatJa:'Category (Japanese)', lblStatus:'Status', onSale:'On sale', stopped:'Stopped', lblNameEn:'Name (English)', lblCatEn:'Category (English)', catUnset:'(none)', catNew:'＋ New category…', phNewCatJa:'New Japanese category', phNewCatEn:'New category', langHint:'Enter either Japanese or English for item names, categories, and options. The missing language is auto-translated when you save (editable later).', optTitle:'🎛️ Options (size, toppings, etc.)', optHint:'Option-group and choice names can also be entered in either English or Japanese. The missing language is auto-translated on save. e.g. Size = single choice, Toppings = multiple. Extra charge = price delta (+ only).', addGroup:'＋ Add option group', phGroupJa:'Japanese group name', phGroupEn:'Group name (e.g. Size)', phChoiceJa:'Japanese choice', phChoiceEn:'Choice (e.g. Large)', single:'Single', multi:'Multiple', required:'Required', addChoice:'Add choice', lblImg:'Image (optional, only to change)', save:'💾 Save', clear:'Clear', sampleCardTitle:'🧪 Sample data', sampleCardText:'These sample items are for first-time practice. They are hidden from customer QR ordering, and demo checkout does not affect sales, points, or inventory.', sampleDelete:'🗑️ Delete all sample data', sampleDeleteConfirm:'Delete all sample items and demo orders? Regular menu items and sales will not be deleted.', sampleDeleted:'✅ Sample data deleted', sampleTag:'SAMPLE', listTitle:'🍽️ Menu items', loading:'Loading…', noItems:'No items', edit:'Edit', del:'Delete', delConfirm:'Delete this item?', deleted:'✅ Deleted', needName:'Enter an item name in either English or Japanese', saved:'✅ Saved', errPrefix:'Error: ', loadErr:'Load error: ', allCat:'All', reorderHint:'Use ▲▼ to reorder (reflected in the customer order screen). Filter by category tabs.', orderSaved:'✅ Order saved', availTitle:'⏰ Service hours & tags', availHint:'Leave times blank for always-available. Overnight (e.g. 22:00–02:00) supported.', lblSvcStart:'Serve from', lblSvcEnd:'Serve until', lblAllerg:'Allergens (optional, comma-separated)', phAllerg:'e.g. egg, wheat, shrimp', lblSpicy:'Spiciness', spicy0:'None', soldOut:'Sold out today', markSold:'Mark sold out', markAvail:'Undo sold out', lblKitchen:'🍳 Show on kitchen display (turn off for drinks etc. that need no cooking)', kdsOn:'🍳Kitchen: shown', kdsOff:'🚫🍳Kitchen: hidden',
+        btnImgSearch2:'🔍 Search images', phImgQuery:'Search keywords (uses item name if blank)', urlAltTitle:'Or enter an image URL directly', btnImgWebSearch:'🔍 Open web image search', phImgUrl:'Paste image URL', btnImgFetch:'⬇️ Fetch', imgNeedUrl:'Please enter a URL', imgNeedQuery:'Please enter search keywords', imgSearching:'Searching…', imgNoResults:'No images found', imgNotConfigured:'Pixabay image search is currently unavailable. Please contact the service operator.', imgRateLimited:'The image-search usage limit has been reached. Please try again later.', pixabayCredit:'Images provided by Pixabay', imgFetching:'Fetching…', imgFetchOk:'✅ Image fetched (press Save to register)', imgFetchErr:'Fetch error: ',
         lblLinkInv:'🔗 Linked inventory item (optional)', linkInvNone:'(No link)', linkInvHint:'Use this for items where 1 order = 1 inventory unit deducted directly (e.g. drinks) — no recipe needed. For food items that consume multiple ingredients, use the Recipes page instead.' }
     }, function(){ syncLanguageFieldOrder(); renderInvSel(); renderOpts(); if(__loaded) render(); });
   </script>
@@ -437,7 +442,7 @@
       title: 'メニュー編集',
       titleEn: 'Menu Editor',
       items: [
-        { ja: '① 商品名は日本語・英語のどちらか一方だけでも登録できます。画面言語側の入力欄が先に表示され、もう一方は空欄のまま保存してあとから追加できます。カテゴリも日英を別々に保持します。', en: '① Enter the item name in either English or Japanese. The current UI language is shown first, the other language may stay blank, and you can add it later. Categories are also stored separately by language.' },
+        { ja: '① 商品名・カテゴリ・オプションは日本語・英語のどちらか一方だけ入力すれば、未入力側を保存時に自動翻訳します。自動翻訳後の値はあとから編集できます。', en: '① Enter either Japanese or English for item names, categories, and options. The missing language is auto-translated on save and can be edited later.' },
         { ja: '② 「画像検索」でキーワードから候補画像を選ぶか、「画像のURLを直接指定」でURLから取得、またはファイルを直接アップロードできます。', en: '② Use "Search images" to pick from search results, "enter an image URL directly" to fetch from a URL, or upload a file directly.' },
         { ja: '③ 「提供時間帯」で時間限定メニュー（深夜跨ぎも可）、「アレルゲン」「辛さ」も設定できます。「🍳 キッチン画面に表示する」をオフにするとドリンクなど調理不要な商品をキッチン画面から除外できます。', en: '③ Set "Service hours" for time-limited items (overnight spans allowed), plus allergens and spiciness. Turn off "Show on kitchen display" to hide items like drinks that need no cooking.' },
         { ja: '④ 「🔗 在庫紐づけ」で、注文1点につき在庫を1点自動で減らしたい商品（ドリンク等）を設定できます。複数材料を使うフードは別の「レシピ・原価」ページで設定します。', en: '④ Use "Linked inventory item" for items where 1 order deducts 1 inventory unit automatically (e.g. drinks). Food using multiple ingredients is set up on the separate Recipes page.' },

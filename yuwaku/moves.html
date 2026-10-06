@@ -34,6 +34,7 @@
     .kbox{ background:#f8fafc; border:1px solid var(--border); border-radius:10px; padding:10px 12px; min-width:120px; }
     .kbox .kl{ font-size:11px; color:var(--text-3); font-weight:800; } .kbox .kv{ font-size:17px; font-weight:900; }
   </style>
+  <link rel="stylesheet" href="./date-controls.css?v=3">
 </head>
 <body>
   <div class="head"><h1 data-t="title">📋 在庫変動履歴</h1><div style="display:flex;gap:8px;"><button class="hbtn" data-tlang onclick="I18n.toggle()">EN</button><a class="hbtn" href="./inventory.html" data-t="inv">📦 在庫</a><a class="hbtn" href="./manage.html" data-t="back">← 管理へ</a></div></div>
@@ -54,9 +55,9 @@
     </div>
   </div>
 
-  <script src="./config.js?v=auth2"></script>
+  <script src="./date-display.js?v=auth4" data-iz-date-display></script><script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
   <script>
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
     if (!TOKEN) location.href = './manage.html';
@@ -76,7 +77,7 @@
       if(s && s.indexOf('Z')===-1 && s.indexOf('+')===-1){ s = s.replace(' ','T')+'Z'; }
       return new Date(s);
     }
-    function fmt(ts){ try{ return toUtcDate(ts).toLocaleString(); }catch(e){ return esc(ts); } }
+    function fmt(ts){ try{ var d=toUtcDate(ts); return window.DateDisplay?DateDisplay.formatDateTime(d.toISOString()):d.toLocaleString(); }catch(e){ return esc(ts); } }
     function typeLabel(t){ return I18n.t(TYPEKEY[t]||'tIn'); }
 
     function render(){

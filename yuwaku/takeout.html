@@ -126,7 +126,7 @@
   <script src="./config.js?v=auth2"></script>
   <script>try{if(localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken')){var _mb=document.getElementById('mgmtBack');if(_mb)_mb.style.display='block';}}catch(e){}</script>
   <script src="./api.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
   <script>
     // 2026-08-25削除: PayMongoによるオンライン決済（startPayment/checkPayment等）は
     // PAYMONGOが常にfalseで一度も実行されない死んだコードだったため、あつしさんの明示許可を
@@ -340,6 +340,8 @@
       }).catch(function(){ btn.disabled=false; msg.style.color='#b91c1c'; msg.textContent=t.cpInvalid; });
     };
 
+    var TAKEOUT_CLIENT_ID='';
+    function nextTakeoutClientId(){ return 'to-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10); }
     window.confirmOrder = function(){
       var t = tt();
       var name = document.getElementById('fName').value.trim();
@@ -348,7 +350,8 @@
       var order = {
         name: name, phone: document.getElementById('fPhone').value.trim(),
         pickup: document.getElementById('fPickup').value, notes: document.getElementById('fNotes').value.trim(),
-        items: cartItems(), coupon: (takeoutCoupon ? takeoutCoupon.code : '')
+        items: cartItems(), coupon: (takeoutCoupon ? takeoutCoupon.code : ''),
+        clientId: TAKEOUT_CLIENT_ID || (TAKEOUT_CLIENT_ID=nextTakeoutClientId())
       };
       var btn = document.getElementById('coConfirm'); btn.disabled=true;
       order.paid = false;
@@ -374,7 +377,7 @@
         '<button class="btn-primary2" onclick="resetAll()">'+t.newOrder+'</button>';
     }
     window.resetAll = function(){
-      cart={}; optLines=[]; takeoutCoupon=null;
+      cart={}; optLines=[]; takeoutCoupon=null; TAKEOUT_CLIENT_ID='';
       document.getElementById('fName').value=''; document.getElementById('fPhone').value=''; document.getElementById('fNotes').value='';
       document.getElementById('coConfirm').onclick = confirmOrder;
       closeCheckout(); renderMenu(); updateCart();

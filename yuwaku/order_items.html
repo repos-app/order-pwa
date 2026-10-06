@@ -60,7 +60,7 @@
 
   <script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
   <script src="./confirm.js?v=auth2"></script>
   <script>
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
@@ -89,6 +89,8 @@
     }
     function msg(text, ok){ var m=document.getElementById('msg'); m.style.display='block'; m.style.background=ok?'#dcfce7':'#fee2e2'; m.style.color=ok?'#15803d':'#b91c1c'; m.innerText=text; }
     function clearForm(){ ['iId','iName','iNameEn','iUnit','iMemo'].forEach(function(id){ document.getElementById(id).value=''; }); document.getElementById('iSupplier').value=''; }
+    var ORDER_ITEM_REQUEST_ID='', ORDER_ITEM_REQUEST_SIG='';
+    function nextOrderItemRequestId(){ try{ if(crypto&&typeof crypto.randomUUID==='function') return 'order-item-'+crypto.randomUUID(); }catch(e){} return 'order-item-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2); }
 
     window.edit = function(id){ var it=ITEMS.filter(function(x){return x.id===id;})[0]; if(!it) return; document.getElementById('iId').value=it.id; document.getElementById('iName').value=(it.nameJa!==undefined?it.nameJa:it.name)||''; document.getElementById('iNameEn').value=it.nameEn||''; document.getElementById('iUnit').value=it.unit||''; document.getElementById('iSupplier').value=it.supplier||''; document.getElementById('iMemo').value=it.memo||''; window.scrollTo({top:9999,behavior:'smooth'}); };
     // [応答速度対応] 削除成功時は全件再取得せず、ローカル配列からその1件だけ除去する。
@@ -99,12 +101,14 @@
       var nameJa=document.getElementById('iName').value.trim(), nameEn=document.getElementById('iNameEn').value.trim();
       var it = { id:document.getElementById('iId').value, name:nameJa||nameEn, nameJa:nameJa, nameEn:nameEn, unit:document.getElementById('iUnit').value.trim(), supplier:document.getElementById('iSupplier').value, memo:document.getElementById('iMemo').value.trim() };
       if(!nameJa&&!nameEn){ msg(I18n.t('needName'), false); return; }
+      if(!it.id){ var sig=JSON.stringify(it); if(!ORDER_ITEM_REQUEST_ID||ORDER_ITEM_REQUEST_SIG!==sig){ ORDER_ITEM_REQUEST_SIG=sig; ORDER_ITEM_REQUEST_ID=nextOrderItemRequestId(); } it.clientRequestId=ORDER_ITEM_REQUEST_ID; }
       var btn=document.getElementById('saveBtn'); btn.disabled=true;
       // [応答速度対応] saveOrderItemが保存済み行を返すので、全件再取得(getOrderItems)せず
       // ローカル配列を新規追加/置換するだけで一覧に反映する。
       rpc('saveOrderItem',[it]).then(function(d){
         btn.disabled=false;
-        if(d&&d.error){ msg(I18n.t('errPrefix')+API.userErrorText(d.error), false); return; }
+        if(d&&d.error){ ORDER_ITEM_REQUEST_ID=''; ORDER_ITEM_REQUEST_SIG=''; msg(I18n.t('errPrefix')+API.userErrorText(d.error), false); return; }
+        ORDER_ITEM_REQUEST_ID=''; ORDER_ITEM_REQUEST_SIG='';
         msg(I18n.t('saved'), true); clearForm();
         if (d && d.row) {
           var idx = ITEMS.findIndex(function(x){ return x.id===d.row.id; });

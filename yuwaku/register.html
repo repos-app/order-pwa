@@ -44,22 +44,33 @@
 
   <script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
   <script src="./confirm.js?v=auth2"></script>
   <script>
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
     var NAME = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtName') || '';
     if (!TOKEN) location.href = './manage.html';
-    function rpc(fn,args){ return API.post('rpc',{fn:fn,args:args||[],token:TOKEN}).then(function(r){ return r.data; }); }
+    function rpc(fn,args,timeoutMs,noInternalRetry){ var p={fn:fn,args:args||[],token:TOKEN}; if(timeoutMs)p.__timeoutMs=timeoutMs; if(noInternalRetry)p.__noInternalRetry=true; return API.post('rpc',p).then(function(r){ return r.data; }); }
+    function requestId(){ try { return crypto.randomUUID(); } catch(e) { return 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/x/g,function(){return Math.floor(Math.random()*16).toString(16);}); } }
+    function isTransportError(e){ return !(e&&e.__server); }
+    function registerCompareText(s){ return String(s==null?'':s).replace(/[\x00-\x1f\x7f]/g,''); }
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-    var SYM='₱', CUR=null, HIST=[], STAFF=[];
+    var SYM='₱', CUR=null, HIST=[], STAFF=[], PENDING_OPEN_ID='';
+    var REGISTER_WRITE_TIMEOUT_MS=10000, REGISTER_RECONCILE_TIMEOUT_MS=8000;
     var THIS_MONTH = API.dateKeysInTimeZone('UTC').month;
     function money(v){ return SYM+(Math.round(Number(v)||0)).toLocaleString(); }
 
     window.doOpen = function(){
       var f = Number(document.getElementById('flt').value)||0;
       var st = document.getElementById('stf').value;
-      rpc('openShift',[f, st]).then(function(r){ if(r&&r.success){ reload(); } else { UIAlert(API.userErrorText((r&&r.error)||'error')); } }).catch(function(e){ UIAlert(API.userErrorText(e)); });
+      var btn=document.getElementById('openBtn'); if(btn) btn.disabled=true;
+      var rid=PENDING_OPEN_ID||requestId(); PENDING_OPEN_ID=rid;
+      function done(r){ if(btn) btn.disabled=false; if(r&&r.success){ PENDING_OPEN_ID=''; reload(); return; } PENDING_OPEN_ID=''; UIAlert(API.userErrorText((r&&r.error)||'error')); }
+      function reconcile(e){ rpc('getRegisterBundle',[THIS_MONTH],REGISTER_RECONCILE_TIMEOUT_MS,true).then(function(b){ b=b||{}; var persisted=(b.current&&b.current.id===rid)||(b.shifts||[]).some(function(s){return s&&s.id===rid;}); if(persisted){ PENDING_OPEN_ID=''; if(btn) btn.disabled=false; reload(); return; } if(btn) btn.disabled=false; UIAlert(API.userErrorText(e)); }).catch(function(){ if(btn) btn.disabled=false; UIAlert(API.userErrorText(e)); }); }
+      rpc('openShift',[f, st, rid],REGISTER_WRITE_TIMEOUT_MS,true).then(done).catch(function(e){
+        if(!isTransportError(e)){ PENDING_OPEN_ID=''; if(btn) btn.disabled=false; UIAlert(API.userErrorText(e)); return; }
+        setTimeout(function(){ rpc('openShift',[f, st, rid],REGISTER_WRITE_TIMEOUT_MS,true).then(done).catch(reconcile); },600);
+      });
     };
     window.doClose = function(){
       var counted = Number(document.getElementById('cnt').value);
@@ -67,8 +78,13 @@
       var cio = Number(document.getElementById('cio').value)||0;
       var memo = document.getElementById('memo').value;
       var btn=document.getElementById('closeBtn'); btn.disabled=true;
-      rpc('closeShift',[counted, cio, memo]).then(function(r){ btn.disabled=false; if(r&&r.success){ showZ(r.z); } else { msg(API.userErrorText((r&&r.error)||'error'), false); } })
-        .catch(function(e){ btn.disabled=false; msg(I18n.t('errPrefix')+API.userErrorText(e), false); });
+      var expectedId=CUR&&CUR.id||'';
+      function done(r){ btn.disabled=false; if(r&&r.success){ showZ(r.z); } else { msg(API.userErrorText((r&&r.error)||'error'), false); } }
+      function reconcileClose(e){ rpc('getRegisterBundle',[THIS_MONTH],REGISTER_RECONCILE_TIMEOUT_MS,true).then(function(b){ b=b||{}; var closed=(b.shifts||[]).find(function(s){ return s&&s.id===expectedId; }); if(closed&&Number(closed.countedCash||0)===counted&&Number(closed.cashInOut||0)===cio&&registerCompareText(closed.memo)===registerCompareText(memo)){ reload(); return; } btn.disabled=false; msg(I18n.t('errPrefix')+API.userErrorText(e), false); }).catch(function(){ btn.disabled=false; msg(I18n.t('errPrefix')+API.userErrorText(e), false); }); }
+      rpc('closeShift',[counted, cio, memo, expectedId],REGISTER_WRITE_TIMEOUT_MS,true).then(done).catch(function(e){
+        if(!isTransportError(e)){ btn.disabled=false; msg(I18n.t('errPrefix')+API.userErrorText(e), false); return; }
+        setTimeout(function(){ rpc('closeShift',[counted, cio, memo, expectedId],REGISTER_WRITE_TIMEOUT_MS,true).then(done).catch(reconcileClose); },600);
+      });
     };
     function msg(text, ok){ var m=document.getElementById('msg'); if(!m) return; m.style.display='block'; m.style.background=ok?'#dcfce7':'#fee2e2'; m.style.color=ok?'#15803d':'#b91c1c'; m.innerText=text; }
 
@@ -94,7 +110,7 @@
         html += '<div class="card"><div class="card-title">'+I18n.t('openTitle')+'</div>'
           + '<div class="fg"><label class="form-label">'+I18n.t('float')+'</label><input id="flt" type="number" min="0" step="any" class="fc" placeholder="0"></div>'
           + '<div class="fg"><label class="form-label">'+I18n.t('staff')+'</label><input id="stf" class="fc" value="'+esc(NAME)+'" readonly style="background:#f1f5f9;color:#64748b;"></div>'
-          + '<button class="btn btn-green" onclick="doOpen()">'+I18n.t('openBtn')+'</button></div>';
+          + '<button class="btn btn-green" id="openBtn" onclick="doOpen()">'+I18n.t('openBtn')+'</button></div>';
       } else {
         var s=CUR.sales||{};
         html += '<div class="card" style="background:#eff6ff;border-color:#bfdbfe;"><div class="card-title" style="color:#1e40af;">'+I18n.t('helpCloseTitle')+'</div><div style="font-size:13px;line-height:1.8;color:#1e3a8a;">'+I18n.t('helpCloseBody')+'</div></div>';

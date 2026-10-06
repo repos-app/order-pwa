@@ -171,9 +171,9 @@
     </div>
   </div>
 
-  <script src="./config.js?v=auth2"></script>
+  <script src="./date-display.js?v=auth4" data-iz-date-display></script><script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
   <script src="./confirm.js?v=auth2"></script>
   <script>
     // [P0-2] 会計・注文操作はスタッフ操作のため、事前ログイン（1回のみ）を必須にする。
@@ -345,7 +345,17 @@
       });
       w.innerHTML = html + '</div>';
     }
-    window.resolveCall = function(id){ API.post('resolveCall', { id:id, token: TOKEN }).then(function(){ load(true); }).catch(function(){}); };
+    var resolvingCalls = Object.create(null);
+    window.resolveCall = function(id){
+      if(resolvingCalls[id]) return;
+      resolvingCalls[id]=true;
+      API.post('resolveCall', { id:id, token: TOKEN }).then(function(r){
+        var d=(r&&r.data)||{};
+        if(d.error || d.success===false) throw new Error(d.error||'save_failed');
+        return load(true);
+      }).catch(function(e){ showToast((lang==='en'?'Could not resolve call: ':'呼び出しを完了できません: ')+API.userErrorText(e)); })
+        .finally(function(){ delete resolvingCalls[id]; });
+    };
     // [P0] getStaffCalls単独ポーリングは廃止し、getOperationsDelta（注文と統合）から呼び出しも一緒に受け取る。
     function loadCalls(){ return load(); }
 
@@ -626,7 +636,7 @@
     }
     window.printReceipt = function(orNo){
       var b = (window._lastBill&&window._lastBill.bill) || window._bill || {};
-      var shop = SETTINGS.shopName || 'Shop'; var now = new Date().toLocaleString();
+      var shop = SETTINGS.shopName || 'Shop'; var nowDate = new Date(); var now = window.DateDisplay?DateDisplay.formatDateTime(nowDate.toISOString()):nowDate.toLocaleString();
       var documentTitle = I18n.lang()==='en' ? (SETTINGS.receiptDocumentTitleEn||SETTINGS.receiptDocumentTitleJa||'Receipt') : (SETTINGS.receiptDocumentTitleJa||SETTINGS.receiptDocumentTitleEn||'レシート');
       var lines = '<div>'+t().sub+': '+money(b.subtotal)+'</div>';
       if (b.service>0) lines += '<div>'+t().svc+': '+money(b.service)+'</div>';
@@ -756,7 +766,7 @@
     function updateHeadClock(){
       var el = document.getElementById('headClock'); if(!el) return;
       var d = new Date();
-      el.textContent = d.getFullYear()+'-'+_pad2(d.getMonth()+1)+'-'+_pad2(d.getDate())+' '+_pad2(d.getHours())+':'+_pad2(d.getMinutes());
+      el.textContent = window.DateDisplay ? DateDisplay.formatDateTime(d.toISOString()).slice(0,16) : d.getFullYear()+'-'+_pad2(d.getMonth()+1)+'-'+_pad2(d.getDate())+' '+_pad2(d.getHours())+':'+_pad2(d.getMinutes());
     }
 
     function boot(){

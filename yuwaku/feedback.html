@@ -43,9 +43,9 @@
     </div>
   </div>
 
-  <script src="./config.js?v=auth2"></script>
+  <script src="./date-display.js?v=auth4" data-iz-date-display></script><script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
   <script>
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
     if (!TOKEN) location.href = './manage.html';
@@ -62,7 +62,7 @@
       if(s && s.indexOf('Z')===-1 && s.indexOf('+')===-1){ s = s.replace(' ','T')+'Z'; }
       return new Date(s);
     }
-    function fmt(ts){ try{ return toUtcDate(ts).toLocaleString(); }catch(e){ return esc(ts); } }
+    function fmt(ts){ try{ var d=toUtcDate(ts); return window.DateDisplay?DateDisplay.formatDateTime(d.toISOString()):d.toLocaleString(); }catch(e){ return esc(ts); } }
     function render(){
       var d = DATA;
       var seatHead=document.querySelector('[data-t="thTable"]'),en=(window.I18n&&I18n.lang&&I18n.lang()==='en');
@@ -75,7 +75,7 @@
         return '<tr><td class="muted" style="white-space:nowrap;">'+esc(fmt(r.ts))+'</td><td>'+esc(seatLabel(r.table))+'</td><td class="stars">'+stars(r.rating)+'</td><td style="white-space:normal;max-width:260px;">'+esc(r.comment)+'</td></tr>';
       }).join('');
     }
-    window.reload = function(){ rpc('getFeedback',[200]).then(function(d){ DATA=d||DATA; render(); }).catch(function(){}); };
+    window.reload = function(){ rpc('getFeedback',[200]).then(function(d){ DATA=d||DATA; render(); }).catch(function(e){ document.getElementById('rows').innerHTML='<tr><td colspan="4" style="color:#b91c1c;padding:16px;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</td></tr>'; }); };
     rpc('getFeedback',[200]).then(function(d){ DATA=d||DATA; __loaded=true; render(); })
       .catch(function(e){ if(String(e.message||e).indexOf('unauthorized')>=0){ location.href='./manage.html'; return; } document.getElementById('rows').innerHTML='<tr><td colspan="4" style="color:#b91c1c;padding:16px;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</td></tr>'; });
     API.post('getSettings',{}).then(function(r){SETTINGS=(r&&r.data)||{};if(__loaded)render();}).catch(function(){});

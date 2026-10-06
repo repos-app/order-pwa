@@ -46,7 +46,7 @@
 
   <script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
   <script>
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
     if (!TOKEN) location.href = './manage.html';
@@ -82,7 +82,7 @@
       }
       var clean = window.rows.map(function(r){ return {menu:String(r.menu).trim(),material:String(r.material).trim(),qty:Number(r.qty)}; });
       var btn = document.getElementById('saveBtn'); btn.disabled=true;
-      rpc('saveRecipes',[clean]).then(function(){ btn.disabled=false; msg(I18n.t('saved'), true); })
+      rpc('saveRecipes',[clean]).then(function(r){ if(!r||r.success!==true) throw new Error((r&&r.error)||'save_failed'); btn.disabled=false; msg(I18n.t('saved'), true); })
         .catch(function(e){ btn.disabled=false; msg(I18n.t('errPrefix')+API.userErrorText(e), false); });
     };
     function msg(text, ok){ var m=document.getElementById('msg'); m.style.display='block'; m.style.background=ok?'#dcfce7':'#fee2e2'; m.style.color=ok?'#15803d':'#b91c1c'; m.innerText=text; }

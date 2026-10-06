@@ -66,6 +66,12 @@
     } catch (e) { return 'en'; }
   }
 
+  function displayRole(role) {
+    var raw = String(role || '');
+    if (currentLang() !== 'en') return raw;
+    return ({ '管理者':'Admin', 'システム':'System', 'マネージャー':'Manager', 'スタッフ':'Staff', '一般':'General' })[raw] || raw;
+  }
+
   function validTimezone(value) {
     var tz = String(value || '').trim();
     if (!tz) return '';
@@ -157,6 +163,11 @@
       state.lang.setAttribute('aria-label', text(isJa, '英語へ切替', 'Switch to Japanese'));
       state.lang.title = state.lang.getAttribute('aria-label');
     }
+    if (state.user) {
+      var userName = state.user.getAttribute('data-iz-user-name') || '';
+      var userRole = state.user.getAttribute('data-iz-user-role') || '';
+      state.user.textContent = '👤 ' + userName + (userRole ? ' (' + displayRole(userRole) + ')' : '');
+    }
     var refresh = document.getElementById('izHeaderRefresh');
     var manage = document.getElementById('izHeaderManage');
     var back = document.getElementById('izHeaderBack');
@@ -175,9 +186,21 @@
     setTimeout(renderLanguage, 0);
   }
 
+  function goToBackTarget(target) {
+    try {
+      if (document.referrer) {
+        var ref = new URL(document.referrer);
+        if (ref.origin === location.origin && pageName(ref.pathname) === pageName(target)) {
+          history.back(); return;
+        }
+      }
+    } catch (e) {}
+    location.replace(target);
+  }
+
   function goBack(policy) {
-    if (policy && policy.backTarget) { location.replace(policy.backTarget); return; }
-    if (policy && policy.fromOverview) { location.replace('./overview.html'); return; }
+    if (policy && policy.backTarget) { goToBackTarget(policy.backTarget); return; }
+    if (policy && policy.fromOverview) { goToBackTarget('./overview.html'); return; }
     try {
       if (document.referrer && new URL(document.referrer).origin === location.origin) { history.back(); return; }
     } catch (e) {}
@@ -297,7 +320,8 @@
     if (policy.showClock) { var clock = document.createElement('span'); clock.id = 'izHeaderClock'; clock.className = 'iz-header-clock'; meta.appendChild(clock); state.clock = clock; }
     if (policy.showUser && session.name) {
       var user = document.createElement('span'); user.id = 'izHeaderUser'; user.className = 'iz-header-user';
-      user.textContent = '👤 ' + session.name + (session.role ? ' (' + session.role + ')' : ''); meta.appendChild(user); state.user = user;
+      user.setAttribute('data-iz-user-name', session.name); user.setAttribute('data-iz-user-role', session.role || '');
+      user.textContent = '👤 ' + session.name + (session.role ? ' (' + displayRole(session.role) + ')' : ''); meta.appendChild(user); state.user = user;
     }
     var actions = document.createElement('div'); actions.id = 'izHeaderActions';
     var lang = button('izHeaderLang', '', switchLanguage); lang.setAttribute('data-tlang', ''); actions.appendChild(lang); state.lang = lang;

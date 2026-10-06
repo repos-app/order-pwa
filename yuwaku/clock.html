@@ -68,8 +68,9 @@
   </div>
   <div class="toast" id="toast"></div>
 
-  <script src="./config.js?v=auth2"></script>
-  <script src="./i18n.js?v=auth2"></script>
+  <script src="./date-display.js?v=auth4" data-iz-date-display></script><script src="./config.js?v=auth2"></script>
+  <script src="./api.js?v=auth2"></script>
+  <script src="./i18n.js?v=auth3"></script>
   <script>
   (function () {
     'use strict';
@@ -79,15 +80,15 @@
     var video = document.getElementById('video');
     var stream = null, camReady = false;
     var employees = [], selected = null, lastGPS = null;
+    var PENDING_PUNCH_ID = '', PENDING_PUNCH_SIG = '';
 
     function $(id){ return document.getElementById(id); }
     function p(n){ return (n<10?'0':'')+n; }
 
     async function apiPost(action, payload){
-      var body = JSON.stringify(Object.assign({ action: action, token: TOKEN, storeId: CFG.STORE_ID }, payload||{}));
-      var r = await fetch(CFG.API_URL+'?api=1', { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:body, redirect:'follow' });
-      var j = await r.json();
-      if(!j.ok) throw new Error(j.error||'api_error');
+      var opts = Object.assign({ token:TOKEN }, payload||{});
+      if(action==='punch'){ opts.__timeoutMs=10000; opts.__noInternalRetry=true; }
+      var j = await API.post(action, opts);
       return j.data;
     }
 
@@ -103,10 +104,11 @@
     }
     function capture(name){
       var w = video.videoWidth||640, h = video.videoHeight||480;
+      var scale=Math.min(1,960/Math.max(w,h)); w=Math.max(1,Math.round(w*scale)); h=Math.max(1,Math.round(h*scale));
       var c = document.createElement('canvas'); c.width=w; c.height=h;
       var ctx = c.getContext('2d'); ctx.drawImage(video,0,0,w,h);
       var d = new Date();
-      var stamp = d.getFullYear()+'/'+p(d.getMonth()+1)+'/'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+      var stamp = window.DateDisplay ? DateDisplay.formatDateTime(d.toISOString()) : d.getFullYear()+'/'+p(d.getMonth()+1)+'/'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
       var bh = Math.max(48, Math.round(h*0.14));
       ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fillRect(0,h-bh,w,bh);
       ctx.fillStyle='#fff'; ctx.textBaseline='middle';
@@ -167,24 +169,39 @@
 
     function DONE(type){ return ({ '出勤':I18n.t('dIn'), '退勤':I18n.t('dOut'), '休憩開始':I18n.t('dBs'), '休憩終了':I18n.t('dBe') })[type]; }
     function ERR(e){ return ({ too_far:I18n.t('eFar'), no_location:I18n.t('eLoc'), no_photo:I18n.t('ePhoto'), no_camera:I18n.t('eCam'), already_in:I18n.t('eIn'), not_in:I18n.t('eNotIn'), forbidden_self_punch_only:I18n.t('eSelf') })[e]; }
+    function nextPunchId(){ return (window.crypto&&crypto.randomUUID)?crypto.randomUUID():('punch-'+Date.now()+'-'+Math.random().toString(36).slice(2)); }
+    function expectedStatus(type){ return ({ '出勤':'勤務中', '休憩開始':'休憩中', '休憩終了':'勤務中', '退勤':'退勤済' })[type]||''; }
 
     window.__punch = async function(type){
       if(!selected || selected.canPunch!==true) return;
       if(!camReady || !stream){ toast(I18n.t('camDeny'), true); return; }
       var btns = document.querySelectorAll('#mBtns .btn'); btns.forEach(function(b){ b.disabled=true; });
+      var empId=selected.id, memo=$('mMemo').value;
+      var sig=String(empId)+'|'+type+'|'+memo;
+      if(!PENDING_PUNCH_ID || PENDING_PUNCH_SIG!==sig){ PENDING_PUNCH_ID=nextPunchId(); PENDING_PUNCH_SIG=sig; }
       try {
         var photo = capture(selected.name);
         var gps = await getGPS();
-        var res = await apiPost('punch', { empId:selected.id, type:type, memo:$('mMemo').value, photo:photo, lat:gps&&gps.lat, lng:gps&&gps.lng });
-        if(res && res.success){ closeModal(); toast('✅ '+(DONE(type)||I18n.t('done'))); loadEmployees(); }
+        var res = await apiPost('punch', { empId:empId, type:type, memo:memo, photo:photo, lat:gps&&gps.lat, lng:gps&&gps.lng, clientRequestId:PENDING_PUNCH_ID });
+        if(res && res.success){ PENDING_PUNCH_ID=''; PENDING_PUNCH_SIG=''; closeModal(); toast('✅ '+(DONE(type)||I18n.t('done'))); loadEmployees(); }
         else {
           var e = res && res.error;
           var msg = ERR(e) || (I18n.t('errG')+(e?'（'+e+'）':''));
           if(e==='too_far' && res.dist!=null) msg += '（'+I18n.t('approx')+res.dist+'m / '+I18n.t('allow')+res.radius+'m）';
+          PENDING_PUNCH_ID=''; PENDING_PUNCH_SIG='';
           toast(msg, true);
           btns.forEach(function(b){ b.disabled=false; });
         }
-      } catch(err){ toast(I18n.t('errPrefix')+API.userErrorText(err), true); btns.forEach(function(b){ b.disabled=false; }); }
+      } catch(err){
+        try {
+          var latest=await apiPost('getEmployeeStatuses', {});
+          var mine=(latest||[]).find(function(e){ return String(e.id)===String(empId); });
+          if(mine && mine.status===expectedStatus(type)){
+            PENDING_PUNCH_ID=''; PENDING_PUNCH_SIG=''; employees=latest||[]; closeModal(); toast('✅ '+(DONE(type)||I18n.t('done'))); render(); return;
+          }
+        } catch(ignore){}
+        toast(I18n.t('punchUnknown'), true); btns.forEach(function(b){ b.disabled=false; });
+      }
     };
 
     var __loaded=false;
@@ -203,7 +220,7 @@
         dIn:'出勤しました', dOut:'お疲れさまでした', dBs:'休憩開始', dBe:'休憩終了', done:'完了',
         camDeny:'カメラを許可してください（打刻には写真が必要です）',
         eFar:'⛔ 店舗から離れています', eLoc:'⛔ 位置情報を許可してください', ePhoto:'⛔ 写真が撮れませんでした', eCam:'⛔ カメラを許可してください', eIn:'すでに出勤中です', eNotIn:'出勤していません', eSelf:'⛔ 自分の勤怠だけ打刻できます',
-        errG:'エラー', errPrefix:'エラー: ', approx:'約', allow:'許容' },
+        errG:'エラー', errPrefix:'エラー: ', punchUnknown:'通信がタイムアウトしました。登録状況を確認できませんでした。同じボタンでもう一度試せます。', approx:'約', allow:'許容' },
       en:{ back:'← Manage', title:'Time Clock', cam:'📷 Camera', sub:'Tap your name to clock in/out (photo & location recorded)', loading:'Loading...', memo:'Memo (optional)', close:'Close',
         stOut:'Out', stWork:'Working', stBreak:'On break', stDone:'Clocked out', viewOnly:'Status only',
         noEmp:'No employees registered. Add them in Manage → Users/Attendance.',
@@ -211,7 +228,7 @@
         dIn:'Clocked in', dOut:'Thanks for your work', dBs:'Break started', dBe:'Break ended', done:'Done',
         camDeny:'Please allow the camera (a photo is required to clock in)',
         eFar:'⛔ Too far from the store', eLoc:'⛔ Please allow location', ePhoto:'⛔ Could not take a photo', eCam:'⛔ Please allow the camera', eIn:'Already clocked in', eNotIn:'Not clocked in', eSelf:'⛔ You can only punch your own attendance',
-        errG:'Error', errPrefix:'Error: ', approx:'approx ', allow:'limit ' }
+        errG:'Error', errPrefix:'Error: ', punchUnknown:'The request timed out and the punch status could not be confirmed. You can safely tap the same button again.', approx:'approx ', allow:'limit ' }
     }, function(){ if(__loaded) render(); });
 
     tick(); setInterval(tick, 10000);
