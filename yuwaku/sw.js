@@ -112,7 +112,9 @@ const CACHE_PREFIX = 'yuwaku-production-';
 // v256: pin the applied-language i18n runtime for async completion messages.
 // v257: refresh printer persistence/error locality, runtime i18n, coupon concurrency, Bluetooth unregister and Pixabay/legal updates.
 // v259: cache the shared ESC/POS renderer used by the hosted print bridge.
-const CACHE = CACHE_PREFIX + 'v259';
+// v260: order button badge now shows current cart quantity; queue state stays in the network banner.
+// v261: discard stale bfcache load state on order/KDS restore.
+const CACHE = CACHE_PREFIX + 'v261';
 const SHELL = [
   './',
   './index.html',

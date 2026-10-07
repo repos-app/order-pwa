@@ -271,14 +271,21 @@
     // 直前に見たバージョン番号を送り、サーバー側で変化が無ければunchanged:trueだけが返るため、
     // 平常時（8秒ごと・変化なし）はSpreadsheet読込自体が省略され、GAS実行が軽くなる。
     var _opsVersion = null;
-    var _loadInFlight = false, _loadPromise = null;
+    var _loadInFlight = false, _loadPromise = null, _loadEpoch = 0, _loadStartedAt = 0;
     window.load = function(force){
+      var loadNow = Date.now();
+      if (_loadInFlight && force && _loadStartedAt && loadNow-_loadStartedAt>10000) {
+        ++_loadEpoch; _loadInFlight=false; _loadPromise=null; _loadStartedAt=0; _forceLoadQueued=false;
+      }
       if (_loadInFlight) { if(force)_forceLoadQueued=true; return _loadPromise || Promise.resolve(); } // status更新後のforceは前回poll完了後に必ず再実行
       _loadInFlight = true;
+      _loadStartedAt = loadNow;
+      var loadEpoch = _loadEpoch;
       var startedMutationSeq = _statusMutationSeq;
       // [修正点一覧C-2対応] getOperationsDelta/getOrders/getStaffCallsが認証必須になったため、tokenを送る。
       var payload = (force || _opsVersion == null) ? { token: TOKEN } : { sinceVersion: _opsVersion, token: TOKEN };
       var p = API.post('getOperationsDelta', payload).then(function(r){
+        if(loadEpoch !== _loadEpoch) return;
         if(startedMutationSeq !== _statusMutationSeq) return; // status更新より前に開始した古いsnapshotは適用しない
         __booted = true;
         var d = r.data || {};
@@ -286,15 +293,23 @@
         if (d.unchanged) return; // 変化なし：再描画不要
         render(d.orders || []);
       }).catch(function(){
+        if(loadEpoch !== _loadEpoch) return;
         if(startedMutationSeq !== _statusMutationSeq) return;
         var lm=document.getElementById('loadMsg'); if(lm) lm.innerText=I18n.t('connErr');
       }).finally(function(){
+        if(loadEpoch !== _loadEpoch) return;
         _loadInFlight = false; _loadPromise = null;
+        _loadStartedAt = 0;
         if(_forceLoadQueued){ _forceLoadQueued=false; return load(true); }
       });
       _loadPromise = p;
       return p;
     };
+    function recoverOpsAfterPageRestore(){
+      ++_loadEpoch; _loadInFlight=false; _loadPromise=null; _loadStartedAt=0; _forceLoadQueued=false; _opsVersion=null;
+      return load(true);
+    }
+    window.addEventListener('pageshow', function(e){ if(e.persisted) recoverOpsAfterPageRestore(); });
 
     var _actx = null;
     function beep(){

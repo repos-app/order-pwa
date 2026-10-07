@@ -69,7 +69,8 @@ body {
 .net-banner.show { display: flex; }
 body.offline .net-banner.offline-b,
 body.order-syncing .net-banner.offline-b,
-body.order-pending .net-banner.offline-b {
+body.order-pending .net-banner.offline-b,
+body.order-attention .net-banner.offline-b {
   display:flex; justify-content:center; text-align:center; padding:13px 16px;
   font-size:15px; font-weight:900; line-height:1.45; white-space:pre-line;
   box-shadow:0 3px 10px rgba(15,23,42,.14);
@@ -77,6 +78,7 @@ body.order-pending .net-banner.offline-b {
 body.offline .net-banner.offline-b { background:#991b1b; color:#fff; border-color:#7f1d1d; }
 body.order-syncing .net-banner.offline-b { background:#92400e; color:#fff; border-color:#78350f; }
 body.order-pending .net-banner.offline-b { background:#fff7ed; color:#9a3412; border-color:#fed7aa; }
+body.order-attention .net-banner.offline-b { background:#fff1f2; color:#991b1b; border-color:#fecdd3; }
 .net-banner.offline-b > span:first-child { font-size:24px; line-height:1; }
 .net-banner.offline-b #offlineText { white-space:pre-line; }
 
@@ -155,11 +157,11 @@ body.order-pending .net-banner.offline-b { background:#fff7ed; color:#9a3412; bo
   border-radius: 12px; padding: 14px 22px; font-size: 15px; font-weight: 800; cursor: pointer;
 }
 .btn-send:disabled { opacity: .5; }
-.pending-pill {
-  display:none; margin-left:8px; background:#fff7ed; color:#c2410c;
+.cart-count-pill {
+  display:none; margin-left:8px; background:#fff; color:var(--accent);
   border-radius:999px; padding:3px 9px; font-size:11px; font-weight:800;
 }
-.pending-pill.show { display:inline-block; }
+.cart-count-pill.show { display:inline-block; }
 
 /* Overlays */
 .overlay {

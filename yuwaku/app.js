@@ -7,7 +7,7 @@
       confirm:'Send this order?', okTitle:'Order sent', okMsg:'Your order was received.',
       queuedTitle:'Saved (offline)', queuedMsg:'No connection now. It will be sent automatically when back online.',
       errTitle:'Error', ok:'OK', table:'Table', counter:'Counter', noTable:'Please scan the signed QR code at your location.',
-      offline:'OFFLINE\nYou can keep ordering. Orders are saved on this device and will be sent automatically when back online.', syncing:'Back online — syncing\nSending queued orders now…', pending:'Queued orders pending\nThey will be sent automatically when the connection is available.', attention:'A queued order needs attention\nIt was not accepted by the server and was kept on this device. Please review the order or ask a manager.', invalidTableSession:'This table session is invalid. Staff should reselect the table; guests should rescan the table QR code.', lang:'JP',
+      offline:'OFFLINE\nYou can keep ordering. Orders are saved on this device and will be sent automatically when back online.', syncing:'Back online — syncing\nSending queued orders now…', pending:'Queued orders pending\nThey will be sent automatically when the connection is available.', attention:'A queued order needs attention\nIt was not accepted by the server and was kept on this device. Please review the order or ask a manager.', queueRetry:'Retry', queueAttention:'Check', queueSessionMismatch:'A queued order belongs to a different login session and will not be sent automatically.', invalidTableSession:'This table session is invalid. Staff should reselect the table; guests should rescan the table QR code.', lang:'JP',
       svc:'Service', tax:'Tax', ranking:'🏆 Ranking',
       tblTitle:'Select a location', tblMsg:'Staff may select a location here. Guests must scan the signed QR code at their location.', tblGo:'Start',
       partyTitle:'How many guests?', partyLabel:'Guests', partyChoose:'Select party size', partyMsg:'Used for entry and extension fee billing.', partyMsgEntry:'Used for entry fee billing.', partyMsgExtension:'Used for extension fee billing.', partyGo:'OK',
@@ -30,7 +30,7 @@
       confirm:'この内容で注文しますか？', okTitle:'注文を送信しました', okMsg:'ご注文を承りました。',
       queuedTitle:'保留しました（オフライン）', queuedMsg:'今は接続がありません。オンライン復帰時に自動送信します。',
       errTitle:'エラー', ok:'OK', table:'卓', counter:'カウンター', noTable:'席に設置された署名付きQRコードを読み取ってください。',
-      offline:'オフライン中\nこのまま注文できます。注文は端末に保存し、オンライン復帰時に自動送信します。', syncing:'オンライン復帰 — 同期中\n未同期注文を送信しています…', pending:'未同期注文あり\n通信が利用可能になり次第、自動送信します。', attention:'未同期注文の確認が必要です\nサーバーで受け付けられなかった注文を端末に保持しています。内容を確認するか管理者へ連絡してください。', invalidTableSession:'席のセッションが無効です。スタッフは席を選び直し、お客様は席のQRコードを再読み取りしてください。', lang:'EN',
+      offline:'オフライン中\nこのまま注文できます。注文は端末に保存し、オンライン復帰時に自動送信します。', syncing:'オンライン復帰 — 同期中\n未同期注文を送信しています…', pending:'未同期注文あり\n通信が利用可能になり次第、自動送信します。', attention:'未同期注文の確認が必要です\nサーバーで受け付けられなかった注文を端末に保持しています。内容を確認するか管理者へ連絡してください。', queueRetry:'再送', queueAttention:'要確認', queueSessionMismatch:'別のログインセッションで作成された未同期注文のため、自動送信しません。', invalidTableSession:'席のセッションが無効です。スタッフは席を選び直し、お客様は席のQRコードを再読み取りしてください。', lang:'EN',
       svc:'サービス料', tax:'税', ranking:'🏆 ランキング',
       tblTitle:'席を選択', tblMsg:'スタッフはここで席を選べます。お客様は席の署名付きQRコードを読み取ってください。', tblGo:'開始',
       partyTitle:'ご来店人数は？', partyLabel:'人数', partyChoose:'人数を選択', partyMsg:'入場料・延長料の請求に使用します。', partyMsgEntry:'入場料の請求に使用します。', partyMsgExtension:'延長料の請求に使用します。', partyGo:'OK',
@@ -445,6 +445,24 @@
     updateTotal();
   }
 
+  function cartItemCount() {
+    var n = 0;
+    Object.keys(state.cart).forEach(function (name) { var q = Number(state.cart[name]) || 0; if (q > 0) n += q; });
+    state.optLines.forEach(function (line) { var q = Number(line.qty) || 0; if (q > 0) n += q; });
+    return n;
+  }
+
+  function updateCartCountBadge() {
+    var pill = $('cartCountPill'); if (!pill) return;
+    var n = cartItemCount();
+    if (n > 0) {
+      var label = state.lang === 'ja' ? ('カート ' + n + '点') : ('Cart ' + n + (n === 1 ? ' item' : ' items'));
+      pill.textContent = String(n); pill.title = label; pill.setAttribute('aria-label', label); pill.classList.add('show');
+    } else {
+      pill.textContent = ''; pill.removeAttribute('title'); pill.removeAttribute('aria-label'); pill.classList.remove('show');
+    }
+  }
+
   function updateTotal() {
     var b = breakdown();
     $('totalVal').textContent = money(b.total);
@@ -455,6 +473,7 @@
     if (b.couponDiscount > 0) sub += (sub ? '　' : '') + '🎟️ -' + money(b.couponDiscount);
     if (b.discount > 0) sub += (sub ? '　' : '') + '🎁 -' + money(b.discount);
     $('totalSub').textContent = sub;
+    updateCartCountBadge();
     $('sendBtn').disabled = b.sub <= 0;
   }
 
@@ -684,31 +703,31 @@
   function refreshPending() {
     API.pendingStatus().then(function (status) {
       var n=status.sendable||0, attention=status.attention||0;
-      var pill = $('pendingPill');
-      if (n+attention > 0) { pill.textContent = n+attention; pill.classList.add('show'); } else { pill.classList.remove('show'); }
-      if (attention > 0 && navigator.onLine && !_orderSyncing) renderOrderNetwork('attention', attention);
+      if (attention > 0 && navigator.onLine && !_orderSyncing) renderOrderNetwork('attention', attention, status.attentionReasons||[]);
       else if (!navigator.onLine) renderOrderNetwork('offline', n+attention);
       else if (!_orderSyncing && n > 0) renderOrderNetwork('pending', n);
       else if (!_orderSyncing) renderOrderNetwork('online', 0);
     }).catch(function () {});
   }
   var _orderSyncing = false;
-  function renderOrderNetwork(mode, count) {
+  function renderOrderNetwork(mode, count, reasons) {
     var b = $('offlineBanner'), tx = $('offlineText');
     if (!b || !tx) return;
     document.body.classList.toggle('offline', mode === 'offline');
     document.body.classList.toggle('order-syncing', mode === 'syncing');
     document.body.classList.toggle('order-pending', mode === 'pending');
+    document.body.classList.toggle('order-attention', mode === 'attention');
     if (mode === 'offline') tx.textContent = t().offline + (count > 0 ? '\n' + (state.lang === 'ja' ? '未同期注文 ' + count + '件' : count + ' queued order(s)') : '');
     else if (mode === 'syncing') tx.textContent = t().syncing + (count > 0 ? '\n' + (state.lang === 'ja' ? '未同期注文 ' + count + '件' : count + ' queued order(s)') : '');
     else if (mode === 'pending') tx.textContent = t().pending + (count > 0 ? '\n' + (state.lang === 'ja' ? '未同期注文 ' + count + '件' : count + ' queued order(s)') : '');
-    else if (mode === 'attention') tx.textContent = t().attention + (count > 0 ? '\n' + (state.lang === 'ja' ? '要確認 ' + count + '件' : count + ' order(s) need attention') : '');
+    else if (mode === 'attention') {var detail='',rs=Array.isArray(reasons)?reasons:[];if(rs.indexOf('session_mismatch')>=0)detail=t().queueSessionMismatch;else if(rs.length)detail=API.userErrorText(rs[0]);tx.textContent=t().attention+(count>0?'\n'+(state.lang==='ja'?'要確認 '+count+'件':count+' order(s) need attention'):'')+(detail?'\n'+detail:'');}
     else tx.textContent = t().offline;
   }
   function syncQueuedOrders() {
     if (!navigator.onLine) { refreshPending(); return Promise.resolve(); }
-    return API.pendingCount().then(function (n) {
-      if (!n) { renderOrderNetwork('online', 0); return { remaining:0 }; }
+    return API.pendingStatus().then(function (status) {
+      var n=status.sendable||0;
+      if (!n) { refreshPending(); return { remaining:0, attention:status.attention||0 }; }
       _orderSyncing = true; renderOrderNetwork('syncing', n);
       return API.flush().then(function (r) { return r; }).finally(function () {
         _orderSyncing = false;

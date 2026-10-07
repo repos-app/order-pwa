@@ -53,7 +53,7 @@
       </div>
       <button class="btn-send" id="sendBtn" disabled>
         <span id="sendLbl">Order</span>
-        <span class="pending-pill" id="pendingPill">0</span>
+        <span class="cart-count-pill" id="cartCountPill">0</span>
       </button>
     </div>
   </div>
@@ -231,7 +231,7 @@
       titleEn: 'How to order',
       items: [
         { ja: '① 上部のカテゴリタブでメニューを絞り込み、商品の＋ボタンでカートに追加します（オプションがある商品は選択画面が開きます）。', en: '① Use the category tabs to filter the menu, then tap + to add an item to your cart (items with options open a choice screen first).' },
-        { ja: '② 画面下の「注文」ボタンでカート内容を送信します。件数バッジで未送信の点数を確認できます。', en: '② Tap the Order button at the bottom to send your cart. The badge shows how many items are pending.' },
+        { ja: '② 画面下の「注文」ボタンでカート内容を送信します。ボタン横の数字は現在カートに入っている商品点数で、注文送信後に消えます。未同期注文は別の通信状態バナーで表示します。', en: '② Tap the Order button at the bottom to send your cart. The number beside the button is the current cart item count and clears after the order is submitted. Queued orders are shown separately in the connection-status banner.' },
         { ja: '③ クイックバーの🎁会員／🎟️クーポンで、会員証確認・ポイント利用・誕生日登録やクーポンコードの適用ができます。', en: '③ Use the 🎁 Member and 🎟️ Coupon buttons in the quick bar to check membership, use points, register a birthday, or apply a coupon code.' },
         { ja: '④ 🔔スタッフ呼出でスタッフを呼べます。お会計はスタッフへお申し付けください。', en: '④ Use 🔔 to call staff. Please ask a staff member when you are ready to pay.' },
         { ja: '⑤ 📋注文状況で注文内容・小計・サービス料・税・未払い合計を確認できます。内税は「うち○○（内税）」と表示され、合計へ重ねて加算されません。税の名称は店舗設定に従います。', en: '⑤ Use 📋 to see your orders, subtotal, service charge, tax, and unpaid total. Included tax is labeled as included and is not added to the total again. The tax name follows the store settings.' },

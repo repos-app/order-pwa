@@ -185,6 +185,8 @@
     var autoOn = (function(){ try{ var v=localStorage.getItem('adminAuto'); return v===null?true:(v==='1'); }catch(e){ return true; } })();
     var refreshSec = (function(){ try{ var v=parseInt(localStorage.getItem('adminRefreshSec'),10); return (v===10||v===30||v===60)?v:30; }catch(e){ return 30; } })();
     var refreshTimer = null;
+    function currentRole(){ try{return localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX+'mgmtRole')||'';}catch(e){return'';} }
+    function currentUserCanApprove(){return ['マネージャー','管理者','システム','manager','admin','system'].indexOf(String(currentRole()))>=0;}
     // 言語の切替・優先順位・永続化は共通部品 i18n.js（I18n）に統一。この画面は現在言語を表す
     // ローカル変数 lang を持つのみで、実際の切替ロジックはI18n.init()のonChangeコールバック経由で更新する
     // （他画面（kds.html/register.html/inventory.html/settings.html/expenses.html等）と同じ仕組みを利用）。
@@ -410,6 +412,7 @@
     function loadCalls(){ return load(); }
 
     function voidApprovalRequired(){var v=SETTINGS.orderVoidManagerApprovalRequired;if(v===undefined||v===null)return true;return !/^(?:|0|false|off|no)$/i.test(String(v).trim());}
+    function voidNeedsExternalApproval(){return voidApprovalRequired()&&!currentUserCanApprove();}
     // ── 注文取消 ──
     window.askVoid = function(id, settingsFresh){
       if(!settingsFresh){
@@ -427,8 +430,8 @@
       document.getElementById('vdReason').value='';
       document.getElementById('vdLogin').value=''; document.getElementById('vdLogin').placeholder=t().loginPh;
       document.getElementById('vdPass').value=''; document.getElementById('vdPass').placeholder=t().passPh;
-      var approvalRequired=voidApprovalRequired(); document.getElementById('vdApproverFields').style.display=approvalRequired?'':'none';
-      document.getElementById('vdGo').innerText = approvalRequired?t().voidGo:t().voidGoNoApproval; document.getElementById('vdCxl').innerText = t().cancel;
+      var externalApproval=voidNeedsExternalApproval(); document.getElementById('vdApproverFields').style.display=externalApproval?'':'none';
+      document.getElementById('vdGo').innerText = externalApproval?t().voidGo:t().voidGoNoApproval; document.getElementById('vdCxl').innerText = t().cancel;
       var a=document.getElementById('vdAlert'); a.style.display='none';
       document.getElementById('voidModal').classList.add('on');
     };
@@ -439,9 +442,9 @@
       if(!reason){ vdErr(t().needReason); return; }
       var login = document.getElementById('vdLogin').value.trim();
       var pass = document.getElementById('vdPass').value;
-      if(voidApprovalRequired()&&(!login||!pass)){ vdErr(t().needApprover); return; }
+      if(voidNeedsExternalApproval()&&(!login||!pass)){ vdErr(t().needApprover); return; }
       var btn = document.getElementById('vdGo'); btn.disabled=true;
-      API.post('voidOrder', { id:voidId, reason:reason, approverLogin:login, approverPass:pass }).then(function(r){
+      API.post('voidOrder', { id:voidId, reason:reason, approverLogin:login, approverPass:pass, token:TOKEN }).then(function(r){
         btn.disabled=false; var d=r.data||{};
         if(d.error==='auth'){ vdErr(t().authFail); return; }
         if(d.error==='no_reason'){ vdErr(t().needReason); return; }
@@ -472,14 +475,21 @@
     // [P0] getOrders・getStaffCallsの別々ポーリングをやめ、getOperationsDelta（統合API）を1本使う。
     // 直前に見たバージョンを送り、変化が無ければunchanged:trueだけ返る＝Spreadsheet読込自体を省略できる。
     var _opsVersion = null;
-    var _loadInFlight = false, _loadPromise = null;
+    var _loadInFlight = false, _loadPromise = null, _loadEpoch = 0, _loadStartedAt = 0;
     window.load = function(force){
+      var loadNow = Date.now();
+      if (_loadInFlight && force && _loadStartedAt && loadNow-_loadStartedAt>10000) {
+        ++_loadEpoch; _loadInFlight=false; _loadPromise=null; _loadStartedAt=0; _forceLoadQueued=false;
+      }
       if (_loadInFlight) { if(force)_forceLoadQueued=true; return _loadPromise || Promise.resolve(); } // status更新後のforceは前回poll完了後に必ず再実行
       _loadInFlight = true;
+      _loadStartedAt = loadNow;
+      var loadEpoch = _loadEpoch;
       var startedMutationSeq = _statusMutationSeq;
       // [修正点一覧C-2対応] getOperationsDelta/getOrders/getStaffCallsが認証必須になったため、tokenを送る。
       var payload = (force || _opsVersion == null) ? { token: TOKEN } : { sinceVersion: _opsVersion, token: TOKEN };
       var p = API.post('getOperationsDelta', payload).then(function(r){
+        if(loadEpoch !== _loadEpoch) return;
         var d = r.data || {};
         if(startedMutationSeq !== _statusMutationSeq) return; // status更新より前に開始した古いsnapshotは適用しない
         _opsVersion = d.version != null ? d.version : _opsVersion;
@@ -488,15 +498,23 @@
         if (d.partySizes) PARTY_SIZES = d.partySizes;
         render(); renderCalls();
       }).catch(function(){
+        if(loadEpoch !== _loadEpoch) return;
         if(startedMutationSeq !== _statusMutationSeq) return;
         var lm=document.getElementById('loadMsg'); if(lm) lm.innerText='接続できません（自動再試行します）';
       }).finally(function(){
+        if(loadEpoch !== _loadEpoch) return;
         _loadInFlight = false; _loadPromise = null;
+        _loadStartedAt = 0;
         if(_forceLoadQueued){ _forceLoadQueued=false; return load(true); }
       });
       _loadPromise = p;
       return p;
     };
+    function recoverOpsAfterPageRestore(){
+      ++_loadEpoch; _loadInFlight=false; _loadPromise=null; _loadStartedAt=0; _forceLoadQueued=false; _opsVersion=null;
+      return load(true);
+    }
+    window.addEventListener('pageshow', function(e){ if(e.persisted) recoverOpsAfterPageRestore(); });
     // 手動更新ボタン：getOrders自体はポーリング用に静音（ローディング非表示）のため、
     // 押した手応えが分かるようアイコンを一瞬回転させ、完了後トーストを出す。
     var _toastTimer = null;
@@ -664,7 +682,7 @@
       // 表示用のプレビュー計算（実際の会計金額はサーバー側finalizeBillが対象注文の登録価格・卓の人数/入店時刻
       // から再計算する。クライアントのこの値は画面表示のみに使い、送信するのは種別・対象額・氏名・ID番号のみ）。
       document.getElementById('dcId').style.display=on&&rule&&rule.idRequired?'':'none';
-      document.getElementById('dcApprBox').style.display=on&&rule&&rule.managerApprovalRequired?'':'none';
+      document.getElementById('dcApprBox').style.display=on&&rule&&rule.managerApprovalRequired&&!currentUserCanApprove()?'':'none';
       window._bill = { subtotal: sub, vat: vat, service: b.service, discountType: on?(rule.legacyType||''):'', discountRuleId:on&&!rule.legacyType?rule.id:'', discountId: on?document.getElementById('dcId').value:'',
         discountName: on?document.getElementById('dcName').value:'', discountEligible: on?eligible:0, discountAmount: disc, total: total,
         entryFee: payEntryFee, extensionFee: payExtensionFee };
@@ -757,6 +775,7 @@
       if(!rule){_dcAlert('Discount rule is required');return;}
       if(rule.idRequired && !document.getElementById('dcId').value.trim()){_dcAlert(lang==='en'?'ID is required':'ID番号を入力してください');return;}
       if(!rule.managerApprovalRequired){proceedFn();return;}
+      if(currentUserCanApprove()){document.getElementById('dcApprAlert').style.display='none';proceedFn();return;}
       var login = document.getElementById('dcApprLogin').value.trim();
       var pass = document.getElementById('dcApprPass').value;
       if (!login || !pass) { _dcAlert(t().discNeedAppr); return; }
@@ -823,7 +842,7 @@
       var discOn = document.getElementById('dcOn').checked;
       var req = { table: payTable, method: payMethod, orderIds: payOrderIds, email: email, token: TOKEN, checkoutId: payCheckoutId,
         discountType: pv.discountType||'', discountRuleId:pv.discountRuleId||'', discountId: pv.discountId||'', discountName: pv.discountName||'', discountEligible: pv.discountEligible||0,
-        discountApproverLogin: discOn?document.getElementById('dcApprLogin').value.trim():'', discountApproverPass: discOn?document.getElementById('dcApprPass').value:'',
+        discountApproverLogin: discOn&&!currentUserCanApprove()?document.getElementById('dcApprLogin').value.trim():'', discountApproverPass: discOn&&!currentUserCanApprove()?document.getElementById('dcApprPass').value:'',
         __timeoutMs: API.TIMEOUT_MS.write }; // [タイムアウト共通化] 会計確定は複数注文まとめての場合もあり時間がかかり得るため専用枠を使う
       API.post('finalizeBill', req).then(function(r){
         btn.disabled=false; btn.innerText=t().done; var d=r.data||{};
