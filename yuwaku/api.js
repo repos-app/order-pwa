@@ -635,22 +635,31 @@
   // ネットワーク不通なら中断して次の機会に。サーバ到達済みの業務エラーは
   // 再送しても無駄なので試行上限で破棄し、キューの目詰まりを防ぐ。
   var _flushPending = null;
-  API.canFlushQueuedOrder = function (rec, currentStoreId) {
+  API.isQueuedOrderOwnedByCurrentSession = function (rec, currentStoreId) {
     // Legacy records without an immutable originating store are quarantined;
     // never fill their empty storeId using the currently logged-in session.
     if (!(rec && typeof rec.storeId === 'string' && rec.storeId &&
       currentStoreId && rec.storeId === currentStoreId)) return false;
-    if (rec.blocked) return false;
+    var currentInfo = tokenInfo(storedToken(), true);
+    if (rec.userId || rec.sessionId) {
+      if (!currentInfo || currentInfo.store !== rec.storeId) return false;
+      if (rec.userId && currentInfo.uid !== rec.userId) return false;
+      if (rec.sessionId && currentInfo.sessionId !== rec.sessionId) return false;
+    } else if (currentInfo && !rec.token) {
+      return false;
+    }
     if (rec.token) {
       var info = tokenInfo(rec.token, true);
       if (!info || info.store !== rec.storeId) return false;
-      var currentInfo = tokenInfo(storedToken(), true);
       if (!currentInfo || currentInfo.store !== rec.storeId || currentInfo.uid !== info.uid) return false;
       var originatingSessionId = rec.sessionId || info.sessionId || '';
       if (originatingSessionId && currentInfo.sessionId !== originatingSessionId) return false;
       if (!originatingSessionId && info.version === 'v2' && rec.token !== storedToken()) return false;
     }
     return true;
+  };
+  API.canFlushQueuedOrder = function (rec, currentStoreId) {
+    return API.isQueuedOrderOwnedByCurrentSession(rec, currentStoreId) && !rec.blocked;
   };
   API.flush = function () {
     if (_flushPending) return _flushPending;
@@ -710,13 +719,18 @@
   API.pendingStatus = async function () {
     const all = await API.queueAll();
     const currentStoreId = API.currentStoreId() || '';
-    var sendable=0, attention=0;
+    var sendable=0, attention=0, attentionReasons=[];
     all.forEach(function(rec){
       if (!(rec && rec.storeId && currentStoreId && rec.storeId===currentStoreId)) return;
-      if (rec.blocked) { attention++; return; }
+      if (!API.isQueuedOrderOwnedByCurrentSession(rec,currentStoreId)) return;
+      if (rec.blocked) {
+        attention++;
+        if (rec.lastError && attentionReasons.indexOf(String(rec.lastError))<0) attentionReasons.push(String(rec.lastError));
+        return;
+      }
       if (API.canFlushQueuedOrder(rec,currentStoreId)) sendable++;
     });
-    return { sendable:sendable, attention:attention };
+    return { sendable:sendable, attention:attention, attentionReasons:attentionReasons };
   };
 
   function bufferToBase64(buffer) {
@@ -817,6 +831,44 @@
     location.replace('./manage.html?permission=denied');
   }
   var permissionGateEl = null;
+  var permissionConfirmedThisDocument = false;
+  var permissionTransientEl = null;
+  function permissionCheckMessage(err) {
+    var en = String(document.documentElement.lang || '').toLowerCase().indexOf('en') === 0;
+    var raw = String(err && err.message || err || '');
+    var code = raw.toLowerCase();
+    if (/^http_5\d\d$/.test(code)) return en
+      ? 'The server temporarily could not re-check your access. This screen is being kept open; try again in a moment.'
+      : 'サーバー側の一時エラーでアクセス権限を再確認できませんでした。現在の画面を維持しています。少し待って再試行してください。';
+    if (/aborterror|fetch is aborted|\baborted\b|timeout|timed out/.test(code)) return en
+      ? 'Access re-check timed out. This screen is being kept open; check the connection and retry.'
+      : 'アクセス権限の再確認がタイムアウトしました。現在の画面を維持しています。通信状態を確認して再試行してください。';
+    return en
+      ? 'Access could not be re-checked because the connection is unavailable. This screen is being kept open; retry when the connection is stable.'
+      : '通信できないためアクセス権限を再確認できませんでした。現在の画面を維持しています。通信が安定してから再試行してください。';
+  }
+  function ensurePermissionTransientNotice() {
+    if (permissionTransientEl || typeof document === 'undefined' || !document.body) return permissionTransientEl;
+    var st = document.createElement('style');
+    st.textContent = '#izPermissionRetryNotice{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 72px);z-index:2147483645;display:none;align-items:center;gap:10px;max-width:560px;margin:0 auto;padding:11px 12px;border:1px solid #f59e0b;border-radius:12px;background:#fff7ed;color:#7c2d12;box-shadow:0 8px 24px rgba(15,23,42,.16);font:700 13px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans JP",sans-serif}'
+      + '#izPermissionRetryNoticeText{flex:1;line-height:1.45;text-align:left}'
+      + '#izPermissionRetryNotice button{flex:none;border:0;border-radius:9px;padding:9px 12px;background:#0b48bd;color:#fff;font-weight:800;cursor:pointer}';
+    document.head.appendChild(st);
+    permissionTransientEl = document.createElement('div'); permissionTransientEl.id = 'izPermissionRetryNotice';
+    permissionTransientEl.innerHTML = '<div id="izPermissionRetryNoticeText"></div><button type="button" id="izPermissionRetryNoticeBtn"></button>';
+    document.body.appendChild(permissionTransientEl);
+    return permissionTransientEl;
+  }
+  function hidePermissionTransientNotice() { if (permissionTransientEl) permissionTransientEl.style.display = 'none'; }
+  function showPermissionTransientNotice(err, retry) {
+    var box = ensurePermissionTransientNotice(); if (!box) return;
+    var en = String(document.documentElement.lang || '').toLowerCase().indexOf('en') === 0;
+    box.querySelector('#izPermissionRetryNoticeText').textContent = permissionCheckMessage(err);
+    var btn = box.querySelector('#izPermissionRetryNoticeBtn');
+    btn.textContent = en ? 'Retry' : '再試行';
+    btn.onclick = typeof retry === 'function' ? retry : null;
+    box.style.display = 'flex';
+  }
   function ensurePermissionGate() {
     if (permissionGateEl || typeof document === 'undefined' || !document.body) return permissionGateEl;
     var st = document.createElement('style');
@@ -829,11 +881,11 @@
     document.body.appendChild(permissionGateEl);
     return permissionGateEl;
   }
-  function showPermissionGate(state, retry) {
+  function showPermissionGate(state, retry, error) {
     var gate = ensurePermissionGate(); if (!gate) return;
     var en = String(document.documentElement.lang || '').toLowerCase().indexOf('en') === 0;
     var checking = state !== 'network';
-    gate.querySelector('#izPermissionGateText').textContent = checking ? (en ? 'Checking your access…' : 'アクセス権限を確認しています…') : (en ? 'Cannot connect right now. Check your connection and try again.' : '通信できません。接続を確認して再試行してください。');
+    gate.querySelector('#izPermissionGateText').textContent = checking ? (en ? 'Checking your access…' : 'アクセス権限を確認しています…') : permissionCheckMessage(error);
     var btn = gate.querySelector('#izPermissionGateRetry');
     btn.textContent = en ? 'Retry' : '再試行'; btn.style.display = checking ? 'none' : '';
     btn.onclick = typeof retry === 'function' ? retry : null;
@@ -898,7 +950,7 @@
     var token = storedToken();
     if (!token) { if (key || accountPage) { hidePermissionGate(); denyPage(); } return false; }
     try {
-      var r = await API.post('checkToken', { token:token, __silent:true, __noInternalRetry:true });
+      var r = await API.post('checkToken', { token:token, __silent:true, __timeoutMs:6000 });
       if (!r || !r.valid || !r.me) { if (key || accountPage) { hidePermissionGate(); denyPage(); } return false; }
       filterPermissionLinks(r.me);
       if (accountPage && r.me.accountOwner !== true) { hidePermissionGate(); denyPage(); return false; }
@@ -907,13 +959,20 @@
         if (!(allowed.admin === true || allowed.receipts === true || allowed.printers === true || allowed.settings === true)) { hidePermissionGate(); denyPage(); return false; }
       } else if (key && allowed[key] !== true) { hidePermissionGate(); denyPage(); return false; }
       if (key || accountPage) hidePermissionGate();
+      hidePermissionTransientNotice();
+      permissionConfirmedThisDocument = true;
       rememberPermissionPage(page);
       return true;
     } catch (e) {
       var code = String(e && e.message || e || '');
-      if (e && e.__server && /^(?:forbidden|forbidden_page:|forbidden_fn)/.test(code)) { if (key || accountPage) { hidePermissionGate(); denyPage(); } return false; }
-      if (code === 'unauthorized' || code === 'stale_session_response') { if (key || accountPage) hidePermissionGate(); return false; }
-      if (key || accountPage) showPermissionGate('network', function(){ API.enforcePagePermission().catch(function(){}); });
+      if (e && e.__server && /^(?:forbidden|forbidden_page:|forbidden_fn)/.test(code)) { permissionConfirmedThisDocument = false; if (key || accountPage) { hidePermissionGate(); denyPage(); } return false; }
+      if (code === 'unauthorized' || code === 'stale_session_response') { permissionConfirmedThisDocument = false; hidePermissionTransientNotice(); if (key || accountPage) hidePermissionGate(); return false; }
+      if ((key || accountPage) && permissionConfirmedThisDocument) {
+        hidePermissionGate();
+        showPermissionTransientNotice(e, function(){ API.enforcePagePermission().catch(function(){}); });
+      } else if (key || accountPage) {
+        showPermissionGate('network', function(){ API.enforcePagePermission().catch(function(){}); }, e);
+      }
       return false;
     }
   };

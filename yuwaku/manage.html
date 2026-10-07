@@ -90,7 +90,9 @@
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
     var NAME = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtName') || '';
     var ROLE = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtRole') || '';
-    var lastAllowed = {}, ACCOUNT_OWNER = false;
+    var HUB_CACHE_KEY=window.APP_CONFIG.AUTH_STORAGE_PREFIX+'manageHubCache';
+    var hubCache=(function(){try{return JSON.parse(sessionStorage.getItem(HUB_CACHE_KEY)||'{}')||{};}catch(e){return{};}})();
+    var lastAllowed = (hubCache.allowed&&typeof hubCache.allowed==='object')?hubCache.allowed:{}, ACCOUNT_OWNER = hubCache.accountOwner===true;
     var authAttempt = 0;
     var authCheckSeq = 0;
 
@@ -150,6 +152,7 @@
       document.getElementById('logoutBtn').classList.remove('hidden');
       document.getElementById('who').innerText = NAME ? ('👤 '+NAME) : '';
       lastAllowed = allowed || {};
+      try{sessionStorage.setItem(HUB_CACHE_KEY,JSON.stringify({allowed:lastAllowed,accountOwner:ACCOUNT_OWNER}));}catch(e){}
       renderHub();
       loadDeletionBanner();
     }
@@ -259,7 +262,7 @@
       var attempt = authAttempt;
       var checkSeq = ++authCheckSeq;
       var checkedToken = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || TOKEN;
-      API.post('checkToken', { token: checkedToken, __timeoutMs:6000, __noInternalRetry:true, __silent:true }).then(function(r){
+      API.post('checkToken', { token: checkedToken, __timeoutMs:6000, __silent:true }).then(function(r){
         if (attempt !== authAttempt || checkSeq !== authCheckSeq || !API.isCurrentToken ||
             (!API.isCurrentToken(checkedToken) && !API.isCurrentToken(r.newToken))) return;
         if (r.valid && r.me){
@@ -275,6 +278,10 @@
         if (attempt !== authAttempt || checkSeq !== authCheckSeq) return;
         var current = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
         if (!current) { showLogin(); return; }
+        if ((lastAllowed && Object.keys(lastAllowed).length) || ROLE) {
+          showHub(lastAllowed, ACCOUNT_OWNER);
+          return;
+        }
         var p=document.querySelector('#loadingView p');
         if(p){
           p.textContent=I18n.lang()==='en'?'Could not connect. Tap to retry.':'接続できません。タップして再試行';

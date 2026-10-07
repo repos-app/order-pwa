@@ -114,7 +114,8 @@ const CACHE_PREFIX = 'yuwaku-production-';
 // v259: cache the shared ESC/POS renderer used by the hosted print bridge.
 // v260: order button badge now shows current cart quantity; queue state stays in the network banner.
 // v261: discard stale bfcache load state on order/KDS restore.
-const CACHE = CACHE_PREFIX + 'v261';
+// v262: keep previously-authorized screens visible when bfcache permission re-check hits a transient network/server error.
+const CACHE = CACHE_PREFIX + 'v263';
 const SHELL = [
   './',
   './index.html',

@@ -24,6 +24,10 @@
     th,td{ padding:8px 6px; border-bottom:1px solid var(--border); text-align:left; }
     th{ font-size:11px; color:var(--text-3); white-space:nowrap; }
     input{ width:100%; padding:8px; border:1px solid var(--border); border-radius:8px; font-size:14px; font-family:inherit; background:var(--surface); }
+    .cat-combo{ display:flex; width:100%; min-width:120px; }
+    .cat-combo input{ min-width:0; flex:1 1 auto; border-radius:8px 0 0 8px; border-right:0; }
+    .cat-combo select{ width:38px; min-width:38px; border:1px solid var(--border); border-left:0; border-radius:0 8px 8px 0; background:#f8fafc; color:transparent; font:inherit; cursor:pointer; }
+    .cat-combo select option{ color:var(--navy); }
     .low td{ background:#fff4f4; }
     .btn{ border:0; border-radius:11px; padding:13px; font-size:15px; font-weight:900; cursor:pointer; font-family:inherit; }
     .btn-sec{ background:#eef2f7; color:var(--navy); width:100%; margin-top:10px; }
@@ -153,6 +157,7 @@
     }
     var CATEGORY_OPTIONS=[];
     window.setCategoryInput=function(i,value){var r=window.rows[i];if(!r)return;value=String(value||'');var raw=value.trim();var opt=CATEGORY_OPTIONS.find(function(c){return raw===String(c.label||'').trim()||raw===String(c.ja||'').trim()||raw===String(c.en||'').trim();});if(opt){r.categoryJa=opt.ja;r.categoryEn=opt.en;return;}if(isEN()){if(String(r.categoryEn||'')!==value)r.categoryJa='';r.categoryEn=value;}else{if(String(r.categoryJa!==undefined?r.categoryJa:r.category||'')!==value)r.categoryEn='';r.categoryJa=value;}};
+    window.pickCategoryCombo=function(i,value,selectEl){var opt=CATEGORY_OPTIONS[Number(value)];if(!opt){if(selectEl)selectEl.value='';return;}var r=window.rows[i];if(!r)return;r.categoryJa=opt.ja;r.categoryEn=opt.en;var input=document.getElementById('catInput-'+i);if(input)input.value=opt.label;if(selectEl)selectEl.value='';};
 
     function render(){
       var html = '';
@@ -168,9 +173,10 @@
         var nmT = EN ? 'nameEn' : 'nameJa';
         var supObj = SUPPLIER_OPTIONS.find(function(s){return s.key===String(r.supplier||'');});
         var supVal = supObj ? loc(supObj.ja,supObj.en) : (r.supplier||'');
+        var catChoices='<option value="">'+esc(I18n.t('categoryPick'))+'</option>'+CATEGORY_OPTIONS.map(function(c,ci){return '<option value="'+ci+'">'+esc(c.label)+'</option>';}).join('');
         html += '<tr'+(low?' class="low"':'')+'>'+
           '<td><input value="'+esc(nmVal)+'" placeholder="'+esc(nmPh)+'" oninput="window.rows['+i+'].'+nmT+'=this.value"></td>'+
-          '<td><input id="catInput-'+i+'" list="categoryList" value="'+esc(catVal)+'" placeholder="'+esc(I18n.t('categoryInput'))+'" oninput="setCategoryInput('+i+',this.value)"></td>'+
+          '<td><div class="cat-combo"><input id="catInput-'+i+'" value="'+esc(catVal)+'" placeholder="'+esc(I18n.t('categoryInput'))+'" oninput="setCategoryInput('+i+',this.value)"><select aria-label="'+esc(I18n.t('categoryPick'))+'" title="'+esc(I18n.t('categoryPick'))+'" onchange="pickCategoryCombo('+i+',this.value,this)">'+catChoices+'</select></div></td>'+
           '<td><input value="'+esc(supVal)+'" oninput="setSupplierInput('+i+',this.value)" list="supList"></td>'+
           '<td><input value="'+esc(r.unit||'本')+'" oninput="window.rows['+i+'].unit=this.value"></td>'+
           '<td><input type="number" step="any" value="'+(r.stock||0)+'" oninput="window.rows['+i+'].stock=Number(this.value)||0"></td>'+
@@ -187,7 +193,6 @@
       });
       if (!window.rows.length) html = '<tr><td colspan="8" style="color:#aaa;padding:16px;text-align:center;">'+I18n.t('empty')+'</td></tr>';
       document.getElementById('rows').innerHTML = html;
-      var cl = document.getElementById('categoryList'); if(cl) cl.innerHTML = CATEGORY_OPTIONS.map(function(c){ return '<option value="'+esc(c.label)+'">'; }).join('');
       // 仕入先候補（既存値＋マスタ）
       var supLabels = SUPPLIER_OPTIONS.map(function(s){return loc(s.ja,s.en);});
       window.rows.forEach(function(r){ var s=(r.supplier||'').trim(); if(s&&!SUPPLIER_OPTIONS.some(function(x){return x.key===s;})&&supLabels.indexOf(s)<0)supLabels.push(s); });
@@ -506,7 +511,6 @@
         categoryInput:'Choose a category or enter a new one', categoryPick:'Choose existing category', categoryFree:'Enter a new category', linkedWith:'Linked menu items: ', linkBtnTitle:'Link to a menu item (not set)' }
     }, function(){ if(__loaded) render(); });
   </script>
-  <datalist id="categoryList"></datalist>
   <datalist id="supList"></datalist>
 
   <script src="./help.js?v=auth2"></script>

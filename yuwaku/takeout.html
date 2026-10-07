@@ -16,14 +16,14 @@
     *{ box-sizing:border-box; }
     body{ margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif; background:var(--bg); color:var(--navy); padding-bottom:120px; -webkit-tap-highlight-color:transparent; }
     .lang-btn{ background:rgba(15,23,42,.7); color:#fff; border:0; border-radius:999px; padding:6px 12px; font-size:12px; font-weight:800; cursor:pointer; }
-    .lang-fab{ position:fixed; top:12px; right:12px; z-index:12; }
+    .lang-fab{ position:fixed; top:12px; right:12px; z-index:32; }
     .to-banner{ width:100%; max-height:160px; object-fit:contain; background:var(--bg,#f6f7f9); display:none; }
-    .to-head{ padding:14px 16px 6px; }
-    .to-shop{ font-size:20px; font-weight:900; }
-    .to-tag{ display:inline-block; background:#065f46; color:#d1fae5; font-size:12px; font-weight:800; padding:2px 10px; border-radius:999px; margin-left:6px; vertical-align:middle; }
-    .cats{ display:flex; gap:8px; overflow-x:auto; padding:8px 16px; position:sticky; top:0; background:var(--bg); z-index:10; scrollbar-width:none; }
+    .to-head{ position:sticky; top:0; z-index:20; min-height:58px; display:flex; align-items:center; gap:10px; padding:10px 16px; background:#fff7ed; border-bottom:2px solid #fb923c; box-shadow:0 2px 8px rgba(15,23,42,.08); }
+    .to-shop{ font-size:16px; font-weight:900; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .to-tag{ order:-1; flex:0 0 auto; display:inline-block; background:#ea580c; color:#fff; font-size:16px; font-weight:900; padding:8px 12px; border-radius:10px; margin-left:0; vertical-align:middle; }
+    .cats{ display:flex; gap:8px; overflow-x:auto; padding:8px 16px; position:sticky; top:58px; background:var(--bg); z-index:19; scrollbar-width:none; }
     .cats::-webkit-scrollbar{ display:none; }
-    @media(max-width:480px){ .to-banner{max-height:120px}.to-head{padding:9px 10px 4px}.cats{padding:7px 10px} }
+    @media(max-width:480px){ .to-banner{max-height:120px}.to-head{padding:9px 10px;min-height:56px}.cats{padding:7px 10px;top:56px} }
     .cat{ flex:0 0 auto; border:1px solid var(--border); background:var(--surface); border-radius:999px; padding:7px 14px; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap; }
     .cat.on{ background:var(--navy); color:#fff; border-color:var(--navy); }
     .menu{ padding:6px 16px; }
@@ -36,6 +36,7 @@
     .stp{ display:flex; align-items:center; gap:10px; flex:0 0 auto; }
     .stp button{ width:34px; height:34px; border-radius:9px; border:1px solid var(--border); background:var(--surface); font-size:20px; font-weight:900; cursor:pointer; line-height:1; }
     .stp button.add{ background:var(--navy); color:#fff; border-color:var(--navy); }
+    .stp button.opt-pick{ width:auto; min-width:72px; padding:0 9px; background:var(--navy); color:#fff; border-color:var(--navy); font-size:12px; line-height:1.15; white-space:nowrap; }
     .stp .q{ min-width:20px; text-align:center; font-weight:900; font-size:16px; }
     .mi.tk-off{ opacity:.55; } .mi.tk-off .thumb{ filter:grayscale(1); }
     .tk-unavail{ display:inline-block; background:#e2e8f0; color:#64748b; border-radius:8px; padding:5px 9px; font-size:12px; font-weight:800; }
@@ -132,7 +133,7 @@
     // PAYMONGOが常にfalseで一度も実行されない死んだコードだったため、あつしさんの明示許可を
     // 得て削除した（対応するpmWrapのHTML・setPM関数も合わせて削除済み）。現状は常に
     // 「店頭で支払う（Pay at counter）」のみとなる。
-    var MENU = [], SETTINGS = {};
+    var MENU = [], SETTINGS = {}, MENU_STATE = 'loading';
     var cart = {}, optLines = [], optCtx = null, curCat = null;
     var takeoutCoupon = null;
     // 言語の切替・優先順位・永続化は共通部品I18nに統一。lang はI18n.init()のonChangeコールバック経由で更新するミラー。
@@ -147,7 +148,7 @@
             newOrder:'新しい注文', waiting:'決済確認中…支払い画面で完了してください', payFail:'決済が確認できませんでした。もう一度お試しください。',
             payTimeout:'決済確認がタイムアウトしました。お支払い済みの場合は店舗にご連絡ください。',
             confirmPay:'支払い完了を確認', opening:'決済画面を開いています…', pickupLabel:'受取', totalLabel:'合計',
-            coupon:'クーポン（任意）', apply:'適用', cpApplied:'適用しました', cpNotfound:'コードが見つかりません', cpInactive:'利用できません', cpExpired:'期限切れ', cpLimit:'利用上限に達しています', cpMin:'最低注文額に達していません', cpInvalid:'無効なコード', discountLabel:'割引', loading:'読み込み中…', loadErr:'メニューを取得できませんでした' },
+            coupon:'クーポン（任意）', apply:'適用', cpApplied:'適用しました', cpNotfound:'コードが見つかりません', cpInactive:'利用できません', cpExpired:'期限切れ', cpLimit:'利用上限に達しています', cpMin:'最低注文額に達していません', cpInvalid:'無効なコード', discountLabel:'割引', loading:'読み込み中…', noMenu:'現在テイクアウト可能な商品はありません', invalidMenu:'メニュー情報が不正です。メニュー設定を確認して再読み込みしてください。', authRequired:'ログイン情報を確認できませんでした。管理画面からログインし直してください。', storeMismatch:'現在の店舗情報を確認できませんでした。管理画面から店舗を開き直してください。', loadErr:'メニューを取得できませんでした' },
       en: { cart:'Cart', order:'Checkout', pickup:'Pickup details', name:'Name *', phone:'Phone (optional)', pickupT:'Pickup time',
             notes:'Notes (optional)', pay:'Payment', card:'Card', total:'Total', cancel:'Cancel', tag:'🥡 Takeout',
             asap:'As soon as possible', min:'min', payNow:'Pay online & order', payStore:'Pay at counter (confirm)',
@@ -156,12 +157,43 @@
             newOrder:'New order', waiting:'Confirming payment… complete it in the payment window', payFail:'Payment not confirmed. Please try again.',
             payTimeout:'Payment confirmation timed out. If you already paid, please contact the shop.',
             confirmPay:'I have paid', opening:'Opening payment window…', pickupLabel:'Pickup', totalLabel:'Total',
-            coupon:'Coupon (optional)', apply:'Apply', cpApplied:'Applied', cpNotfound:'Code not found', cpInactive:'Not available', cpExpired:'Expired', cpLimit:'Usage limit reached', cpMin:'Minimum order not met', cpInvalid:'Invalid code', discountLabel:'Discount', loading:'Loading…', loadErr:'Could not load the menu' }
+            coupon:'Coupon (optional)', apply:'Apply', cpApplied:'Applied', cpNotfound:'Code not found', cpInactive:'Not available', cpExpired:'Expired', cpLimit:'Usage limit reached', cpMin:'Minimum order not met', cpInvalid:'Invalid code', discountLabel:'Discount', loading:'Loading…', noMenu:'There are currently no items available for takeout.', invalidMenu:'The menu response is invalid. Check Menu settings and reload this page.', authRequired:'Your login session could not be confirmed. Sign in again from Manage.', storeMismatch:'The current store could not be confirmed. Reopen Takeout from Manage.', loadErr:'Could not load the menu' }
     };
     function tt(){ return I18n.d(); }
     function sym(){ return SETTINGS.currencySymbol || '₱'; }
     function money(n){ return sym() + (Number(n)||0).toLocaleString(); }
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+    function isTakeoutEnabled(it){ var v=it&&(it['テイクアウト可']!==undefined?it['テイクアウト可']:(it.takeoutEnabled!==undefined?it.takeoutEnabled:it.takeout_enabled)); return v===true||Number(v)===1; }
+    function takeoutErrorText(err,fallback){ var code=String(err&&(err.code||err.message)||err||'').trim().toLowerCase(); if(code==='takeout_item_unavailable')return lang==='ja'?'選択した商品は現在テイクアウト対象外です。メニューを更新して注文内容を確認してください。':'A selected item is no longer available for takeout. Refresh the menu and review your order.'; return API.userErrorText(err,fallback); }
+    function staffAuthToken(){
+      try{
+        if(window.NativeAuth&&window.NativeAuth.getToken){var nativeToken=window.NativeAuth.getToken();if(nativeToken)return nativeToken;}
+        return localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX+'mgmtToken')||'';
+      }catch(e){return '';}
+    }
+    function validateBootstrapMenu(r){
+      if(!r||!Array.isArray(r.menu))throw new Error('invalid_menu_response');
+      var takeoutMenu=r.menu.filter(isTakeoutEnabled);
+      var valid=takeoutMenu.every(function(it){
+        return it&&typeof it==='object'&&String(it['商品名']||'').trim()&&String(it['カテゴリ']||'').trim()&&
+          Number.isFinite(Number(it['価格']))&&(!it['ステータス']||it['ステータス']==='販売中');
+      });
+      if(!valid)throw new Error('invalid_menu_response');
+      return takeoutMenu;
+    }
+    function menuLoadErrorText(err){
+      var code=String(err&&(err.code||err.message)||err||'').trim().toLowerCase();
+      if(code==='invalid_menu_response')return tt().invalidMenu;
+      if(code==='unauthorized'||code==='invalid_refresh_session'||code==='stale_session_response')return tt().authRequired;
+      if(code==='invalid_store_link'||code==='store_not_found'||code==='store_context_mismatch'||code==='store_context_required'||code==='tenant_store_mismatch')return tt().storeMismatch;
+      return tt().loadErr+': '+API.userErrorText(err);
+    }
+    function showMenuState(message,state){
+      MENU_STATE=state;
+      document.getElementById('cats').innerHTML='';
+      document.getElementById('menu').innerHTML='<div class="loadwrap" id="loadMsg"></div>';
+      document.getElementById('loadMsg').innerText=message;
+    }
 
     function menuItem(base){ return MENU.find(function(it){return it['商品名']===base;})||null; }
     function itemOpts(it){ try{var a=JSON.parse(it&&it['オプション']||'[]');return Array.isArray(a)?a:[];}catch(e){return [];} }
@@ -180,6 +212,7 @@
     }
     function catsOf(){ var c=[]; MENU.forEach(function(it){ var k=it['カテゴリ']; if(k && c.indexOf(k)===-1) c.push(k); }); return c; }
     function renderCats(){
+      if(MENU_STATE!=='ready'){document.getElementById('cats').innerHTML='';return;}
       var cs = catsOf(); if (!curCat) curCat = cs[0] || null;
       document.getElementById('cats').innerHTML = cs.map(function(c){
         return '<div class="cat'+(c===curCat?' on':'')+'" onclick="pickCat(\''+esc(c).replace(/'/g,"\\'")+'\')">'+esc(categoryLabel(c))+'</div>';
@@ -187,6 +220,9 @@
     }
     window.pickCat = function(c){ curCat = c; renderCats(); renderMenu(); };
     function renderMenu(){
+      if(MENU_STATE==='loading'){showMenuState(tt().loading,'loading');return;}
+      if(MENU_STATE==='empty'){showMenuState(tt().noMenu,'empty');return;}
+      if(MENU_STATE==='error')return;
       var list = MENU.filter(function(it){ return it['カテゴリ']===curCat; });
       document.getElementById('menu').innerHTML = list.map(function(it){
         // [負荷試験レビュー対応/優先#7] nmは注文送信・カートキー・サーバー側商品照合に使う「識別用の日本語名」で、
@@ -202,7 +238,7 @@
         var stepper = unavail
           ? '<span class="tk-unavail">'+(it.soldOut?(lang==='ja'?'本日売切':'Sold out'):(lang==='ja'?'時間外':'Not now'))+'</span>'
           : hasOpts
-            ? '<button class="add" onclick="openOpt(\''+esc(nm).replace(/'/g,"\\'")+'\')">⚙</button>'+(q?'<span class="q">'+q+'</span>':'')
+            ? '<button type="button" class="opt-pick" onclick="openOpt(\''+esc(nm).replace(/'/g,"\\'")+'\')">⚙ '+esc(optWords('choose'))+'</button>'+(q?'<span class="q">'+q+'</span>':'')
           : (q>0
             ? '<button onclick="chg(\''+esc(nm).replace(/'/g,"\\'")+'\',-1)">−</button><span class="q">'+q+'</span><button class="add" onclick="chg(\''+esc(nm).replace(/'/g,"\\'")+'\',1)">＋</button>'
             : '<button class="add" onclick="chg(\''+esc(nm).replace(/'/g,"\\'")+'\',1)">＋</button>');
@@ -210,7 +246,7 @@
           (tags?'<div class="tk-tags">'+tags+'</div>':'')+
           (it['説明']?'<div class="ds">'+esc(it['説明'])+'</div>':'')+
           '<div class="pr">'+money(it['価格'])+'</div></div><div class="stp">'+stepper+'</div></div>';
-      }).join('') || '<div class="loadwrap">—</div>';
+      }).join('') || '<div class="loadwrap">'+esc(tt().invalidMenu)+'</div>';
     }
     window.chg = function(nm, d){
       if(itemOpts(menuItem(nm)).length){openOpt(nm);return;}
@@ -233,8 +269,8 @@
     function cartCount(){return cartItems().reduce(function(s,i){return s+i.count;},0);}
 
     function optWords(key){
-      var words={ja:{required:'必須',inCart:'カート内',remove:'削除',qty:'数量',add:'カートに追加',cancel:'戻る',pick:'必須の選択肢を選んでください',range:'選択数を確認してください',limit:'同じ構成は最大99点です'},
-        en:{required:'Required',inCart:'In cart',remove:'Remove',qty:'Quantity',add:'Add to cart',cancel:'Back',pick:'Choose the required option',range:'Check the number of choices',limit:'Maximum 99 of the same configuration'}};
+      var words={ja:{choose:'オプション',required:'必須',inCart:'カート内',remove:'削除',qty:'数量',add:'カートに追加',cancel:'戻る',pick:'必須の選択肢を選んでください',range:'選択数を確認してください',limit:'同じ構成は最大99点です'},
+        en:{choose:'Options',required:'Required',inCart:'In cart',remove:'Remove',qty:'Quantity',add:'Add to cart',cancel:'Back',pick:'Choose the required option',range:'Check the number of choices',limit:'Maximum 99 of the same configuration'}};
       return words[lang==='en'?'en':'ja'][key];
     }
     window.openOpt=function(base){
@@ -356,12 +392,12 @@
       var btn = document.getElementById('coConfirm'); btn.disabled=true;
       order.paid = false;
       API.post('submitTakeout', { order: order, __timeoutMs: API.TIMEOUT_MS.write }).then(function(r){ btn.disabled=false; onOrdered(r.data, false); })
-        .catch(function(e){ btn.disabled=false; showAlert(API.userErrorText(e), false); });
+        .catch(function(e){ btn.disabled=false; showAlert(takeoutErrorText(e), false); });
     };
 
     function onOrdered(d, paid){
       var t = tt();
-      if (!d || d.error){ showAlert(API.userErrorText((d&&d.error)||'', t.payFail), false); return; }
+      if (!d || d.error){ showAlert(takeoutErrorText((d&&d.error)||'', t.payFail), false); return; }
       var itemsHtml = cartItems().map(function(i){ return '<div class="cli"><span>'+esc(displayCartItem(i))+' ×'+i.count+'</span><span>'+money(i.unit*i.count)+'</span></div>'; }).join('');
       var pickup = document.getElementById('fPickup').value;
       document.getElementById('coForm').style.display='none';
@@ -419,14 +455,20 @@
     function boot(){
       // 言語の初期化・切替・永続化は共通部品I18nに一本化（他画面と同じ仕組み）。
       I18n.init(T, onLangChange);
-      API.post('bootstrap', {}).then(function(r){
-        SETTINGS = r.settings || {}; MENU = r.menu || [];
+      var authReady = (window.NativeAuth && window.NativeAuth.ready) ? window.NativeAuth.ready() : Promise.resolve('');
+      authReady.then(function(){
+        var token = staffAuthToken();
+        var storeId = API.currentStoreId();
+        if (!token) throw new Error('unauthorized');
+        if (!storeId) throw new Error('invalid_store_link');
+        return API.post('bootstrap', { storeId: storeId, token: token, takeoutOnly: true });
+      }).then(function(r){
+        SETTINGS = r.settings || {}; MENU = validateBootstrapMenu(r); MENU_STATE = MENU.length ? 'ready' : 'empty'; curCat = null;
         var bid = SETTINGS.menuTopImageId;
         if (bid){ var b=document.getElementById('banner'); b.src=API.imageUrl(bid); b.style.display='block'; }
         renderCats(); renderMenu(); onLangChange(I18n.lang()); updateCart();
-      }).catch(function(){
-        document.getElementById('loadMsg').innerText = tt().loadErr;
-        onLangChange(I18n.lang());
+      }).catch(function(err){
+        MENU=[];curCat=null;MENU_STATE='error';onLangChange(I18n.lang());showMenuState(menuLoadErrorText(err),'error');updateCart();
       });
       if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./sw.js').catch(function(){}); }
     }
