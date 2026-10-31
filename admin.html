@@ -96,7 +96,13 @@
 
   <section class="section" id="promptSection">
     <div class="section-title"><h2>AIプロンプト管理</h2><span id="promptStatus" class="status off">未読込</span></div>
-    <div class="notice">在庫画像解析 <b>inventory_vision</b> の運営共通プロンプトです。公開中のプロンプトだけが店舗Workerから読み込まれます。<code>{{INVENTORY_CANDIDATES}}</code> は店舗ごとの在庫名へ実行時に置換される必須プレースホルダーです。</div>
+    <label class="prompt-field" for="promptKeySelect">対象AI機能</label>
+    <select id="promptKeySelect" style="width:100%;max-width:420px;padding:10px;font-size:15px">
+      <option value="inventory_vision">在庫画像解析（inventory_vision）</option>
+      <option value="menu_document_vision">PDF・写真メニュー解析（menu_document_vision）</option>
+      <option value="menu_document_japanese">メニュー日本語照合（menu_document_japanese）</option>
+    </select>
+    <div class="notice" id="promptHelp">在庫画像解析 inventory_vision の運営共通プロンプトです。公開版だけが店舗Workerから読み込まれます。{{INVENTORY_CANDIDATES}} が必要です。</div>
     <div class="prompt-panel" style="margin-top:12px">
       <div class="prompt-meta">
         <div><b>公開Version</b><span id="promptPublishedVersion">—</span></div>
@@ -358,8 +364,11 @@
     var value=$('promptDraft').value.trim();
     if(value.length<40){setPromptWarning('Draftが短すぎます。画像解析の指示と出力形式を明示してください。');return false}
     if(value.length>12000){setPromptWarning('Draftが長すぎます。12,000文字以内にしてください。');return false}
-    var count=value.split('{{INVENTORY_CANDIDATES}}').length-1;
-    if(count!==1){setPromptWarning('{{INVENTORY_CANDIDATES}} を必ず1か所だけ含めてください。');return false}
+    var marker=promptKey==='inventory_vision'?'INVENTORY_CANDIDATES':
+      promptKey==='menu_document_japanese'?'MENU_ITEM_ANCHORS':'';
+    if(marker&&value.split('{{'+marker+'}}').length!==2){setPromptWarning('{{'+marker+'}} を1か所含めてください。');return false}
+    var remainder=value.replace(marker?'{{'+marker+'}}':'','');
+    if(remainder.includes('{{')||remainder.includes('}}')){setPromptWarning('未対応のプレースホルダーです。');return false}
     setPromptWarning('');return true;
   }
   function renderPrompt(data){
@@ -464,6 +473,17 @@
   }
   async function load(){++planPreviewSequence;resetDetails();var token=$('adminToken').value.trim();if(!token){setMessage('PLATFORM_ADMIN_TOKENを入力してください。',true);return}$('loadBtn').disabled=true;$('refreshBtn').disabled=true;setMessage('読み込み中…',false);try{var res=await fetch(API,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'getPlatformUsage',adminToken:token,accessHours:Number($('accessHours').value||24)})});var data=await res.json();if(!res.ok||!data.ok)throw new Error((data&&data.error)||('HTTP '+res.status));render(data);try{sessionStorage.setItem(key,token)}catch(e){}setMessage('APIキーの値はこの画面へ返していません。利用量と接続状態のみ表示しています。',false)}catch(e){resetDetails();setMessage(loadErrorText(e),true)}finally{$('loadBtn').disabled=false;$('refreshBtn').disabled=false}}
   $('loadBtn').onclick=load;$('refreshBtn').onclick=load;$('saveCloudflarePlanBtn').onclick=saveCloudflarePlan;$('cloudflarePlan').onchange=previewCloudflarePlan;$('promptLoadBtn').onclick=loadPrompt;$('promptSaveBtn').onclick=savePromptDraft;$('promptPublishBtn').onclick=publishPrompt;$('promptRollbackBtn').onclick=rollbackPrompt;$('promptHistoryBtn').onclick=loadPromptHistory;$('promptTestBtn').onclick=testPromptDraft;$('promptDraft').addEventListener('input',function(){if(validatePromptDraft()&&$('promptDraft').value!==promptLoadedDraft)setPromptWarning('未保存の変更があります。Draft保存後に公開できます。')});$('accessHours').onchange=function(){if(!$('details').classList.contains('hidden')&&$('adminToken').value.trim())load()};$('clearBtn').onclick=function(){++planPreviewSequence;try{sessionStorage.removeItem(key)}catch(e){}$('adminToken').value='';$('accessHours').value='24';resetDetails();setMessage('',false);$('adminToken').focus()};$('adminToken').addEventListener('keydown',function(e){if(e.key==='Enter')load()});
+  $('promptKeySelect').addEventListener('change',function(){
+    promptKey=this.value;resetPrompt();
+    $('promptHelp').textContent=promptKey==='inventory_vision'
+      ?'在庫写真から商品を数えるプロンプトです。{{INVENTORY_CANDIDATES}} が必須です。'
+      :promptKey==='menu_document_vision'
+        ?'PDF／写真のメニュー名・カテゴリ・価格を抽出します。プレースホルダーは不要です。'
+        :'日本語のメニュー名を画像から再確認します。{{MENU_ITEM_ANCHORS}} が必須です。テスト時は英語の商品名を下欄へ入力してください。';
+    $('promptTestCandidates').placeholder=promptKey==='menu_document_japanese'
+      ?'例：SAMPLE DRINK（日本語照合の対象商品名）':'';
+    if($('adminToken').value.trim())loadPrompt();
+  });
 })();
 </script>
 </body>
