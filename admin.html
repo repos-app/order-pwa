@@ -211,19 +211,19 @@
       items.push({group:group,name:name,value:known?num(value)+(unit?' '+unit:''):'未取得',limit:limit==null?'—':num(limit)+(unit?' '+unit:''),period:period,status:status,note:note||'',p:p});
     }
     add('Workers AI','Neurons',ai.complete?ai.todayNeurons:null,10000,'Neurons','UTC日次','Cloudflare GraphQLの実測Neurons',ai.complete);
-    var billRequests=billableUsage('Workers',/Workers Standard Requests/i,/^(Count|Requests)$/i);
-    var billCpu=billableUsage('Workers',/Workers CPU ms/i,/^(Count|CPU-ms)$/i);
+    var billRequests=billableUsage('Workers',/Workers Standard Requests/i,/^(|Count|Requests)$/i);
+    var billCpu=billableUsage('Workers',/Workers CPU ms/i,/^(|Count|CPU-ms|ms|Milliseconds)$/i);
     add('Workers','Requests',billRequests==null?w.requests:billRequests,w.limit,'件',billRequests==null?(w.billingPeriod==='calendar_month_utc_estimate'?'UTC暦月（請求期間は別）':'UTC日次'):'当請求期間',billRequests==null?'GraphQLの参考集計・請求期間とは別':billableNote());
     add('Workers','CPU合計',billCpu==null?w.cpuTotalMs:billCpu,w.cpuMonthlyIncludedMs,'CPU-ms',billCpu==null?'UTC暦月（参考）':'当請求期間',billCpu==null?'GraphQL累積cpuTimeUs参考値':billableNote());
     add('D1','データベース数',d.databaseCount,d.databaseLimit,'DB','現時点','Paidの追加課金なし範囲');
-    var billRead=billableUsage('D1',/D1 - Rows Read/i,/^(Count|Rows)$/i);
-    var billWrite=billableUsage('D1',/D1 - Rows Written/i,/^(Count|Rows)$/i);
+    var billRead=billableUsage('D1',/D1 - Rows Read/i,/^(|Count|Rows)$/i);
+    var billWrite=billableUsage('D1',/D1 - Rows Written/i,/^(|Count|Rows)$/i);
     var billD1Storage=billableUsage('D1',/D1 - Storage GB-mo/i,/^GB-months?$/i);
     add('D1','Rows Read',billRead==null?d.rowsRead:billRead,d.readLimit,'行',billRead==null?(d.billingPeriod==='calendar_month_utc_estimate'?'UTC暦月':'UTC日次'):'当請求期間',billRead==null?'GraphQL参考集計':billableNote());
     add('D1','Rows Written',billWrite==null?d.rowsWritten:billWrite,d.writeLimit,'行',billWrite==null?(d.billingPeriod==='calendar_month_utc_estimate'?'UTC暦月':'UTC日次'):'当請求期間',billWrite==null?'GraphQL参考集計':billableNote());
     add('D1','Storage（GB-month）',billD1Storage,5,'GB-month','当請求期間',billD1Storage==null?'現在容量 '+(d.storageBytes==null?'未取得':bytes(d.storageBytes))+'。請求GB-monthは未取得':billableNote(),billD1Storage!=null);
-    var billR2A=billableUsage('R2',/R2 Storage Class A Operations/i,/^Count$/i);
-    var billR2B=billableUsage('R2',/R2 Storage Class B Operations/i,/^Count$/i);
+    var billR2A=billableUsage('R2',/R2 Storage Class A Operations/i,/^(|Count|Operations)$/i);
+    var billR2B=billableUsage('R2',/R2 Storage Class B Operations/i,/^(|Count|Operations)$/i);
     var billR2Storage=billableUsage('R2',/R2 Data Storage/i,/^GB-months?$/i);
     add('R2 Standard','Class A操作',billR2A,1000000,'回','当請求期間',billR2A==null?'公式BillingのStandard内訳未取得':billableNote(),billR2A!=null);
     add('R2 Standard','Class B操作',billR2B,10000000,'回','当請求期間',billR2B==null?'公式BillingのStandard内訳未取得':billableNote(),billR2B!=null);
