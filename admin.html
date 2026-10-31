@@ -194,6 +194,16 @@
   }
   function renderQuotaRisks(c,billing){
     var w=c.workers||{},d=c.d1||{},r=c.r2||{},ai=c.workersAi||{},items=[],plan=c.billingPlan||'free';
+    var products=Array.isArray(billing&&billing.products)?billing.products:[];
+    function billableUsage(family,pattern,unitPattern){
+      if(billing.totalCost==null||!billing.currency)return null;
+      var matched=products.filter(function(p){
+        return p.family===family&&pattern.test(String(p.name||''))&&unitPattern.test(String(p.consumedUnit||''))&&
+          p.consumedQuantity!=null&&Number.isFinite(Number(p.consumedQuantity))&&Number(p.consumedQuantity)>=0;
+      });
+      return matched.length===1?Number(matched[0].consumedQuantity):null;
+    }
+    function billableNote(){return'公式Billing Read APIの当請求期間実測（日次更新）。月額固定費は別';}
     function add(group,name,value,limit,unit,period,note,verified){
       var known=verified!==false&&value!=null&&Number.isFinite(Number(value));
       var p=known&&limit!=null&&Number(limit)>0?Number(value)/Number(limit)*100:null;
@@ -201,15 +211,23 @@
       items.push({group:group,name:name,value:known?num(value)+(unit?' '+unit:''):'未取得',limit:limit==null?'—':num(limit)+(unit?' '+unit:''),period:period,status:status,note:note||'',p:p});
     }
     add('Workers AI','Neurons',ai.complete?ai.todayNeurons:null,10000,'Neurons','UTC日次','Cloudflare GraphQLの実測Neurons',ai.complete);
-    add('Workers','Requests',w.requests,w.limit,'件',w.billingPeriod==='calendar_month_utc_estimate'?'UTC暦月（請求期間は別）':'UTC日次','アカウント全体');
-    add('Workers','CPU合計',w.cpuTotalMs,w.cpuMonthlyIncludedMs,'CPU-ms','月','P99とは別の課金CPU合計');
+    var billRequests=billableUsage('Workers',/Workers Standard Requests/i,/^(Count|Requests)$/i);
+    var billCpu=billableUsage('Workers',/Workers CPU ms/i,/^(Count|CPU-ms)$/i);
+    add('Workers','Requests',billRequests==null?w.requests:billRequests,w.limit,'件',billRequests==null?(w.billingPeriod==='calendar_month_utc_estimate'?'UTC暦月（請求期間は別）':'UTC日次'):'当請求期間',billRequests==null?'GraphQLの参考集計・請求期間とは別':billableNote());
+    add('Workers','CPU合計',billCpu==null?w.cpuTotalMs:billCpu,w.cpuMonthlyIncludedMs,'CPU-ms',billCpu==null?'UTC暦月（参考）':'当請求期間',billCpu==null?'GraphQL累積cpuTimeUs参考値':billableNote());
     add('D1','データベース数',d.databaseCount,d.databaseLimit,'DB','現時点','Paidの追加課金なし範囲');
-    add('D1','Rows Read',d.rowsRead,d.readLimit,'行',d.billingPeriod==='calendar_month_utc_estimate'?'UTC暦月':'UTC日次','アカウント全体');
-    add('D1','Rows Written',d.rowsWritten,d.writeLimit,'行',d.billingPeriod==='calendar_month_utc_estimate'?'UTC暦月':'UTC日次','アカウント全体');
-    add('D1','Storage（GB-month）',null,d.storageLimitBytes,'bytes相当','月','現在の容量 '+(d.storageBytes==null?'未取得':bytes(d.storageBytes))+'。請求対象のGB-monthは未取得',false);
-    add('R2 Standard','Class A操作',r.classAOperations,r.classALimit,'回','UTC暦月','ストレージクラス別内訳がないため厳密判定不能',false);
-    add('R2 Standard','Class B操作',r.classBOperations,r.classBLimit,'回','UTC暦月','ストレージクラス別内訳がないため厳密判定不能',false);
-    add('R2 Standard','GB-month',null,10,'GB-month','月','最新ストレージ容量は月間GB-monthとは異なる',false);
+    var billRead=billableUsage('D1',/D1 - Rows Read/i,/^(Count|Rows)$/i);
+    var billWrite=billableUsage('D1',/D1 - Rows Written/i,/^(Count|Rows)$/i);
+    var billD1Storage=billableUsage('D1',/D1 - Storage GB-mo/i,/^GB-months?$/i);
+    add('D1','Rows Read',billRead==null?d.rowsRead:billRead,d.readLimit,'行',billRead==null?(d.billingPeriod==='calendar_month_utc_estimate'?'UTC暦月':'UTC日次'):'当請求期間',billRead==null?'GraphQL参考集計':billableNote());
+    add('D1','Rows Written',billWrite==null?d.rowsWritten:billWrite,d.writeLimit,'行',billWrite==null?(d.billingPeriod==='calendar_month_utc_estimate'?'UTC暦月':'UTC日次'):'当請求期間',billWrite==null?'GraphQL参考集計':billableNote());
+    add('D1','Storage（GB-month）',billD1Storage,5,'GB-month','当請求期間',billD1Storage==null?'現在容量 '+(d.storageBytes==null?'未取得':bytes(d.storageBytes))+'。請求GB-monthは未取得':billableNote(),billD1Storage!=null);
+    var billR2A=billableUsage('R2',/R2 Storage Class A Operations/i,/^Count$/i);
+    var billR2B=billableUsage('R2',/R2 Storage Class B Operations/i,/^Count$/i);
+    var billR2Storage=billableUsage('R2',/R2 Data Storage/i,/^GB-months?$/i);
+    add('R2 Standard','Class A操作',billR2A,1000000,'回','当請求期間',billR2A==null?'公式BillingのStandard内訳未取得':billableNote(),billR2A!=null);
+    add('R2 Standard','Class B操作',billR2B,10000000,'回','当請求期間',billR2B==null?'公式BillingのStandard内訳未取得':billableNote(),billR2B!=null);
+    add('R2 Standard','GB-month',billR2Storage,10,'GB-month','当請求期間',billR2Storage==null?'現在量はGB-monthと異なる':billableNote(),billR2Storage!=null);
     ['IA Storage','IA Class A','IA Class B','IA Retrieval'].forEach(function(n){add('R2 Infrequent Access',n,null,null,'','月','無料枠なし・サービス使用有無/料金はBillingで確認',false)});
     [
       ['Workers Logs','ログイベント',plan==='paid'?20000000:200000,'件',plan==='paid'?'月':'日'],
@@ -231,7 +249,12 @@
       ['Images','Transformations',null,'','月'],
       ['AI Gateway','Requests/Costs',null,'','月'],
       ['Analytics Engine','Writes',null,'','月'],
-    ].forEach(function(row){add(row[0],row[1],null,row[2],row[3],row[4],'使用量・契約有無とも未確認。公開料金枠のみ参考表示',false)});
+    ].forEach(function(row){
+      var v=row[0]==='Browser Rendering'?
+        billableUsage('Browser Rendering',/Browser Run - Browser Hours/i,/^Hours?$/i):null;
+      add(row[0],row[1],v,v==null?row[2]:10,v==null?row[3]:'Hours',v==null?row[4]:'当請求期間',
+        v==null?'使用量・契約有無とも未確認。公開料金枠のみ参考表示':billableNote(),v!=null);
+    });
     var available=items.filter(function(i){return i.p!=null}).length,unknown=items.length-available;
     $('quotaRiskSummary').textContent='監視対象 '+items.length+' 項目 / 無料枠使用率まで比較可能 '+available+' 項目 / 未取得または判定不能 '+unknown+' 項目。未取得は利用量0・未利用・課金なしを意味しません。公式請求は下のBillable Usageで確認してください。';
     $('quotaRiskTable').innerHTML='<table class="usage-table"><thead><tr><th>サービス</th><th>指標</th><th>使用量</th><th>無料枠・含有枠</th><th>期間</th><th>状態</th><th>備考</th></tr></thead><tbody>'+items.map(function(i){return'<tr><td>'+esc(i.group)+'</td><td>'+esc(i.name)+'</td><td>'+esc(i.value)+'</td><td>'+esc(i.limit)+'</td><td>'+esc(i.period)+'</td><td>'+esc(i.status)+'</td><td>'+esc(i.note)+'</td></tr>'}).join('')+'</tbody></table>';
