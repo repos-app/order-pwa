@@ -31,7 +31,7 @@
         <option value="paid">Workers Paid</option>
       </select>
       <button class="btn sec" id="saveCloudflarePlanBtn" type="button">プラン保存</button>
-      <span id="cloudflarePlanSaveStatus" class="muted">選択したプランに応じて上限・使用率を計算します。</span>
+      <span id="cloudflarePlanSaveStatus" class="muted">変更すると利用率をプレビューします。保存は表示上の設定のみで、Cloudflare契約は変更しません。</span>
     </div>
     <div id="paidPricingInfo" class="notice hidden" style="margin-bottom:12px">
       <b>Workers Paid 料金目安</b>
@@ -42,8 +42,9 @@
         Workers CPU: 月3,000万 CPU-msまで込み、超過 <b>$0.02 / 100万 CPU-ms</b><br>
         D1 Rows Read: 月250億行まで込み、超過 <b>$0.001 / 100万行</b><br>
         D1 Rows Written: 月5,000万行まで込み、超過 <b>$1.00 / 100万行</b><br>
+        D1 Databases: 最初の10万DBまで込み、超過 <b>$0.10 / DB・月</b>（作成上限100万DB）<br>
         D1 Storage: 5 GB-monthまで込み、超過 <b>$0.75 / GB-month</b><br>
-        R2 Standard: 10 GB-month / Class A 100万回 / Class B 1,000万回まで無料。
+        R2 Standard（Free/Paid共通）: 10 GB-month / Class A 100万回 / Class B 1,000万回まで無料。
         超過は <b>$0.015 / GB-month</b>、Class A <b>$4.50 / 100万回</b>、Class B <b>$0.36 / 100万回</b>。Egressは無料。
       </div>
       <div class="muted" style="margin-top:6px">
@@ -54,8 +55,21 @@
         の最新料金を確認してください。
       </div>
     </div>
+    <h3>Workers AI / Neurons（Cloudflareアカウント全体）</h3>
+    <div id="workersAiGrid" class="grid"></div>
+    <div id="workersAiNote" class="notice" role="status" aria-live="polite">CloudflareからNeurons使用量を取得します。</div>
+    <div class="table-wrap" style="margin-top:12px"><h3 style="margin:12px 14px 4px">過去30日・UTC日別Neurons</h3><div id="workersAiDaily" style="padding:12px 14px;overflow:auto"></div></div>
+    <div class="table-wrap" style="margin-top:12px"><h3 style="margin:12px 14px 4px">モデル別Neurons（過去30日）</h3><div id="workersAiModels"></div></div>
+    <h3>各サービスの無料枠・追加課金リスク一覧</h3>
+    <div id="quotaRiskSummary" class="notice" role="status" aria-live="polite">全項目を確認しています。</div>
+    <div id="quotaRiskTable" class="table-wrap"></div>
+    <h3>Workers・D1・R2・Pixabayの詳細指標</h3>
     <div id="quotaGrid" class="grid"></div>
-    <div class="notice" id="quotaNote">課金・停止・追加作成に影響する可能性がある指標を先に表示します。D1はCloudflareアカウント全体のDB一覧と利用量を集計します。</div>
+    <div class="notice" id="quotaNote">Workers・D1・R2はCloudflareアカウント全体の参考値です。Freeの日次停止上限とPaidの月間追加料金なし枠は別です。R2 Standardの無料枠はFree/Paid共通（Infrequent Accessは別料金）。CPU合計とストレージの実課金GB-monthはAnalytics上で未取得のため、請求リスクなしとは判定できません。Paidの集計はUTC暦月で、請求期間とずれる場合があります。実請求はCloudflare Billingで確認してください。</div>
+    <h3>Cloudflare公式の従量課金額（Billable Usage API）</h3>
+    <div id="billingUsageGrid" class="grid"></div>
+    <div id="billingProducts" class="table-wrap" style="margin-top:12px"></div>
+    <div id="billingUsageNote" class="notice">Billing Readトークンを設定すると、追加課金額を製品別に表示します。固定月額料金は含みません。</div>
   </section>
 
   <section class="section">
@@ -133,12 +147,14 @@
   $('envBadge').textContent='PRODUCTION';
   try{$('adminToken').value=sessionStorage.getItem(key)||''}catch(e){}
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
-  function num(v){return Number(v||0).toLocaleString('ja-JP')}
-  function bytes(v){var n=Number(v||0);if(n>=1073741824)return(n/1073741824).toFixed(2)+' GB';if(n>=1048576)return(n/1048576).toFixed(1)+' MB';if(n>=1024)return(n/1024).toFixed(1)+' KB';return Math.round(n)+' B'}
+  function num(v){return v==null||!Number.isFinite(Number(v))?'未取得':Number(v).toLocaleString('ja-JP')}
+  function bytes(v){if(v==null||!Number.isFinite(Number(v)))return'未取得';var n=Number(v);if(n>=1073741824)return(n/1073741824).toFixed(2)+' GB';if(n>=1048576)return(n/1048576).toFixed(1)+' MB';if(n>=1024)return(n/1024).toFixed(1)+' KB';return Math.round(n)+' B'}
   function dt(v){if(!v)return'—';try{return new Date(v).toLocaleString('ja-JP')}catch(e){return String(v)}}
   function card(label,value,note,pct,kind){var p=pct==null?null:Math.max(0,Number(pct)||0);var cls=kind==='quota'?' quota':'';cls+=p==null?'':p>=100?' danger over':p>=90?' danger':p>=70?' warn':'';return'<div class="card'+cls+'"><strong>'+esc(value)+'</strong><span class="label">'+esc(label)+'</span>'+(p==null?'':'<div class="bar"><span style="width:'+Math.min(100,p)+'%"></span></div><span class="pct">'+p.toFixed(1)+'%</span>')+(note?'<p>'+esc(note)+'</p>':'')+'</div>'}
-  function unavailable(labels,kind){return labels.map(function(label){return card(label,'未接続','必要なWorker Secretを設定すると表示されます。',null,kind)}).join('')}
-  function limitNote(plan,limit,period){if(limit!=null){var shown=typeof limit==='number'?num(limit):String(limit);return(plan==='paid'?'含有枠・契約値 ':'上限 ')+shown+(period?' / '+period:'')}return plan==='paid'?'Paid: 含有枠・超過単価は契約設定を確認':'プラン/上限未設定（数値は参考利用量）'}
+  function unavailable(labels,kind){return labels.map(function(label){return card(label,'未取得','Analytics APIの認証または取得条件をご確認ください。',null,kind)}).join('')}
+  function maybeNum(v){return v==null?'未取得':num(v)}
+  function maybeBytes(v){return v==null?'未取得':bytes(v)}
+  function limitNote(plan,limit,period){if(limit!=null){var shown=typeof limit==='number'?num(limit):String(limit);var unit=plan==='paid'&&period==='日'?'月':period;return(plan==='paid'?'追加課金なしの枠 ':'上限 ')+shown+(unit?' / '+unit:'')}return'プラン/上限未設定（数値は参考利用量）'}
   function setStatus(id,on){var e=$(id);e.textContent=on?'接続済':'未接続';e.className='status '+(on?'ok':'off')}
   function setMessage(text,isError){var e=$('message');e.textContent=text||'';e.classList.toggle('error',!!isError);e.classList.toggle('hidden',!text)}
   function setPromptStatus(text,on){var e=$('promptStatus');e.textContent=text||'未読込';e.className='status '+(on?'ok':'off')}
@@ -146,8 +162,12 @@
   function resetPrompt(){promptState=null;promptLoadedDraft='';setPromptStatus('未読込',false);$('promptPublishedVersion').textContent='—';$('promptDraftVersion').textContent='—';$('promptStateText').textContent='未読込';$('promptUpdatedAt').textContent='—';$('promptDraft').value='';$('promptTestImage').value='';$('promptTestCandidates').value='';$('promptTestResult').textContent='未実行';$('promptHistory').innerHTML='';$('promptHistory').classList.add('hidden');$('promptPublishBtn').disabled=true;setPromptWarning('')}
   function resetDetails(){
     $('details').classList.add('hidden');$('refreshBtn').classList.add('hidden');$('updatedAt').textContent='';
-    setStatus('cfStatus',false);setStatus('accessStatus',false);setStatus('pixabayStatus',false);$('billingPlan').textContent='プラン未設定';$('billingPlan').className='status off';$('cloudflarePlanSaveStatus').textContent='選択したプランに応じて上限・使用率を計算します。';renderPlanPricing($('cloudflarePlan').value);
+    setStatus('cfStatus',false);setStatus('accessStatus',false);setStatus('pixabayStatus',false);$('billingPlan').textContent='プラン未設定';$('billingPlan').className='status off';$('cloudflarePlanSaveStatus').textContent='変更すると利用率をプレビューします。保存は表示上の設定のみです。';renderPlanPricing($('cloudflarePlan').value);
     $('quotaGrid').innerHTML='';$('cfGrid').innerHTML='';$('cfErrors').textContent='';$('cfErrors').classList.add('hidden');
+    $('workersAiGrid').innerHTML='';$('workersAiDaily').innerHTML='';$('workersAiModels').innerHTML='';$('workersAiNote').textContent='CloudflareからNeurons使用量を取得します。';
+    $('quotaRiskTable').innerHTML='';$('quotaRiskSummary').textContent='全項目を確認しています。';
+    $('billingUsageGrid').innerHTML='';$('billingUsageNote').textContent='Billing Readトークンを設定すると、追加課金額を製品別に表示します。固定月額料金は含みません。';
+    $('billingProducts').innerHTML='';
     $('accessGrid').innerHTML='';$('accessError').textContent='';$('accessError').classList.add('hidden');$('accessLog').innerHTML='';
     $('pixabayGrid').innerHTML='';$('storeUsage').innerHTML='';
     resetPrompt();
@@ -155,14 +175,109 @@
   function loadErrorText(e){var m=String(e&&e.message||e||'');if(m==='forbidden')return'PLATFORM_ADMIN_TOKENが正しくないか、期限切れです。';if(m==='platform_admin_not_configured')return'運営管理トークンがサーバーに設定されていません。';if(/failed to fetch|networkerror|network request|load failed/i.test(m))return'通信エラーで読み込めませんでした。ネットワーク接続を確認してください。';if(/^HTTP /.test(m))return'サーバーエラーで読み込めませんでした（'+m+'）。';return'管理情報を読み込めませんでした（'+m+'）。'}
   function renderPlanPricing(plan){$('paidPricingInfo').classList.toggle('hidden',String(plan||'').toLowerCase()!=='paid')}
   function renderAccess(a){a=a||{};setStatus('accessStatus',!!a.configured);$('accessGrid').innerHTML=card('トップページ閲覧数',a.configured?num(a.pageViews||0):'未接続','選択期間・izakanpai.com の pageview',null);var err=a.error||'';$('accessError').classList.toggle('hidden',!err);$('accessError').textContent=err?'アクセスログ取得エラー: '+err:'';var rows=Array.isArray(a.rows)?a.rows:[];if(!a.configured){$('accessLog').innerHTML='<div class="empty">Analytics Engine / Cloudflare Analytics token を設定すると表示されます。</div>';return}if(!rows.length){$('accessLog').innerHTML='<div class="empty">選択期間のアクセスログはありません。</div>';return}$('accessLog').innerHTML='<table class="usage-table"><thead><tr><th>時刻</th><th>Path / Action</th><th>Method</th><th>Status</th><th>国 / Colo</th><th>Store</th><th>処理時間</th><th>件数相当</th></tr></thead><tbody>'+rows.map(function(r){var route=esc(r.path||'')+(r.action?'<br><span class="muted">'+esc(r.action)+'</span>':'');var loc=[r.country,r.colo].filter(Boolean).map(esc).join(' / ')||'—';return'<tr><td>'+esc(dt(r.timestamp))+'</td><td>'+route+'</td><td>'+esc(r.method||'')+'</td><td>'+esc(r.status||'')+'</td><td>'+loc+'</td><td>'+esc(r.storeId||'—')+'</td><td>'+Number(r.durationMs||0).toFixed(0)+' ms</td><td>'+num(r.sampleInterval||1)+'</td></tr>'}).join('')+'</tbody></table>'}
+  function renderWorkersAi(c){
+    var ai=c&&c.workersAi||{},complete=ai.complete===true&&Number.isFinite(Number(ai.todayNeurons))&&Array.isArray(ai.daily)&&ai.daily.length===30;
+    var limit=Number(ai.dailyFreeNeurons)||10000;
+    if(!complete){
+      $('workersAiGrid').innerHTML=card('今日のNeurons','未取得','無料枠 '+num(limit)+' / UTC日次',null,'quota')+card('無料枠の残り','未取得','データが取得できないため0とは表示しません',null,'quota')+card('超過リスク','判定不能','取得失敗またはAPI権限不足',null,'quota');
+      $('workersAiNote').textContent='取得状況：未取得 / '+String(ai.error||'Workers AI analytics未接続')+'。Cloudflare Analytics Readトークン・Workers AIデータセット権限を確認。無料枠を超えていないという意味ではありません。';
+      $('workersAiDaily').innerHTML='<div class="empty">30日履歴は未取得です。</div>';
+      $('workersAiModels').innerHTML='<div class="empty">モデル別Neuronsは未取得です。</div>';
+      return;
+    }
+    var pct=Number(ai.todayPercent);
+    var level=pct>=100?'100%以上（超過）':pct>=90?'90%以上（危険）':pct>=70?'70%以上（注意）':'70%未満';
+    $('workersAiGrid').innerHTML=card('今日のNeurons（UTC）',num(ai.todayNeurons)+' / '+num(limit),'Cloudflare GraphQL / '+ai.todayDate,pct,'quota')+card('今日の無料枠残量',num(ai.remainingNeurons),'翌日UTC 00:00にリセット / '+dt(ai.resetAt),null,'quota')+card('Neurons無料枠の警告',level,'70%・90%・100%で表示',pct,'quota')+card('本日の無料枠超過分',num(ai.todayExcessNeurons)+' Neurons','推定従量料金 $'+Number(ai.todayOverageEstimateUsd||0).toFixed(4)+' / 実請求はBillable Usage参照',null,'quota')+card('過去30日のAI実行',num(ai.requests30d)+' 回','全Worker/モデル合計・Neuronsと別単位',null);
+    $('workersAiNote').textContent='最終取得：'+dt(ai.asOf)+' / 全Cloudflareアカウント・UTC日付 / Cloudflare AnalyticsのNeurons集計値（適応サンプリングの可能性あり、請求確定額ではありません）。無料枠は日次10,000 Neurons。70%・90%・100%は画面上の警告で、メール通知・自動停止ではありません。';
+    $('workersAiDaily').innerHTML='<div style="display:grid;grid-template-columns:repeat(30,minmax(26px,1fr));gap:4px;min-width:780px;align-items:end;height:150px">'+ai.daily.map(function(d){var p=Number(d.percent)||0;var color=p>=100?'#dc2626':p>=90?'#ef4444':p>=70?'#f59e0b':'#168b72';return'<div title="'+esc(d.date)+' : '+esc(num(d.neurons))+' Neurons" style="display:flex;flex-direction:column;justify-content:flex-end;height:100%;text-align:center"><small style="font-size:9px">'+(p>=70?esc(num(d.neurons)):'')+'</small><div style="background:'+color+';height:'+Math.max(1,Math.min(100,p))+'%;border-radius:4px 4px 0 0"></div><small style="font-size:9px;white-space:nowrap">'+esc(d.date.slice(5))+'</small></div>'}).join('')+'</div><p class="muted" style="font-size:12px">縦軸は日次無料枠10,000 Neuronsに対する使用率（100%超は高さを100%で固定）。日付別の正確な数値は下表で確認してください。</p><table class="usage-table"><thead><tr><th>UTC日付</th><th>Neurons</th><th>無料枠に対する使用率</th><th>超過Neurons</th></tr></thead><tbody>'+ai.daily.slice().reverse().map(function(d){return'<tr><td>'+esc(d.date)+'</td><td>'+esc(num(d.neurons))+'</td><td>'+esc(num(d.percent))+'%</td><td>'+esc(num(d.excessNeurons))+'</td></tr>'}).join('')+'</tbody></table>';
+    $('workersAiModels').innerHTML=(ai.models||[]).length?'<table class="usage-table"><thead><tr><th>モデル</th><th>Neurons（30日）</th><th>実行数（30日）</th></tr></thead><tbody>'+ai.models.map(function(m){return'<tr><td>'+esc(m.model)+'</td><td>'+esc(num(m.neurons))+'</td><td>'+esc(num(m.requests))+'</td></tr>'}).join('')+'</tbody></table>':'<div class="empty">過去30日にAI実行は記録されていません。</div>';
+  }
+  function renderQuotaRisks(c,billing){
+    var w=c.workers||{},d=c.d1||{},r=c.r2||{},ai=c.workersAi||{},items=[],plan=c.billingPlan||'free';
+    function add(group,name,value,limit,unit,period,note,verified){
+      var known=verified!==false&&value!=null&&Number.isFinite(Number(value));
+      var p=known&&limit!=null&&Number(limit)>0?Number(value)/Number(limit)*100:null;
+      var status=!known?'未取得・判定不能':p==null?'参考値・上限判定不可':p>=100?'超過':p>=90?'90%以上':p>=70?'70%以上':'70%未満';
+      items.push({group:group,name:name,value:known?num(value)+(unit?' '+unit:''):'未取得',limit:limit==null?'—':num(limit)+(unit?' '+unit:''),period:period,status:status,note:note||'',p:p});
+    }
+    add('Workers AI','Neurons',ai.complete?ai.todayNeurons:null,10000,'Neurons','UTC日次','Cloudflare GraphQLの実測Neurons',ai.complete);
+    add('Workers','Requests',w.requests,w.limit,'件',w.billingPeriod==='calendar_month_utc_estimate'?'UTC暦月（請求期間は別）':'UTC日次','アカウント全体');
+    add('Workers','CPU合計',w.cpuTotalMs,w.cpuMonthlyIncludedMs,'CPU-ms','月','P99とは別の課金CPU合計');
+    add('D1','データベース数',d.databaseCount,d.databaseLimit,'DB','現時点','Paidの追加課金なし範囲');
+    add('D1','Rows Read',d.rowsRead,d.readLimit,'行',d.billingPeriod==='calendar_month_utc_estimate'?'UTC暦月':'UTC日次','アカウント全体');
+    add('D1','Rows Written',d.rowsWritten,d.writeLimit,'行',d.billingPeriod==='calendar_month_utc_estimate'?'UTC暦月':'UTC日次','アカウント全体');
+    add('D1','Storage（GB-month）',null,d.storageLimitBytes,'bytes相当','月','現在の容量 '+(d.storageBytes==null?'未取得':bytes(d.storageBytes))+'。請求対象のGB-monthは未取得',false);
+    add('R2 Standard','Class A操作',r.classAOperations,r.classALimit,'回','UTC暦月','ストレージクラス別内訳がないため厳密判定不能',false);
+    add('R2 Standard','Class B操作',r.classBOperations,r.classBLimit,'回','UTC暦月','ストレージクラス別内訳がないため厳密判定不能',false);
+    add('R2 Standard','GB-month',null,10,'GB-month','月','最新ストレージ容量は月間GB-monthとは異なる',false);
+    ['IA Storage','IA Class A','IA Class B','IA Retrieval'].forEach(function(n){add('R2 Infrequent Access',n,null,null,'','月','無料枠なし・サービス使用有無/料金はBillingで確認',false)});
+    [
+      ['Workers Logs','ログイベント',plan==='paid'?20000000:200000,'件',plan==='paid'?'月':'日'],
+      ['Workers Logpush','ログ件数',plan==='paid'?10000000:null,'件','月'],
+      ['KV','Reads',plan==='paid'?10000000:100000,'回',plan==='paid'?'月':'日'],
+      ['KV','Writes',plan==='paid'?1000000:1000,'回',plan==='paid'?'月':'日'],
+      ['KV','Deletes',plan==='paid'?1000000:1000,'回',plan==='paid'?'月':'日'],
+      ['KV','Lists',plan==='paid'?1000000:1000,'回',plan==='paid'?'月':'日'],
+      ['KV','Storage',1,'GB-month','月'],
+      ['Durable Objects','Requests',plan==='paid'?1000000:100000,'回',plan==='paid'?'月':'日'],
+      ['Durable Objects','Duration',plan==='paid'?400000:13000,'GB-s',plan==='paid'?'月':'日'],
+      ['Queues','Operations',plan==='paid'?1000000:10000,'回',plan==='paid'?'月':'日'],
+      ['Workflows','Steps',plan==='paid'?500000:3000,'回',plan==='paid'?'月':'日'],
+      ['Workflows','Storage',1,'GB-month','月'],
+      ['Vectorize','Queried dimensions',null,'','月'],
+      ['Vectorize','Stored dimensions',null,'','月'],
+      ['Browser Rendering','Browser hours',null,'','月'],
+      ['Containers','CPU/Memory/Disk',null,'','月'],
+      ['Images','Transformations',null,'','月'],
+      ['AI Gateway','Requests/Costs',null,'','月'],
+      ['Analytics Engine','Writes',null,'','月'],
+    ].forEach(function(row){add(row[0],row[1],null,row[2],row[3],row[4],'使用量・契約有無とも未確認。公開料金枠のみ参考表示',false)});
+    var available=items.filter(function(i){return i.p!=null}).length,unknown=items.length-available;
+    $('quotaRiskSummary').textContent='監視対象 '+items.length+' 項目 / 無料枠使用率まで比較可能 '+available+' 項目 / 未取得または判定不能 '+unknown+' 項目。未取得は利用量0・未利用・課金なしを意味しません。公式請求は下のBillable Usageで確認してください。';
+    $('quotaRiskTable').innerHTML='<table class="usage-table"><thead><tr><th>サービス</th><th>指標</th><th>使用量</th><th>無料枠・含有枠</th><th>期間</th><th>状態</th><th>備考</th></tr></thead><tbody>'+items.map(function(i){return'<tr><td>'+esc(i.group)+'</td><td>'+esc(i.name)+'</td><td>'+esc(i.value)+'</td><td>'+esc(i.limit)+'</td><td>'+esc(i.period)+'</td><td>'+esc(i.status)+'</td><td>'+esc(i.note)+'</td></tr>'}).join('')+'</tbody></table>';
+  }
   function render(data){
     $('updatedAt').textContent='最終更新 '+dt(data.generatedAt);$('refreshBtn').classList.remove('hidden');
-    var c=data.cloudflare||{},cards=[],quota=[];setStatus('cfStatus',!!c.configured);var plan=c.billingPlan||'free';$('billingPlan').textContent=plan==='paid'?'Cloudflare Paid':'Cloudflare Free';$('billingPlan').className='status ok';$('cloudflarePlan').value=plan==='paid'?'paid':'free';renderPlanPricing(plan);
-    if(c.workers){quota.push(card('Workers Requests（本日UTC）',num(c.workers.requests),limitNote(plan,c.workers.limit,'日'),c.workers.percent,'quota'));cards.push(card('Workers Errors（本日UTC）',num(c.workers.errors),'Error rate '+Number(c.workers.errorPercent||0).toFixed(1)+'% / Subrequests '+num(c.workers.subrequests),null));cards.push(card('Workers CPU P99',Number(c.workers.cpuTimeP99||0).toFixed(2)+' ms','P50 '+Number(c.workers.cpuTimeP50||0).toFixed(2)+' ms',null))}else{quota.push(unavailable(['Workers Requests'],'quota'));cards.push(unavailable(['Workers Errors','Workers CPU P99']))}
+    var c=data.cloudflare||{},cards=[],quota=[];setStatus('cfStatus',!!c.configured);var plan=c.billingPlan||'free';$('billingPlan').textContent='管理画面設定: '+(plan==='paid'?'Workers Paid':'Workers Free')+(c.planPreview?'（プレビュー）':'');$('billingPlan').className='status ok';$('cloudflarePlan').value=plan==='paid'?'paid':'free';renderPlanPricing(plan);
+    renderWorkersAi(c);renderQuotaRisks(c,data.billing||{});
+    $('cloudflarePlanSaveStatus').textContent=c.planPreview?'未保存のプレビューです。保存すると表示設定が確定します（Cloudflare契約は変更しません）。':'表示設定は '+(plan==='paid'?'Workers Paid':'Workers Free')+' です。Cloudflare契約は別途確認してください。';
+    var period=plan==='paid'?'今月UTC（暦月参考）':'本日UTC',periodUnit=plan==='paid'?'月':'日';
+    if(c.workers){
+      quota.push(card('Workers Requests（'+period+'）',maybeNum(c.workers.requests),limitNote(plan,c.workers.limit,periodUnit)+' / アカウント全体',c.workers.percent,'quota'));
+      quota.push(card('Workers CPU 合計（'+period+'・GraphQL参考）',maybeNum(c.workers.cpuTotalMs),plan==='paid'?'月3,000万 CPU-msまで追加料金なし。P50/P99ではなくcpuTimeUs合計から算出。請求確定値ではありません。':'FreeのCPUは1リクエスト当たり原則10ms。月間無料枠ではありません。',c.workers.cpuPercent,'quota'));
+      cards.push(card('Workers Errors（'+period+'）',maybeNum(c.workers.errors),'Error rate '+Number(c.workers.errorPercent||0).toFixed(1)+'% / Subrequests '+maybeNum(c.workers.subrequests),null));
+      cards.push(card('Workers CPU P99（参考）',c.workers.cpuTimeP99==null?'未取得':Number(c.workers.cpuTimeP99).toFixed(2)+' ms','P50 '+(c.workers.cpuTimeP50==null?'未取得':Number(c.workers.cpuTimeP50).toFixed(2)+' ms')+' / 課金CPU合計ではありません',null));
+    }else{quota.push(unavailable(['Workers Requests','Workers CPU 合計'],'quota'));cards.push(unavailable(['Workers Errors','Workers CPU P99']))}
     if(c.d1){var dbValue=c.d1.databaseCount==null?'—':num(c.d1.databaseCount)+' / '+num(c.d1.databaseLimit);var dbNote='上限 '+num(c.d1.databaseLimit)+' DB / Active tenants '+(c.d1.activeTenants==null?'—':num(c.d1.activeTenants));quota.push(card('D1 Databases（Account total）',dbValue,dbNote,c.d1.databasePercent,'quota'));quota.push(card('D1 Rows Read（本日UTC・Account total）',num(c.d1.rowsRead),limitNote(plan,c.d1.readLimit,'日'),c.d1.readPercent,'quota'));quota.push(card('D1 Rows Written（本日UTC・Account total）',num(c.d1.rowsWritten),limitNote(plan,c.d1.writeLimit,'日'),c.d1.writePercent,'quota'));quota.push(card('D1 Storage（Account total）',c.d1.storageBytes==null?'—':bytes(c.d1.storageBytes),c.d1.storageLimitBytes?limitNote(plan,bytes(c.d1.storageLimitBytes),''):'DB一覧API未取得',c.d1.storagePercent,'quota'));cards.push(card('D1 Query数（Account total）',num(Number(c.d1.readQueries||0)+Number(c.d1.writeQueries||0)),'Read '+num(c.d1.readQueries)+' / Write '+num(c.d1.writeQueries),null));cards.push(card('D1 Query P90（最大group）',Number(c.d1.queryTimeP90Ms||0).toFixed(2)+' ms',c.d1.avgQueryTimeMs==null?'Cloudflare GraphQL: P90のみ取得':'Account aggregate平均 '+Number(c.d1.avgQueryTimeMs).toFixed(2)+' ms',null));cards.push(card('D1 Response（Account total）',bytes(c.d1.queryBatchResponseBytes),'本日UTC',null));cards.push(card('Largest D1 DB',c.d1.largestDatabase?bytes(c.d1.largestDatabase.storageBytes):'—',c.d1.largestDatabase?c.d1.largestDatabase.name:'DB一覧API未取得',null));cards.push(card('Active tenants',c.d1.activeTenants==null?'—':num(c.d1.activeTenants),'参考値。D1実DB数とは別指標',null))}else{quota.push(unavailable(['D1 Databases','D1 Rows Read','D1 Rows Written','D1 Storage'],'quota'));cards.push(unavailable(['D1 Query数','D1 Query P90','D1 Response','Largest D1 DB','Active tenants']))}
-    if(c.r2){quota.push(card('R2 Class A（今月UTC）',num(c.r2.classAOperations),limitNote(plan,c.r2.classALimit,'月'),c.r2.classAPercent,'quota'));quota.push(card('R2 Class B（今月UTC）',num(c.r2.classBOperations),limitNote(plan,c.r2.classBLimit,'月'),c.r2.classBPercent,'quota'));quota.push(card('R2 Storage',bytes(c.r2.storageBytes),c.r2.storageLimitBytes?limitNote(plan,bytes(c.r2.storageLimitBytes),''):'上限未設定',c.r2.storagePercent,'quota'));cards.push(card('R2 Objects',num(c.r2.objectCount),'Pending multipart '+num(c.r2.pendingMultipartUploads),null));cards.push(card('R2 Download',bytes(c.r2.bytesDownload),'今月UTC',null));cards.push(card('R2 Upload',bytes(c.r2.bytesUpload),'今月UTC',null))}else{quota.push(unavailable(['R2 Class A','R2 Class B','R2 Storage'],'quota'));cards.push(unavailable(['R2 Objects','R2 Download','R2 Upload']))}
+    if(c.r2){
+      var r=c.r2,classification=r.classBreakdownComplete?'':' / 分類不完全';
+      var tierCaution=' / Standardのみ無料枠・IA内訳は未取得';
+      quota.push(card('R2 Class A（今月UTC・Account total）',r.partial?'不完全':maybeNum(r.classAOperations),limitNote('paid',r.classALimit,'月')+tierCaution+classification,null,'quota'));
+      quota.push(card('R2 Class B（今月UTC・Account total）',r.partial?'不完全':maybeNum(r.classBOperations),limitNote('paid',r.classBLimit,'月')+tierCaution+classification,null,'quota'));
+      quota.push(card('R2 Storage（現在量・Account total）',maybeBytes(r.storageBytes),'Standardの無料枠は月10 GB-month。現在量は月間課金量と異なり、無料枠の判定には使用不可',null,'quota'));
+      cards.push(card('R2 Objects（Account total）',maybeNum(r.objectCount),'Pending multipart '+maybeNum(r.pendingMultipartUploads),null));
+      cards.push(card('R2 Download（今月UTC）',maybeBytes(r.bytesDownload),'Analytics APIの帯域指標は100KiB未満の転送を含みません',null));
+      cards.push(card('R2 Upload（今月UTC）',maybeBytes(r.bytesUpload),'アカウント全体・帯域は無料',null));
+    }else{quota.push(unavailable(['R2 Class A','R2 Class B','R2 Storage'],'quota'));cards.push(unavailable(['R2 Objects','R2 Download','R2 Upload']))}
     var p=data.pixabay||{},pc=[];setStatus('pixabayStatus',!!p.configured);var pm=p.month||{},ph=p.hour||{};if(p.configured&&pm.reportedLimit!=null&&pm.remaining!=null){var pixUsed=Math.max(0,Number(pm.reportedLimit)-Number(pm.remaining));quota.push(card('Pixabay API Remaining',num(pm.remaining)+' / '+num(pm.reportedLimit),'Provider報告値'+(pm.resetAt?' / Reset '+dt(pm.resetAt):''),Number(pm.reportedLimit)>0?pixUsed/Number(pm.reportedLimit)*100:null,'quota'))}else quota.push(card('Pixabay API Remaining','—','Provider上限・残数が取得できた場合のみ判定',null,'quota'));
+    if(plan==='paid'){
+      quota=quota.map(function(html){return html.replace(/本日UTC/g,'今月UTC（暦月参考）').replace(/上限 ([\d,]+) DB/g,'追加課金なし $1 DB / 作成上限 '+num(c.d1&&c.d1.databaseHardLimit||1000000)+' DB')});
+      cards=cards.map(function(html){return html.replace(/本日UTC/g,'今月UTC（暦月参考）')});
+    }
     $('quotaGrid').innerHTML=quota.join('');$('cfGrid').innerHTML=cards.join('');var errs=c.errors||[];$('cfErrors').classList.toggle('hidden',!errs.length);$('cfErrors').textContent=errs.length?'取得できなかった項目: '+errs.join(' / '):'';renderAccess(data.accessLogs);
+    var billing=data.billing||{},billingCards=[],money=function(amount){return billing.currency+' '+Number(amount).toFixed(4)};
+    if(billing.totalCost!=null&&billing.currency){
+      billingCards.push(card('公式の従量課金合計（当請求期間）',money(billing.totalCost),'全Cloudflareサービス・固定プラン料金を除く',null));
+      (billing.families||[]).forEach(function(f){billingCards.push(card('追加料金: '+String(f.name),money(f.cost),'Cloudflare公式Billable Usage',null))});
+      $('billingUsageNote').textContent='Billing Read APIの実請求元データ。更新は日次、最終対象期間 '+dt(billing.asOf)+'。固定のWorkers Paid基本料・その他サブスクは別です。';
+      var products=billing.products||[];
+      $('billingProducts').innerHTML=products.length?'<table class="usage-table"><thead><tr><th>製品</th><th>課金メーター</th><th>実測使用量</th><th>価格適用対象量</th><th>従量料金</th></tr></thead><tbody>'+products.map(function(p){return'<tr><td>'+esc(p.family)+'</td><td>'+esc(p.name)+'</td><td>'+esc(p.consumedQuantity==null?'未取得':num(p.consumedQuantity)+' '+p.consumedUnit)+'</td><td>'+esc(p.pricingQuantity==null?'未取得':num(p.pricingQuantity)+' '+p.pricingUnit)+'</td><td>'+esc(money(p.cost))+'</td></tr>'}).join('')+'</tbody></table>':'<div class="empty">請求期間の製品別従量課金データはありません。</div>';
+    }else{
+      billingCards.push(card('Cloudflare従量課金','未取得','不明な料金を $0 として扱いません',null));
+      $('billingUsageNote').textContent=billing.error==='billing_read_token_not_configured'?'Cloudflare側でBilling Read権限のAPIトークンを作成し、Worker Secret CLOUDFLARE_BILLING_TOKEN に設定すると公式請求額を表示できます。':billing.error?'公式料金取得エラー: '+String(billing.error):'料金の利用明細がまだ取得できません。Cloudflare Billingで直接確認してください。';
+      $('billingProducts').innerHTML='<div class="empty">製品ごとの実測使用量・請求対象量は未取得です。</div>';
+    }
+    $('billingUsageGrid').innerHTML=billingCards.join('');
     if(p.configured){pc.push(card('Pixabay API実呼出（今月）',num(pm.apiRequests),'キャッシュを除く実API呼出',null));pc.push(card('Pixabay API実呼出（今時間）',num(ph.apiRequests),'キャッシュ '+num(ph.cacheHits),null));pc.push(card('キャッシュヒット（今月）',num(pm.cacheHits),'ヒット率 '+Number(pm.cacheHitPercent||0).toFixed(1)+'%',null));pc.push(card('検索提供回数（今月）',num(pm.totalServed),'API + キャッシュ',null));pc.push(card('最終Pixabay HTTP',pm.lastStatus==null?'—':String(pm.lastStatus),'更新 '+dt(pm.updatedAt),null))}else pc.push(unavailable(['Pixabay API実呼出（今月）','Pixabay API実呼出（今時間）','キャッシュヒット','検索提供回数','最終HTTP']));
     $('pixabayGrid').innerHTML=pc.join('');var stores=p.topStores||[];$('storeUsage').innerHTML=stores.length?'<table class="usage-table"><thead><tr><th>店舗ID</th><th>実API</th><th>Cache hit</th></tr></thead><tbody>'+stores.map(function(s){return'<tr><td>'+esc(s.storeId)+'</td><td>'+num(s.apiRequests)+'</td><td>'+num(s.cacheHits)+'</td></tr>'}).join('')+'</tbody></table>':'<div class="empty">今月の利用データはまだありません。</div>';
     $('details').classList.remove('hidden');
@@ -177,15 +292,32 @@
     return data;
   }
   async function saveCloudflarePlan(){
+    ++planPreviewSequence;
     var btn=$('saveCloudflarePlanBtn');btn.disabled=true;$('cloudflarePlanSaveStatus').textContent='保存中…';
     try{
       await platformAction('savePlatformCloudflarePlan',{plan:$('cloudflarePlan').value});
       $('cloudflarePlanSaveStatus').textContent='保存しました。上限を再計算しています…';
       await load();
-      $('cloudflarePlanSaveStatus').textContent='保存済み。現在値 / 上限値と使用率を表示しています。';
+      $('cloudflarePlanSaveStatus').textContent='表示設定を保存しました。上限と使用率を更新しました（Cloudflareの契約は変更していません）。';
     }catch(e){
       $('cloudflarePlanSaveStatus').textContent='保存失敗: '+loadErrorText(e);
     }finally{btn.disabled=false}
+  }
+  var planPreviewSequence=0;
+  async function previewCloudflarePlan(){
+    var plan=$('cloudflarePlan').value;
+    renderPlanPricing(plan);
+    if($('details').classList.contains('hidden'))return;
+    var sequence=++planPreviewSequence;
+    $('cloudflarePlanSaveStatus').textContent='選択したプランの使用率を計算しています…';
+    try{
+      var result=await platformAction('getPlatformUsage',{cloudflarePlan:plan,accessHours:Number($('accessHours').value||24)});
+      if(sequence!==planPreviewSequence)return;
+      render(result);
+    }catch(e){
+      if(sequence!==planPreviewSequence)return;
+      $('cloudflarePlanSaveStatus').textContent='プレビュー失敗: '+loadErrorText(e);
+    }
   }
   function promptRoot(data){return data&&data.data&&typeof data.data==='object'?data.data:(data||{})}
   function promptText(value){if(typeof value==='string')return value;if(!value||typeof value!=='object')return'';return String(value.content||value.text||value.prompt||'')}
@@ -298,8 +430,8 @@
       else{setPromptWarning('AIテストは完了しましたが、保存済みDraftと一致しません。Draftを再読込して確認してください。')}
     }catch(e){$('promptTestResult').textContent='テスト失敗: '+String(e&&e.message||e);handlePromptError(e)}finally{$('promptTestBtn').disabled=false}
   }
-  async function load(){resetDetails();var token=$('adminToken').value.trim();if(!token){setMessage('PLATFORM_ADMIN_TOKENを入力してください。',true);return}$('loadBtn').disabled=true;$('refreshBtn').disabled=true;setMessage('読み込み中…',false);try{var res=await fetch(API,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'getPlatformUsage',adminToken:token,accessHours:Number($('accessHours').value||24)})});var data=await res.json();if(!res.ok||!data.ok)throw new Error((data&&data.error)||('HTTP '+res.status));render(data);try{sessionStorage.setItem(key,token)}catch(e){}setMessage('APIキーの値はこの画面へ返していません。利用量と接続状態のみ表示しています。',false)}catch(e){resetDetails();setMessage(loadErrorText(e),true)}finally{$('loadBtn').disabled=false;$('refreshBtn').disabled=false}}
-  $('loadBtn').onclick=load;$('refreshBtn').onclick=load;$('saveCloudflarePlanBtn').onclick=saveCloudflarePlan;$('cloudflarePlan').onchange=function(){renderPlanPricing(this.value)};$('promptLoadBtn').onclick=loadPrompt;$('promptSaveBtn').onclick=savePromptDraft;$('promptPublishBtn').onclick=publishPrompt;$('promptRollbackBtn').onclick=rollbackPrompt;$('promptHistoryBtn').onclick=loadPromptHistory;$('promptTestBtn').onclick=testPromptDraft;$('promptDraft').addEventListener('input',function(){if(validatePromptDraft()&&$('promptDraft').value!==promptLoadedDraft)setPromptWarning('未保存の変更があります。Draft保存後に公開できます。')});$('accessHours').onchange=function(){if(!$('details').classList.contains('hidden')&&$('adminToken').value.trim())load()};$('clearBtn').onclick=function(){try{sessionStorage.removeItem(key)}catch(e){}$('adminToken').value='';$('accessHours').value='24';resetDetails();setMessage('',false);$('adminToken').focus()};$('adminToken').addEventListener('keydown',function(e){if(e.key==='Enter')load()});
+  async function load(){++planPreviewSequence;resetDetails();var token=$('adminToken').value.trim();if(!token){setMessage('PLATFORM_ADMIN_TOKENを入力してください。',true);return}$('loadBtn').disabled=true;$('refreshBtn').disabled=true;setMessage('読み込み中…',false);try{var res=await fetch(API,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'getPlatformUsage',adminToken:token,accessHours:Number($('accessHours').value||24)})});var data=await res.json();if(!res.ok||!data.ok)throw new Error((data&&data.error)||('HTTP '+res.status));render(data);try{sessionStorage.setItem(key,token)}catch(e){}setMessage('APIキーの値はこの画面へ返していません。利用量と接続状態のみ表示しています。',false)}catch(e){resetDetails();setMessage(loadErrorText(e),true)}finally{$('loadBtn').disabled=false;$('refreshBtn').disabled=false}}
+  $('loadBtn').onclick=load;$('refreshBtn').onclick=load;$('saveCloudflarePlanBtn').onclick=saveCloudflarePlan;$('cloudflarePlan').onchange=previewCloudflarePlan;$('promptLoadBtn').onclick=loadPrompt;$('promptSaveBtn').onclick=savePromptDraft;$('promptPublishBtn').onclick=publishPrompt;$('promptRollbackBtn').onclick=rollbackPrompt;$('promptHistoryBtn').onclick=loadPromptHistory;$('promptTestBtn').onclick=testPromptDraft;$('promptDraft').addEventListener('input',function(){if(validatePromptDraft()&&$('promptDraft').value!==promptLoadedDraft)setPromptWarning('未保存の変更があります。Draft保存後に公開できます。')});$('accessHours').onchange=function(){if(!$('details').classList.contains('hidden')&&$('adminToken').value.trim())load()};$('clearBtn').onclick=function(){++planPreviewSequence;try{sessionStorage.removeItem(key)}catch(e){}$('adminToken').value='';$('accessHours').value='24';resetDetails();setMessage('',false);$('adminToken').focus()};$('adminToken').addEventListener('keydown',function(e){if(e.key==='Enter')load()});
 })();
 </script>
 </body>
