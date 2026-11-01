@@ -72,6 +72,17 @@
     <div id="billingUsageNote" class="notice">Billing Readトークンを設定すると、追加課金額を製品別に表示します。固定月額料金は含みません。</div>
   </section>
 
+  <section class="section" id="aiCreditOpsSection">
+    <div class="section-title"><h2>AIクレジット運用状況</h2><span id="creditOpsStatus" class="status off">未取得</span></div>
+    <div class="notice">購入障害・再送状況（Control D1）と当日AI予算（Cloudflareアカウント共通）の読取専用監視です。利用量が取得できない場合は0として扱いません。課金の実行やクレジット付与は行いません。</div>
+    <button class="btn sec" id="creditOpsLoadBtn" type="button" style="margin-top:12px">クレジット監査・予算を取得</button>
+    <div id="creditBudgetNote" class="notice" role="status">予算は未取得です。</div>
+    <div id="creditBudgetGrid" class="grid" style="margin-top:12px"></div>
+    <div id="creditAuditNote" class="notice" role="status">購入Webhookの監査は未取得です。</div>
+    <div id="creditAuditGrid" class="grid" style="margin-top:12px"></div>
+    <div id="creditAuditCategories" class="table-wrap" style="margin-top:12px"></div>
+  </section>
+
   <section class="section">
     <div class="section-title"><h2>Cloudflare</h2><span id="cfStatus" class="status off">未接続</span></div>
     <div id="cfGrid" class="grid"></div>
@@ -185,7 +196,32 @@
     $('billingProducts').innerHTML='';
     $('accessGrid').innerHTML='';$('accessError').textContent='';$('accessError').classList.add('hidden');$('accessLog').innerHTML='';
     $('pixabayGrid').innerHTML='';$('storeUsage').innerHTML='';
+    resetCreditOps();
     resetPrompt();
+  }
+  function resetCreditOps(){setStatus('creditOpsStatus',false);$('creditOpsStatus').textContent='未取得';$('creditBudgetNote').textContent='予算は未取得です。';$('creditAuditNote').textContent='購入Webhookの監査は未取得です。';$('creditBudgetGrid').innerHTML='';$('creditAuditGrid').innerHTML='';$('creditAuditCategories').innerHTML=''}
+  function renderCreditOps(data){
+    var budget=data&&data.budget||{},audit=data&&data.audit||{},budgetReady=budget.status==='available',auditReady=audit.status==='available';
+    setStatus('creditOpsStatus',budgetReady&&auditReady);$('creditOpsStatus').textContent=budgetReady&&auditReady?'取得済み':budgetReady||auditReady?'一部未取得':'取得失敗';
+    if(budgetReady){
+      var guard=budget.guard==='blocked'?'停止':budget.guard==='near_limit'?'上限接近':'利用可能';
+      $('creditBudgetGrid').innerHTML=card('当日の使用 Neurons',num(budget.observedNeurons),'全Cloudflareアカウント / UTC '+esc(budget.utcDay),null,'quota')+card('予約済み Neurons',num(budget.reservedNeurons),'未確定の安全予約枠',null,'quota')+card('新規AI処理の予算残量',num(budget.remainingNeurons)+' / '+num(budget.limitNeurons),'状態: '+guard+'（管理上限でありCloudflareの課金停止保証ではありません）',null,'quota');
+      $('creditBudgetNote').textContent='取得済み: '+dt(data.checkedAt)+' / 状態: '+guard+'。GraphQL使用量の反映には遅延があり、超過請求ゼロの保証ではありません。';
+    }else{$('creditBudgetGrid').innerHTML=card('AI予算','未取得','予算・契約・認証・取得失敗のいずれか。安全とみなさないでください。',null,'quota');$('creditBudgetNote').textContent='取得できません: '+String(budget.error||'budget_unavailable')}
+    if(auditReady){
+      var s=audit.summary||{};
+      $('creditAuditGrid').innerHTML=card('課金Webhook合計',num(s.total),'適用 '+num(s.applied)+' / 未処理 '+num(s.received)+' / 配信中 '+num(s.dispatching),null)+card('失敗',num(s.failed),'Control側の失敗。購入失敗件数と同義ではありません。',null)+card('15分以上滞留',num(s.stale),'配信未確定イベント',null)+card('3回以上試行中',num(s.retrying),'再送監視対象',null)+card('再試行後適用',num(s.appliedAfterRetry),'再送成功済み',null);
+      var categories=Array.isArray(audit.categories)?audit.categories:[];
+      $('creditAuditCategories').innerHTML=categories.length?'<table class="usage-table"><thead><tr><th>失敗コード</th><th>件数</th></tr></thead><tbody>'+categories.map(function(c){return'<tr><td>'+esc(c.code)+'</td><td>'+esc(num(c.count))+'</td></tr>'}).join('')+'</tbody></table>':'<div class="empty">失敗コードの記録はありません。</div>';
+      $('creditAuditNote').textContent='取得済み: '+dt(data.checkedAt)+' / Control D1・全店舗の課金Webhook集計。返金・取消にはPro契約のイベントも含み、AIクレジット購入だけの件数ではありません。正式QAは別です。';
+    }else{$('creditAuditGrid').innerHTML=card('Webhook監査','未取得','Control D1の更新やWorker認証が未完了の可能性があります。',null);$('creditAuditCategories').innerHTML='';$('creditAuditNote').textContent='取得できません: '+String(audit.error||'audit_unavailable')}
+  }
+  async function loadCreditOps(){
+    var token=$('adminToken').value.trim();if(!token||$('details').classList.contains('hidden'))return;
+    $('creditOpsLoadBtn').disabled=true;$('creditOpsStatus').textContent='取得中';
+    try{var res=await fetch(API,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'getAiCreditOperationalStatus',adminToken:token})});var data=await res.json();if(!res.ok||!data.ok)throw Error('operator_status_unavailable');renderCreditOps(data)}
+    catch(e){renderCreditOps({budget:{status:'unavailable',error:'operator_status_unavailable'},audit:{status:'unavailable',error:'operator_status_unavailable'}})}
+    finally{$('creditOpsLoadBtn').disabled=false}
   }
   function loadErrorText(e){var m=String(e&&e.message||e||'');if(m==='forbidden')return'PLATFORM_ADMIN_TOKENが正しくないか、期限切れです。';if(m==='platform_admin_not_configured')return'運営管理トークンがサーバーに設定されていません。';if(/failed to fetch|networkerror|network request|load failed/i.test(m))return'通信エラーで読み込めませんでした。ネットワーク接続を確認してください。';if(/^HTTP /.test(m))return'サーバーエラーで読み込めませんでした（'+m+'）。';return'管理情報を読み込めませんでした（'+m+'）。'}
   function renderPlanPricing(plan){$('paidPricingInfo').classList.toggle('hidden',String(plan||'').toLowerCase()!=='paid')}
@@ -473,6 +509,7 @@
   }
   async function load(){++planPreviewSequence;resetDetails();var token=$('adminToken').value.trim();if(!token){setMessage('PLATFORM_ADMIN_TOKENを入力してください。',true);return}$('loadBtn').disabled=true;$('refreshBtn').disabled=true;setMessage('読み込み中…',false);try{var res=await fetch(API,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'getPlatformUsage',adminToken:token,accessHours:Number($('accessHours').value||24)})});var data=await res.json();if(!res.ok||!data.ok)throw new Error((data&&data.error)||('HTTP '+res.status));render(data);try{sessionStorage.setItem(key,token)}catch(e){}setMessage('APIキーの値はこの画面へ返していません。利用量と接続状態のみ表示しています。',false)}catch(e){resetDetails();setMessage(loadErrorText(e),true)}finally{$('loadBtn').disabled=false;$('refreshBtn').disabled=false}}
   $('loadBtn').onclick=load;$('refreshBtn').onclick=load;$('saveCloudflarePlanBtn').onclick=saveCloudflarePlan;$('cloudflarePlan').onchange=previewCloudflarePlan;$('promptLoadBtn').onclick=loadPrompt;$('promptSaveBtn').onclick=savePromptDraft;$('promptPublishBtn').onclick=publishPrompt;$('promptRollbackBtn').onclick=rollbackPrompt;$('promptHistoryBtn').onclick=loadPromptHistory;$('promptTestBtn').onclick=testPromptDraft;$('promptDraft').addEventListener('input',function(){if(validatePromptDraft()&&$('promptDraft').value!==promptLoadedDraft)setPromptWarning('未保存の変更があります。Draft保存後に公開できます。')});$('accessHours').onchange=function(){if(!$('details').classList.contains('hidden')&&$('adminToken').value.trim())load()};$('clearBtn').onclick=function(){++planPreviewSequence;try{sessionStorage.removeItem(key)}catch(e){}$('adminToken').value='';$('accessHours').value='24';resetDetails();setMessage('',false);$('adminToken').focus()};$('adminToken').addEventListener('keydown',function(e){if(e.key==='Enter')load()});
+  $('creditOpsLoadBtn').onclick=loadCreditOps;
   $('promptKeySelect').addEventListener('change',function(){
     promptKey=this.value;resetPrompt();
     $('promptHelp').textContent=promptKey==='inventory_vision'
