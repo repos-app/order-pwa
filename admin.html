@@ -96,6 +96,35 @@
     <div id="serverDiagRows" class="table-wrap" style="margin-top:12px"></div>
   </section>
 
+  <section class="section" id="aiCreditHistorySection">
+    <div class="section-title"><h2>店舗別AIポイント操作・台帳</h2><span id="creditHistoryStatus" class="status off">未取得</span></div>
+    <div class="notice">運営管理トークンによる閲覧専用です。指定した店舗の物理D1を読み、付与・消費・返還と台帳差分を確認します。決済ID・AI入力・レシート情報は表示しません。不一致の検知と運営宛の通知状態も表示します。</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:12px">
+      <label for="creditHistoryStoreId" style="min-width:160px;flex:2">店舗ID
+        <input id="creditHistoryStoreId" maxlength="32" autocomplete="off" placeholder="teat" style="display:block;padding:10px;width:100%" />
+      </label>
+      <label for="creditHistoryKind" style="min-width:140px;flex:1">操作区分
+        <select id="creditHistoryKind" style="display:block;padding:10px;width:100%">
+          <option value="">すべて</option><option value="monthly_grant">月次付与</option><option value="paid_grant">購入付与</option><option value="paid_reversal">購入取消</option><option value="reservation">AI利用</option><option value="trial_grant">旧初回付与</option>
+        </select>
+      </label>
+      <label for="creditHistoryState" style="min-width:140px;flex:1">処理状態
+        <select id="creditHistoryState" style="display:block;padding:10px;width:100%">
+          <option value="">すべて</option><option value="applied">適用</option><option value="reserved">予約</option><option value="committed">確定</option><option value="refunded">返還</option>
+        </select>
+      </label>
+      <button class="btn sec" id="creditHistoryLoadBtn" type="button">店舗台帳を検索</button>
+    </div>
+    <div id="creditHistoryNote" class="notice" role="status" style="margin-top:12px">店舗IDを指定してください。</div>
+    <div id="creditHistorySummary" class="grid" style="margin-top:12px"></div>
+    <div id="creditHistoryOperations" class="table-wrap" style="margin-top:12px"></div>
+    <div id="creditHistoryLedger" class="table-wrap" style="margin-top:12px"></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn sec" id="creditHistoryPrevBtn" type="button" disabled>前の30件</button>
+      <button class="btn sec" id="creditHistoryNextBtn" type="button" disabled>次の30件</button>
+    </div>
+  </section>
+
   <section class="section">
     <div class="section-title"><h2>Cloudflare</h2><span id="cfStatus" class="status off">未接続</span></div>
     <div id="cfGrid" class="grid"></div>
@@ -211,12 +240,71 @@
     $('pixabayGrid').innerHTML='';$('storeUsage').innerHTML='';
     resetCreditOps();
     resetServerDiagnostics();
+    resetCreditHistory();
     resetPrompt();
   }
   function resetCreditOps(){setStatus('creditOpsStatus',false);$('creditOpsStatus').textContent='未取得';$('creditBudgetNote').textContent='予算は未取得です。';$('creditAuditNote').textContent='購入Webhookの監査は未取得です。';$('creditBudgetGrid').innerHTML='';$('creditAuditGrid').innerHTML='';$('creditAuditCategories').innerHTML=''}
   function resetServerDiagnostics(){
     setStatus('serverDiagStatus',false);$('serverDiagStatus').textContent='未取得';
     $('serverDiagNote').textContent='まだ検索していません。';$('serverDiagRows').innerHTML='';
+  }
+  var creditHistoryOffset=0;
+  function resetCreditHistory(){
+    creditHistoryOffset=0;setStatus('creditHistoryStatus',false);
+    $('creditHistoryStatus').textContent='未取得';
+    $('creditHistoryNote').textContent='店舗IDを指定してください。';
+    $('creditHistorySummary').innerHTML='';
+    $('creditHistoryOperations').innerHTML='';
+    $('creditHistoryLedger').innerHTML='';
+    $('creditHistoryPrevBtn').disabled=true;$('creditHistoryNextBtn').disabled=true;
+  }
+  function renderCreditHistory(data){
+    if(!data||data.readOnly!==true||data.scope!=='platform_operator'||
+        !Array.isArray(data.operations)||!Array.isArray(data.ledger))throw Error('history_invalid');
+    setStatus('creditHistoryStatus',true);$('creditHistoryStatus').textContent='取得済み';
+    creditHistoryOffset=Number(data.offset)||0;
+    var rec=data.reconciliation||{},notify=data.notification||{},w=data.wallet||{};
+    var tr=rec.difference||{},recState=rec.status||'未検証';
+    $('creditHistoryNote').textContent='店舗 '+data.storeId+' / 操作 '+num(data.totalOperations)+'件 / 台帳 '+num(data.totalLedgerEntries)+
+      '件 / 操作の表示 '+(data.operations.length?creditHistoryOffset+1:0)+'〜'+(creditHistoryOffset+data.operations.length)+
+      ' / 照合 '+recState+' / 通知 '+(notify.last_notified_at||'未送信')+
+      (notify.last_notification_error?' / 通知障害 '+notify.last_notification_error:'')+
+      '。差分は trial・monthly・購入純残高（購入残高−購入負債）を比較。旧台帳は判定保留です。';
+    $('creditHistorySummary').innerHTML=
+      card('月次無料残高',w.monthly==null?'未作成':num(w.monthly),'UTC月 '+esc(w.cycle||'—'),null)+
+      card('購入残高 / 負債',w.purchased==null?'未作成':num(w.purchased)+' / '+num(w.purchaseDebt),'購入分は無料付与と別管理',null)+
+      card('台帳との差分',tr.monthly==null?'判定保留':'無料 '+num(tr.monthly)+' / 購入純 '+num(tr.paidNet),'照合 '+esc(recState)+'、台帳欠落 '+num(rec.missingLedger||0),null);
+    $('creditHistoryOperations').innerHTML=data.operations.length?
+      '<h3>操作履歴</h3><table class="usage-table"><thead><tr><th>UTC時刻</th><th>操作参照</th><th>区分</th><th>状態</th><th>失敗分類</th><th>単位</th><th>機能</th></tr></thead><tbody>'+
+      data.operations.map(function(o){return '<tr><td>'+esc(o.createdAt)+'</td><td><code>'+esc(o.operationRef)+'</code></td>'+
+        '<td>'+esc(o.kind)+'</td><td>'+esc(o.state)+'</td><td>'+esc(o.failureCode||'—')+'</td><td>'+num(o.units)+'</td><td>'+esc(o.feature||'—')+'</td></tr>'}).join('')+
+      '</tbody></table>':'<div class="empty">該当する操作はありません。</div>';
+    $('creditHistoryLedger').innerHTML=data.ledger.length?
+      '<h3>台帳履歴</h3><table class="usage-table"><thead><tr><th>UTC時刻</th><th>操作参照</th><th>分類</th><th>無料差分</th><th>購入差分</th><th>負債調整</th></tr></thead><tbody>'+
+      data.ledger.map(function(l){return '<tr><td>'+esc(l.createdAt)+'</td><td><code>'+esc(l.operationRef)+'</code></td>'+
+        '<td>'+esc(l.action)+'</td><td>'+num(Number(l.trialDelta||0)+Number(l.monthlyDelta||0))+'</td>'+
+        '<td>'+num(l.purchasedDelta)+'</td><td>'+num(l.debtDelta)+'</td></tr>'}).join('')+
+      '</tbody></table>':'<div class="empty">台帳記録はありません。</div>';
+    $('creditHistoryPrevBtn').disabled=creditHistoryOffset<=0;
+    $('creditHistoryNextBtn').disabled=creditHistoryOffset+30>=Math.max(Number(data.totalOperations),Number(data.totalLedgerEntries));
+  }
+  async function loadCreditHistory(offset){
+    var token=$('adminToken').value.trim(),storeId=$('creditHistoryStoreId').value.trim().toLowerCase();
+    if(!token||$('details').classList.contains('hidden'))return;
+    if(!/^[a-z0-9][a-z0-9-]{2,31}$/.test(storeId)){
+      resetCreditHistory();$('creditHistoryNote').textContent='店舗IDの形式を確認してください。';return;
+    }
+    $('creditHistoryLoadBtn').disabled=true;$('creditHistoryStatus').textContent='取得中';
+    try{
+      var res=await fetch(API,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({
+        action:'getAiCreditOperatorHistory',adminToken:token,storeId:storeId,
+        kind:$('creditHistoryKind').value,state:$('creditHistoryState').value,offset:offset||0,limit:30})});
+      var data=await res.json();if(!res.ok||!data.ok)throw Error(data.error||'history_unavailable');
+      renderCreditHistory(data);
+    }catch(e){
+      resetCreditHistory();$('creditHistoryStatus').textContent='取得失敗';
+      $('creditHistoryNote').textContent='取得できませんでした。店舗ID・権限・Control/店舗D1の状態をご確認ください。';
+    }finally{$('creditHistoryLoadBtn').disabled=false;}
   }
   function renderServerDiagnostics(data){
     if(!data||data.readOnly!==true||data.scope!=='platform'||!Array.isArray(data.rows))
@@ -561,6 +649,9 @@
   $('loadBtn').onclick=load;$('refreshBtn').onclick=load;$('saveCloudflarePlanBtn').onclick=saveCloudflarePlan;$('cloudflarePlan').onchange=previewCloudflarePlan;$('promptLoadBtn').onclick=loadPrompt;$('promptSaveBtn').onclick=savePromptDraft;$('promptPublishBtn').onclick=publishPrompt;$('promptRollbackBtn').onclick=rollbackPrompt;$('promptHistoryBtn').onclick=loadPromptHistory;$('promptTestBtn').onclick=testPromptDraft;$('promptDraft').addEventListener('input',function(){if(validatePromptDraft()&&$('promptDraft').value!==promptLoadedDraft)setPromptWarning('未保存の変更があります。Draft保存後に公開できます。')});$('accessHours').onchange=function(){if(!$('details').classList.contains('hidden')&&$('adminToken').value.trim())load()};$('clearBtn').onclick=function(){++planPreviewSequence;try{sessionStorage.removeItem(key)}catch(e){}$('adminToken').value='';$('accessHours').value='24';resetDetails();setMessage('',false);$('adminToken').focus()};$('adminToken').addEventListener('keydown',function(e){if(e.key==='Enter')load()});
   $('creditOpsLoadBtn').onclick=loadCreditOps;
   $('serverDiagLoadBtn').onclick=loadServerDiagnostics;
+  $('creditHistoryLoadBtn').onclick=function(){return loadCreditHistory(0)};
+  $('creditHistoryPrevBtn').onclick=function(){return loadCreditHistory(Math.max(0,creditHistoryOffset-30))};
+  $('creditHistoryNextBtn').onclick=function(){return loadCreditHistory(creditHistoryOffset+30)};
   $('promptKeySelect').addEventListener('change',function(){
     promptKey=this.value;resetPrompt();
     $('promptHelp').textContent=promptKey==='inventory_vision'
