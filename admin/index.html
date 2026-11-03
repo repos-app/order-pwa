@@ -102,6 +102,7 @@
       <button class="btn sec" id="serverDiagLoadBtn" type="button">共通障害ログを検索</button>
     </div>
     <div id="serverDiagNote" class="notice" role="status" style="margin-top:12px">まだ検索していません。</div>
+    <div id="serverDiagAlert" class="notice" role="status">全体エラー急増監視：未取得</div>
     <div id="serverDiagRows" class="table-wrap" style="margin-top:12px"></div>
   </section>
 
@@ -256,6 +257,7 @@
   function resetServerDiagnostics(){
     setStatus('serverDiagStatus',false);$('serverDiagStatus').textContent='未取得';
     $('serverDiagNote').textContent='まだ検索していません。';$('serverDiagRows').innerHTML='';
+    $('serverDiagAlert').textContent='全体エラー急増監視：未取得';
   }
   var creditHistoryOffset=0;
   function resetCreditHistory(){
@@ -323,6 +325,15 @@
       ' / '+esc(data.fromDate)+' 〜 '+esc(data.toDate)+
       ' UTC・365日保管（D1とR2から最大50件表示）。'+
       (data.limited?'さらに古い履歴がある可能性があります。追跡IDで絞り込んでください。':'');
+    var a=data.errorAlert;
+    $('serverDiagAlert').textContent=a&&a.lastCheckedAt?
+      '全体エラー急増監視：'+(a.status==='spike'?'急増検知':'正常')+
+      '｜直近15分 '+String(a.recentFailures==null?'未取得':a.recentFailures)+'件'+
+      '／前15分 '+String(a.previousFailures==null?'未取得':a.previousFailures)+'件'+
+      '｜最終検査 '+String(a.lastCheckedAt)+
+      (a.lastAlertedAt?'｜最終通知 '+String(a.lastAlertedAt):'｜通知なし')+
+      (a.lastDeliveryError?'｜通知エラー '+String(a.lastDeliveryError):''):
+      '全体エラー急増監視：未検査（Cronの初回実行待ち）';
     $('serverDiagRows').innerHTML=data.rows.length?
       '<table class="usage-table"><thead><tr><th>UTC時刻</th><th>追跡ID</th><th>保存先</th><th>記録元</th><th>操作</th><th>状態</th><th>エラー</th><th>処理時間</th></tr></thead><tbody>'+
       data.rows.map(function(r){
