@@ -85,10 +85,19 @@
 
   <section class="section" id="serverDiagnosticsSection">
     <div class="section-title"><h2>サーバー共通障害ログ</h2><span id="serverDiagStatus" class="status off">未取得</span></div>
-    <div class="notice">API入口・Control・AIポイント消費・課金Webhookの共通診断履歴です。追跡IDで同じリクエストの関連ログを検索できます。運営管理トークンが必要な読取専用機能で、保存期間は30日です。購入・付与・残高変更は行いません。</div>
+    <div class="notice">API入口・Control・AIポイント消費・課金Webhookの共通診断履歴です。<b>保存期間365日（直近30日 D1、31〜365日 R2圧縮保管）</b>。過去365日の任意の連続31日間を、店舗ID・追跡IDで検索できます。運営管理トークンが必要な読取専用機能です。購入・付与・残高変更は行いません。</div>
     <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin-top:12px">
-      <label for="serverDiagTraceId" style="flex:1;min-width:220px">追跡ID（任意・空欄なら最新50件）
+      <label for="serverDiagStoreId" style="flex:1;min-width:130px">店舗ID（共通ログはplatform）
+        <input id="serverDiagStoreId" type="text" maxlength="32" autocomplete="off" value="platform" style="display:block;width:100%;padding:10px" />
+      </label>
+      <label for="serverDiagTraceId" style="flex:1;min-width:170px">追跡ID（任意）
         <input id="serverDiagTraceId" type="text" maxlength="64" autocomplete="off" placeholder="APIエラーの追跡IDを入力" style="display:block;width:100%;padding:10px" />
+      </label>
+      <label for="serverDiagFromDate">開始日（UTC）
+        <input id="serverDiagFromDate" type="date" style="display:block;width:100%;padding:10px" />
+      </label>
+      <label for="serverDiagToDate">終了日（UTC）
+        <input id="serverDiagToDate" type="date" style="display:block;width:100%;padding:10px" />
       </label>
       <button class="btn sec" id="serverDiagLoadBtn" type="button">共通障害ログを検索</button>
     </div>
@@ -307,31 +316,43 @@
     }finally{$('creditHistoryLoadBtn').disabled=false;}
   }
   function renderServerDiagnostics(data){
-    if(!data||data.readOnly!==true||data.scope!=='platform'||!Array.isArray(data.rows))
+    if(!data||data.readOnly!==true||data.scope!==$('serverDiagStoreId').value.trim()||!Array.isArray(data.rows))
       throw Error('diagnostic_response_invalid');
     setStatus('serverDiagStatus',true);$('serverDiagStatus').textContent='取得済み';
     $('serverDiagNote').textContent='取得件数: '+data.rows.length+
-      ' / Control D1の共通診断ログ（30日保存、最大50件表示）。'+
+      ' / '+esc(data.fromDate)+' 〜 '+esc(data.toDate)+
+      ' UTC・365日保管（D1とR2から最大50件表示）。'+
       (data.limited?'さらに古い履歴がある可能性があります。追跡IDで絞り込んでください。':'');
     $('serverDiagRows').innerHTML=data.rows.length?
-      '<table class="usage-table"><thead><tr><th>UTC時刻</th><th>追跡ID</th><th>記録元</th><th>操作</th><th>状態</th><th>エラー</th><th>処理時間</th></tr></thead><tbody>'+
+      '<table class="usage-table"><thead><tr><th>UTC時刻</th><th>追跡ID</th><th>保存先</th><th>記録元</th><th>操作</th><th>状態</th><th>エラー</th><th>処理時間</th></tr></thead><tbody>'+
       data.rows.map(function(r){
         return '<tr><td>'+esc(r.recordedAt)+'</td><td><code>'+esc(r.traceId)+'</code></td>'+
+          '<td>'+esc(String(r.storage||'d1').toUpperCase())+'</td>'+
           '<td>'+esc(r.feature)+' / '+esc(r.source)+'</td><td>'+esc(r.operation)+'</td>'+
           '<td>'+esc(r.outcome)+'</td><td>'+esc(r.errorCode)+'</td>'+
           '<td>'+esc(num(r.durationMs))+' ms</td></tr>';
       }).join('')+'</tbody></table>':'<div class="empty">該当するログはありません。未実行や記録期間外の場合もあります。</div>';
   }
   async function loadServerDiagnostics(){
-    var token=$('adminToken').value.trim(),traceId=$('serverDiagTraceId').value.trim();
+    var token=$('adminToken').value.trim(),traceId=$('serverDiagTraceId').value.trim(),
+      storeId=$('serverDiagStoreId').value.trim(),fromDate=$('serverDiagFromDate').value,
+      toDate=$('serverDiagToDate').value;
     if(!token||$('details').classList.contains('hidden'))return;
-    if(traceId&&!/^[a-zA-Z0-9_-]{8,64}$/.test(traceId)){
-      resetServerDiagnostics();$('serverDiagNote').textContent='追跡IDの形式が正しくありません。';return;
+    if(!/^[a-z0-9][a-z0-9-]{0,31}$/.test(storeId)||
+       (traceId&&!/^[a-zA-Z0-9_-]{8,64}$/.test(traceId))){
+      resetServerDiagnostics();$('serverDiagNote').textContent='店舗ID・追跡IDの形式が正しくありません。';return;
+    }
+    var from=Date.parse(fromDate+'T00:00:00Z'),to=Date.parse(toDate+'T00:00:00Z'),
+      today=Date.parse(new Date().toISOString().slice(0,10)+'T00:00:00Z');
+    if(!Number.isFinite(from)||!Number.isFinite(to)||from>to||to>today||
+       from<today-364*86400000||to-from>=31*86400000){
+      resetServerDiagnostics();$('serverDiagNote').textContent='過去365日内で、開始日から終了日まで31日以内を指定してください。';return;
     }
     $('serverDiagLoadBtn').disabled=true;$('serverDiagStatus').textContent='取得中';
     try{
       var res=await fetch(API,{method:'POST',headers:{'content-type':'application/json'},
-        body:JSON.stringify({action:'getOperationalDiagnostics',adminToken:token,traceId:traceId,limit:50})});
+        body:JSON.stringify({action:'getOperationalDiagnostics',adminToken:token,storeId:storeId,
+          traceId:traceId,fromDate:fromDate,toDate:toDate,limit:50})});
       var data=await res.json();if(!res.ok||!data.ok)throw Error('diagnostic_unavailable');
       renderServerDiagnostics(data);
     }catch(e){resetServerDiagnostics();$('serverDiagStatus').textContent='取得失敗';
@@ -648,6 +669,13 @@
   async function load(){++planPreviewSequence;resetDetails();var token=$('adminToken').value.trim();if(!token){setMessage('PLATFORM_ADMIN_TOKENを入力してください。',true);return}$('loadBtn').disabled=true;$('refreshBtn').disabled=true;setMessage('読み込み中…',false);try{var res=await fetch(API,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'getPlatformUsage',adminToken:token,accessHours:Number($('accessHours').value||24)})});var data=await res.json();if(!res.ok||!data.ok)throw new Error((data&&data.error)||('HTTP '+res.status));render(data);try{sessionStorage.setItem(key,token)}catch(e){}setMessage('APIキーの値はこの画面へ返していません。利用量と接続状態のみ表示しています。',false)}catch(e){resetDetails();setMessage(loadErrorText(e),true)}finally{$('loadBtn').disabled=false;$('refreshBtn').disabled=false}}
   $('loadBtn').onclick=load;$('refreshBtn').onclick=load;$('saveCloudflarePlanBtn').onclick=saveCloudflarePlan;$('cloudflarePlan').onchange=previewCloudflarePlan;$('promptLoadBtn').onclick=loadPrompt;$('promptSaveBtn').onclick=savePromptDraft;$('promptPublishBtn').onclick=publishPrompt;$('promptRollbackBtn').onclick=rollbackPrompt;$('promptHistoryBtn').onclick=loadPromptHistory;$('promptTestBtn').onclick=testPromptDraft;$('promptDraft').addEventListener('input',function(){if(validatePromptDraft()&&$('promptDraft').value!==promptLoadedDraft)setPromptWarning('未保存の変更があります。Draft保存後に公開できます。')});$('accessHours').onchange=function(){if(!$('details').classList.contains('hidden')&&$('adminToken').value.trim())load()};$('clearBtn').onclick=function(){++planPreviewSequence;try{sessionStorage.removeItem(key)}catch(e){}$('adminToken').value='';$('accessHours').value='24';resetDetails();setMessage('',false);$('adminToken').focus()};$('adminToken').addEventListener('keydown',function(e){if(e.key==='Enter')load()});
   $('creditOpsLoadBtn').onclick=loadCreditOps;
+  (function(){
+    var utcToday=new Date(),date=utcToday.toISOString().slice(0,10);
+    $('serverDiagStoreId').value=$('serverDiagStoreId').value||'platform';
+    $('serverDiagToDate').value=date;$('serverDiagToDate').max=date;
+    $('serverDiagFromDate').value=new Date(utcToday.getTime()-6*86400000).toISOString().slice(0,10);
+    $('serverDiagFromDate').min=new Date(utcToday.getTime()-364*86400000).toISOString().slice(0,10);
+  })();
   $('serverDiagLoadBtn').onclick=loadServerDiagnostics;
   $('creditHistoryLoadBtn').onclick=function(){return loadCreditHistory(0)};
   $('creditHistoryPrevBtn').onclick=function(){return loadCreditHistory(Math.max(0,creditHistoryOffset-30))};
