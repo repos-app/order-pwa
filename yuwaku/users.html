@@ -27,6 +27,7 @@
     .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
     .fg{ margin-bottom:8px; }
     .form-label{ font-size:12px; font-weight:700; display:block; margin-bottom:4px; }
+    .form-label.required::after{content:" *";color:#b91c1c}
     .fc{ width:100%; padding:10px; border:1px solid var(--border); border-radius:9px; font-size:15px; font-family:inherit; background:var(--surface); }
     .btn{ border:0; border-radius:11px; padding:13px; font-size:15px; font-weight:900; cursor:pointer; font-family:inherit; }
     .btn-pri{ background:var(--navy); color:#fff; width:100%; margin-top:10px; }
@@ -41,11 +42,14 @@
     table.pm{ min-width:0; table-layout:fixed; }
     .pm th,.pm td{ padding:8px 6px; text-align:center; border-bottom:1px solid var(--border); }
     .pm th:first-child,.pm td:first-child{ text-align:left; font-weight:800; width:40%; }
-    .pm th:not(:first-child),.pm td:not(:first-child){ width:15%; overflow-wrap:anywhere; }
+    .pm th:not(:first-child),.pm td:not(:first-child){ width:15%; overflow-wrap:normal; }
     .pm input{ width:20px; height:20px; }
     .alert{ margin-top:10px; display:none; padding:11px; border-radius:9px; font-size:14px; font-weight:700; }
     @media (max-width:520px){ #pane-p .card{ padding:12px 10px; } .pm{ font-size:11px; } .pm th,.pm td{ padding:7px 2px; line-height:1.25; } .pm input{ width:18px; height:18px; margin:0; } }
-  </style>
+    @media (orientation:landscape) and (max-height:500px){ body{padding-bottom:220px;} #uWage{width:min(100%,320px);max-width:100%;font-size:16px;scroll-margin-top:72px;} }
+/* Formal Android PT-CTL touch target: independent of common header injection. */
+#saveU{min-height:44px;min-width:44px;box-sizing:border-box}
+</style>
 </head>
 <body>
   <div class="head"><h1 data-t="title">👥 ユーザー管理</h1><div style="display:flex;gap:8px;"><button class="hbtn" data-tlang onclick="I18n.toggle()">EN</button><a class="hbtn" href="./manage.html" data-t="back">← 管理へ</a></div></div>
@@ -60,11 +64,11 @@
         <div class="card-title" data-t="formTitle">➕ ユーザーの追加 / 編集</div>
         <input type="hidden" id="uId">
         <div class="grid2">
-          <div class="fg"><label class="form-label" data-t="lblName">名前</label><input id="uName" class="fc" required aria-required="true"></div>
+          <div class="fg"><label class="form-label required" data-t="lblName" for="uName">名前</label><input id="uName" class="fc" required aria-required="true"></div>
           <div class="fg"><label class="form-label" data-t="lblRole">権限グループ</label><select id="uRole" class="fc"><option value="一般" data-t="rGen">一般</option><option value="マネージャー" data-t="rMgr">マネージャー</option><option value="管理者" data-t="rAdmin">管理者</option><option value="システム" data-t="rSys">システム</option></select></div>
-          <div class="fg"><label class="form-label" data-t="lblLogin">ログインID</label><input id="uLogin" class="fc" autocomplete="off"></div>
+          <div class="fg"><label class="form-label" data-t="lblLogin" for="uLogin" id="uLoginLabel">ログインID</label><input id="uLogin" class="fc" autocomplete="off" oninput="updateUserRequiredMarkers()"></div>
           <div class="fg"><label class="form-label" data-t="lblWage">時給</label><input id="uWage" type="number" min="0" class="fc"></div>
-          <div class="fg"><label class="form-label" data-t="lblPass">パスワード</label><input id="uPass" type="password" class="fc" autocomplete="new-password" minlength="8"><div class="muted" data-t="passHint">空欄なら変更しません（新規は8文字以上必須）</div></div>
+          <div class="fg"><label class="form-label" data-t="lblPass" for="uPass" id="uPassLabel">パスワード</label><input id="uPass" type="password" class="fc" autocomplete="new-password" minlength="8"><div class="muted" data-t="passHint">空欄なら変更しません（新規は8文字以上必須）</div></div>
           <div class="fg"><label class="form-label" data-t="lblStatus">ステータス</label><select id="uStatus" class="fc"><option value="在籍" data-t="stActive">在籍</option><option value="退職" data-t="stLeft">退職</option></select></div>
         </div>
         <button class="btn btn-pri" id="saveU" onclick="saveUser()" data-t="save">💾 保存</button>
@@ -126,6 +130,16 @@
     var EMPLOYEE_REQUEST_ID='', EMPLOYEE_REQUEST_SIG='';
     function nextEmployeeRequestId(){ try{return crypto.randomUUID();}catch(e){return Date.now()+'-'+Math.random().toString(16).slice(2);} }
     function resetEmployeeRequest(){ EMPLOYEE_REQUEST_ID=''; EMPLOYEE_REQUEST_SIG=''; }
+    window.updateUserRequiredMarkers = function(){
+      var login=document.getElementById('uLogin'),pass=document.getElementById('uPass');
+      var passRequired=!document.getElementById('uId').value && !!login.value.trim();
+      login.required=EDITING_OWNER;
+      login.setAttribute('aria-required',EDITING_OWNER?'true':'false');
+      document.getElementById('uLoginLabel').classList.toggle('required',EDITING_OWNER);
+      pass.required=passRequired;
+      pass.setAttribute('aria-required',passRequired?'true':'false');
+      document.getElementById('uPassLabel').classList.toggle('required',passRequired);
+    };
     window.editUser = function(id){
       resetEmployeeRequest();
       var u = allUsers.filter(function(x){return x.id===id;})[0]; if(!u) return;
@@ -136,9 +150,10 @@
       document.getElementById('uStatus').value=u.status||'在籍';
       document.getElementById('uStatus').disabled=EDITING_OWNER;
       document.getElementById('uLogin').required=EDITING_OWNER;
+      updateUserRequiredMarkers();
       window.scrollTo({top:0,behavior:'smooth'});
     };
-    window.clearForm = function(){ resetEmployeeRequest(); EDITING_OWNER=false; ['uId','uName','uLogin','uWage','uPass'].forEach(function(id){ document.getElementById(id).value=''; }); document.getElementById('uRole').value='一般'; document.getElementById('uStatus').value='在籍'; document.getElementById('uStatus').disabled=false; document.getElementById('uLogin').required=false; document.getElementById('uMsg').style.display='none'; };
+    window.clearForm = function(){ resetEmployeeRequest(); EDITING_OWNER=false; ['uId','uName','uLogin','uWage','uPass'].forEach(function(id){ document.getElementById(id).value=''; }); document.getElementById('uRole').value='一般'; document.getElementById('uStatus').value='在籍'; document.getElementById('uStatus').disabled=false; updateUserRequiredMarkers(); document.getElementById('uMsg').style.display='none'; };
     window.saveUser = function(){
       var name = document.getElementById('uName').value.trim();
       if (!name){ msg('uMsg',I18n.t('needName'), false); document.getElementById('uName').focus(); return; }
@@ -241,5 +256,27 @@
       ]
     });
   </script>
+<script>
+  // Reposition the active field after landscape IME viewport changes.
+  (function(){
+    function recover(){
+      if(!matchMedia('(orientation:landscape) and (max-height:500px)').matches)return;
+      var el=document.activeElement;
+      if(!el||!el.matches('#uWage'))return;
+      var vv=window.visualViewport;
+      var top=(vv?vv.offsetTop:0)+Math.max(60,document.querySelector('.head')?.getBoundingClientRect().height||0)+8;
+      var bottom=(vv?vv.offsetTop+vv.height:innerHeight)-8;
+      var rect=el.getBoundingClientRect();
+      if(bottom-top<rect.height)return;
+      var delta=rect.top<top?rect.top-top:rect.bottom>bottom?rect.bottom-bottom:0;
+      if(delta)window.scrollBy(0,delta);
+    }
+    function settle(){recover();setTimeout(recover,130);setTimeout(recover,400);}
+    window.addEventListener('orientationchange',settle);
+    window.addEventListener('resize',settle);
+    window.visualViewport?.addEventListener('resize',settle);
+    document.addEventListener('focusin',settle);
+  })();
+</script>
 </body>
 </html>

@@ -34,6 +34,10 @@
     .btn-pri{ background:var(--navy); color:#fff; width:100%; margin-top:10px; }
     .btn-sm{ background:#eef2f7; color:var(--navy); padding:8px 10px; border-radius:8px; font-weight:800; border:0; cursor:pointer; }
     .alert{ margin-top:10px; display:none; padding:11px; border-radius:9px; font-size:14px; font-weight:700; }
+  /* Formal Android PT-CTL touch target: independent of common header injection. */
+  #saveBtn{min-height:44px;min-width:44px;box-sizing:border-box}
+      @media(max-width:430px){.card div[style*="overflow-x:auto"]{max-width:100%;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}table td:last-child{min-width:164px;white-space:normal}table td:last-child .btn-sm{min-width:44px;min-height:44px;margin:2px;white-space:normal}}
+    @media (max-width:430px){ .head{flex-wrap:wrap;gap:8px} .head h1{flex:1 1 100%;min-width:0;overflow-wrap:anywhere} .head>div{min-width:0;flex-wrap:wrap} }
   </style>
 </head>
 <body>
@@ -55,7 +59,7 @@
       <tbody id="rows"><tr><td colspan="8" style="color:#aaa;padding:16px;text-align:center;" data-t="loading">読み込み中…</td></tr></tbody></table>
     </div>
     <button class="btn btn-sec" onclick="addRow()" data-t="addRow">＋ 行を追加</button>
-    <button class="btn btn-sec" onclick="openAiScan()" data-t="aiScanBtn">🤖 AIスキャン</button>
+    <button class="btn btn-sec ai-credit-action" onclick="openAiScan()" data-t="aiScanBtn">🤖 AIスキャン</button>
     <button class="btn btn-sec" onclick="openLinkPicker(-1)" data-t="linkFromMenuBtn">🔗 メニューから追加</button>
     <button class="btn btn-pri" id="saveBtn" onclick="save()" data-t="save">💾 保存</button>
     <div class="alert" id="msg"></div>
@@ -110,7 +114,12 @@
         </div>
       </div>
       <input type="file" id="aiInput" accept="image/*" capture="environment" style="display:none;" onchange="onAiPhotoSelected(event)">
-      <button class="btn btn-pri" id="aiAnalyzeBtn" style="display:none;" onclick="analyzeAiPhoto()" data-t="aiAnalyzeBtn">🤖 AI分析開始</button>
+      <input type="file" id="aiLibraryInput" accept="image/*" style="display:none" onchange="onAiPhotoSelected(event)">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+        <button type="button" class="btn btn-sec ai-credit-action" onclick="document.getElementById('aiInput').click()">🤖 📷 <span data-t="aiTapText">カメラで撮影</span></button>
+        <button type="button" class="btn btn-sec ai-credit-action" onclick="document.getElementById('aiLibraryInput').click()">🤖 🖼️ <span data-t="aiChoosePhoto">写真を選択</span></button>
+      </div>\r\n      <button class="btn btn-pri ai-credit-action" id="aiAnalyzeBtn" style="display:none;" onclick="analyzeAiPhoto()" data-t="aiAnalyzeBtn">🤖 AI分析開始</button>
+      <div class="hint" id="aiCreditNotice" role="status" aria-live="polite" style="margin:6px 0"></div>
       <div class="hint" style="margin-top:8px;" data-t="aiManualHint">AIを利用できない場合も、閉じて在庫表を手動で入力・保存できます。</div>
       <div id="aiResultWrap" style="display:none;margin-top:12px;">
         <div style="font-size:12px;font-weight:800;color:var(--text-3);margin-bottom:2px;" data-t="aiResultTitle">AI検出結果 — 商品名・数量は自由に編集できます</div>
@@ -138,6 +147,8 @@
   <script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
   <script src="./i18n.js?v=auth3"></script>
+  <script src="./ai-credit-ui.js?v=auth1"></script>
+  <script src="./ai-image-quality.js?v=auth1"></script>
   <script>
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
     if (!TOKEN) location.href = './manage.html';
@@ -250,10 +261,24 @@
     function mvErr(m){ var a=document.getElementById('mvAlert'); a.style.display='block'; a.style.background='#fee2e2'; a.style.color='#b91c1c'; a.innerText=m; }
     window.doMove = function(){
       var r = window.rows[mvIdx]; if(!r) return;
-      var qty = Number(document.getElementById('mvQty').value);
-      if(!isFinite(qty) || qty<0){ mvErr(I18n.t('mvBad')); return; }
+      var qtyInput = document.getElementById('mvQty');
+      // A malformed Android number edit may have badInput=true and value=''.
+      // Do not silently coerce that empty field into a zero-quantity movement.
+      var qtyRaw = String(qtyInput.value || '').trim();
+      var qty = Number(qtyRaw);
+      if(!qtyRaw || !qtyInput.checkValidity() || !Number.isFinite(qty) ||
+         qty < 0 || qty > 1e7 || (mvKind!=='count' && qty===0)){
+        mvErr(I18n.t('mvBad')); return;
+      }
+      var costInput = document.getElementById('mvCost');
+      var costRaw = String(costInput.value || '').trim();
+      var cost = costRaw==='' ? 0 : Number(costRaw);
+      if(mvKind==='in' && (!costInput.checkValidity() ||
+         !Number.isFinite(cost) || cost < 0)){
+        mvErr(I18n.t('mvBad')); return;
+      }
       var go = document.getElementById('mvGo'); go.disabled=true;
-      var p, cost=Number(document.getElementById('mvCost').value)||0, reason=document.getElementById('mvReason').value;
+      var p, reason=document.getElementById('mvReason').value;
       var sig=JSON.stringify([mvKind,r.name,qty,cost,reason]);
       if(!mvRequestId || mvRequestSignature!==sig){ mvRequestId=nextMoveRequestId(); mvRequestSignature=sig; }
       if(mvKind==='in'){ p = rpc('receiveStock',[r.name, qty, cost, mvRequestId]); }
@@ -319,11 +344,12 @@
     })();
 
     // ── AIスキャン（写真から複数商品の在庫数をまとめてAI判定・一括反映） ──
-    var aiFile=null, aiCounts=null, aiKeys=null, aiRequestId='', aiGeneration=0;
+    var aiFile=null, aiCounts=null, aiKeys=null, aiRequestId='', aiGeneration=0,aiSelectionApproved=null;
     function nextAiRequestId(){ try{return crypto.randomUUID();}catch(e){return Date.now()+'-'+Math.random().toString(16).slice(2);} }
     function resetAiScanState(){
-      aiFile=null; aiCounts=null; aiKeys=null; aiRequestId=''; aiGeneration++;
+      aiFile=null; aiCounts=null; aiKeys=null; aiRequestId=''; aiGeneration++;aiSelectionApproved=null;
       var input=document.getElementById('aiInput'); if(input)input.value='';
+      var library=document.getElementById('aiLibraryInput');if(library)library.value='';
       var preview=document.getElementById('aiPreview'); preview.onload=null;preview.onerror=null;preview.style.display='none'; preview.src='';
       document.getElementById('aiPlaceholder').style.display='block';
       var btn=document.getElementById('aiAnalyzeBtn'); btn.style.display='none'; btn.disabled=false; btn.innerText=I18n.t('aiAnalyzeBtn');
@@ -331,9 +357,33 @@
       document.getElementById('aiResultList').innerHTML='';
       document.getElementById('aiAlert').style.display='none';
     }
+    function inventoryCreditEnabled(){ return window.APP_CONFIG?.AI_CREDIT_INVENTORY_ENABLED===true; }
+    function creditLang(){ return I18n.lang()==='en'?'en':'ja'; }
+    function refreshInventoryCreditNotice(){
+      var generation=aiGeneration, notice=document.getElementById('aiCreditNotice');
+      notice.textContent=creditLang()==='en'?'Checking AI credits…':'AIポイント残高を確認中…';
+      return rpc('getAiInventoryContext',[],{__silent:true}).then(function(wallet){
+        if(generation!==aiGeneration)return wallet;
+        var label=AICreditUI.balanceLabel(wallet,creditLang());
+        if(inventoryCreditEnabled()){
+          var q=AICreditUI.quote(wallet,'inventory_image',1);
+          label+=(creditLang()==='en'?' / Unit price: ':' ／ 単価：')+q.unitCost+
+            (creditLang()==='en'?' credits / image':'ポイント／画像');
+        }else label+=creditLang()==='en'
+          ?' / Unit price: 0 credits / image (billing off)'
+          :' ／ 単価：0ポイント／画像（ポイント課金は無効）';
+        notice.textContent=label;
+        return wallet;
+      }).catch(function(error){
+        if(generation===aiGeneration)notice.textContent=AICreditUI.balanceLabel(null,creditLang());
+        if(inventoryCreditEnabled())throw error;
+        return null;
+      });
+    }
     window.openAiScan = function(){
       resetAiScanState();
       document.getElementById('aiOv').style.display='flex';
+      refreshInventoryCreditNotice().catch(function(){});
     };
     window.closeAiScan = function(){ resetAiScanState(); document.getElementById('aiOv').style.display='none'; };
     function aiErr(m){ var a=document.getElementById('aiAlert'); a.style.display='block'; a.style.background='#fee2e2'; a.style.color='#b91c1c'; a.innerText=m; }
@@ -342,14 +392,71 @@
       aiGeneration++;
       aiFile = file;
       aiRequestId = nextAiRequestId();
+      aiSelectionApproved=null;
       e.target.value='';
       var generation=aiGeneration, preview=document.getElementById('aiPreview'), url=URL.createObjectURL(file);
-      preview.onload=function(){ URL.revokeObjectURL(url);if(generation!==aiGeneration)return; };
-      preview.onerror=function(){ URL.revokeObjectURL(url);if(generation!==aiGeneration)return;aiErr(I18n.t('errPrefix')+'file_read_failed'); };
+      preview.onload=function(){
+        URL.revokeObjectURL(url);
+        if(generation!==aiGeneration)return;
+        (async function(){
+          const check=AIImageQuality.inspectCanvas(preview,{photo:true,
+            sourceWidth:preview.naturalWidth,sourceHeight:preview.naturalHeight});
+          if(check.problem){
+            const warning=AIImageQuality.warning(check,creditLang()==='en');
+            aiErr(warning);
+            if(!await AICreditUI.confirm(warning+'\n\n'+(creditLang()==='en'
+              ?'OK to continue with this image, or Cancel to retake/select a clearer image?'
+              :'この画像で続ける場合はOK、撮り直す・選び直す場合はキャンセルを押してください。')))return false;
+          }
+          if(generation!==aiGeneration||aiFile!==file)return false;
+          const enabled=inventoryCreditEnabled();
+          let wallet=null;
+          try{wallet=await rpc('getAiInventoryContext',[],{__silent:true});}
+          catch(error){if(enabled)throw error;}
+          if(generation!==aiGeneration||aiFile!==file)return false;
+          let message,unitCost=0,balance=null;
+          if(enabled){
+            const q=AICreditUI.quote(wallet,'inventory_image',1);
+            if(!q.sufficient)throw new Error('ai_credit_insufficient');
+            unitCost=q.unitCost;balance=q.balance;
+            message=AICreditUI.confirmation(wallet,'inventory_image',1,creditLang());
+          }else{
+            balance=wallet?.balances?.total??null;
+            message=AICreditUI.noChargeConfirmation(wallet,creditLang());
+          }
+          if(!await AICreditUI.confirm(message))return false;
+          if(generation!==aiGeneration||aiFile!==file)return false;
+          aiSelectionApproved={requestId:aiRequestId,enabled:enabled,cost:unitCost,
+            balance:balance,token:API.currentToken()};
+          return true;
+        })().then(function(ok){
+          if(generation!==aiGeneration||aiFile!==file)return;
+          if(!ok){
+            resetAiScanState();
+            aiErr(creditLang()==='en'?'Select or retake an image. No AI credits were used.':
+              '再撮影または画像の選び直しをお願いします。AIポイントは消費されていません。');
+            return;
+          }
+          document.getElementById('aiAnalyzeBtn').style.display='block';
+          document.getElementById('aiAnalyzeBtn').disabled=false;
+          document.getElementById('aiAlert').style.display='none';
+        }).catch(function(error){
+          if(generation!==aiGeneration)return;
+          resetAiScanState();
+          aiErr((creditLang()==='en'?'Unable to prepare AI scan: ':'AI解析の準備に失敗：')+
+            API.userErrorText(error));
+        });
+      };
+      preview.onerror=function(){
+        URL.revokeObjectURL(url);if(generation!==aiGeneration)return;
+        resetAiScanState();
+        aiErr(creditLang()==='en'?'Image could not be opened. Please retake or select another image.':
+          '画像を開けません。撮り直すか別の画像を選んでください。');
+      };
       preview.src = url;
       preview.style.display='block';
       document.getElementById('aiPlaceholder').style.display='none';
-      document.getElementById('aiAnalyzeBtn').style.display='block';
+      document.getElementById('aiAnalyzeBtn').style.display='none';
       document.getElementById('aiResultWrap').style.display='none';
       document.getElementById('aiAlert').style.display='none';
     };
@@ -373,21 +480,63 @@
       var generation=aiGeneration, selectedFile=aiFile, requestId=aiRequestId;
       var btn = document.getElementById('aiAnalyzeBtn'); btn.disabled=true; btn.innerText=I18n.t('aiAnalyzing');
       document.getElementById('aiAlert').style.display='none';
-      aiResizeImage(selectedFile, 1024, 768, 0.75, function(b64, mime){
+      (async function(){
+        const enabled=inventoryCreditEnabled();
+        let wallet;
+        try{wallet=await rpc('getAiInventoryContext',[],{__silent:true});}
+        catch(error){if(enabled)throw error;wallet=null;}
+        let message;
+        if(enabled){
+          const q=AICreditUI.quote(wallet,'inventory_image',1);
+          if(!q.sufficient)throw new Error('ai_credit_insufficient');
+          message=AICreditUI.confirmation(wallet,'inventory_image',1,creditLang());
+        }else message=AICreditUI.noChargeConfirmation(wallet,creditLang());
+        const approved=aiSelectionApproved;
+        if(!approved||approved.requestId!==requestId||approved.token!==API.currentToken()||
+          approved.enabled!==enabled||approved.balance!==(wallet?.balances?.total??null)||
+          (enabled&&approved.cost!==wallet?.costs?.inventory_image)){
+          if(!await AICreditUI.confirm(message))return null;
+        }
+        if(generation!==aiGeneration||selectedFile!==aiFile)return null;
+        aiSelectionApproved=null;
+        return enabled?'ai-credit-v1':'';
+      })().then(function(creditConsent){
+        if(creditConsent===null){btn.disabled=false;btn.innerText=I18n.t('aiAnalyzeBtn');return;}
+        aiResizeImage(selectedFile, 1024, 768, 0.75, function(b64, mime){
         if(generation!==aiGeneration||selectedFile!==aiFile)return;
         // [P4] システムAI応答待ちの間、
         // 全画面のローディング表示で他操作までブロックしないようにする。ボタン自体は既にローカルの
         // 「解析中」busy表示になっているため、二重ブロックを避ける。
         // [タイムアウト共通化(2026-08-22)] 個別のマジックナンバーではなくapi.jsの共通設定
         // （API.TIMEOUT_MS.ai=45秒）を参照する。外部AI呼び出しは他の処理より大きく余裕を持たせている。
-        rpc('countDrinksWithAI',[b64, mime, requestId],{__silent:true,__timeoutMs:API.TIMEOUT_MS.ai,__noInternalRetry:true}).then(function(res){
+        rpc('countDrinksWithAI',[b64, mime, requestId,creditConsent],{__silent:true,__timeoutMs:API.TIMEOUT_MS.ai,__noInternalRetry:true}).then(function(res){
           if(generation!==aiGeneration||selectedFile!==aiFile)return;
           btn.disabled=false; btn.innerText=I18n.t('aiAnalyzeBtn');
           res = res || {};
-          if(res.error){ aiErr(res.error==='ai_invalid_response'?I18n.t('aiInvalidResponse'):(I18n.t('errPrefix')+API.userErrorText(res.error))); return; }
-          renderAiResults(res.counts || res.raw || {});
+          if(res.error){
+            aiErr(res.error==='ai_invalid_response'
+              ?(creditLang()==='en'
+                ?'⚠️ The AI could not read the photo reliably. Retake it in bright light with sharp focus, or enter inventory manually.'
+                :'⚠️ AIが写真を正確に読み取れませんでした。不鮮明な可能性があります。明るい場所でピントを合わせて撮り直すか、手動で在庫を入力してください。')
+              :(I18n.t('errPrefix')+API.userErrorText(res.error))); return;
+          }
+          const detected=res.counts||res.raw||{};
+          if((typeof detected==='object'&&Object.keys(detected).length===0)||
+            (typeof detected==='string'&&!detected.trim())){
+            aiErr(creditLang()==='en'
+              ?'⚠️ No clearly readable inventory items were detected. Please retake a sharper photo in brighter light and review manually.'
+              :'⚠️ 商品を読み取れなかった可能性があります。明るい場所で鮮明に撮り直すか、手動で確認・入力してください。');
+            return;
+          }
+          renderAiResults(detected);
+          refreshInventoryCreditNotice().catch(function(){});
         }).catch(function(e){ if(generation!==aiGeneration)return; btn.disabled=false; btn.innerText=I18n.t('aiAnalyzeBtn'); aiErr(I18n.t('errPrefix')+API.userErrorText(e)); });
       }, function(e){ if(generation!==aiGeneration)return; btn.disabled=false; btn.innerText=I18n.t('aiAnalyzeBtn'); aiErr(I18n.t('errPrefix')+API.userErrorText(e)); });
+      }).catch(function(e){
+        if(generation!==aiGeneration)return;
+        btn.disabled=false;btn.innerText=I18n.t('aiAnalyzeBtn');
+        aiErr(I18n.t('errPrefix')+API.userErrorText(e));
+      });
     };
     function renderAiResults(countsOrRaw){
       var listEl = document.getElementById('aiResultList');
@@ -498,13 +647,13 @@
 
     I18n.init({
       ja:{ title:'📦 在庫管理', back:'← 管理へ', movesLink:'📋 履歴', hint:'ドリンク・食材・備品などをまとめて数量管理できます。最小在庫を下回ると赤く表示され、日報・レポートに低在庫として通知。レシピ（材料名一致）で注文時に自動減算されます。「変動」から入荷・廃棄・棚卸を記録すると履歴に残ります。', scrollHint:'👉 表は横にスクロールできます', thName:'商品名', thCat:'カテゴリ', thSupplier:'仕入先', thUnit:'単位', thStock:'在庫数', thMin:'最小在庫', thCost:'原価', addRow:'＋ 行を追加', save:'💾 保存', loading:'読み込み中…', empty:'「＋ 行を追加」で登録してください', saved:'✅ 保存しました', errPrefix:'エラー: ', loadErr:'読み込みエラー: ', moveBtn:'変動', mvIn:'＋ 入荷', mvWaste:'− 廃棄', mvCount:'棚卸', mvQty:'数量', mvCounted:'実棚卸数', mvCostL:'原価（任意・単価更新）', mvReasonL:'理由', mvStockNow:'現在庫', mvGo:'実行', mvClose:'閉じる', mvDone:'✅ 記録しました', mvBad:'数量を確認してください', mvNeedSave:'先に「保存」で商品を登録してください', camHintShoot:'📸を押して撮影 → 写真を1つずつタップして数えます', camHintTap:'商品を1つずつタップ。↩で取消、✓で数量を採用', camNoCam:'カメラを利用できません（権限/対応をご確認ください）',
-        aiScanBtn:'🤖 AIスキャン', aiTitle:'🤖 AI在庫スキャン', aiTapText:'タップして撮影', aiAnalyzeBtn:'🤖 システムAIで分析', aiAnalyzing:'システムAIで分析中…', aiManualHint:'AIを利用できない場合も、閉じて在庫表を手動で入力・保存できます。', aiUnavailable:'AI分析を利用できません。時間をおいて再度お試しください。手動での在庫入力・保存は引き続き利用できます。', aiInvalidResponse:'AIの解析結果を読み取れませんでした。時間をおいて再度お試しください。手動での在庫入力・保存は引き続き利用できます。', aiResultTitle:'AI検出結果 — 商品名・数量は自由に編集できます', aiResultHint:'商品名は直接書き換えできます。下のプルダウンから既存の在庫を選ぶと自動で入力されます。✕で1件だけ除外できます。', aiApplyBtn:'✅ 在庫に反映', aiNoDetect:'ドリンクが検出されませんでした。別の角度で撮り直してください。', aiSkip:'この項目を除外', aiPickPh:'（既存の在庫から選ぶ）', aiApplied:'✅ 反映しました（「💾 保存」で確定してください）',
+        aiScanBtn:'🤖 AIスキャン', aiTitle:'🤖 AI在庫スキャン', aiTapText:'タップして撮影', aiChoosePhoto:'写真を選択', aiAnalyzeBtn:'🤖 システムAIで分析', aiAnalyzing:'システムAIで分析中…', aiManualHint:'AIを利用できない場合も、閉じて在庫表を手動で入力・保存できます。', aiUnavailable:'AI分析を利用できません。時間をおいて再度お試しください。手動での在庫入力・保存は引き続き利用できます。', aiInvalidResponse:'AIの解析結果を読み取れませんでした。時間をおいて再度お試しください。手動での在庫入力・保存は引き続き利用できます。', aiResultTitle:'AI検出結果 — 商品名・数量は自由に編集できます', aiResultHint:'商品名は直接書き換えできます。下のプルダウンから既存の在庫を選ぶと自動で入力されます。✕で1件だけ除外できます。', aiApplyBtn:'✅ 在庫に反映', aiNoDetect:'ドリンクが検出されませんでした。別の角度で撮り直してください。', aiSkip:'この項目を除外', aiPickPh:'（既存の在庫から選ぶ）', aiApplied:'✅ 反映しました（「💾 保存」で確定してください）',
         linkFromMenuBtn:'🔗 メニューから追加', linkConfirmBtn:'🔗 リンク', linkPickPh:'メニューを選択…', linkNeedSel:'メニューを選択してください', linkRowNeedName:'先に商品名を入力してください',
         linkNewTitle:'🔗 メニューから在庫を追加', linkNewHint:'選んだメニューの商品名でそのまま在庫アイテムを追加し、紐づけます（在庫数・最小在庫は追加後に入力してください）。',
         linkExistingTitle:'🔗 メニューと紐づけ', linkExistingHint:'紐づけるメニューを選択: ', linkDone:'✅ 紐づけました', linkAddedNeedSave:'✅ 在庫に追加・紐づけしました（「💾 保存」で確定してください）',
         categoryInput:'既存カテゴリから選択 または 新規入力', categoryPick:'既存カテゴリを選択', categoryFree:'新しいカテゴリを入力', linkedWith:'紐づくメニュー: ', linkBtnTitle:'メニューと紐づけ（未設定）' },
       en:{ title:'📦 Inventory', back:'← Manage', movesLink:'📋 History', hint:'Track drinks, ingredients and supplies together by quantity. Rows below the minimum turn red and appear as low-stock in reports. Auto-deducted on orders via recipes (material-name match). Use “Move” to log receiving, waste and stocktake — all kept in history.', scrollHint:'👉 Swipe sideways to see the whole table', thName:'Item', thCat:'Category', thSupplier:'Supplier', thUnit:'Unit', thStock:'Stock', thMin:'Min stock', thCost:'Cost', addRow:'＋ Add row', save:'💾 Save', loading:'Loading…', empty:'Tap “＋ Add row” to register', saved:'✅ Saved', errPrefix:'Error: ', loadErr:'Load error: ', moveBtn:'Move', mvIn:'＋ Receive', mvWaste:'− Waste', mvCount:'Stocktake', mvQty:'Quantity', mvCounted:'Counted qty', mvCostL:'Cost (optional, updates unit cost)', mvReasonL:'Reason', mvStockNow:'Current', mvGo:'Apply', mvClose:'Close', mvDone:'✅ Recorded', mvBad:'Please check the quantity', mvNeedSave:'Please save the item first', camHintShoot:'Tap 📸 to capture, then tap each item to count', camHintTap:'Tap each item. ↩ to undo, ✓ to use the count', camNoCam:'Camera unavailable (check permission/support)',
-        aiScanBtn:'🤖 AI Scan', aiTitle:'🤖 AI Stocktake Scan', aiTapText:'Tap to take a photo', aiAnalyzeBtn:'🤖 Analyze with system AI', aiAnalyzing:'Analyzing with system AI…', aiManualHint:'If AI is unavailable, close this dialog and continue entering and saving inventory manually.', aiUnavailable:'AI analysis is currently unavailable. Please try again later. Manual inventory entry and saving are still available.', aiInvalidResponse:'The AI result could not be read. Please try again later. Manual inventory entry and saving are still available.', aiResultTitle:'AI results — item name & quantity are fully editable', aiResultHint:'Edit the name directly, or pick an existing item from the dropdown below to auto-fill it. Use ✕ to skip a single row.', aiApplyBtn:'✅ Apply to inventory', aiNoDetect:'No drinks detected. Try a different angle.', aiSkip:'Skip this item', aiPickPh:'(Pick from existing items)', aiApplied:'✅ Applied (press “💾 Save” to confirm)',
+        aiScanBtn:'🤖 AI Scan', aiTitle:'🤖 AI Stocktake Scan', aiTapText:'Tap to take a photo', aiChoosePhoto:'Choose photo', aiAnalyzeBtn:'🤖 Analyze with system AI', aiAnalyzing:'Analyzing with system AI…', aiManualHint:'If AI is unavailable, close this dialog and continue entering and saving inventory manually.', aiUnavailable:'AI analysis is currently unavailable. Please try again later. Manual inventory entry and saving are still available.', aiInvalidResponse:'The AI result could not be read. Please try again later. Manual inventory entry and saving are still available.', aiResultTitle:'AI results — item name & quantity are fully editable', aiResultHint:'Edit the name directly, or pick an existing item from the dropdown below to auto-fill it. Use ✕ to skip a single row.', aiApplyBtn:'✅ Apply to inventory', aiNoDetect:'No drinks detected. Try a different angle.', aiSkip:'Skip this item', aiPickPh:'(Pick from existing items)', aiApplied:'✅ Applied (press “💾 Save” to confirm)',
         linkFromMenuBtn:'🔗 Add from menu', linkConfirmBtn:'🔗 Link', linkPickPh:'Select a menu item…', linkNeedSel:'Please select a menu item', linkRowNeedName:'Please enter an item name first',
         linkNewTitle:'🔗 Add inventory item from menu', linkNewHint:'Adds a new inventory item using the selected menu item’s name and links it (fill in stock/min after adding).',
         linkExistingTitle:'🔗 Link to a menu item', linkExistingHint:'Choose a menu item to link: ', linkDone:'✅ Linked', linkAddedNeedSave:'✅ Added and linked (press “💾 Save” to confirm)',

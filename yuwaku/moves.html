@@ -15,7 +15,10 @@
     *{ box-sizing:border-box; }
     body{ margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans JP',sans-serif; background:var(--bg); color:var(--navy); }
     .head{ position:sticky; top:0; z-index:20; background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:space-between; padding:12px 16px; }
-    .head h1{ font-size:18px; margin:0; font-weight:900; }
+    .head h1{ font-size:clamp(13px,4vw,18px); margin:0; font-weight:900; min-width:0; flex:1 1 auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.3; }
+    .head > div{min-width:0;flex:0 0 auto;align-items:center;}
+    .head .hbtn{white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:44px;box-sizing:border-box;}
+    @media(max-width:420px){.head{padding:9px 8px;gap:6px}.head > div{gap:4px!important}.head .hbtn{padding:8px 5px;font-size:11px;}}
     .hbtn{ background:rgba(255,255,255,.14); color:#fff; border:0; border-radius:9px; padding:8px 12px; font-size:13px; font-weight:800; cursor:pointer; text-decoration:none; }
     .wrap{ padding:16px; max-width:960px; margin:0 auto; }
     .card{ background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; }
@@ -33,6 +36,7 @@
     .kpi{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
     .kbox{ background:#f8fafc; border:1px solid var(--border); border-radius:10px; padding:10px 12px; min-width:120px; }
     .kbox .kl{ font-size:11px; color:var(--text-3); font-weight:800; } .kbox .kv{ font-size:17px; font-weight:900; }
+    @media(max-width:430px){.head{flex-wrap:wrap}.head>h1{flex:1 1 100%;min-width:0;white-space:normal;overflow:visible;text-overflow:clip}.head>div{width:100%;min-width:0;flex:1 1 100%;flex-wrap:nowrap;justify-content:flex-end;overflow-x:auto}.head .hbtn{white-space:nowrap;text-align:center;flex:0 0 auto}}
   </style>
   <link rel="stylesheet" href="./date-controls.css?v=3">
 </head>
@@ -67,7 +71,7 @@
     function isEN(){ return !!(window.I18n && I18n.lang && I18n.lang()==='en'); }
     function loc(ja, en){ ja=(ja||'').trim(); en=(en||'').trim(); return isEN() ? (en || ja) : (ja || en); }
     var ALL = [], SYM='₱', __loaded=false;
-    var TYPEKEY = { '入荷':'tIn', '廃棄':'tWaste', '棚卸':'tCount' };
+    var TYPEKEY = { '入荷':'tIn', '廃棄':'tWaste', '棚卸':'tCount', '初期':'tOpening', '消費':'tConsume', '改名':'tRename' };
     var TYPECLS = { '入荷':'b-in', '廃棄':'b-waste', '棚卸':'b-count' };
     // 2026-08-24修正: バックエンドが返すtsはSQLiteのdatetime('now')によるUTC時刻（末尾にZ無し）。
     // そのままnew Date()に渡すとローカル時刻として誤解釈され、表示が数時間ずれるため、
@@ -78,7 +82,12 @@
       return new Date(s);
     }
     function fmt(ts){ try{ var d=toUtcDate(ts); return window.DateDisplay?DateDisplay.formatDateTime(d.toISOString()):d.toLocaleString(); }catch(e){ return esc(ts); } }
-    function typeLabel(t){ return I18n.t(TYPEKEY[t]||'tIn'); }
+    // An unknown movement type must never be silently reported as a receipt.
+    function typeLabel(t){ return TYPEKEY[t] ? I18n.t(TYPEKEY[t]) : String(t||''); }
+    function reasonLabel(reason){
+      if(!isEN()) return reason;
+      return ({'棚卸差異':'Stocktake variance','在庫初期登録':'Opening balance recorded','在庫一覧調整':'Inventory adjustment'})[reason]||reason;
+    }
 
     function render(){
       var mo = document.getElementById('month').value;
@@ -98,7 +107,7 @@
           '<td class="num" style="color:'+(r.qty<0?'#b91c1c':'#15803d')+';font-weight:800;">'+(r.qty>0?'+':'')+r.qty.toLocaleString()+' '+esc(r.unit)+'</td>'+
           '<td class="num">'+r.stock.toLocaleString()+'</td>'+
           '<td class="num">'+SYM+(Number(r.costEst)||0).toLocaleString()+'</td>'+
-          '<td class="muted">'+esc(r.reason)+'</td><td>'+esc(r.actor)+'</td></tr>';
+          '<td class="muted">'+esc(reasonLabel(r.reason))+'</td><td>'+esc(r.actor)+'</td></tr>';
       }).join('');
     }
     document.getElementById('month').addEventListener('change', render);
@@ -112,9 +121,9 @@
       .catch(function(e){ if(String(e.message||e).indexOf('unauthorized')>=0){ location.href='./manage.html'; return; } document.getElementById('rows').innerHTML='<tr><td colspan="8" style="color:#b91c1c;padding:16px;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</td></tr>'; });
 
     I18n.init({
-      ja:{ title:'📋 在庫変動履歴', back:'← 管理へ', inv:'📦 在庫', month:'対象月', thTime:'日時', thType:'種別', thName:'商品', thQty:'数量', thStock:'変動後', thCost:'原価概算', thReason:'理由', thActor:'記録者', loading:'読み込み中…', empty:'この月の記録はありません', loadErr:'読み込みエラー: ', tIn:'入荷', tWaste:'廃棄', tCount:'棚卸', kIn:'入荷合計', kWaste:'廃棄合計', kDiff:'棚卸差異' },
-      en:{ title:'📋 Stock history', back:'← Manage', inv:'📦 Inventory', month:'Target month', thTime:'Time', thType:'Type', thName:'Item', thQty:'Qty', thStock:'After', thCost:'Cost est.', thReason:'Reason', thActor:'By', loading:'Loading…', empty:'No records this month', loadErr:'Load error: ', tIn:'Receive', tWaste:'Waste', tCount:'Stocktake', kIn:'Received', kWaste:'Wasted', kDiff:'Count variance' }
-    }, function(){ if(__loaded) render(); });
+      ja:{ title:'📋 在庫変動履歴', back:'← 管理へ', inv:'📦 在庫', month:'対象月', thTime:'日時', thType:'種別', thName:'商品', thQty:'数量', thStock:'変動後', thCost:'原価概算', thReason:'理由', thActor:'記録者', loading:'読み込み中…', empty:'この月の記録はありません', loadErr:'読み込みエラー: ', tIn:'入荷', tWaste:'廃棄', tCount:'棚卸', tOpening:'初期', tConsume:'消費', tRename:'改名', kIn:'入荷合計', kWaste:'廃棄合計', kDiff:'棚卸差異' },
+      en:{ title:'📋 Stock history', back:'← Manage', inv:'📦 Inventory', month:'Target month', thTime:'Time', thType:'Type', thName:'Item', thQty:'Qty', thStock:'After', thCost:'Cost est.', thReason:'Reason', thActor:'By', loading:'Loading…', empty:'No records this month', loadErr:'Load error: ', tIn:'Receive', tWaste:'Waste', tCount:'Stocktake', tOpening:'Opening balance', tConsume:'Consumption', tRename:'Rename', kIn:'Received', kWaste:'Wasted', kDiff:'Count variance' }
+    }, function(){ document.title=I18n.lang()==='en'?'Stock history':'在庫変動履歴'; if(__loaded) render(); });
   </script>
 
   <script src="./help.js?v=auth2"></script>

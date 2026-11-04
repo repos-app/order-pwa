@@ -19,17 +19,44 @@
     .hbtn{ background:rgba(255,255,255,.14); color:#fff; border:0; border-radius:9px; padding:8px 12px; font-size:13px; font-weight:800; cursor:pointer; text-decoration:none; }
     .wrap{ padding:16px; max-width:900px; margin:0 auto; }
     .card{ background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; }
+    .form-label{display:block;font-size:12px;font-weight:800;margin-bottom:5px}
     .search{ width:100%; padding:11px; border:1px solid var(--border); border-radius:10px; font-size:15px; margin-bottom:12px; font-family:inherit; }
     table{ width:100%; border-collapse:collapse; font-size:13px; }
     th,td{ padding:9px 8px; border-bottom:1px solid var(--border); text-align:left; white-space:nowrap; }
     th{ font-size:11px; color:var(--text-3); }
     td.num{ text-align:right; font-weight:800; }
     .pts{ color:#16a34a; font-weight:900; }
+    .member-edit-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .member-edit-fields .full{grid-column:1/-1}
+    .member-edit-fields input,.member-edit-fields textarea{width:100%;min-width:0;box-sizing:border-box;font:16px inherit;padding:10px;border:1px solid var(--border);border-radius:9px}
+    .member-edit-fields textarea{min-height:72px}
+    #memberEditCard label[for="editName"]::after,#memberEditCard label[for="editBirthday"]::after{content:" *";color:#b91c1c}
+    .member-edit-actions{display:flex;gap:8px;margin-top:12px}
+    .member-edit-actions button,.member-edit-trigger{min-height:44px;min-width:44px;padding:8px;border:0;border-radius:9px;background:var(--navy);color:#fff;font-weight:800}
+    @media(max-width:520px){.member-edit-fields{grid-template-columns:minmax(0,1fr)}.member-edit-fields .full{grid-column:auto}}
+    @media (orientation:landscape) and (max-height:480px) and (pointer:coarse){
+      .member-edit-fields{grid-template-columns:minmax(0,1fr)}
+      .member-edit-fields .full{grid-column:1/-1}
+      .member-edit-fields input:focus,.member-edit-fields textarea:focus{width:min(46vw,370px);max-width:100%}
+      .member-edit-fields .iz-date-display-wrap:focus-within{width:min(46vw,370px);max-width:100%}
+    }
   </style>
 </head>
 <body>
   <div class="head"><h1 data-t="title">🎁 会員管理</h1><div style="display:flex;gap:8px;"><button class="hbtn" data-tlang onclick="I18n.toggle()">EN</button><a class="hbtn" href="./manage.html" data-t="back">← 管理へ</a></div></div>
-  <div class="wrap"><div class="card">
+  <div class="wrap"><div class="card" id="memberEditCard" style="display:none;margin-bottom:14px">
+    <h2 data-t="editTitle">会員情報を編集</h2>
+    <div class="member-edit-fields">
+      <div><label class="form-label" data-t="thPhone" for="editPhone">電話番号</label><input id="editPhone" readonly></div>
+      <div><label class="form-label" data-t="thName" for="editName">名前</label><input id="editName" required></div>
+      <div><label class="form-label" data-t="birthday" for="editBirthday">誕生日</label><input type="date" id="editBirthday" required></div>
+      <div><label class="form-label" data-t="allergies" for="editAllergies">アレルギー</label><input id="editAllergies"></div>
+      <div class="full"><label class="form-label" data-t="note" for="editNote">備考</label><textarea id="editNote"></textarea></div>
+    </div>
+    <div class="member-edit-actions"><button id="saveEditMemberBtn" type="button" onclick="saveMemberEdit()" data-t="saveChanges">変更を保存</button><button type="button" onclick="cancelMemberEdit()" data-t="cancelEdit">キャンセル</button></div>
+    <p id="editStatus" role="status"></p>
+  </div><div class="card">
+    <label class="form-label" data-t="searchLabel" for="q">&#128269; &#20250;&#21729;&#26908;&#32034;</label>
     <input class="search" id="q" placeholder="🔎 電話番号・名前で検索" data-tph="search" oninput="render()">
     <div style="overflow:auto;">
       <table><thead><tr><th data-t="thPhone">電話番号</th><th data-t="thName">名前</th><th style="text-align:right;" data-t="thPts">ポイント</th><th style="text-align:right;" data-t="thVisits">来店</th><th style="text-align:right;" data-t="thTotal">累計額</th><th data-t="thLast">最終来店</th></tr></thead>
@@ -46,13 +73,84 @@
     function rpc(fn,args){ return API.post('rpc',{fn:fn,args:args||[],token:TOKEN}).then(function(r){ return r.data; }); }
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
     var MEMBERS = [];
+    var MEMBER_LOAD_FAILED=false;
+    function memberLoadError(err){
+      MEMBER_LOAD_FAILED=true;
+      var offline=navigator.onLine===false;
+      document.getElementById('rows').innerHTML='<tr><td colspan="6" role="alert" style="color:#b91c1c;padding:16px;">'+(offline?I18n.t('offlineErr'):I18n.t('loadErr')+esc(API.userErrorText(err)))+'</td></tr>';
+    }
+    var EDIT_PHONE='', EDIT_BUSY=false;
+    window.cancelMemberEdit=function(){
+      EDIT_PHONE='';
+      document.getElementById('memberEditCard').style.display='none';
+      document.getElementById('editStatus').textContent='';
+    };
+    window.editMember=function(phone){
+      var m=MEMBERS.find(function(item){return String(item.phone)===String(phone);});
+      if(!m || EDIT_BUSY)return;
+      EDIT_PHONE=String(m.phone);
+      document.getElementById('editPhone').value=m.phone||'';
+      document.getElementById('editName').value=m.name||'';
+      document.getElementById('editBirthday').value=m.birthDate||'';
+      document.getElementById('editAllergies').value=m.allergies||'';
+      document.getElementById('editNote').value=m.note||'';
+      document.getElementById('editStatus').textContent='';
+      document.getElementById('memberEditCard').style.display='';
+      if(window.DateDisplay)DateDisplay.refresh();
+      document.getElementById('memberEditCard').scrollIntoView({block:'start'});
+    };
+    var MEMBER_LIMITS={editName:120,editAllergies:1000,editNote:2000};
+    function memberTooLong(){
+      for(var id in MEMBER_LIMITS){if(document.getElementById(id).value.trim().length>MEMBER_LIMITS[id])return id;}
+      return '';
+    }
+    function memberLimitMessage(id){
+      var field=id==='editName'?'name':id==='editAllergies'?'allergies':'note';
+      var max=MEMBER_LIMITS[id];
+      return ((I18n.t('memberLimitPrefix')==='memberLimitPrefix'?'Input too long: ':I18n.t('memberLimitPrefix')))+field+' ('+max+')';
+    }
+    Object.keys(MEMBER_LIMITS).forEach(function(id){
+      var el=document.getElementById(id);
+      function warn(){var invalid=memberTooLong();if(invalid)document.getElementById('editStatus').textContent=memberLimitMessage(invalid);}
+      function guard(e){
+        if(e.isComposing||e.inputType==='insertCompositionText')return;
+        var value=e.type==='paste'?(e.clipboardData&&e.clipboardData.getData('text')):e.data;
+        if(!value||e.type==='beforeinput'&&e.inputType&&e.inputType.indexOf('insert')!==0||e.inputType==='insertFromPaste')return;
+        var start=el.selectionStart==null?el.value.length:el.selectionStart,end=el.selectionEnd==null?start:el.selectionEnd;
+        if((el.value.slice(0,start)+value+el.value.slice(end)).trim().length>MEMBER_LIMITS[id]){e.preventDefault();document.getElementById('editStatus').textContent=memberLimitMessage(id);}
+      }
+      el.addEventListener('paste',guard);el.addEventListener('beforeinput',guard);
+      el.addEventListener('input',warn);el.addEventListener('compositionend',warn);
+    });
+    window.saveMemberEdit=function(){
+      if(!EDIT_PHONE || EDIT_BUSY)return;
+      var updated={phone:EDIT_PHONE,name:document.getElementById('editName').value.trim(),birthDate:document.getElementById('editBirthday').value||'',allergies:document.getElementById('editAllergies').value.trim(),note:document.getElementById('editNote').value.trim()};
+      var status=document.getElementById('editStatus');
+      if(!updated.name || !updated.birthDate){status.textContent=I18n.t('requiredEdit');return;}
+      var memberInvalid=memberTooLong();if(memberInvalid){status.textContent=memberLimitMessage(memberInvalid);return;}
+      EDIT_BUSY=true;document.getElementById('saveEditMemberBtn').disabled=true;
+      rpc('updateMember',[updated]).then(function(result){
+        if(!result || result.success!==true)throw new Error(result&&result.error||'save_failed');
+        return rpc('getMembers',[]);
+      }).then(function(list){
+        MEMBERS=(list||[]).slice().sort(function(a,b){return (Number(b.points)||0)-(Number(a.points)||0);});
+        cancelMemberEdit();render();
+      }).catch(function(error){status.textContent=I18n.t('saveErr')+API.userErrorText(error);})
+        .finally(function(){EDIT_BUSY=false;document.getElementById('saveEditMemberBtn').disabled=false;});
+    };
+    document.getElementById('rows').addEventListener('click',function(event){
+      var btn=event.target.closest('button[data-edit-phone]');
+      if(btn)editMember(decodeURIComponent(btn.getAttribute('data-edit-phone')));
+    });
 
     window.render = function(){
+      if(navigator.onLine===false){ memberLoadError(); return; }
+      if(MEMBER_LOAD_FAILED){ memberLoadError(); return; }
       var q = (document.getElementById('q').value||'').trim().toLowerCase();
       var list = MEMBERS.filter(function(m){ return !q || String(m.phone).toLowerCase().indexOf(q)>=0 || String(m.name).toLowerCase().indexOf(q)>=0; });
       if (!list.length){ document.getElementById('rows').innerHTML = '<tr><td colspan="6" style="color:#aaa;padding:16px;text-align:center;">'+I18n.t('none')+'</td></tr>'; return; }
       document.getElementById('rows').innerHTML = list.map(function(m){
-        return '<tr><td>'+esc(m.phone)+'</td><td>'+esc(m.name||'')+'</td>'+
+        return '<tr><td>'+esc(m.phone)+' <button class="member-edit-trigger" type="button" data-edit-phone="'+encodeURIComponent(m.phone)+'">'+I18n.t('edit')+'</button></td><td>'+esc(m.name||'')+'</td>'+
           '<td class="num pts">'+(Number(m.points)||0)+'</td>'+
           '<td class="num">'+(Number(m.visits)||0)+'</td>'+
           '<td class="num">'+(Number(m.totalSpent)||0).toLocaleString()+'</td>'+
@@ -61,12 +159,15 @@
     };
 
     var __loaded=false;
-    rpc('getMembers',[]).then(function(list){ MEMBERS=(list||[]).slice().sort(function(a,b){ return (Number(b.points)||0)-(Number(a.points)||0); }); __loaded=true; render(); })
-      .catch(function(e){ if(String(e.message||e).indexOf('unauthorized')>=0){ location.href='./manage.html'; return; } document.getElementById('rows').innerHTML='<tr><td colspan="6" style="color:#b91c1c;padding:16px;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</td></tr>'; });
+    function loadMembers(){ return rpc('getMembers',[]).then(function(list){ MEMBERS=(list||[]).slice().sort(function(a,b){ return (Number(b.points)||0)-(Number(a.points)||0); }); MEMBER_LOAD_FAILED=false; __loaded=true; render(); })
+      .catch(function(e){ if(String(e.message||e).indexOf('unauthorized')>=0){ location.href='./manage.html'; return; } memberLoadError(e); }); }
+    window.addEventListener('offline',function(){ memberLoadError(); });
+    window.addEventListener('online',function(){ loadMembers(); });
+    loadMembers();
 
     I18n.init({
-      ja:{ title:'🎁 会員管理', back:'← 管理へ', search:'🔎 電話番号・名前で検索', thPhone:'電話番号', thName:'名前', thPts:'ポイント', thVisits:'来店', thTotal:'累計額', thLast:'最終来店', loading:'読み込み中…', none:'該当なし', loadErr:'読み込みエラー: ' },
-      en:{ title:'🎁 Members', back:'← Manage', search:'🔎 Search by phone or name', thPhone:'Phone', thName:'Name', thPts:'Points', thVisits:'Visits', thTotal:'Total spent', thLast:'Last visit', loading:'Loading…', none:'No matches', loadErr:'Load error: ' }
+      ja:{ title:'🎁 会員管理', back:'← 管理へ', search:'🔎 電話番号・名前で検索', searchLabel:'会員検索', edit:'編集', editTitle:'会員情報を編集', birthday:'誕生日', allergies:'アレルギー', note:'備考', saveChanges:'変更を保存', cancelEdit:'キャンセル', requiredEdit:'名前と誕生日を入力してください。', memberLimitPrefix:'入力文字数の上限超過: ', saveErr:'更新エラー: ', thPhone:'電話番号', thName:'名前', thPts:'ポイント', thVisits:'来店', thTotal:'累計額', thLast:'最終来店', loading:'読み込み中…', none:'該当なし', loadErr:'読み込みエラー: ', offlineErr:'通信できません。接続を確認してください。' },
+      en:{ title:'🎁 Members', back:'← Manage', search:'🔎 Search by phone or name', searchLabel:'Member search', edit:'Edit', editTitle:'Edit member', birthday:'Birthday', allergies:'Allergies', note:'Notes', saveChanges:'Save changes', cancelEdit:'Cancel', requiredEdit:'Enter a name and birthday.', memberLimitPrefix:'Input exceeds limit: ', saveErr:'Update error: ', thPhone:'Phone', thName:'Name', thPts:'Points', thVisits:'Visits', thTotal:'Total spent', thLast:'Last visit', loading:'Loading…', none:'No matches', loadErr:'Load error: ', offlineErr:'No connection. Check your network.' }
     }, function(){ if(__loaded) render(); });
   </script>
 
@@ -79,7 +180,7 @@
         { ja: '① 会員（電話番号・名前で登録された顧客）の一覧を、ポイントの多い順に自動で並べて表示します。', en: '① Shows the list of members (registered by phone number & name), automatically sorted by points, highest first.' },
         { ja: '② 上部の検索欄に電話番号や名前の一部を入力すると、その場で一覧が絞り込まれます。', en: '② Type part of a phone number or name in the search box at the top to filter the list instantly.' },
         { ja: '③ 各行では「保有ポイント」「来店回数」「累計利用額」「最終来店日」を確認できます。', en: '③ Each row shows the member’s current points, number of visits, total amount spent, and last visit date.' },
-        { ja: '④ この画面からは編集はできません。閲覧・検索専用のページです。', en: '④ This screen is view/search only — you cannot edit member data here.' },
+        { ja: '④ 各行の「編集」から会員の氏名・誕生日・アレルギー・備考を更新できます。電話番号・ポイント・来店履歴は変更されません。', en: '④ Use Edit to update member name, birthday, allergies, and notes. Phone number, points, and visit history are preserved.' },
         { ja: '⑤ 右上の「EN」ボタンで日本語⇔英語の表示を切り替えられます。', en: '⑤ Use the “EN” button at the top right to switch the display between Japanese and English.' },
         { ja: '⑥ 「← 管理へ」で管理メニューのトップに戻ります。', en: '⑥ Tap “← Manage” to return to the management menu.' }
       ]

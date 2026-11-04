@@ -115,7 +115,16 @@ const CACHE_PREFIX = 'yuwaku-production-';
 // v260: order button badge now shows current cart quantity; queue state stays in the network banner.
 // v261: discard stale bfcache load state on order/KDS restore.
 // v262: keep previously-authorized screens visible when bfcache permission re-check hits a transient network/server error.
-const CACHE = CACHE_PREFIX + 'v263';
+// v281: all 8 Web UI horizontal fixes and legacy large-name KDS/receipt/customer display.
+// v282: preserve current input-validation + long-text horizontal fixes on next authorized deployment.
+// Login common refresh: invalidate the cached old header and config together.
+// v292: invalidate the previous common header so the 16-byte user label
+// cannot be clipped after the shared AI balance chip appears.
+// v293: preserve Help next to AI credits and refresh the help overlay.
+// v294: hide the partial checkout action from Orders while retaining its code.
+// v295: inventory's AI credit and image-quality scripts are release pinned;
+// precache the exact versioned URLs so first-launch offline works after update.
+const CACHE = CACHE_PREFIX + 'v295';
 const SHELL = [
   './',
   './index.html',
@@ -131,6 +140,9 @@ const SHELL = [
   './attendance.html',
   './users.html',
   './menu_editor.html',
+  './ai-credit-hub.js?v=auth4',
+  './ai-credit-ui.js?v=auth1',
+  './ai-image-quality.js?v=auth1',
   './inventory.html',
   './settings.html',
   './clock.html',
@@ -163,7 +175,7 @@ const SHELL = [
   './date-controls.css?v=3',
   './date-display.js?v=auth4',
   './config.js?v=auth2',
-  './header.js?v=auth13',
+'./header.js?v=auth20',
   './api.js?v=auth2',
   './i18n.js?v=auth3',
   './external-browser.js?v=external1',

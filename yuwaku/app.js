@@ -13,8 +13,8 @@
       partyTitle:'How many guests?', partyLabel:'Guests', partyChoose:'Select party size', partyMsg:'Used for entry and extension fee billing.', partyMsgEntry:'Used for entry fee billing.', partyMsgExtension:'Used for extension fee billing.', partyGo:'OK',
       memberTitle:'Member (points)', memberSub:'Enter your phone to earn points. For privacy, balance checks and point use are handled by staff.', check:'Register', usePoints:'Use points', points:'pts', discountLbl:'Points', earned:'pts earned',
       couponTitle:'Coupon / Voucher', couponSub:'Enter a code to get a discount.', apply:'Apply', remove:'Remove coupon', close:'Close', couponLbl:'Coupon',
-      cpApplied:'Applied', cpEmpty:'Enter a code', cpNotfound:'Code not found', cpInactive:'Not available', cpExpired:'Expired', cpLimit:'Usage limit reached', cpMin:'Minimum order not met', cpInvalid:'Invalid code',
-      optChoose:'Choose options', optAdd:'Add to order', optQty:'Qty', optRequired:'required', optPick:'Please choose the required options.', optInCart:'In your order', optClose:'Close',
+      cpApplied:'Applied', cpEmpty:'Enter a code', cpNotfound:'Code not found', cpInactive:'Not available', cpExpired:'Expired', cpNot_started:'Coupon is not valid yet.', cpLimit:'Usage limit reached', cpMin:'Minimum order not met', cpInvalid:'Invalid code',
+      optChoose:'Order options', optAdd:'Add to order', optQty:'Qty', optRequired:'required', optPick:'Please choose the required options.', optInCart:'In your order', optClose:'Close',
       soldOut:'Sold out', notNow:'Not available now', allergen:'Allergens',
       callTitle:'Staff called', callMsg:'A staff member will be with you shortly.', billTitle:'Bill requested', billMsg:'A staff member will bring your bill shortly.',
       callConfirm:'Call a staff member to your table?', billConfirm:'Request your bill?',
@@ -36,8 +36,8 @@
       partyTitle:'ご来店人数は？', partyLabel:'人数', partyChoose:'人数を選択', partyMsg:'入場料・延長料の請求に使用します。', partyMsgEntry:'入場料の請求に使用します。', partyMsgExtension:'延長料の請求に使用します。', partyGo:'OK',
       memberTitle:'会員（ポイント）', memberSub:'電話番号を入力するとポイントが貯まります。残高確認・利用は個人情報保護のためスタッフへお申し付けください。', check:'登録', usePoints:'ポイントを使う', points:'pt', discountLbl:'ポイント割引', earned:'pt 獲得',
       couponTitle:'クーポン／バウチャー', couponSub:'コードを入力すると割引されます。', apply:'適用', remove:'クーポンを外す', close:'閉じる', couponLbl:'クーポン',
-      cpApplied:'適用しました', cpEmpty:'コードを入力してください', cpNotfound:'コードが見つかりません', cpInactive:'利用できません', cpExpired:'期限切れ', cpLimit:'利用上限に達しています', cpMin:'最低注文額に達していません', cpInvalid:'無効なコード',
-      optChoose:'オプションを選ぶ', optAdd:'注文に追加', optQty:'数量', optRequired:'必須', optPick:'必須オプションを選択してください。', optInCart:'注文内', optClose:'閉じる',
+      cpApplied:'適用しました', cpEmpty:'コードを入力してください', cpNotfound:'コードが見つかりません', cpInactive:'利用できません', cpExpired:'期限切れ', cpNot_started:'このクーポンは利用開始日前です。', cpLimit:'利用上限に達しています', cpMin:'最低注文額に達していません', cpInvalid:'無効なコード',
+      optChoose:'注文選択', optAdd:'注文に追加', optQty:'数量', optRequired:'必須', optPick:'必須オプションを選択してください。', optInCart:'注文内', optClose:'閉じる',
       soldOut:'本日売切', notNow:'提供時間外', allergen:'アレルゲン',
       callTitle:'スタッフを呼びました', callMsg:'まもなくスタッフが伺います。', billTitle:'お会計を依頼しました', billMsg:'まもなくスタッフがお会計に伺います。',
       callConfirm:'スタッフを呼びますか？', billConfirm:'お会計を依頼しますか？',
@@ -59,6 +59,7 @@
     sessionEnded: false,     // 基準値より新しい会計を検知＝このセッションは終了
     partySize: 0             // 入場料/延長料の請求に使う人数（卓/カウンター選択時に入力）
   };
+  var bootstrapLoadSeq = 0;
 
   function $(id) { return document.getElementById(id); }
   function staffAuthToken() {
@@ -99,7 +100,7 @@
     var msg = String(err && err.message || err || '');
     return msg === 'invalid_table_session' ? t().invalidTableSession : API.userErrorText(err);
   }
-  function taxName(){ return String(state.settings.taxDisplayName || 'VAT'); }
+  function taxName(){ var name=String(state.settings.taxDisplayName || 'VAT'); return state.lang==='en' && name==='消費税' ? 'Consumption tax' : name; }
   function roundCharge(v){ var d=Object.prototype.hasOwnProperty.call(state.settings,'currencyDecimalDigits')?Math.max(0,Math.min(3,Number(state.settings.currencyDecimalDigits)||0)):0,f=Math.pow(10,d),n=(Number(v)||0)*f,m=state.settings.taxRoundingMode||'nearest'; return (m==='floor'?Math.floor(n+Number.EPSILON):m==='ceil'?Math.ceil(n-Number.EPSILON):Math.round(n+Number.EPSILON))/f; }
 
   // ---- オプション ----
@@ -485,7 +486,8 @@
       return localizedOrderName(m[1].trim()) + 'x' + m[2];
     }).join(', ');
   }
-  function orderDetailsText(order){if(Array.isArray(order&&order.items)&&order.items.length){return order.items.map(function(i){var n=state.lang==='en'?(i.nameEn||i.nameJa):(i.nameJa||i.nameEn),raw=String(i.item_name||i.name||'');return (/[（(][^（）()]*[)）]\s*$/.test(raw)?localizedOrderName(raw):(n||localizedOrderName(raw)))+'x'+i.qty;}).join(', ');}return transOrderDetails(order&&order.details||'');}
+  function legacyLargeName(en,ja,enMode){return enMode&&/[（(]\s*(?:大盛り|大盛|大)\s*[）)]\s*$/.test(String(ja||''))?String(en||'').replace(/\(\s*greatly\s*\)\s*$/i,'(large)'):en;}
+  function orderDetailsText(order){if(Array.isArray(order&&order.items)&&order.items.length){return order.items.map(function(i){var n=state.lang==='en'?(i.nameEn||i.nameJa):(i.nameJa||i.nameEn),raw=String(i.item_name||i.name||'');return legacyLargeName(/[（(][^（）()]*[)）]\s*$/.test(raw)?localizedOrderName(raw):(n||localizedOrderName(raw)),i.nameJa||raw,state.lang==='en')+'x'+i.qty;}).join(', ');}return transOrderDetails(order&&order.details||'');}
   function openStatus() {
     var x = t();
     $('stTitle').textContent = x.stTitle;
@@ -1065,22 +1067,34 @@
     // ヘッダの現在日時表示
     startClock();
 
-    API.post('bootstrap', state.staffMode ? { token: staffAuthToken() } : {}).then(function (r) {
-      try { localStorage.setItem((window.APP_CONFIG.STORAGE_PREFIX || '') + 'bootCache', JSON.stringify({ settings: r.settings, menu: r.menu, tables: r.tables })); } catch (e) {}
-      applyBootstrap(r, false);
-      syncQueuedOrders(); // オンライン起動時に保留分を流す
-    }).catch(function (err) {
-      var cached = null;
-      try { cached = JSON.parse(localStorage.getItem((window.APP_CONFIG.STORAGE_PREFIX || '') + 'bootCache') || 'null'); } catch (e) {}
-      if (cached && cached.menu) {
-        if (!state.staffMode) cached.menu = cached.menu.filter(function(it){ return !isSampleMenuItem(it); });
-        document.body.classList.add('offline'); // キャッシュ表示中＝実質オフライン
-        applyBootstrap(cached, true);            // 保存済みメニューで注文可能（送信はキューへ）
-      } else {
-        renderTexts();
-        $('menuArea').innerHTML = '<div class="loading" style="color:var(--red)">' + escHtml(t().errTitle + ': ' + API.userErrorText(err)) + '</div>';
-      }
-      refreshPending();
+    function runBootstrapLoad() {
+      var seq = ++bootstrapLoadSeq;
+      var bootPayload = state.staffMode
+        ? { token:staffAuthToken(), __timeoutMs:8000, __noInternalRetry:true, __silent:true }
+        : { __timeoutMs:8000, __noInternalRetry:true, __silent:true };
+      return API.post('bootstrap', bootPayload).then(function (r) {
+        if (seq !== bootstrapLoadSeq) return;
+        try { localStorage.setItem((window.APP_CONFIG.STORAGE_PREFIX || '') + 'bootCache', JSON.stringify({ settings: r.settings, menu: r.menu, tables: r.tables })); } catch (e) {}
+        applyBootstrap(r, false);
+        syncQueuedOrders(); // オンライン起動時に保留分を流す
+      }).catch(function (err) {
+        if (seq !== bootstrapLoadSeq) return;
+        var cached = null;
+        try { cached = JSON.parse(localStorage.getItem((window.APP_CONFIG.STORAGE_PREFIX || '') + 'bootCache') || 'null'); } catch (e) {}
+        if (cached && cached.menu) {
+          if (!state.staffMode) cached.menu = cached.menu.filter(function(it){ return !isSampleMenuItem(it); });
+          document.body.classList.add('offline'); // キャッシュ表示中＝実質オフライン
+          applyBootstrap(cached, true);            // 保存済みメニューで注文可能（送信はキューへ）
+        } else {
+          renderTexts();
+          $('menuArea').innerHTML = '<div class="loading" style="color:var(--red)">' + escHtml(t().errTitle + ': ' + API.userErrorText(err)) + '</div>';
+        }
+        refreshPending();
+      });
+    }
+    runBootstrapLoad();
+    window.addEventListener('pageshow', function (event) {
+      if (event && event.persisted) runBootstrapLoad();
     });
 
     if ('serviceWorker' in navigator) {

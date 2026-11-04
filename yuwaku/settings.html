@@ -35,10 +35,39 @@
     .prev{ max-width:100%; max-height:120px; border-radius:10px; margin-top:8px; display:none; }
     .st{ display:none; margin-top:10px; padding:10px; border-radius:9px; font-size:13px; font-weight:700; }
     .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    /* IZK-UT-073: keep full discount names in data, not across the viewport. */
+    .discount-rule-row{ display:flex;align-items:center;gap:8px;padding:9px 4px;border-top:1px solid var(--border);min-width:0;max-width:100%; }
+    .discount-rule-content{ flex:1 1 0;min-width:0;overflow:hidden; }
+    .discount-rule-heading{ display:flex;align-items:center;gap:6px;min-width:0;max-width:100%; }
+    .discount-rule-name{ display:block;flex:1 1 auto;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+    .discount-rule-heading .badge{ flex:0 0 auto; }
+    .discount-rule-meta{ overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%; }
+    .discount-rule-action{ flex:0 0 auto;min-width:44px;white-space:nowrap; }
     .badge{ font-size:12px; font-weight:800; padding:3px 10px; border-radius:999px; }
     .on{ background:#dcfce7; color:#15803d; } .offb{ background:#fee2e2; color:#b91c1c; }
     label.chk{ display:flex; gap:8px; align-items:center; font-weight:700; }
     label.chk input{ width:20px; height:20px; }
+    /* Android floating keyboard leaves the left side unobscured in landscape. */
+    @media (orientation:landscape) and (max-height:500px){
+      .wrap{max-width:none;padding:10px 12px 80px;}
+      .grid2,.payment-lang-grid{grid-template-columns:minmax(0,1fr)!important;}
+      .fg input.fc:not([type=file]),.fg textarea.fc,.fg select.fc{width:min(100%,320px);max-width:100%;}
+      .fg input.fc.time-control{width:min(100%,180px)!important;}
+      .fg input.fc:focus,.fg textarea.fc:focus,.fg select.fc:focus{scroll-margin-top:85px;scroll-margin-bottom:20px;}
+    }
+  /* Formal Android PT-CTL touch target: independent of common header injection. */
+  #takeoutOpenBtn{min-height:44px;min-width:44px;box-sizing:border-box}
+    /* Landscape Android native time dialogs may clip their confirmation button. */
+    .landscape-time-dialog{position:fixed;inset:0;z-index:10000;background:rgba(15,23,42,.65);display:none;align-items:center;justify-content:center;padding:12px;}
+    .landscape-time-dialog.open{display:flex;}
+    .landscape-time-panel{background:#fff;border-radius:14px;width:min(100%,360px);max-height:calc(100dvh - 24px);overflow:auto;padding:16px;}
+    .landscape-time-panel label{display:block;font-size:14px;font-weight:800;margin-bottom:10px;}
+    .landscape-time-controls{display:flex;gap:12px;align-items:center;justify-content:center;}
+    .landscape-time-controls select{font-size:18px;min-height:44px;min-width:88px;max-width:44%;border:1px solid var(--border);border-radius:9px;background:#fff;}
+    .landscape-time-actions{display:flex;gap:10px;margin-top:14px;}
+    .landscape-time-actions button{flex:1;min-height:44px;border:0;border-radius:9px;font-weight:800;background:#eef2f7;color:var(--navy);}
+    .landscape-time-actions button:last-child{background:var(--navy);color:#fff;}
+    input.time-control.landscape-time-trigger{cursor:pointer;min-height:44px;}
   </style>
 </head>
 <body>
@@ -103,11 +132,11 @@
         <div class="fg"><label class="form-label" data-t="curSym">通貨記号</label><select id="currencySymbol" class="fc"><option value="₱">₱ — PHP</option><option value="¥">¥ — JPY</option><option value="S$">S$ — SGD</option><option value="$">$ — USD</option><option value="£">£ — GBP</option><option value="A$">A$ — AUD</option></select></div>
         <div class="fg"><label class="form-label" data-t="curDigits">通貨の小数桁</label><select id="currencyDecimalDigits" class="fc"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></div>
         <div class="fg">
-          <label class="form-label" data-t="svcRate">サービス料 (%)</label><input id="serviceRate" type="number" min="0" step="any" class="fc">
+          <label class="form-label" data-t="svcRate">サービス料 (%)</label><input id="serviceRate" type="number" min="0" max="100" step="0.1" class="fc">
           <label class="chk" style="margin-top:6px;"><input type="checkbox" id="serviceInclusive"><span data-t="svcInclLabel">内税（価格に含む）</span></label>
         </div>
         <div class="fg">
-          <label class="form-label" data-t="taxRate">税率 (%)</label><input id="taxRate" type="number" min="0" step="any" class="fc">
+          <label class="form-label" data-t="taxRate">税率 (%)</label><input id="taxRate" type="number" min="0" max="100" step="0.1" class="fc">
           <label class="chk" style="margin-top:6px;"><input type="checkbox" id="taxInclusive"><span data-t="taxInclLabel">内税（価格に含む）</span></label>
         </div>
         <div class="fg"><label class="form-label" data-t="taxName">税の表示名</label><input id="taxDisplayName" class="fc" maxlength="30" placeholder="VAT / GST / 消費税"></div>
@@ -177,34 +206,34 @@
     </div>
 
     <div class="card" id="discountRulesCard">
-      <div class="card-title">🏷️ 割引マスタ / Discount rules</div>
-      <div class="form-hint" style="margin:0 0 12px;">店舗・国・業態に合わせて割引を登録します。率／固定額、税免除、ID提示、マネージャー以上の承認を割引ごとに設定できます。</div>
+      <div class="card-title" data-t="discountRulesTitle">🏷️ 割引マスタ / Discount rules</div>
+      <div class="form-hint" style="margin:0 0 12px;" data-t="discountRulesIntro">店舗・国・業態に合わせて割引を登録します。率／固定額、税免除、ID提示、マネージャー以上の承認を割引ごとに設定できます。</div>
       <input type="hidden" id="discountRuleId">
       <div class="grid2">
-        <div class="fg" id="fieldDiscountNameJa"><label class="form-label">表示名（日本語）/ Japanese name</label><input class="fc" id="discountName" maxlength="80" placeholder="例: 会員割引"></div>
-        <div class="fg" id="fieldDiscountNameEn"><label class="form-label">表示名（English）/ English name</label><input class="fc" id="discountNameEn" maxlength="80" placeholder="Member discount"></div>
-        <div class="fg"><label class="form-label">管理コード / Code</label><input class="fc" id="discountCode" maxlength="40" required aria-required="true" placeholder="MEMBER"></div>
-        <div class="fg"><label class="form-label">計算方法 / Calculation</label><select class="fc" id="discountCalculationType"><option value="percent">率（%）/ Percent</option><option value="fixed">固定額 / Fixed amount</option></select></div>
-        <div class="fg"><label class="form-label">割引値 / Value</label><input class="fc" id="discountValue" type="number" min="0.01" step="any" required aria-required="true"></div>
-        <div class="fg"><label class="form-label">表示順 / Sort order</label><input class="fc" id="discountSortOrder" type="number" step="1" value="0"></div>
+        <div class="fg" id="fieldDiscountNameJa"><label class="form-label" data-t="discountRulesJaName">表示名（日本語）/ Japanese name</label><input class="fc" id="discountName" maxlength="80" placeholder="例: 会員割引"></div>
+        <div class="fg" id="fieldDiscountNameEn"><label class="form-label" data-t="discountRulesEnName">表示名（English）/ English name</label><input class="fc" id="discountNameEn" maxlength="80" placeholder="Member discount"></div>
+        <div class="fg"><label class="form-label" data-t="discountRulesCode">管理コード / Code</label><input class="fc" id="discountCode" maxlength="40" required aria-required="true" placeholder="MEMBER"></div>
+        <div class="fg"><label class="form-label" data-t="discountRulesCalc">計算方法 / Calculation</label><select class="fc" id="discountCalculationType"><option value="percent" data-t="discountRulesPct">率（%）/ Percent</option><option value="fixed" data-t="discountRulesFixed">固定額 / Fixed amount</option></select></div>
+        <div class="fg"><label class="form-label" data-t="discountRulesValue">割引値 / Value</label><input class="fc" id="discountValue" type="number" min="0.01" step="any" required aria-required="true"></div>
+        <div class="fg"><label class="form-label" data-t="discountRulesSort">表示順 / Sort order</label><input class="fc" id="discountSortOrder" type="number" step="1" value="0"></div>
       </div>
       <div style="display:flex;gap:14px;flex-wrap:wrap;margin:4px 0 12px;">
-        <label class="chk"><input type="checkbox" id="discountTaxExempt"><span>税免除 / Tax exempt</span></label>
-        <label class="chk"><input type="checkbox" id="discountIdRequired"><span>ID必須 / ID required</span></label>
-        <label class="chk"><input type="checkbox" id="discountManagerApproval" checked><span>マネージャー以上の承認 / Manager-or-above approval</span></label>
-        <label class="chk"><input type="checkbox" id="discountEnabled" checked><span>有効 / Enabled</span></label>
+        <label class="chk"><input type="checkbox" id="discountTaxExempt"><span data-t="discountRulesTax">税免除 / Tax exempt</span></label>
+        <label class="chk"><input type="checkbox" id="discountIdRequired"><span data-t="discountRulesId">ID必須 / ID required</span></label>
+        <label class="chk"><input type="checkbox" id="discountManagerApproval" checked><span data-t="discountRulesMgr">マネージャー以上の承認 / Manager-or-above approval</span></label>
+        <label class="chk"><input type="checkbox" id="discountEnabled" checked><span data-t="discountRulesEnabled">有効 / Enabled</span></label>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn" onclick="saveDiscountRule()">💾 割引を保存</button>
-        <button class="btn sec" onclick="newDiscountRule()">＋ 新規</button>
-        <button class="btn sec" onclick="applyDiscountPreset('senior')">フィリピン: シニア20%プリセット</button>
-        <button class="btn sec" onclick="applyDiscountPreset('pwd')">フィリピン: PWD 20%プリセット</button>
+        <button class="btn" onclick="saveDiscountRule()" data-t="discountRulesSave">💾 割引を保存</button>
+        <button class="btn sec" onclick="newDiscountRule()" data-t="discountRulesNew">＋ 新規</button>
+        <button class="btn sec" onclick="applyDiscountPreset('senior')" data-t="discountRulesSeniorPreset">フィリピン: シニア20%プリセット</button>
+        <button class="btn sec" onclick="applyDiscountPreset('pwd')" data-t="discountRulesPwdPreset">フィリピン: PWD 20%プリセット</button>
       </div>
       <div class="st" id="st-discount"></div>
       <div id="discountRuleList" style="margin-top:12px;"></div>
-      <details style="margin-top:12px;"><summary style="cursor:pointer;font-weight:800;">フィリピン向け旧シニア／PWD互換設定</summary>
-        <label class="chk" style="margin:10px 0;"><input type="checkbox" id="seniorDiscountEnabled"><span>旧画面・旧端末向けのシニア／PWD割引を有効にする</span></label>
-        <button class="btn sec" onclick="saveSeniorDiscount()">💾 互換設定を保存</button><div class="st" id="st-senior"></div>
+      <details style="margin-top:12px;"><summary style="cursor:pointer;font-weight:800;" data-t="discountRulesLegacy">フィリピン向け旧シニア／PWD互換設定</summary>
+        <label class="chk" style="margin:10px 0;"><input type="checkbox" id="seniorDiscountEnabled"><span data-t="discountRulesLegacyEnable">旧画面・旧端末向けのシニア／PWD割引を有効にする</span></label>
+        <button class="btn sec" onclick="saveSeniorDiscount()" data-t="discountRulesLegacySave">💾 互換設定を保存</button><div class="st" id="st-senior"></div>
       </details>
     </div>
 
@@ -212,9 +241,9 @@
       <div class="card-title" data-t="payTitle">💳 決済方法</div>
       <div class="hint" data-t="payHint" style="margin-bottom:12px;">会計画面に表示する決済方法と、画面・レシートに印字する名称を設定します。</div>
       <div class="grid2">
-        <div class="fg"><label class="chk"><input type="checkbox" id="cashPaymentEnabled"><span data-t="cashEnable">現金を表示する</span></label><div class="payment-lang-grid" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;"><div class="payment-lang-ja"><label class="form-label" data-t="screenLabelJa">画面表示名（日本語）</label><input class="fc" id="cashPaymentLabelJa" maxlength="40" placeholder="現金"></div><div class="payment-lang-en"><label class="form-label" data-t="screenLabelEn">画面表示名（English）</label><input class="fc" id="cashPaymentLabelEn" maxlength="40" placeholder="Cash"></div><div class="payment-lang-ja"><label class="form-label" data-t="receiptLabelJa">レシート表記（日本語）</label><input class="fc" id="cashReceiptLabelJa" maxlength="40" placeholder="現金"></div><div class="payment-lang-en"><label class="form-label" data-t="receiptLabelEn">レシート表記（English）</label><input class="fc" id="cashReceiptLabelEn" maxlength="40" placeholder="Cash"></div></div></div>
-        <div class="fg"><label class="chk"><input type="checkbox" id="creditCardEnabled"><span data-t="ccEnable">カードを表示する</span></label><div class="payment-lang-grid" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;"><div class="payment-lang-ja"><label class="form-label" data-t="screenLabelJa">画面表示名（日本語）</label><input class="fc" id="cardPaymentLabelJa" maxlength="40" placeholder="カード"></div><div class="payment-lang-en"><label class="form-label" data-t="screenLabelEn">画面表示名（English）</label><input class="fc" id="cardPaymentLabelEn" maxlength="40" placeholder="Card"></div><div class="payment-lang-ja"><label class="form-label" data-t="receiptLabelJa">レシート表記（日本語）</label><input class="fc" id="cardReceiptLabelJa" maxlength="40" placeholder="カード"></div><div class="payment-lang-en"><label class="form-label" data-t="receiptLabelEn">レシート表記（English）</label><input class="fc" id="cardReceiptLabelEn" maxlength="40" placeholder="Card"></div><div class="payment-lang-ja"><label class="form-label" data-t="cardInstructionJa">カード決済案内（日本語・任意）</label><textarea class="fc" id="cardPaymentInstructionJa" maxlength="240" rows="3"></textarea></div><div class="payment-lang-en"><label class="form-label" data-t="cardInstructionEn">Card instructions (English, optional)</label><textarea class="fc" id="cardPaymentInstructionEn" maxlength="240" rows="3"></textarea></div></div></div>
-        <div class="fg"><label class="chk"><input type="checkbox" id="qrPaymentEnabled"><span data-t="qrEnable">QR決済を表示する</span></label><div class="payment-lang-grid" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;"><div class="payment-lang-ja"><label class="form-label" data-t="screenLabelJa">画面表示名（日本語）</label><input class="fc" id="qrPaymentLabelJa" maxlength="40" placeholder="QR決済"></div><div class="payment-lang-en"><label class="form-label" data-t="screenLabelEn">画面表示名（English）</label><input class="fc" id="qrPaymentLabelEn" maxlength="40" placeholder="QR Payment"></div><div class="payment-lang-ja"><label class="form-label" data-t="receiptLabelJa">レシート表記（日本語）</label><input class="fc" id="qrReceiptLabelJa" maxlength="40" placeholder="QR決済"></div><div class="payment-lang-en"><label class="form-label" data-t="receiptLabelEn">レシート表記（English）</label><input class="fc" id="qrReceiptLabelEn" maxlength="40" placeholder="QR Payment"></div><div class="payment-lang-ja"><label class="form-label" data-t="qrInstructionJa">QR決済案内（日本語・任意）</label><textarea class="fc" id="qrPaymentInstructionJa" maxlength="240" rows="5" placeholder="QRコードを読み取り、入金確認後にボタンを押してください。"></textarea></div><div class="payment-lang-en"><label class="form-label" data-t="qrInstructionEn">QR instructions (English, optional)</label><textarea class="fc" id="qrPaymentInstructionEn" maxlength="240" rows="5"></textarea></div></div></div>
+        <div class="fg"><label class="chk"><input type="checkbox" id="cashPaymentEnabled"><span data-t="cashEnable">現金を表示する</span></label><div class="payment-lang-grid" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;"><div class="payment-lang-ja"><label class="form-label" data-t="screenLabelJa">画面表示名（日本語）</label><input class="fc" id="cashPaymentLabelJa" placeholder="現金"></div><div class="payment-lang-en"><label class="form-label" data-t="screenLabelEn">画面表示名（English）</label><input class="fc" id="cashPaymentLabelEn" placeholder="Cash"></div><div class="payment-lang-ja"><label class="form-label" data-t="receiptLabelJa">レシート表記（日本語）</label><input class="fc" id="cashReceiptLabelJa" placeholder="現金"></div><div class="payment-lang-en"><label class="form-label" data-t="receiptLabelEn">レシート表記（English）</label><input class="fc" id="cashReceiptLabelEn" placeholder="Cash"></div></div></div>
+        <div class="fg"><label class="chk"><input type="checkbox" id="creditCardEnabled"><span data-t="ccEnable">カードを表示する</span></label><div class="payment-lang-grid" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;"><div class="payment-lang-ja"><label class="form-label" data-t="screenLabelJa">画面表示名（日本語）</label><input class="fc" id="cardPaymentLabelJa" placeholder="カード"></div><div class="payment-lang-en"><label class="form-label" data-t="screenLabelEn">画面表示名（English）</label><input class="fc" id="cardPaymentLabelEn" placeholder="Card"></div><div class="payment-lang-ja"><label class="form-label" data-t="receiptLabelJa">レシート表記（日本語）</label><input class="fc" id="cardReceiptLabelJa" placeholder="カード"></div><div class="payment-lang-en"><label class="form-label" data-t="receiptLabelEn">レシート表記（English）</label><input class="fc" id="cardReceiptLabelEn" placeholder="Card"></div><div class="payment-lang-ja"><label class="form-label" data-t="cardInstructionJa">カード決済案内（日本語・任意）</label><textarea class="fc" id="cardPaymentInstructionJa" rows="3"></textarea></div><div class="payment-lang-en"><label class="form-label" data-t="cardInstructionEn">Card instructions (English, optional)</label><textarea class="fc" id="cardPaymentInstructionEn" rows="3"></textarea></div></div></div>
+        <div class="fg"><label class="chk"><input type="checkbox" id="qrPaymentEnabled"><span data-t="qrEnable">QR決済を表示する</span></label><div class="payment-lang-grid" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;"><div class="payment-lang-ja"><label class="form-label" data-t="screenLabelJa">画面表示名（日本語）</label><input class="fc" id="qrPaymentLabelJa" placeholder="QR決済"></div><div class="payment-lang-en"><label class="form-label" data-t="screenLabelEn">画面表示名（English）</label><input class="fc" id="qrPaymentLabelEn" placeholder="QR Payment"></div><div class="payment-lang-ja"><label class="form-label" data-t="receiptLabelJa">レシート表記（日本語）</label><input class="fc" id="qrReceiptLabelJa" placeholder="QR決済"></div><div class="payment-lang-en"><label class="form-label" data-t="receiptLabelEn">レシート表記（English）</label><input class="fc" id="qrReceiptLabelEn" placeholder="QR Payment"></div><div class="payment-lang-ja"><label class="form-label" data-t="qrInstructionJa">QR決済案内（日本語・任意）</label><textarea class="fc" id="qrPaymentInstructionJa" rows="5" placeholder="QRコードを読み取り、入金確認後にボタンを押してください。"></textarea></div><div class="payment-lang-en"><label class="form-label" data-t="qrInstructionEn">QR instructions (English, optional)</label><textarea class="fc" id="qrPaymentInstructionEn" rows="5"></textarea></div></div></div>
       </div>
       <div class="hint" data-t="paymentLangHint" style="margin-bottom:10px;">表示名・レシート表記・案内文は日本語/英語の片方だけでも設定できます。未入力側はもう一方へフォールバックします。</div>
       <div class="hint" style="font-size:13px;font-weight:700;color:#92400e;background:#fef3c7;border:1px solid #fde68a;border-radius:9px;padding:10px 12px;margin-bottom:10px;" data-t="ccWarn">⚠️ カード・QRとも、この画面自体は請求処理を行いません。外部端末・決済サービスで入金を確認してから会計を確定してください。</div>
@@ -267,22 +296,22 @@
 
     <div class="card">
       <div class="card-title" data-t="repTitle">📧 定期レポート（自動メール）</div>
-      <div class="hint" style="font-size:13px;font-weight:700;color:#15803d;background:#dcfce7;border:1px solid #bbf7d0;border-radius:9px;padding:10px 12px;margin-bottom:10px;" data-t="repNowWorks">✅ 2026-08-23よりメール送信の仕組みが実装され、この機能が使えるようになりました（上の「メール送信設定」でResend APIキー・送信元アドレスの設定が必要です）。実際の送信は15分間隔のスケジュール実行のため、設定した時刻ちょうどではなく、その後の直近15分枠内（最大約15分遅れ）で届きます。</div>
+      <div class="hint" style="font-size:13px;font-weight:700;color:#15803d;background:#dcfce7;border:1px solid #bbf7d0;border-radius:9px;padding:10px 12px;margin-bottom:10px;" data-t="repNowWorks">✅ 2026-08-23よりメール送信の仕組みが実装され、この機能が使えるようになりました（上の「メール送信設定」でResend APIキー・送信元アドレスの設定が必要です）。帳票は店舗のタイムゾーンで選択した時刻（毎時00分）を基準に1時間ごとに送信判定します。実際のメール到着には多少の遅れが生じることがあります。</div>
       <div class="fg"><label class="form-label" data-t="repEmail">送信先メール（複数可・カンマか改行区切り）</label><textarea id="reportEmail" class="fc" rows="2" placeholder="a@example.com, b@example.com"></textarea></div>
 
       <label class="chk" style="display:block;margin:10px 0 4px;"><input type="checkbox" id="reportEnabled"><span data-t="repDaily">日次日報（毎日）</span></label>
-      <div class="fg time-field" style="max-width:200px;"><label class="form-label" data-t="repHour">送信時刻</label><input id="reportTime" type="time" class="fc time-control" step="60"></div>
+      <div class="fg time-field" style="max-width:200px;"><label class="form-label" data-t="repHour">送信時刻</label><select id="reportTime" class="fc"></select></div>
 
       <label class="chk" style="display:block;margin:12px 0 4px;"><input type="checkbox" id="reportWeekly"><span data-t="repWeekly">週次レポート</span></label>
       <div class="grid2">
         <div class="fg"><label class="form-label" data-t="repWeekDay">送信曜日</label><select id="reportWeeklyDay" class="fc"><option value="0" data-t="dow0">日曜</option><option value="1" data-t="dow1">月曜</option><option value="2" data-t="dow2">火曜</option><option value="3" data-t="dow3">水曜</option><option value="4" data-t="dow4">木曜</option><option value="5" data-t="dow5">金曜</option><option value="6" data-t="dow6">土曜</option></select></div>
-        <div class="fg time-field"><label class="form-label" data-t="repHour">送信時刻</label><input id="reportWeeklyTime" type="time" class="fc time-control" step="60"></div>
+        <div class="fg time-field"><label class="form-label" data-t="repHour">送信時刻</label><select id="reportWeeklyTime" class="fc"></select></div>
       </div>
 
       <label class="chk" style="display:block;margin:12px 0 4px;"><input type="checkbox" id="reportMonthly"><span data-t="repMonthly">月次レポート</span></label>
       <div class="grid2">
         <div class="fg"><label class="form-label" data-t="repMonthDay">送信日（1〜28）</label><input id="reportMonthlyDay" type="number" min="1" max="28" class="fc"></div>
-        <div class="fg time-field"><label class="form-label" data-t="repHour">送信時刻</label><input id="reportMonthlyTime" type="time" class="fc time-control" step="60"></div>
+        <div class="fg time-field"><label class="form-label" data-t="repHour">送信時刻</label><select id="reportMonthlyTime" class="fc"></select></div>
       </div>
 
       <div class="fg" style="max-width:220px;margin-top:12px;"><label class="form-label" data-t="repLang">出力言語</label><select id="reportLang" class="fc"><option value="ja" data-t="repLangJa">日本語</option><option value="en" data-t="repLangEn">英語</option><option value="both" data-t="repLangBoth">日本語＋英語（両方）</option></select></div>
@@ -510,7 +539,7 @@
     var tableListForQr = [];
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
     function _seatTerm(ja,enValue,jaDefault,enDefault){var en=window.I18n&&I18n.lang&&I18n.lang()==='en';ja=String(ja||'').trim();enValue=String(enValue||'').trim();return en?(enValue||ja||enDefault||jaDefault):(ja||enValue||jaDefault||enDefault);}
-    function _seatLabel(v){var s=String(v==null?'':v);var tableTerm=_seatTerm($('tableLabelJa').value,$('tableLabelEn').value,'テーブル','Table');var counterTerm=_seatTerm($('counterLabelJa').value,$('counterLabelEn').value,'カウンター','Counter');var m=s.match(/^テーブル(\d+)$/)||s.match(/^(\d+)$/);if(m)return tableTerm+' '+m[1];var c=s.match(/^カウンター(\d+)$/);if(c)return counterTerm+' '+c[1];return s;}
+function _seatLabel(v){var s=String(v==null?'':v).trim();var tableTerm=_seatTerm($('tableLabelJa').value,$('tableLabelEn').value,'テーブル','Table');var counterTerm=_seatTerm($('counterLabelJa').value,$('counterLabelEn').value,'カウンター','Counter');var m=s.match(/^(?:テーブル|Table)\s*(\d+)$/i)||s.match(/^(\d+)$/);if(m)return tableTerm+' '+m[1];var c=s.match(/^(?:カウンター|Counter)\s*(\d+)$/i);if(c)return counterTerm+' '+c[1];return s;}
     window.syncSeatCountLabels=function(){var en=window.I18n&&I18n.lang&&I18n.lang()==='en';var tableTerm=_seatTerm($('tableLabelJa').value,$('tableLabelEn').value,'テーブル','Table');var counterTerm=_seatTerm($('counterLabelJa').value,$('counterLabelEn').value,'カウンター','Counter');$('tableCountLabel').textContent=en?(tableTerm+' count'):(tableTerm+'数');$('counterCountLabel').textContent=en?(counterTerm+' count'):(counterTerm+'数');};
     function syncSeatLanguageOrder(){var en=window.I18n&&I18n.lang&&I18n.lang()==='en';var pairs=[['fieldTableLabelJa','fieldTableLabelEn'],['fieldCounterLabelJa','fieldCounterLabelEn'],['fieldSeatGroupLabelJa','fieldSeatGroupLabelEn']];pairs.forEach(function(pair,i){var ja=$(pair[0]),e=$(pair[1]);if(ja&&e){ja.style.order=String(i*2+(en?2:1));e.style.order=String(i*2+(en?1:2));}});}
     function syncReceiptTitleOrder(){var en=window.I18n&&I18n.lang&&I18n.lang()==='en';var ja=$('fieldReceiptTitleJa'),e=$('fieldReceiptTitleEn');if(ja&&e){ja.style.order=en?'2':'1';e.style.order=en?'1':'2';}}
@@ -529,11 +558,53 @@
 
     var BUSINESS_PROFILES={restaurant:{tableLabelJa:'テーブル',tableLabelEn:'Table',counterLabelJa:'カウンター',counterLabelEn:'Counter',seatGroupLabelJa:'席',seatGroupLabelEn:'Seating'},bar:{tableLabelJa:'卓',tableLabelEn:'Table',counterLabelJa:'カウンター',counterLabelEn:'Bar seat',seatGroupLabelJa:'席',seatGroupLabelEn:'Seating'},cafe:{tableLabelJa:'テーブル',tableLabelEn:'Table',counterLabelJa:'カウンター',counterLabelEn:'Counter',seatGroupLabelJa:'席',seatGroupLabelEn:'Seating'},counter_service:{tableLabelJa:'受取番号',tableLabelEn:'Order no.',counterLabelJa:'受取口',counterLabelEn:'Pickup',seatGroupLabelJa:'注文',seatGroupLabelEn:'Order'},service:{tableLabelJa:'受付',tableLabelEn:'Station',counterLabelJa:'ブース',counterLabelEn:'Booth',seatGroupLabelJa:'利用枠',seatGroupLabelEn:'Station'}};
     window.applyBusinessProfile=function(){var code=$('businessProfile').value,p=BUSINESS_PROFILES[code];if(!p)return;Object.keys(p).forEach(function(k){$(k).value=p[k];});syncSeatCountLabels();st('st-shop',I18n.t('businessProfileApplied'),true);};
-    window.saveShop = function(){ var profile={shopName:$('shopName').value,businessProfile:$('businessProfile').value,tableLabelJa:$('tableLabelJa').value,tableLabelEn:$('tableLabelEn').value,counterLabelJa:$('counterLabelJa').value,counterLabelEn:$('counterLabelEn').value,seatGroupLabelJa:$('seatGroupLabelJa').value,seatGroupLabelEn:$('seatGroupLabelEn').value}; Promise.all([ rpc('saveSettings',[profile]), rpc('saveSeatCounts',[Number($('tableCount').value)||0, Number($('counterCount').value)||0]) ]).then(function(res){ requireRpcSuccess(res[0]); requireRpcSuccess(res[1]); st('st-shop',I18n.t('saved'), true); }).catch(function(e){ st('st-shop',I18n.t('errPrefix')+API.userErrorText(e), false); }); };
+    // Seat count changes rebuild the physical seat master. A name-only save must
+    // never perform that destructive operation or race it with saveSettings.
+    var savedShopCounts=null,saveShopInFlight=false;
+    window.saveShop = function(){
+      if(saveShopInFlight)return;
+      var english=I18n.lang&&I18n.lang()==='en';
+      if(!savedShopCounts){st('st-shop',I18n.t('errPrefix')+(english?'Settings are still loading.':'設定の読み込み完了後に再度お試しください。'),false);return;}
+      var rawTable=String($('tableCount').value).trim(),rawCounter=String($('counterCount').value).trim();
+      var table=Number(rawTable),counter=Number(rawCounter);
+      if(!rawTable||!rawCounter||!Number.isSafeInteger(table)||table<0||!Number.isSafeInteger(counter)||counter<0){
+        st('st-shop',I18n.t('errPrefix')+(english?'Invalid seat count.':'席数には0以上の整数を入力してください。'),false);return;
+      }
+      var profile={shopName:$('shopName').value,businessProfile:$('businessProfile').value,tableLabelJa:$('tableLabelJa').value,tableLabelEn:$('tableLabelEn').value,counterLabelJa:$('counterLabelJa').value,counterLabelEn:$('counterLabelEn').value,seatGroupLabelJa:$('seatGroupLabelJa').value,seatGroupLabelEn:$('seatGroupLabelEn').value};
+      var countsChanged=table!==savedShopCounts.table||counter!==savedShopCounts.counter;
+      saveShopInFlight=true;
+      // When counts really change, finish the protected seat-master operation
+      // before saving display names; otherwise leave existing tables untouched.
+      var countSave=countsChanged?rpc('saveSeatCounts',[table,counter]):Promise.resolve({success:true});
+      countSave.then(function(result){
+        requireRpcSuccess(result);
+        if(countsChanged)savedShopCounts={table:table,counter:counter};
+        return rpc('saveSettings',[profile]);
+      }).then(function(result){requireRpcSuccess(result);st('st-shop',I18n.t('saved'),true);})
+        .catch(function(e){st('st-shop',I18n.t('errPrefix')+API.userErrorText(e),false);})
+        .finally(function(){saveShopInFlight=false;});
+    };
     // "HH:MM" 形式のtime inputから[時,分]を取り出す（未入力なら[0,0]）。
     function _splitTime(v){ var m=/^(\d{1,2}):(\d{2})$/.exec(v||''); return m? [Number(m[1]), Number(m[2])] : [0,0]; }
     // 時・分（数値）からtime input用の"HH:MM"文字列を作る。
     function _fmtTime(h,m){ h=parseInt(h,10)||0; m=parseInt(m,10)||0; return (h<10?'0':'')+h+':'+(m<10?'0':'')+m; }
+    // Schedule only full hours, independent of the device's native time-picker.
+    function _reportHourTime(hour,minute){
+      var h=Number(hour),m=Number(minute)||0;
+      if(!Number.isInteger(h)||h<0||h>23)h=23;
+      if(m>0&&m<60)h=(h+1)%24;
+      return (h<10?'0':'')+h+':00';
+    }
+    ['reportTime','reportWeeklyTime','reportMonthlyTime'].forEach(function(id){
+      var field=$(id);
+      if(!field)return;
+      for(var h=0;h<24;h++){
+        var option=document.createElement('option');
+        option.value=_reportHourTime(h);
+        option.textContent=option.value;
+        field.appendChild(option);
+      }
+    });
     function _setSelectValue(id,value,fallback){
       var el=$(id), v=String((value!==undefined&&value!==null&&value!=='')?value:(fallback||''));
       if(!el)return;
@@ -547,9 +618,16 @@
       var bc=_splitTime($('bizDayCutoff').value), tz=String($('timezone').value||'').trim();
       try { if(!tz) throw new Error('blank'); new Intl.DateTimeFormat('en-US',{timeZone:tz}).format(); }
       catch(e){ st('st-locale',I18n.t('invalidTimezone'), false); return; }
+      for (var rateKey of ['serviceRate','taxRate']) {
+        var field=$(rateKey), raw=String(field.value||'').trim();
+        if (!raw || !/^(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(raw) || !Number.isFinite(Number(raw)) || !field.validity.valid) {
+          st('st-locale', (rateKey==='serviceRate' ? I18n.t('svcRate') : I18n.t('taxRate')) + ': 0〜100の範囲で0.1刻みで入力してください / Enter a value from 0 to 100 in steps of 0.1.', false);
+          field.focus(); return;
+        }
+      }
       rpc('saveSettings',[{ regionalSettingsVersion:'2', countryCode:$('countryCode').value, locale:$('locale').value, dateFormat:$('dateFormat').value, timezone:tz, currencyCode:$('currencyCode').value, currencySymbol:$('currencySymbol').value, currencyDecimalDigits:$('currencyDecimalDigits').value, serviceRate:$('serviceRate').value, taxRate:$('taxRate').value, taxDisplayName:$('taxDisplayName').value, taxIdLabel:$('taxIdLabel').value, receiptNumberPrefix:$('receiptNumberPrefix').value, receiptDocumentTitleJa:$('receiptDocumentTitleJa').value, receiptDocumentTitleEn:$('receiptDocumentTitleEn').value, taxRoundingMode:$('taxRoundingMode').value, serviceInclusive:$('serviceInclusive').checked?'true':'false', taxInclusive:$('taxInclusive').checked?'true':'false', defaultLang:$('defaultLang').value, accentColor:$('accentColor').value, bizDayCutoffHour:bc[0], bizDayCutoffMin:bc[1] }]).then(function(d){
         if(!d || d.success===false){ st('st-locale',I18n.t('errPrefix')+API.userErrorText((d&&d.error)||'save_failed'), false); return; }
-        $('timezone').value=d.timezone||tz; if(window.DateDisplay)DateDisplay.setSettings({countryCode:$('countryCode').value,locale:$('locale').value,currencyCode:$('currencyCode').value,dateFormat:$('dateFormat').value,timezone:d.timezone||tz}); st('st-locale',I18n.t('saved'), true);
+        $('timezone').value=d.timezone||tz; savedDiscountCurrency=String(d.currencyCode||$('currencyCode').value||'').trim().toUpperCase();syncDiscountValueLimit(); if(window.DateDisplay)DateDisplay.setSettings({countryCode:$('countryCode').value,locale:$('locale').value,currencyCode:$('currencyCode').value,dateFormat:$('dateFormat').value,timezone:d.timezone||tz}); st('st-locale',I18n.t('saved'), true);
       }).catch(function(e){ st('st-locale',I18n.t('errPrefix')+API.userErrorText(e), false); });
     };
     // 2026-08-25追加: ログイン保持時間（あつしさんのご要望「設定画面に持ち、操作があればログイン
@@ -606,7 +684,40 @@
         .then(function(r){ requireRpcSuccess(r); st('st-senior',I18n.t('saved'), true); }).catch(function(e){ st('st-senior',I18n.t('errPrefix')+API.userErrorText(e), false); });
     };
     var DISCOUNT_RULES=[];
+    var savedDiscountCurrency='';
+    function discountSavedCurrency(d){
+      var explicit=String(d.currencyCode||'').trim().toUpperCase();
+      if(explicit)return explicit;
+      var country=String(d.countryCode||'').trim().toUpperCase();
+      return country==='PH'?'PHP':country==='JP'?'JPY':'';
+    }
+    function discountFixedLimit(){return savedDiscountCurrency==='PHP'||savedDiscountCurrency==='JPY'?10000:null;}
+    function syncDiscountValueLimit(){
+      var el=$('discountValue');if(!el)return;
+      var type=$('discountCalculationType').value;
+      var max=type==='percent'?100:(type==='fixed'?discountFixedLimit():null);
+      if(max===null)el.removeAttribute('max');else el.setAttribute('max',String(max));
+      el.setAttribute('min',type==='fixed'&&savedDiscountCurrency==='JPY'?'1':'0.01');
+      el.setAttribute('step',type==='fixed'&&savedDiscountCurrency==='JPY'?'1':'any');
+    }
+    $('discountCalculationType').addEventListener('change',syncDiscountValueLimit);
+    syncDiscountValueLimit();
     function discountIsEn(){return !!(window.I18n&&I18n.lang&&I18n.lang()==='en');}
+    // Explain rejected insertions before native maxlength can silently clip them.
+    function installDiscountLengthGuards(){
+      [['discountCode',40,'管理コードは40文字以内にしてください。','Discount code must be 40 characters or fewer.'],['discountName',80,'日本語の表示名は80文字以内にしてください。','Japanese discount name must be 80 characters or fewer.'],['discountNameEn',80,'英語の表示名は80文字以内にしてください。','English discount name must be 80 characters or fewer.']].forEach(function(spec){
+        var el=$(spec[0]),limit=spec[1],composing=false,prior='';
+        if(!el||el.dataset.discountLengthGuard)return;
+        el.dataset.discountLengthGuard='1';
+        function error(){st('st-discount',discountIsEn()?spec[3]:spec[2],false);el.setAttribute('aria-invalid','true');}
+        function overflow(insert){var start=typeof el.selectionStart==='number'?el.selectionStart:el.value.length,end=typeof el.selectionEnd==='number'?el.selectionEnd:start;return el.value.length-(end-start)+insert.length>limit;}
+        el.addEventListener('paste',function(e){if(composing)return;var t=e.clipboardData&&e.clipboardData.getData('text');if(typeof t==='string'&&overflow(t)){e.preventDefault();error();}});
+        el.addEventListener('beforeinput',function(e){if(composing||e.isComposing||!e.cancelable||!/^insert/.test(e.inputType||''))return;var t=e.data;if(t==null&&e.dataTransfer)t=e.dataTransfer.getData('text');if(typeof t==='string'&&overflow(t)){e.preventDefault();error();}});
+        el.addEventListener('compositionstart',function(){composing=true;prior=el.value;});
+        el.addEventListener('compositionend',function(){composing=false;if(el.value.length>limit){el.value=prior;error();}});
+      });
+    }
+    installDiscountLengthGuards();
     function discountLoc(ja,en){ja=(ja||'').trim();en=(en||'').trim();return discountIsEn()?(en||ja):(ja||en);}
     function syncDiscountNameOrder(){var a=$('fieldDiscountNameJa'),b=$('fieldDiscountNameEn');if(a&&b){a.style.order=discountIsEn()?'2':'1';b.style.order=discountIsEn()?'1':'2';}}
     function renderDiscountRules(){
@@ -615,15 +726,16 @@
       var en=discountIsEn(), taxTxt=en?'Tax exempt':'税免除', idTxt=en?'ID required':'ID必須', apprTxt=en?'Manager-or-above approval':'マネージャー以上の承認', editTxt=en?'Edit':'編集', delTxt=en?'Delete':'削除', emptyTxt=en?'No discounts registered.':'登録済みの割引はありません。';
       host.innerHTML=DISCOUNT_RULES.length?DISCOUNT_RULES.map(function(r){
         var value=r.calculationType==='fixed'?String(r.value):String(r.value)+'%';
-        return '<div style="display:flex;align-items:center;gap:8px;padding:9px 4px;border-top:1px solid var(--border);">'+
-          '<div style="flex:1;"><b>'+esc(discountLoc(r.nameJa!==undefined?r.nameJa:r.name,r.nameEn))+'</b> <span class="badge '+(r.enabled?'on':'offb')+'">'+(r.enabled?'ON':'OFF')+'</span><div class="hint">'+esc(r.code)+' · '+esc(value)+(r.taxExempt?' · '+taxTxt:'')+(r.idRequired?' · '+idTxt:'')+(r.managerApprovalRequired?' · '+apprTxt:'')+'</div></div>'+
-          '<button class="btn sec" style="width:auto;" onclick="editDiscountRule(\''+esc(r.id).replace(/'/g,"\\'")+'\')">'+editTxt+'</button>'+
-          '<button class="btn sec" style="width:auto;color:#b91c1c;" onclick="deleteDiscountRule(\''+esc(r.id).replace(/'/g,"\\'")+'\')">'+delTxt+'</button></div>';
+        var fullName=esc(discountLoc(r.nameJa!==undefined?r.nameJa:r.name,r.nameEn));
+        return '<div class="discount-rule-row">'+
+          '<div class="discount-rule-content"><div class="discount-rule-heading"><b class="discount-rule-name" title="'+fullName+'">'+fullName+'</b><span class="badge '+(r.enabled?'on':'offb')+'">'+(r.enabled?'ON':'OFF')+'</span></div><div class="hint discount-rule-meta">'+esc(r.code)+' · '+esc(value)+(r.taxExempt?' · '+taxTxt:'')+(r.idRequired?' · '+idTxt:'')+(r.managerApprovalRequired?' · '+apprTxt:'')+'</div></div>'+
+          '<button class="btn sec discount-rule-action" style="width:auto;" onclick="editDiscountRule(\''+esc(r.id).replace(/'/g,"\\'")+'\')">'+editTxt+'</button>'+
+          '<button class="btn sec discount-rule-action" style="width:auto;color:#b91c1c;" onclick="deleteDiscountRule(\''+esc(r.id).replace(/'/g,"\\'")+'\')">'+delTxt+'</button></div>';
       }).join(''):'<div class="hint">'+emptyTxt+'</div>';
     }
     window.newDiscountRule=function(){
       $('discountRuleId').value=''; $('discountName').value=''; $('discountNameEn').value=''; $('discountCode').value='';
-      $('discountCalculationType').value='percent'; $('discountValue').value=''; $('discountSortOrder').value='0';
+      $('discountCalculationType').value='percent'; $('discountValue').value=''; $('discountSortOrder').value='0';syncDiscountValueLimit();
       $('discountTaxExempt').checked=false; $('discountIdRequired').checked=false; $('discountManagerApproval').checked=true; $('discountEnabled').checked=true;
     };
     window.applyDiscountPreset=function(kind){
@@ -632,21 +744,28 @@
     };
     window.editDiscountRule=function(id){ var r=DISCOUNT_RULES.find(function(x){return x.id===id;}); if(!r)return;
       $('discountRuleId').value=r.id; $('discountName').value=(r.nameJa!==undefined?r.nameJa:r.name)||''; $('discountNameEn').value=r.nameEn||''; $('discountCode').value=r.code;
-      $('discountCalculationType').value=r.calculationType; $('discountValue').value=r.value; $('discountSortOrder').value=r.sortOrder||0;
+      $('discountCalculationType').value=r.calculationType; $('discountValue').value=r.value; $('discountSortOrder').value=r.sortOrder||0;syncDiscountValueLimit();
       $('discountTaxExempt').checked=!!r.taxExempt; $('discountIdRequired').checked=!!r.idRequired; $('discountManagerApproval').checked=!!r.managerApprovalRequired; $('discountEnabled').checked=!!r.enabled;
-      $('discountName').focus();
+      // IZK-UT-073: no automatic edit focus or persistent soft keyboard.
     };
     window.saveDiscountRule=function(){
       var nameJa=$('discountName').value.trim(), nameEn=$('discountNameEn').value.trim(), name=nameJa||nameEn, code=$('discountCode').value.trim(), rawValue=$('discountValue').value.trim(), value=Number(rawValue), calculationType=$('discountCalculationType').value;
-      function discountErr(el,ja,en){st('st-discount',(window.I18n&&I18n.lang&&I18n.lang()==='en')?en:ja,false);if(el)el.focus();}
+      function discountErr(el,ja,en){st('st-discount',(window.I18n&&I18n.lang&&I18n.lang()==='en')?en:ja,false);if(el){el.setAttribute('aria-invalid','true');}}
       if(!nameJa&&!nameEn){discountErr(discountIsEn()?$('discountNameEn'):$('discountName'),'割引の表示名は日本語または英語のどちらかを入力してください。','Enter the discount name in either English or Japanese.');return;}
+      if($('discountName').value.length>80){discountErr($('discountName'),'日本語の表示名は80文字以内にしてください。','Japanese discount name must be 80 characters or fewer.');return;}
+      if($('discountNameEn').value.length>80){discountErr($('discountNameEn'),'英語の表示名は80文字以内にしてください。','English discount name must be 80 characters or fewer.');return;}
+      if($('discountCode').value.length>40){discountErr($('discountCode'),'管理コードは40文字以内にしてください。','Discount code must be 40 characters or fewer.');return;}
       if(!code){discountErr($('discountCode'),'管理コードを入力してください。','Enter a discount code.');return;}
-      if(!rawValue||!Number.isFinite(value)||value<=0){discountErr($('discountValue'),'割引値は0より大きい数値を入力してください。','Enter a discount value greater than 0.');return;}
+      if(!rawValue||!Number.isFinite(value)||value<0.01){discountErr($('discountValue'),'割引値は0.01以上を入力してください。','Enter a discount value of at least 0.01.');return;}
       if(calculationType==='percent'&&value>100){discountErr($('discountValue'),'割引率は100%以下で入力してください。','Discount percentage must be 100% or less.');return;}
+      if(calculationType==='fixed'&&discountFixedLimit()!==null&&value>discountFixedLimit()){discountErr($('discountValue'),'固定額割引は'+savedDiscountCurrency+' 10,000以下で入力してください。','Fixed discount must not exceed '+savedDiscountCurrency+' 10,000.');return;}
+      if(calculationType==='fixed'&&savedDiscountCurrency==='JPY'&&!Number.isInteger(value)){discountErr($('discountValue'),'JPYの固定額割引は整数で入力してください。','Enter a whole-number fixed discount for JPY.');return;}
+      var sortRaw=$('discountSortOrder').value.trim(),sortOrder=Number(sortRaw);
+      if(!sortRaw||!Number.isInteger(sortOrder)||sortOrder< -9999||sortOrder>9999){discountErr($('discountSortOrder'),'表示順は-9999から9999までの整数を入力してください。','Enter an integer sort order from -9999 to 9999.');return;}
       var rule={id:$('discountRuleId').value,name:name,nameJa:nameJa,nameEn:nameEn,code:code,
-      calculationType:calculationType,value:value,sortOrder:$('discountSortOrder').value,taxExempt:$('discountTaxExempt').checked,
+      calculationType:calculationType,value:value,sortOrder:sortOrder,taxExempt:$('discountTaxExempt').checked,
       idRequired:$('discountIdRequired').checked,managerApprovalRequired:$('discountManagerApproval').checked,enabled:$('discountEnabled').checked};
-      rpc('saveDiscountRule',[rule]).then(function(r){if(!r||!r.success){st('st-discount','Error: '+API.userErrorText((r&&r.error)||'save_failed'),false);return;}newDiscountRule();st('st-discount',I18n.t('saved'),true);rpc('getDiscountRules',[]).then(function(list){DISCOUNT_RULES=list||[];renderDiscountRules();}).catch(function(){});}).catch(function(e){st('st-discount',I18n.t('errPrefix')+API.userErrorText(e),false);});
+      rpc('saveDiscountRule',[rule]).then(function(r){if(!r||!r.success){st('st-discount','Error: '+API.userErrorText((r&&r.error)||'save_failed'),false);return;}if(document.activeElement&&typeof document.activeElement.blur==='function')document.activeElement.blur();newDiscountRule();st('st-discount',I18n.t('saved'),true);rpc('getDiscountRules',[]).then(function(list){DISCOUNT_RULES=list||[];renderDiscountRules();}).catch(function(){});}).catch(function(e){st('st-discount',I18n.t('errPrefix')+API.userErrorText(e),false);});
     };
     window.deleteDiscountRule=function(id){rpc('deleteDiscountRule',[id]).then(function(r){if(!r||!r.success){st('st-discount','Error: '+API.userErrorText((r&&r.error)||'delete_failed'),false);return;}DISCOUNT_RULES=DISCOUNT_RULES.filter(function(x){return x.id!==id;});renderDiscountRules();newDiscountRule();st('st-discount',I18n.t('saved'),true);}).catch(function(e){st('st-discount',I18n.t('errPrefix')+API.userErrorText(e),false);});};
     // 2026-08-23: クレジットカードは別のカード決済端末で処理する運用のため、アプリ側は
@@ -655,6 +774,7 @@
     // QRコード画像を登録して会計画面に表示するだけの簡易な仕組みにしている。
     window.savePaymentMethods = function(){
       if(!$('cashPaymentEnabled').checked && !$('creditCardEnabled').checked && !$('qrPaymentEnabled').checked){ st('st-cc',I18n.t('paymentRequired'),false); return; }
+      if(!validatePaymentLengths())return;
       var vals={};['cashPaymentLabel','cashReceiptLabel','cardPaymentLabel','cardReceiptLabel','cardPaymentInstruction','qrPaymentLabel','qrReceiptLabel','qrPaymentInstruction'].forEach(function(k){var ja=$(k+'Ja').value.trim(),en=$(k+'En').value.trim();vals[k+'Ja']=ja;vals[k+'En']=en;vals[k]=ja||en;});
       rpc('saveSettings',[Object.assign({ cashPaymentEnabled:$('cashPaymentEnabled').checked?'on':'', creditCardEnabled:$('creditCardEnabled').checked?'on':'', qrPaymentEnabled:$('qrPaymentEnabled').checked?'on':'' },vals)])
         .then(function(r){ requireRpcSuccess(r); st('st-cc',I18n.t('saved'), true); }).catch(function(e){ st('st-cc',I18n.t('errPrefix')+API.userErrorText(e), false); });
@@ -712,20 +832,31 @@
     };
     window.saveGeo = function(){ rpc('saveSettings',[{ storeLat:$('storeLat').value, storeLng:$('storeLng').value, storeRadius:Number($('storeRadius').value)||0 }]).then(function(r){ requireRpcSuccess(r); st('st-geo',I18n.t('saved'), true); }).catch(function(e){ st('st-geo',I18n.t('errPrefix')+API.userErrorText(e), false); }); };
     window.clearGeo = function(){ rpc('saveSettings',[{ storeLat:'', storeLng:'', storeRadius:0 }]).then(function(r){ requireRpcSuccess(r); $('storeLat').value=''; $('storeLng').value=''; $('storeRadius').value=''; st('st-geo',I18n.t('geoCleared'), true); }).catch(function(e){ st('st-geo',I18n.t('errPrefix')+API.userErrorText(e), false); }); };
-    window.saveLoy = function(){ rpc('saveSettings',[{ loyaltyEnabled:$('loyaltyEnabled').checked?'on':'', loyaltyEarnRate:Number($('loyaltyEarnRate').value)||20, loyaltyRedeemValue:Number($('loyaltyRedeemValue').value)||1 }]).then(function(r){ requireRpcSuccess(r); st('st-loy',I18n.t('saved'), true); }).catch(function(e){ st('st-loy',I18n.t('errPrefix')+API.userErrorText(e), false); }); };
+    window.saveLoy = function(){
+      var earnRaw=$('loyaltyEarnRate').value.trim(),redeemRaw=$('loyaltyRedeemValue').value.trim(),earn=Number(earnRaw),redeem=Number(redeemRaw);
+      if(!earnRaw||!Number.isFinite(earn)||earn<=0){st('st-loy',(I18n.lang&&I18n.lang()==='en')?'Enter a point earning rate greater than zero.':'ポイント付与レートは0より大きい数値を入力してください。',false);$('loyaltyEarnRate').focus();return;}
+      if(!redeemRaw||!Number.isFinite(redeem)||redeem<=0){st('st-loy',(I18n.lang&&I18n.lang()==='en')?'Enter a redemption value greater than zero.':'ポイント利用単価は0より大きい数値を入力してください。',false);$('loyaltyRedeemValue').focus();return;}
+      rpc('saveSettings',[{loyaltyEnabled:$('loyaltyEnabled').checked?'on':'',loyaltyEarnRate:earn,loyaltyRedeemValue:redeem}]).then(function(r){requireRpcSuccess(r);st('st-loy',I18n.t('saved'),true);}).catch(function(e){st('st-loy',I18n.t('errPrefix')+API.userErrorText(e),false);});
+    };
+    var paymentKeys=['cashPaymentLabel','cashReceiptLabel','cardPaymentLabel','cardReceiptLabel','cardPaymentInstruction','qrPaymentLabel','qrReceiptLabel','qrPaymentInstruction'];
+    function paymentLengthError(el,max){st('st-cc',I18n.lang&&I18n.lang()==='en'?'Payment field must be '+max+' characters or fewer.':'決済設定の入力は'+max+'文字以内にしてください。',false);el.focus();}
+    function validatePaymentLengths(){for(var k of paymentKeys){for(var lang of ['Ja','En']){var el=$(k+lang),max=k.indexOf('Instruction')>=0?240:40;if(el.value.trim().length>max){paymentLengthError(el,max);return false;}}}return true;}
+    function installPaymentLengthGuards(){paymentKeys.forEach(function(k){['Ja','En'].forEach(function(lang){var el=$(k+lang);if(!el||el.dataset.paymentLimitGuard)return;el.dataset.paymentLimitGuard='1';var max=k.indexOf('Instruction')>=0?240:40;function wouldExceed(text){return el.value.length-(el.selectionEnd-el.selectionStart)+text.length>max;}el.addEventListener('paste',function(e){var text=e.clipboardData&&e.clipboardData.getData('text');if(text&&wouldExceed(text)){e.preventDefault();paymentLengthError(el,max);}});el.addEventListener('beforeinput',function(e){if(e.isComposing||e.inputType==='insertFromPaste'||!e.inputType||!e.inputType.startsWith('insert')||!e.data)return;if(wouldExceed(e.data)){e.preventDefault();paymentLengthError(el,max);}});});});}
+    installPaymentLengthGuards();
     // 2026-08-23: メール送信の仕組み（Resend経由）を実装したため、保存・テスト送信とも
     // 実際にrpc()でサーバーへ送るよう復元した。実際の自動送信にはResend APIキー・送信元
     // アドレスの設定（上のカード）が別途必要。
     window.saveReport = function(){
       var emails = ($('reportEmail').value||'').split(/[\n,]+/).map(function(s){return s.trim();}).filter(Boolean).join(',');
+      if(emails.length>200){st('st-report',(I18n.lang&&I18n.lang()==='en'?'Report recipient list must be 200 characters or fewer.':'レポート送信先は合計200文字以内で入力してください。'),false);return;}
       var dt = ($('reportTime').value||'23:00').split(':');
       var wdt = ($('reportWeeklyTime').value||$('reportTime').value||'23:00').split(':');
       var mdt = ($('reportMonthlyTime').value||$('reportTime').value||'23:00').split(':');
       rpc('saveReportSettings',[
-        emails, Number(dt[0])||23, Number(dt[1])||0,
+        emails, Number(dt[0]), 0,
         $('reportEnabled').checked, $('reportWeekly').checked, $('reportMonthly').checked,
-        Number($('reportWeeklyDay').value)||1, Number(wdt[0])||23, Number(wdt[1])||0,
-        Number($('reportMonthlyDay').value)||1, Number(mdt[0])||23, Number(mdt[1])||0,
+        Number($('reportWeeklyDay').value)||1, Number(wdt[0]), 0,
+        Number($('reportMonthlyDay').value)||1, Number(mdt[0]), 0,
         $('reportLang').value||'ja'
       ]).then(function(r){ requireRpcSuccess(r); reportTestRequestIds=Object.create(null); st('st-report',I18n.t('saved'), true); }).catch(function(e){ st('st-report',I18n.t('errPrefix')+API.userErrorText(e), false); });
     };
@@ -752,6 +883,7 @@
     window.saveEmailFrom = function(){
       var a=$('emailFromAddress').value.trim();
       if(!a){ st('st-emailFrom',I18n.t('needFrom'), false); return; }
+      if(a.length>200){st('st-emailFrom',(I18n.lang&&I18n.lang()==='en'?'Sender email must be 200 characters or fewer.':'送信元メールは200文字以内で入力してください。'),false);return;}
       rpc('saveEmailFromAddress',[a]).then(function(r){ requireRpcSuccess(r); st('st-emailFrom',I18n.t('saved'), true); rpc('getEmailApiKeyStatus',[]).then(function(s){ if(s) setBadge('emailKeyBadge', s.configured); }).catch(function(){}); })
         .catch(function(e){ st('st-emailFrom',I18n.t('errPrefix')+API.userErrorText(e), false); });
     };
@@ -786,8 +918,10 @@
     // eレシート機能自体は2026-08-24にメール送信基盤実装済みのため、上のsaveEreceiptEnabled/
     // saveEreceiptFixedEmailsで有効化する方式に変更した（setupEmailOutboxは撤去）。
     function setBadge(id, on){ var b=$(id); b.className='badge '+(on?'on':'offb'); b.innerText=on?I18n.t('set'):I18n.t('unset'); b.removeAttribute('data-t'); }
+    var lastAiUsage=null;
     function renderAiUsage(u){
       var box=$('aiUsageSummary'); if(!box||!u||!u.services) return;
+      lastAiUsage=u;
       var en=window.I18n&&I18n.lang&&I18n.lang()==='en';
       function row(label,key){ var s=u.services[key]||{}; var used=Number(s.used??s.requests??s.count??0); var limit=s.limit??s.quota??'—'; return label+': '+used+' / '+limit; }
       box.textContent=(en?'Plan: ':'プラン: ')+(u.plan||'-')+'\n'+row(en?'Inventory scan':'在庫スキャン','workers_ai_vision')+'\n'+row(en?'Automatic translation':'自動翻訳','workers_ai_translation');
@@ -814,6 +948,7 @@
       $('shopName').value = d.shopName || '';
       $('tableCount').value = (d.tableCount!==undefined && d.tableCount!=='') ? d.tableCount : 20;
       $('counterCount').value = (d.counterCount!==undefined && d.counterCount!=='') ? d.counterCount : 0;
+      savedShopCounts={table:Number($('tableCount').value),counter:Number($('counterCount').value)};
       $('businessProfile').value = d.businessProfile || 'restaurant';
       var tableJa=d.tableLabelJa!==undefined?d.tableLabelJa:'',tableEn=d.tableLabelEn!==undefined?d.tableLabelEn:'';if(!tableJa&&!tableEn){tableJa='テーブル';tableEn='Table';}
       var counterJa=d.counterLabelJa!==undefined?d.counterLabelJa:'',counterEn=d.counterLabelEn!==undefined?d.counterLabelEn:'';if(!counterJa&&!counterEn){counterJa='カウンター';counterEn='Counter';}
@@ -825,14 +960,15 @@
       _setSelectValue('countryCode',d.countryCode,d.currencyCode==='JPY'?'JP':d.currencyCode==='SGD'?'SG':'PH');
       _setSelectValue('locale',d.locale,d.defaultLang==='ja'?'ja-JP':'en-PH');
       _setSelectValue('currencyCode',d.currencyCode,'PHP');
+      savedDiscountCurrency=discountSavedCurrency(d);syncDiscountValueLimit();
       _setSelectValue('timezone',d.timezone,'Asia/Tokyo');
       _setSelectValue('currencySymbol',d.currencySymbol,'₱');
       var inferredCountry = String(d.countryCode || ({JPY:'JP',PHP:'PH',SGD:'SG',USD:'US',GBP:'GB',AUD:'AU'}[d.currencyCode] || '')).toUpperCase();
       var inferredProfile = COUNTRY_PROFILES[inferredCountry] || {};
       _setSelectValue('dateFormat',d.dateFormat,inferredProfile.dateFormat || (inferredCountry==='JP'?'YYYY/MM/DD':'MM/DD/YYYY'));
       $('currencyDecimalDigits').value = (d.currencyDecimalDigits!==undefined&&d.currencyDecimalDigits!=='')?String(d.currencyDecimalDigits):'0';
-      $('serviceRate').value = d.serviceRate || '';
-      $('taxRate').value = d.taxRate || '';
+      $('serviceRate').value = d.serviceRate == null ? '' : d.serviceRate;
+      $('taxRate').value = d.taxRate == null ? '' : d.taxRate;
       $('taxDisplayName').value = d.taxDisplayName || 'VAT';
       $('taxIdLabel').value = d.taxIdLabel || 'TIN';
       $('receiptNumberPrefix').value = d.receiptNumberPrefix || 'OR';
@@ -859,14 +995,14 @@
       $('storeLat').value = d.storeLat || ''; $('storeLng').value = d.storeLng || ''; $('storeRadius').value = d.storeRadius || '';
       $('loyaltyEnabled').checked = (d.loyaltyEnabled==='on'||d.loyaltyEnabled===true||d.loyaltyEnabled==='true');
       $('loyaltyEarnRate').value = d.loyaltyEarnRate || ''; $('loyaltyRedeemValue').value = d.loyaltyRedeemValue || '';
-      $('reportEmail').value = (d.reportEmail || '').replace(/,/g,'\n'); $('reportTime').value = _fmtTime(d.reportHour!==undefined&&d.reportHour!==''?d.reportHour:23, d.reportMin);
+      $('reportEmail').value = (d.reportEmail || '').replace(/,/g,'\n'); $('reportTime').value = _reportHourTime(d.reportHour!==undefined&&d.reportHour!==''?d.reportHour:23, d.reportMin);
       $('reportEnabled').checked = (d.reportEnabled==='on'||d.reportEnabled===true||d.reportEnabled==='true');
       $('reportWeekly').checked = (d.reportWeeklyEnabled==='on'||d.reportWeeklyEnabled===true||d.reportWeeklyEnabled==='true');
       $('reportMonthly').checked = (d.reportMonthlyEnabled==='on'||d.reportMonthlyEnabled===true||d.reportMonthlyEnabled==='true');
       $('reportWeeklyDay').value = (d.reportWeeklyDay!==undefined&&d.reportWeeklyDay!=='')?String(d.reportWeeklyDay):'1';
-      $('reportWeeklyTime').value = _fmtTime(d.reportWeeklyHour!==undefined&&d.reportWeeklyHour!==''?d.reportWeeklyHour:d.reportHour, d.reportWeeklyMin!==undefined&&d.reportWeeklyMin!==''?d.reportWeeklyMin:d.reportMin);
+      $('reportWeeklyTime').value = _reportHourTime(d.reportWeeklyHour!==undefined&&d.reportWeeklyHour!==''?d.reportWeeklyHour:d.reportHour, d.reportWeeklyMin);
       $('reportMonthlyDay').value = (d.reportMonthlyDay!==undefined&&d.reportMonthlyDay!=='')?d.reportMonthlyDay:'1';
-      $('reportMonthlyTime').value = _fmtTime(d.reportMonthlyHour!==undefined&&d.reportMonthlyHour!==''?d.reportMonthlyHour:d.reportHour, d.reportMonthlyMin!==undefined&&d.reportMonthlyMin!==''?d.reportMonthlyMin:d.reportMin);
+      $('reportMonthlyTime').value = _reportHourTime(d.reportMonthlyHour!==undefined&&d.reportMonthlyHour!==''?d.reportMonthlyHour:d.reportHour, d.reportMonthlyMin);
       $('reportLang').value = (d.reportLang==='en'||d.reportLang==='both')?d.reportLang:'ja';
       $('bridgePollSec').value = (d.bridgePollMs!==undefined && d.bridgePollMs!=='') ? (Number(d.bridgePollMs)/1000) : 1.2;
       return rpc('getOrCreateBridgeKey',[]);
@@ -882,7 +1018,7 @@
         localeTitle:'🌐 表示・地域', countryCode:'国・地域コード', localeCode:'地域形式（ロケール）', dateFormat:'日付表示形式', curCode:'通貨コード', curSym:'通貨記号', curDigits:'通貨の小数桁', svcRate:'サービス料 (%)', taxRate:'税率 (%)', taxName:'税の表示名', taxIdName:'税務登録番号の表示名', receiptPrefix:'レシート番号の接頭辞', receiptTitleJa:'帳票名（日本語）', receiptTitleEn:'帳票名（英語）', taxRound:'税・料金の端数処理', roundNearest:'四捨五入', roundFloor:'切り捨て', roundCeil:'切り上げ', applyCountry:'国別初期値を適用', countryHint:'国別初期値は通貨・標準時間・税名称・帳票名を選択・入力欄へ反映します。保存するまでは確定されません。法定帳票名は店舗所在地の専門家へ確認してください。', unknownCountry:'この国のプリセットはありません。現在の設定値を保持します。', countryApplied:'国別初期値を反映しました。内容を確認して保存してください。', timezoneLbl:'標準時間（タイムゾーン）', timezoneHint:'店舗所在地のIANAタイムゾーンを選択してください。営業日、売上集計、勤怠、提供時間、定期レポートの時刻へ共通反映されます。', invalidTimezone:'有効なタイムゾーンを選択してください（例：Asia/Manila）。', currentSetting:'現在の設定', defLang:'既定言語', accent:'アクセント色',
         svcInclLabel:'内税（価格に含む）', taxInclLabel:'内税（価格に含む）', chargesHint:'チェックなし＝外税（表示価格に加算）。チェックあり＝内税（表示価格に含む）。一般的には税＝内税、サービス料＝外税です。',
         bizCutoff:'営業日切替時刻', bizCutoffHint:'深夜営業の場合に設定してください。例：2:30を設定すると、午前2時30分までの売上は前日の営業日として日報・週報・月報・売上集計に計上されます。0:00＝通常どおり午前0時で区切り。指定できるのは0:00〜11:59の範囲です（それ以外は0:00として扱われます）。',
-        securityTitle:'🔐 セキュリティ', sessionTimeout:'ログイン保持時間（時間）', sessionTimeoutHint:'スタッフの管理画面ログインが自動的に切れるまでの時間です。未設定の場合は8時間。ログイン中に管理画面を操作していれば、その都度この時間だけ自動延長されます（ログインしたまま何も操作しない状態がこの時間続くと自動的にログアウトされます）。最大720時間（30日）まで設定できます。', approvalTitle:'🔐 承認設定', orderVoidApproval:'注文取消時にマネージャー以上の承認を必須にする', approvalHint:'全額返金は常にマネージャー以上の承認が必要です。割引は下の割引マスタで割引ごとに「マネージャー以上の承認」を設定します。',
+        securityTitle:'🔐 セキュリティ', sessionTimeout:'ログイン保持時間（時間）', sessionTimeoutHint:'スタッフの管理画面ログインが自動的に切れるまでの時間です。未設定の場合は8時間。ログイン中に管理画面を操作していれば、その都度この時間だけ自動延長されます（ログインしたまま何も操作しない状態がこの時間続くと自動的にログアウトされます）。最大720時間（30日）まで設定できます。', discountRulesTitle:"🏷️ 割引マスタ", discountRulesIntro:"店舗・国・業態に合わせて割引を登録します。率／固定額、税免除、ID提示、マネージャー以上の承認を割引ごとに設定できます。", discountRulesJaName:"表示名（日本語）", discountRulesEnName:"表示名（英語）", discountRulesCode:"管理コード", discountRulesCalc:"計算方法", discountRulesPct:"率（%）", discountRulesFixed:"固定額", discountRulesValue:"割引値", discountRulesSort:"表示順", discountRulesTax:"税免除", discountRulesId:"ID必須", discountRulesMgr:"マネージャー以上の承認", discountRulesEnabled:"有効", discountRulesSave:"💾 割引を保存", discountRulesNew:"＋ 新規", discountRulesSeniorPreset:"フィリピン: シニア20%プリセット", discountRulesPwdPreset:"フィリピン: PWD 20%プリセット", discountRulesLegacy:"フィリピン向け旧シニア／PWD互換設定", discountRulesLegacyEnable:"旧画面・旧端末向けのシニア／PWD割引を有効にする", discountRulesLegacySave:"💾 互換設定を保存", approvalTitle:'🔐 承認設定', orderVoidApproval:'注文取消時にマネージャー以上の承認を必須にする', approvalHint:'全額返金は常にマネージャー以上の承認が必要です。割引は下の割引マスタで割引ごとに「マネージャー以上の承認」を設定します。',
         entryTitle:'🎫 入場料・延長料', entryFeeEnable:'入場料を有効にする', extensionFeeEnable:'延長料を有効にする', entryFeeAmount:'入場料（1人あたり）', baseUsageMinutes:'基本利用時間（分）', extensionFeeAmount:'延長料（1人・1単位あたり）', extensionUnitMinutes:'延長時間の単位（分）', partySizeMax:'人数選択の最大値',
         entryHint:'チェックを入れた料金だけが会計時に請求されます。チェックを外しても入力金額は保持されます。注文画面の人数は1人〜「人数選択の最大値」までのドロップダウンから選択します。延長料は、その人数と入店時刻を基準に、基本利用時間を超えた分を延長時間の単位で切り上げて自動計算します。両方とも無効の場合、注文画面では人数選択を表示しません。', entryAmountRequired:'入場料を有効にする場合は、1以上の金額を入力してください。', extensionAmountRequired:'延長料を有効にする場合は、1以上の金額を入力してください。', extensionUnitRequired:'延長料を有効にする場合は、延長時間の単位を1分以上で入力してください。', partySizeMaxRequired:'人数選択の最大値は1〜100で入力してください。',
         seniorTitle:'🧓 シニア/PWD割引', seniorEnable:'有効にする（無効の場合、会計画面から選択肢自体が消えます）',
@@ -891,7 +1027,7 @@
         aiUsageTitle:'🤖 AI利用状況', aiUsageHint:'AI在庫スキャンと自動翻訳はシステム側で管理されます。現在の利用量とプラン上限を表示します。',
         geoTitle:'📍 勤怠・店舗位置', lat:'緯度', lng:'経度', radius:'許容半径 (m)', getLoc:'📡 現在地を取得', geoClear:'🧹 クリア', geoCleared:'✅ 店舗位置をクリアしました', geoNoCheckHint:'店舗位置（緯度・経度・許容半径）が未設定の場合、出勤時のGPS距離チェックは行いません。',
         loyTitle:'🎁 ロイヤリティ（ポイント）', loyEnable:'有効にする', loyEarn:'付与レート（何円で1pt）', loyRedeem:'利用価値（1pt=何円）',
-        repTitle:'📧 定期レポート（自動メール）', repNowWorks:'✅ 2026-08-23よりメール送信の仕組みが実装され、この機能が使えるようになりました（上の「メール送信設定」でResend APIキー・送信元アドレスの設定が必要です）。実際の送信は15分間隔のスケジュール実行のため、設定した時刻ちょうどではなく、その後の直近15分枠内（最大約15分遅れ）で届きます。', repDaily:'日次日報（毎日）', repWeekly:'週次レポート', repMonthly:'月次レポート', repEmail:'送信先メール（複数可・カンマか改行区切り）', repHour:'送信時刻', repWeekDay:'送信曜日', repMonthDay:'送信日（1〜28）', dow0:'日曜', dow1:'月曜', dow2:'火曜', dow3:'水曜', dow4:'木曜', dow5:'金曜', dow6:'土曜', repSave:'💾 保存＆スケジュール', repTestD:'✉️ 日次テスト', repTestW:'✉️ 週次テスト', repTestM:'✉️ 月次テスト', testFailed:'❌ 送信に失敗しました', needFrom:'送信元アドレスを入力してください',
+        repTitle:'📧 定期レポート（自動メール）', repNowWorks:'✅ 2026-08-23よりメール送信の仕組みが実装され、この機能が使えるようになりました（上の「メール送信設定」でResend APIキー・送信元アドレスの設定が必要です）。帳票は店舗のタイムゾーンで選択した時刻（毎時00分）を基準に1時間ごとに送信判定します。実際のメール到着には多少の遅れが生じることがあります。', repDaily:'日次日報（毎日）', repWeekly:'週次レポート', repMonthly:'月次レポート', repEmail:'送信先メール（複数可・カンマか改行区切り）', repHour:'送信時刻', repWeekDay:'送信曜日', repMonthDay:'送信日（1〜28）', dow0:'日曜', dow1:'月曜', dow2:'火曜', dow3:'水曜', dow4:'木曜', dow5:'金曜', dow6:'土曜', repSave:'💾 保存＆スケジュール', repTestD:'✉️ 日次テスト', repTestW:'✉️ 週次テスト', repTestM:'✉️ 月次テスト', testFailed:'❌ 送信に失敗しました', needFrom:'送信元アドレスを入力してください',
         repLang:'出力言語', repLangJa:'日本語', repLangEn:'英語', repLangBoth:'日本語＋英語（両方）',
         emailCfgTitle:'📧 メール送信設定（Resend）', emailCfgHint:'2026-08-23、定期レポート機能のメール送信の仕組みを実装しました（Resendという外部メール送信サービス経由）。ご利用には以下の準備が必要です。<br>① <a href="https://resend.com" target="_blank" rel="noopener" style="color:#1e40af;text-decoration:underline;">resend.com</a>で無料アカウントを作成<br>② 送信元ドメインを追加し、案内されるDNSレコードを設定して検証を完了<br>③ APIキーを発行し、下に貼り付けて保存<br>④ 送信元アドレス（検証したドメイン配下、例: report@mail.izakanpai.com）も保存<br><br>⚠️ この環境では実際のAPIキーでの送信確認はできていません。設定後、下の定期レポートカードの「テスト送信」で必ず実機確認をお願いします。', emailApiKeyLbl:'Resend APIキー', emailFromLbl:'送信元アドレス',
         bridgeTitle:'🖶 印刷ブリッジ（プリンタ連携）', bridgeInterval:'キュー確認間隔（秒）', bridgeHint:'印刷キュー（bridge.html）がサーバーへ確認しにいく頻度です。短いほど印刷が早く始まりますが、サーバー負荷は増えます。既定値は1.2秒です。',
@@ -908,7 +1044,7 @@
         localeTitle:'🌐 Display & region', countryCode:'Country/region code', localeCode:'Number/date locale', dateFormat:'Date format', curCode:'Currency code', curSym:'Currency symbol', curDigits:'Currency decimal digits', svcRate:'Service charge (%)', taxRate:'Tax (%)', taxName:'Tax display name', taxIdName:'Tax registration label', receiptPrefix:'Receipt number prefix', receiptTitleJa:'Document title (Japanese)', receiptTitleEn:'Document title (English)', taxRound:'Tax/charge rounding', roundNearest:'Round to nearest', roundFloor:'Round down', roundCeil:'Round up', applyCountry:'Apply country defaults', countryHint:'Country defaults fill the available selections plus tax labels and receipt titles. Nothing is final until you save. Confirm legally required document wording with a local professional.', unknownCountry:'No preset is available for that country. The current saved values are kept.', countryApplied:'Country defaults applied. Review them, then save.', timezoneLbl:'Standard time (time zone)', timezoneHint:'Choose the store location’s IANA time zone. It is applied consistently to business dates, sales totals, attendance, service hours, and scheduled reports.', invalidTimezone:'Choose a valid time zone (for example, Asia/Manila).', currentSetting:'Current setting', defLang:'Default language', accent:'Accent color',
         svcInclLabel:'Tax-inclusive (included in price)', taxInclLabel:'Tax-inclusive (included in price)', chargesHint:'Unchecked = exclusive (added on top of the listed price). Checked = inclusive (already included in the listed price). Typically tax is inclusive and the service charge is exclusive.',
         bizCutoff:'Business day cutoff time', bizCutoffHint:'Set this if you stay open past midnight. E.g. setting 2:30 means sales up to 2:30am count toward the previous day’s business day in the daily/weekly/monthly reports and sales totals. 0:00 = normal midnight cutoff. Valid range is 0:00–11:59 (anything else is treated as 0:00).',
-        securityTitle:'🔐 Security', sessionTimeout:'Login session length (hours)', sessionTimeoutHint:'How long a staff management login stays valid before it automatically expires. Defaults to 8 hours if unset. Each action taken while logged in extends the session by this amount (staying logged in with no activity for this long logs you out automatically). Max 720 hours (30 days).', approvalTitle:'🔐 Approval settings', orderVoidApproval:'Require Manager-or-above approval to void an order', approvalHint:'Full refunds always require Manager-or-above approval. Discounts use the per-rule Manager-or-above approval setting in Discount rules below.',
+        securityTitle:'🔐 Security', sessionTimeout:'Login session length (hours)', sessionTimeoutHint:'How long a staff management login stays valid before it automatically expires. Defaults to 8 hours if unset. Each action taken while logged in extends the session by this amount (staying logged in with no activity for this long logs you out automatically). Max 720 hours (30 days).', discountRulesTitle:"🏷️ Discount rules", discountRulesIntro:"Configure discounts by store, country and business. Set percent/fixed value, tax exemption, ID and manager approval.", discountRulesJaName:"Display name (Japanese)", discountRulesEnName:"Display name (English)", discountRulesCode:"Internal code", discountRulesCalc:"Calculation method", discountRulesPct:"Percent (%)", discountRulesFixed:"Fixed amount", discountRulesValue:"Discount value", discountRulesSort:"Sort order", discountRulesTax:"Tax exempt", discountRulesId:"ID required", discountRulesMgr:"Manager-or-above approval", discountRulesEnabled:"Enabled", discountRulesSave:"💾 Save discount", discountRulesNew:"＋ New", discountRulesSeniorPreset:"Philippines: Senior 20% preset", discountRulesPwdPreset:"Philippines: PWD 20% preset", discountRulesLegacy:"Philippines legacy Senior/PWD compatibility", discountRulesLegacyEnable:"Enable legacy Senior/PWD discount for old clients", discountRulesLegacySave:"💾 Save compatibility settings", approvalTitle:'🔐 Approval settings', orderVoidApproval:'Require Manager-or-above approval to void an order', approvalHint:'Full refunds always require Manager-or-above approval. Discounts use the per-rule Manager-or-above approval setting in Discount rules below.',
         entryTitle:'🎫 Entry & extension fee', entryFeeEnable:'Enable entry fee', extensionFeeEnable:'Enable extension fee', entryFeeAmount:'Entry fee (per person)', baseUsageMinutes:'Base usage time (minutes)', extensionFeeAmount:'Extension fee (per person, per unit)', extensionUnitMinutes:'Extension unit (minutes)', partySizeMax:'Maximum party size',
         entryHint:'Only enabled charges are billed. Disabled values are retained. On the order screen, party size is chosen from a dropdown from 1 up to the configured maximum. Extension fees use that party size and the seating time to round overtime up by the extension unit. If both fees are disabled, the party-size selector is hidden.', entryAmountRequired:'Enter an entry fee of at least 1 when entry fee is enabled.', extensionAmountRequired:'Enter an extension fee of at least 1 when extension fee is enabled.', extensionUnitRequired:'Enter an extension unit of at least 1 minute when extension fee is enabled.', partySizeMaxRequired:'Maximum party size must be between 1 and 100.',
         seniorTitle:'🧓 Senior/PWD discount', seniorEnable:'Enable (when off, the option disappears entirely from checkout)',
@@ -917,7 +1053,7 @@
         aiUsageTitle:'🤖 AI usage', aiUsageHint:'Inventory AI scanning and automatic translation are managed by the system. Current usage and plan limits are shown here.',
         geoTitle:'📍 Attendance / store location', lat:'Latitude', lng:'Longitude', radius:'Allowed radius (m)', getLoc:'📡 Get current location', geoClear:'🧹 Clear', geoCleared:'✅ Store location cleared', geoNoCheckHint:'If store location (latitude, longitude, and allowed radius) is not configured, the GPS distance check is skipped when clocking in.',
         loyTitle:'🎁 Loyalty (points)', loyEnable:'Enable', loyEarn:'Earn rate (amount per 1pt)', loyRedeem:'Redeem value (1pt = amount)',
-        repTitle:'📧 Scheduled reports (auto email)', repNowWorks:'✅ As of 2026-08-23 email sending has been implemented and this feature now works (set your Resend API key & from-address in the "Email settings" card above). Actual sending runs on a 15-minute schedule, so mail arrives within the next 15-minute window after your set time, not exactly on the minute (up to ~15 min delay).', repDaily:'Daily report (every day)', repWeekly:'Weekly report', repMonthly:'Monthly report', repEmail:'Recipient emails (multiple, comma/newline separated)', repHour:'Send time', repWeekDay:'Send day', repMonthDay:'Send day (1–28)', dow0:'Sun', dow1:'Mon', dow2:'Tue', dow3:'Wed', dow4:'Thu', dow5:'Fri', dow6:'Sat', repSave:'💾 Save & schedule', repTestD:'✉️ Daily test', repTestW:'✉️ Weekly test', repTestM:'✉️ Monthly test', testFailed:'❌ Failed to send', needFrom:'Please enter a from-address',
+        repTitle:'📧 Scheduled reports (auto email)', repNowWorks:'✅ As of 2026-08-23 email sending has been implemented and this feature now works (set your Resend API key & from-address in the "Email settings" card above). Reports are checked hourly at the selected whole hour in the store time zone. Actual mail arrival may be slightly delayed.', repDaily:'Daily report (every day)', repWeekly:'Weekly report', repMonthly:'Monthly report', repEmail:'Recipient emails (multiple, comma/newline separated)', repHour:'Send time', repWeekDay:'Send day', repMonthDay:'Send day (1–28)', dow0:'Sun', dow1:'Mon', dow2:'Tue', dow3:'Wed', dow4:'Thu', dow5:'Fri', dow6:'Sat', repSave:'💾 Save & schedule', repTestD:'✉️ Daily test', repTestW:'✉️ Weekly test', repTestM:'✉️ Monthly test', testFailed:'❌ Failed to send', needFrom:'Please enter a from-address',
         repLang:'Output language', repLangJa:'Japanese', repLangEn:'English', repLangBoth:'Japanese + English (both)',
         emailCfgTitle:'📧 Email settings (Resend)', emailCfgHint:'On 2026-08-23 we implemented email sending for scheduled reports, via an external email service called Resend. Setup steps required:<br>① Create a free account at <a href="https://resend.com" target="_blank" rel="noopener" style="color:#1e40af;text-decoration:underline;">resend.com</a><br>② Add your sending domain and complete DNS verification<br>③ Issue an API key and paste/save it below<br>④ Also save a from-address under your verified domain (e.g. report@mail.izakanpai.com)<br><br>⚠️ Sending has not been verified with a real API key in this environment — after setup, please confirm with the "test send" buttons on the report card below.', emailApiKeyLbl:'Resend API key', emailFromLbl:'From address',
         bridgeTitle:'🖶 Print bridge (printer connection)', bridgeInterval:'Queue check interval (sec)', bridgeHint:'How often the print bridge (bridge.html) checks the server for print jobs. Shorter = faster printing but more server load. Default is 1.2 seconds.',
@@ -925,7 +1061,7 @@
         emailOutboxTitle:'📧 e-Receipt', emailOutboxHint:'As of 2026-08-24, e-receipts can be sent by email when a bill is finalized. This requires the API key and from-address in the "Email sending (Resend)" section above to be configured.<br>When enabled, an e-receipt is sent automatically every time a bill is finalized — to whatever the customer entered at checkout (the <code>#payEmail</code> field), and to the fixed recipients registered below.', emailOutboxBtn:'Enable e-receipts',
         ereceiptSaveBtn:'💾 Save', ereceiptEmailsLbl:'Recipient email(s) — fixed, multiple allowed, comma or newline separated', ereceiptHint:'Every time a bill is finalized, a copy of the e-receipt is automatically sent to the addresses registered here — separate from, and in addition to, whatever the customer optionally enters at checkout. Useful for accounting/owner copies. Leave blank to send nothing. Nothing is sent while "Enable e-receipts" above is off.',
         saved:'✅ Saved', savedSched:'✅ Saved & scheduled', uploaded:'✅ Uploaded', pickImg:'Please select an image', needKey:'Please enter a key', noGeoDev:'This device does not support location', gotLoc:'Location acquired. Please press Save.', noLoc:'Could not get location. Please enter manually.', sending:'Sending…', testSent:'✅ Test sent. Please check your inbox', sendFail:'Could not send', scopeReauth:'You may need to re-authorize (scopes)', errPrefix:'Error: ' }
-    }, function(){ syncSeatLanguageOrder(); syncSeatCountLabels(); syncReceiptTitleOrder(); syncPaymentLanguageOrder(); syncDiscountNameOrder(); renderDiscountRules(); });
+    }, function(){ syncSeatLanguageOrder(); syncSeatCountLabels(); syncReceiptTitleOrder(); syncPaymentLanguageOrder(); syncDiscountNameOrder(); renderDiscountRules(); if(lastAiUsage)renderAiUsage(lastAiUsage); });
   </script>
 
   <script src="./help.js?v=auth2"></script>
@@ -946,5 +1082,80 @@
       ]
     });
   </script>
+<script>
+  // Restore focused input visibility after Android landscape/IME layout changes.
+  (function(){
+    function revealFocusedSetting(){
+      if(!matchMedia('(orientation:landscape) and (max-height:500px)').matches)return;
+      var el=document.activeElement;
+      if(!el||!el.matches('input:not([type=hidden]):not([type=file]),textarea,select')||!el.closest('.wrap'))return;
+      var rect=el.getBoundingClientRect();
+      var viewport=window.visualViewport;
+      var top=(viewport?viewport.offsetTop:0)+Math.max(66,document.querySelector('.head')?.getBoundingClientRect().height||0)+12;
+      var bottom=(viewport?viewport.offsetTop+viewport.height:innerHeight)-12;
+      if(rect.top<top||rect.bottom>bottom){
+        var move=rect.top<top?rect.top-top:rect.bottom-bottom;
+        window.scrollBy({top:move,behavior:'instant'});
+      }
+    }
+    function afterLayout(){revealFocusedSetting();setTimeout(revealFocusedSetting,150);setTimeout(revealFocusedSetting,450);}
+    window.addEventListener('orientationchange',afterLayout);
+    window.addEventListener('resize',afterLayout);
+    window.visualViewport?.addEventListener('resize',afterLayout);
+    document.addEventListener('focusin',afterLayout);
+  })();
+</script>
+<script>
+  // Android's native time picker is outside WebView layout and can clip Set in landscape.
+  // Use an in-page time selector only for short landscape viewports.
+  (function(){
+    const landscape=()=>matchMedia('(orientation:landscape) and (max-height:500px)').matches;
+    const fields=Array.from(document.querySelectorAll('input[type="time"].time-control'));
+    if(!fields.length)return;
+    const dialog=document.createElement('div');
+    dialog.className='landscape-time-dialog';
+    dialog.setAttribute('role','dialog');
+    dialog.setAttribute('aria-modal','true');
+    dialog.setAttribute('aria-label','Select time');
+    dialog.innerHTML='<div class="landscape-time-panel"><label id="landscapeTimeLabel">Time</label><div class="landscape-time-controls"><select aria-label="Hour" id="landscapeHour"></select><span>:</span><select aria-label="Minute" id="landscapeMinute"></select></div><div class="landscape-time-actions"><button type="button" id="landscapeCancel">Cancel</button><button type="button" id="landscapeSet">Set</button></div></div>';
+    document.body.appendChild(dialog);
+    const hours=dialog.querySelector('#landscapeHour'),minutes=dialog.querySelector('#landscapeMinute');
+    for(let n=0;n<24;n++){const o=document.createElement('option');o.value=String(n).padStart(2,'0');o.textContent=o.value;hours.appendChild(o);}
+    for(let n=0;n<60;n++){const o=document.createElement('option');o.value=String(n).padStart(2,'0');o.textContent=o.value;minutes.appendChild(o);}
+    let active=null;
+    function close(){dialog.classList.remove('open');if(active){const f=active;active=null;f.focus();}}
+    function sync(){
+      if(!landscape())close();
+      fields.forEach(f=>{
+        const value=f.value;
+        if(landscape()&&f.type!=='text'){f.type='text';f.readOnly=true;f.inputMode='none';f.classList.add('landscape-time-trigger');f.value=value;}
+        else if(!landscape()&&f.type!=='time'){f.type='time';f.readOnly=false;f.classList.remove('landscape-time-trigger');f.value=value;}
+      });
+    }
+    fields.forEach(f=>{
+      function open(e){
+        if(!landscape())return;
+        e.preventDefault();
+        active=f;
+        const parts=/^(\\d{2}):(\\d{2})$/.exec(f.value)||['','00','00'];
+        hours.value=parts[1];minutes.value=parts[2];
+        dialog.querySelector('#landscapeTimeLabel').textContent=f.closest('.time-field')?.querySelector('label')?.textContent||'Time';
+        dialog.classList.add('open');hours.focus();
+      }
+      f.addEventListener('click',open);
+      f.addEventListener('keydown',e=>{if(landscape()&&(e.key==='Enter'||e.key===' ')){open(e);}});
+    });
+    dialog.querySelector('#landscapeCancel').addEventListener('click',close);
+    dialog.querySelector('#landscapeSet').addEventListener('click',()=>{
+      if(active){const f=active;const v=hours.value+':'+minutes.value;if(f.value!==v){f.value=v;f.dispatchEvent(new Event('input',{bubbles:true}));f.dispatchEvent(new Event('change',{bubbles:true}));}}
+      close();
+    });
+    dialog.addEventListener('click',e=>{if(e.target===dialog)close();});
+    dialog.addEventListener('keydown',e=>{if(e.key==='Escape')close();});
+    window.addEventListener('resize',sync);
+    window.addEventListener('orientationchange',sync);
+    sync();
+  })();
+</script>
 </body>
 </html>

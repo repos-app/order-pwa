@@ -45,7 +45,7 @@
       + 'box-shadow:0 6px 18px rgba(15,23,42,.35);display:flex;align-items:center;justify-content:center;'
       + 'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}'
       + '.helpFab:active{transform:scale(.94);}'
-      + '.helpOverlay{position:fixed;inset:0;z-index:10000;background:rgba(15,23,42,.5);'
+      + '.helpOverlay{position:fixed;inset:0;z-index:2147483050;background:rgba(15,23,42,.5);'
       + 'display:none;align-items:flex-end;justify-content:center;}'
       + '.helpOverlay.on{display:flex;}'
       + '@media(min-width:640px){.helpOverlay{align-items:center;}}'
@@ -170,17 +170,28 @@
       var overlay = buildOverlay(cfg);
       document.body.appendChild(overlay);
 
-      var fab = document.createElement('button');
-      fab.className = 'helpFab';
-      fab.id = 'helpFab';
-      fab.textContent = '？';
-      fab.setAttribute('aria-label', 'Help');
-      fab.onclick = function () {
+      function openHelp() {
         overlay._helpRefreshLanguage();
         overlay.classList.add('on');
-      };
-      document.body.appendChild(fab);
-      keepFabClear(fab);
+      }
+      function attachHeaderHelp() {
+        var btn = document.getElementById('izHeaderHelp');
+        if (!btn) return false;
+        btn.className = 'iz-header-btn';
+        btn.textContent = '❓';
+        btn.title = currentLang() === 'en' ? 'Help' : 'ヘルプ';
+        btn.setAttribute('aria-label', btn.title);
+        btn.removeAttribute('aria-hidden'); btn.style.visibility = 'visible';
+        btn.disabled = false; btn.onclick = openHelp;
+        return true;
+      }
+      if (!attachHeaderHelp()) {
+        var tries = 0;
+        var timer = setInterval(function () {
+          tries++;
+          if (attachHeaderHelp() || tries >= 40) clearInterval(timer);
+        }, 50);
+      }
     }
   };
 })();

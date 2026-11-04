@@ -52,7 +52,7 @@
     function rpc(fn,args){ return API.post('rpc',{fn:fn,args:args||[],token:TOKEN}).then(function(r){ return r.data; }); }
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
     var DATA = { avg:0, count:0, dist:{}, rows:[] }, SETTINGS={}, __loaded=false;
-    function seatLabel(v){ var s=String(v==null?'':v),en=(window.I18n&&I18n.lang&&I18n.lang()==='en'); var tableTerm=(en?(SETTINGS.tableLabelEn||SETTINGS.tableLabelJa):(SETTINGS.tableLabelJa||SETTINGS.tableLabelEn))||(en?'Table':'テーブル'); var counterTerm=(en?(SETTINGS.counterLabelEn||SETTINGS.counterLabelJa):(SETTINGS.counterLabelJa||SETTINGS.counterLabelEn))||(en?'Counter':'カウンター'); var m=s.match(/^テーブル(\d+)$/)||s.match(/^(\d+)$/); if(m)return tableTerm+' '+m[1]; var c=s.match(/^カウンター(\d+)$/); if(c)return counterTerm+' '+c[1]; return s; }
+function seatLabel(v){ var s=String(v==null?'':v).trim(),en=(window.I18n&&I18n.lang&&I18n.lang()==='en'); var tableTerm=(en?(SETTINGS.tableLabelEn||SETTINGS.tableLabelJa):(SETTINGS.tableLabelJa||SETTINGS.tableLabelEn))||(en?'Table':'テーブル'); var counterTerm=(en?(SETTINGS.counterLabelEn||SETTINGS.counterLabelJa):(SETTINGS.counterLabelJa||SETTINGS.counterLabelEn))||(en?'Counter':'カウンター'); var m=s.match(/^(?:テーブル|Table)\s*(\d+)$/i)||s.match(/^(\d+)$/); if(m)return tableTerm+' '+m[1]; var c=s.match(/^(?:カウンター|Counter)\s*(\d+)$/i); if(c)return counterTerm+' '+c[1]; return s; }
     function stars(n){ var o=''; for(var i=1;i<=5;i++) o+=(i<=n?'★':'☆'); return o; }
     // 2026-08-24修正: バックエンドが返すtsはSQLiteのdatetime('now')によるUTC時刻（末尾にZ無し）。
     // そのままnew Date()に渡すとローカル時刻として誤解釈され、表示が数時間ずれるため、

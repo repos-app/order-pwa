@@ -33,6 +33,12 @@
     .badge{ display:inline-block; border-radius:999px; padding:3px 7px; font-size:11px; font-weight:900; margin-left:5px; }
     .badge-refund{ background:#fee2e2; color:#991b1b; }
     .badge-refunded{ background:#e2e8f0; color:#475569; }
+    .receipt-linked-refund{display:inline-block;margin-left:6px;color:#1d4ed8;font-size:12px;text-decoration:underline;font-weight:800;}
+    /* IZK-UT-073: unbroken receipt metadata wraps independently of amounts and actions. */
+    #rows td:nth-child(2),#rows td:nth-child(3),#rows td:nth-child(5),#rows td:nth-child(6){white-space:normal;overflow-wrap:normal;word-break:normal;}
+    #rows td:last-child{white-space:nowrap;}
+    #rows td[colspan]{white-space:normal;overflow-wrap:normal;}
+    #refundTarget{max-width:100%;white-space:normal;overflow-wrap:normal;}
     .modal-bg{ display:none; position:fixed; inset:0; z-index:100; background:rgba(15,23,42,.62); padding:20px; align-items:center; justify-content:center; }
     .modal-bg.open{ display:flex; }
     .modal{ width:min(480px,100%); background:#fff; border-radius:16px; padding:20px; box-shadow:0 20px 60px rgba(0,0,0,.3); }
@@ -43,6 +49,8 @@
     .modal-actions .btn-sm{ flex:1 1 0; min-width:0; min-height:44px; padding:11px 14px; border-radius:10px; font-size:14px; font-family:inherit; line-height:1.25; }
     .modal-actions .btn-danger{ margin-left:0; }
     @media (max-width:360px){ .modal-bg{ padding:12px; } .modal{ padding:16px; } .modal-actions .btn-sm{ padding-left:10px; padding-right:10px; } }
+    @media (orientation:landscape) and (max-height:500px){ .modal-bg.open{align-items:flex-start;justify-content:flex-start;overflow-y:auto;padding:8px 12px 120px;} .modal{width:min(340px,100%);padding:10px;} #refundReason{max-width:100%;min-height:70px;} }
+    @media(max-width:430px){.card>div[style*="overflow:auto"]{max-width:100%;-webkit-overflow-scrolling:touch}.card table td:nth-child(2){white-space:normal;overflow-wrap:normal;min-width:105px}.card table td:last-child{min-width:140px;white-space:normal}.modal{box-sizing:border-box;min-width:0}.modal input,.modal textarea{box-sizing:border-box;min-width:0}}
   </style>
   <link rel="stylesheet" href="./date-controls.css?v=3">
 </head>
@@ -95,7 +103,7 @@
     // 「その月の全レシート」に対してサーバー側で集計した値を使う（表示中の行数に依存しない、常に正確な値）。
     // 一覧本体は1ページ100件ずつ「さらに読み込む」で追加取得する（一度に全件は読まない）。
     var PAGE=1, PAGE_SIZE=100, HAS_MORE=false, SUM_TOTAL=0, CNT_TOTAL=0, REFUND_COUNT=0, REFUND_OR='';
-    function seatLabel(v){ var s=String(v==null?'':v); var en=(window.I18n&&I18n.lang&&I18n.lang()==='en'); var tableTerm=(en?(SETTINGS.tableLabelEn||SETTINGS.tableLabelJa):(SETTINGS.tableLabelJa||SETTINGS.tableLabelEn))||(en?'Table':'テーブル'); var counterTerm=(en?(SETTINGS.counterLabelEn||SETTINGS.counterLabelJa):(SETTINGS.counterLabelJa||SETTINGS.counterLabelEn))||(en?'Counter':'カウンター'); var m=s.match(/^テーブル(\d+)$/)||s.match(/^(\d+)$/); if(m) return tableTerm+' '+m[1]; var c=s.match(/^カウンター(\d+)$/); if(c) return counterTerm+' '+c[1]; return s; }
+function seatLabel(v){ var s=String(v==null?'':v).trim(); var en=(window.I18n&&I18n.lang&&I18n.lang()==='en'); var tableTerm=(en?(SETTINGS.tableLabelEn||SETTINGS.tableLabelJa):(SETTINGS.tableLabelJa||SETTINGS.tableLabelEn))||(en?'Table':'テーブル'); var counterTerm=(en?(SETTINGS.counterLabelEn||SETTINGS.counterLabelJa):(SETTINGS.counterLabelJa||SETTINGS.counterLabelEn))||(en?'Counter':'カウンター'); var m=s.match(/^(?:テーブル|Table)\s*(\d+)$/i)||s.match(/^(\d+)$/); if(m) return tableTerm+' '+m[1]; var c=s.match(/^(?:カウンター|Counter)\s*(\d+)$/i); if(c) return counterTerm+' '+c[1]; return s; }
     var MENU_LABELS={};
     function receiptItemName(nm){
       nm=String(nm||'').trim();var enMode=window.I18n&&I18n.lang&&I18n.lang()==='en';
@@ -106,11 +114,12 @@
       return label;
     }
     function readableDetails(details){
+      function legacyLargeName(en,ja,enMode){return enMode&&/[（(]\s*(?:大盛り|大盛|大)\s*[）)]\s*$/.test(String(ja||''))?String(en||'').replace(/\(\s*greatly\s*\)\s*$/i,'(large)'):en;}
       var raw=String(details||'').trim();if(!raw)return '';
       try{var parsed=JSON.parse(raw);if(Array.isArray(parsed))return parsed.map(function(it){
         var enMode=window.I18n&&I18n.lang&&I18n.lang()==='en';
         var n=enMode?((it&&it.nameEn)||(it&&it.nameJa)):((it&&it.nameJa)||(it&&it.nameEn));
-        var rawName=String(it&&((it.item_name)||(it.name))||''),name=String((/[（(][^（）()]*[)）]\s*$/.test(rawName)?receiptItemName(rawName):(n||receiptItemName(rawName)))||'').trim(),qty=Number(it&&it.qty)||0;
+        var rawName=String(it&&((it.item_name)||(it.name))||''),name=String(legacyLargeName((/[（(][^（）()]*[)）]\s*$/.test(rawName)?receiptItemName(rawName):(n||receiptItemName(rawName))),it.nameJa||rawName,enMode)||'').trim(),qty=Number(it&&it.qty)||0;
         return name?name+' x'+qty:'';
       }).filter(Boolean).join(', ');}catch(e){}
       return raw.split(/,\s*(?![^（）()]*[)）])/).map(function(tok){var m=tok.trim().match(/^(.+?)x(\d+)$/);return m?receiptItemName(m[1])+'x'+m[2]:tok;}).join(', ');
@@ -125,8 +134,9 @@
       document.getElementById('rows').innerHTML = ROWS.map(function(r){
         var disc = (Number(r.discountAmount)>0) ? ('-'+SYM+(Number(r.discountAmount)||0).toLocaleString()+(r.discountType?(' '+esc(r.discountType)):'')) : '';
         var state = r.isRefund ? ('<span class="badge badge-refund">'+I18n.t('refundSlip')+'</span>') : (r.refunded ? ('<span class="badge badge-refunded">'+I18n.t('refunded')+'</span>') : '');
+        var linkedRefund=(r.refunded && r.refundReceiptNo)?(' <a class="receipt-linked-refund" href="#receipt-'+encodeURIComponent(r.refundReceiptNo)+'" data-linked-refund="'+encodeURIComponent(r.refundReceiptNo)+'">'+esc(r.refundReceiptNo)+'</a>'):'';
         var refundBtn = (!r.isRefund && !r.refunded) ? ('<button class="btn-sm btn-danger" onclick="openRefund(decodeURIComponent(\''+encodeURIComponent(r.orNo)+'\'))">'+I18n.t('refund')+'</button>') : '';
-        var main = '<tr><td class="muted">'+esc(window.DateDisplay?DateDisplay.formatDateTime(r.datetime):r.datetime)+'</td><td style="font-weight:800;">'+esc(r.orNo)+state+'</td><td>'+esc(seatLabel(r.table))+'</td>'+
+        var main = '<tr id="receipt-'+encodeURIComponent(r.orNo)+'"><td class="muted">'+esc(window.DateDisplay?DateDisplay.formatDateTime(r.datetime):r.datetime)+'</td><td style="font-weight:800;">'+esc(r.orNo)+state+linkedRefund+'</td><td>'+esc(seatLabel(r.table))+'</td>'+
           '<td class="num" style="font-weight:800;">'+SYM+(Number(r.total)||0).toLocaleString()+'</td><td>'+esc(en?(r.methodLabelEn||r.methodLabelJa||r.methodLabel||r.method):(r.methodLabelJa||r.methodLabelEn||r.methodLabel||r.method))+'</td><td class="muted">'+disc+'</td>'+
           '<td><button class="btn-sm" onclick="reprint(\''+esc(r.orNo).replace(/'/g,"\\'")+'\')">'+I18n.t('reprint')+'</button>'+refundBtn+'</td></tr>';
         // 明細（あれば2行目に表示）
@@ -135,6 +145,37 @@
         return main + detRow;
       }).join('');
     }
+    // Link the original receipt to its refund without mutating accounting records.
+    function locateRefundSlip(refundNo){
+      var row=document.getElementById('receipt-'+encodeURIComponent(refundNo));
+      if(!row) return false;
+      row.tabIndex=-1;
+      row.scrollIntoView({block:'center',behavior:'smooth'});
+      row.focus({preventScroll:true});
+      return true;
+    }
+    window.showLinkedRefund=function(refundNo){
+      if(locateRefundSlip(refundNo)) return;
+      var chosenMonth=document.getElementById('month').value, remaining=5;
+      function seek(){
+        if(document.getElementById('month').value!==chosenMonth) return;
+        if(locateRefundSlip(refundNo))return;
+        if(!HAS_MORE || remaining--<=0){UIAlert(I18n.t('refundNotLoaded')+' '+refundNo);return;}
+        var next=PAGE+1;
+        rpc('getReceipts',[chosenMonth,next,PAGE_SIZE]).then(function(data){
+          if(document.getElementById('month').value!==chosenMonth)return;
+          data=data||{};PAGE=next;ROWS=ROWS.concat(data.rows||[]);HAS_MORE=!!data.hasMore;
+          render();seek();
+        }).catch(function(err){UIAlert(I18n.t('errPrefix')+API.userErrorText(err));});
+      }
+      seek();
+    };
+    document.getElementById('rows').addEventListener('click',function(event){
+      var link=event.target.closest('a[data-linked-refund]');
+      if(!link)return;
+      event.preventDefault();
+      showLinkedRefund(decodeURIComponent(link.getAttribute('data-linked-refund')));
+    });
     var REPRINT_REQUESTS=Object.create(null);
     function nextReprintRequestId(){ try{ if(crypto&&typeof crypto.randomUUID==='function') return 'receipt-reprint-'+crypto.randomUUID(); }catch(e){} return 'receipt-reprint-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2); }
     function showReprintError(error){ var code=String(error&&error.message||error||''); var msg=I18n.t('errPrefix')+API.userErrorText(error); if(code==='no_printer'){ var en=I18n.lang&&I18n.lang()==='en'; UIConfirm(msg,{okLabel:en?'Printer Settings':'プリンター設定へ',cancelLabel:en?'Close':'閉じる'}).then(function(ok){ if(ok) location.href='./printers.html'; }); } else UIAlert(msg); }
@@ -192,8 +233,8 @@
     __loaded=true; load();
 
     I18n.init({
-      ja:{ title:'🧾 会計履歴', back:'管理へ', toOrders:'← 注文一覧', month:'対象月', monthTotal:'月合計（返金反映後）', bills:'伝票', refunds:'返金', thTime:'日時', thOr:'OR番号', thTable:'卓', thTotal:'合計', thMethod:'支払', thDisc:'割引', reprint:'🖨️ 再印刷', refund:'↩ 全額返金', refundSlip:'返金伝票', refunded:'返金済', refundTitle:'会計を返金する', refundWarning:'元の会計は変更せず、全額をマイナス伝票で取り消します。クーポン利用と会員ポイント等も戻ります。この操作は元に戻せません。', reason:'返金理由（必須）', approverLogin:'承認者（マネージャー以上）のログインID', approverPassword:'承認者パスワード', cancel:'閉じる', executeRefund:'全額返金を実行', processing:'処理中…', requiredFields:'理由・マネージャー以上の承認者ID・パスワードをすべて入力してください。', refundAuth:'マネージャー以上の権限またはパスワードを確認してください。', alreadyRefunded:'この会計は既に返金済みです。', refundFailed:'返金できませんでした。', refundDone:'返金伝票を作成しました:', sent:'印刷キューに登録しました', loading:'読み込み中…', empty:'この月の会計はありません', errPrefix:'エラー: ', loadErr:'読み込みエラー: ', loadMore:'さらに読み込む' },
-      en:{ title:'🧾 Receipts', back:'Manage', toOrders:'← Orders', month:'Target month', monthTotal:'Month total (net of refunds)', bills:'entries', refunds:'refunds', thTime:'Time', thOr:'OR no.', thTable:'Table', thTotal:'Total', thMethod:'Paid', thDisc:'Discount', reprint:'🖨️ Reprint', refund:'↩ Full refund', refundSlip:'Refund', refunded:'Refunded', refundTitle:'Refund receipt', refundWarning:'The original receipt remains unchanged and a negative receipt reverses the full amount. Coupon use and member rewards are also reversed. This cannot be undone.', reason:'Refund reason (required)', approverLogin:'Approver (Manager or above) login ID', approverPassword:'Approver password', cancel:'Close', executeRefund:'Process full refund', processing:'Processing…', requiredFields:'Enter the reason, Manager-or-above approver ID and password.', refundAuth:'Check the Manager-or-above role and password.', alreadyRefunded:'This receipt has already been refunded.', refundFailed:'The refund could not be processed.', refundDone:'Refund receipt created:', sent:'Registered in print queue', loading:'Loading…', empty:'No receipts this month', errPrefix:'Error: ', loadErr:'Load error: ', loadMore:'Load more' }
+      ja:{ title:'🧾 会計履歴', back:'管理へ', toOrders:'← 注文一覧', month:'対象月', monthTotal:'月合計（返金反映後）', bills:'伝票', refunds:'返金', thTime:'日時', thOr:'OR番号', thTable:'卓', thTotal:'合計', thMethod:'支払', thDisc:'割引', reprint:'🖨️ 再印刷', refund:'↩ 全額返金', refundNotLoaded:'????????????????????????????????', refundSlip:'返金伝票', refunded:'返金済', refundTitle:'会計を返金する', refundWarning:'元の会計は変更せず、全額をマイナス伝票で取り消します。クーポン利用と会員ポイント等も戻ります。この操作は元に戻せません。', reason:'返金理由（必須）', approverLogin:'承認者（マネージャー以上）のログインID', approverPassword:'承認者パスワード', cancel:'閉じる', executeRefund:'全額返金を実行', processing:'処理中…', requiredFields:'理由・マネージャー以上の承認者ID・パスワードをすべて入力してください。', refundAuth:'マネージャー以上の権限またはパスワードを確認してください。', alreadyRefunded:'この会計は既に返金済みです。', refundFailed:'返金できませんでした。', refundDone:'返金伝票を作成しました:', sent:'印刷キューに登録しました', loading:'読み込み中…', empty:'この月の会計はありません', errPrefix:'エラー: ', loadErr:'読み込みエラー: ', loadMore:'さらに読み込む' },
+      en:{ title:'🧾 Receipts', back:'Manage', toOrders:'← Orders', month:'Target month', monthTotal:'Month total (net of refunds)', bills:'entries', refunds:'refunds', thTime:'Time', thOr:'OR no.', thTable:'Table', thTotal:'Total', thMethod:'Paid', thDisc:'Discount', reprint:'🖨️ Reprint', refund:'↩ Full refund', refundNotLoaded:'Refund receipt is not in the selected month. Select its month.', refundSlip:'Refund', refunded:'Refunded', refundTitle:'Refund receipt', refundWarning:'The original receipt remains unchanged and a negative receipt reverses the full amount. Coupon use and member rewards are also reversed. This cannot be undone.', reason:'Refund reason (required)', approverLogin:'Approver (Manager or above) login ID', approverPassword:'Approver password', cancel:'Close', executeRefund:'Process full refund', processing:'Processing…', requiredFields:'Enter the reason, Manager-or-above approver ID and password.', refundAuth:'Check the Manager-or-above role and password.', alreadyRefunded:'This receipt has already been refunded.', refundFailed:'The refund could not be processed.', refundDone:'Refund receipt created:', sent:'Registered in print queue', loading:'Loading…', empty:'No receipts this month', errPrefix:'Error: ', loadErr:'Load error: ', loadMore:'Load more' }
     }, function(){ if(__loaded) render(); });
   </script>
   <script src="./help.js?v=auth2"></script>
@@ -211,5 +252,27 @@
       ]
     });
   </script>
+<script>
+  // Reposition the active field after landscape IME viewport changes.
+  (function(){
+    function recover(){
+      if(!matchMedia('(orientation:landscape) and (max-height:500px)').matches)return;
+      var el=document.activeElement;
+      if(!el||!el.matches('#refundReason'))return;
+      var vv=window.visualViewport;
+      var top=(vv?vv.offsetTop:0)+8;
+      var bottom=(vv?vv.offsetTop+vv.height:innerHeight)-8;
+      var rect=el.getBoundingClientRect();
+      if(bottom-top<rect.height)return;
+      var delta=rect.top<top?rect.top-top:rect.bottom>bottom?rect.bottom-bottom:0;
+      if(delta)el.closest('.modal-bg')?.scrollBy(0,delta);
+    }
+    function settle(){recover();setTimeout(recover,130);setTimeout(recover,400);}
+    window.addEventListener('orientationchange',settle);
+    window.addEventListener('resize',settle);
+    window.visualViewport?.addEventListener('resize',settle);
+    document.addEventListener('focusin',settle);
+  })();
+</script>
 </body>
 </html>

@@ -28,7 +28,8 @@
     .ticket.cook{ border-left-color:#f59e0b; }
     @keyframes pulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(220,38,38,0); } 50%{ box-shadow:0 0 0 4px rgba(220,38,38,.35); } }
     .t-head{ display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#0b1220; }
-    .t-table{ font-size:22px; font-weight:900; }
+    .t-table{ font-size:22px; font-weight:900; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .t-head > :first-child{min-width:0;flex:1 1 auto;}
     .t-badge{ font-size:12px; font-weight:800; padding:3px 9px; border-radius:999px; }
     .b-new{ background:#7f1d1d; color:#fecaca; }
     .b-cook{ background:#78350f; color:#fde68a; }
@@ -39,7 +40,7 @@
     .t-items{ padding:10px 12px; flex:1; }
     .t-item{ display:flex; align-items:baseline; justify-content:space-between; padding:6px 0; border-bottom:1px dashed #334155; }
     .t-item:last-child{ border-bottom:0; }
-    .t-item .nm{ font-size:17px; font-weight:700; }
+    .t-item .nm{ font-size:17px; font-weight:700; min-width:0; flex:1 1 auto; white-space:normal; overflow-wrap:normal; word-break:normal; overflow-x:auto; overscroll-behavior-x:contain; }
     .t-item .qty{ font-size:18px; font-weight:900; color:#fbbf24; margin-left:10px; white-space:nowrap; }
     .t-prepaid{ display:inline-block; background:#065f46; color:#d1fae5; font-size:11px; font-weight:800; padding:1px 8px; border-radius:999px; margin-top:4px; }
     .t-time{ font-size:11px; color:#94a3b8; padding:0 12px 8px; }
@@ -81,7 +82,7 @@
     var MENU_JA = {}, MENU_EN = {}, MENU_CHOICES = {};
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-    function seatLabel(v){ var s=String(v==null?'':v),en=(window.I18n&&I18n.lang&&I18n.lang()==='en'); var tableTerm=(en?(SETTINGS.tableLabelEn||SETTINGS.tableLabelJa):(SETTINGS.tableLabelJa||SETTINGS.tableLabelEn))||(en?'Table':'テーブル'); var counterTerm=(en?(SETTINGS.counterLabelEn||SETTINGS.counterLabelJa):(SETTINGS.counterLabelJa||SETTINGS.counterLabelEn))||(en?'Counter':'カウンター'); var m=s.match(/^テーブル(\d+)$/)||s.match(/^(\d+)$/); if(m)return tableTerm+' '+m[1]; var c=s.match(/^カウンター(\d+)$/); if(c)return counterTerm+' '+c[1]; return s; }
+function seatLabel(v){ var s=String(v==null?'':v).trim(),en=(window.I18n&&I18n.lang&&I18n.lang()==='en'); var tableTerm=(en?(SETTINGS.tableLabelEn||SETTINGS.tableLabelJa):(SETTINGS.tableLabelJa||SETTINGS.tableLabelEn))||(en?'Table':'テーブル'); var counterTerm=(en?(SETTINGS.counterLabelEn||SETTINGS.counterLabelJa):(SETTINGS.counterLabelJa||SETTINGS.counterLabelEn))||(en?'Counter':'カウンター'); var m=s.match(/^(?:テーブル|Table)\s*(\d+)$/i)||s.match(/^(\d+)$/); if(m)return tableTerm+' '+m[1]; var c=s.match(/^(?:カウンター|Counter)\s*(\d+)$/i); if(c)return counterTerm+' '+c[1]; return s; }
     function loadTerminology(){ API.post('getSettings',{}).then(function(r){SETTINGS=(r&&r.data)||{};if(__booted)render(lastData);}).catch(function(){}); }
     // オプション付き商品名（例:「コーラ (氷なし)」）から基底の商品名を取り出す
     function baseName(nm){ return String(nm||'').replace(/\s*[（(][^（(]*[)）]\s*$/, '').trim(); }
@@ -105,7 +106,12 @@
       if(suffix){var match=suffix.match(/^\s*[（(]([^（）()]*)[)）]\s*$/),choices=(typeof MENU_CHOICES==='undefined'?{}:MENU_CHOICES[base])||{};
         if(match)suffix=' ('+match[1].split(',').map(function(raw){var alias=raw.trim(),choice=choices[alias];return choice?(enMode?(choice.en||choice.ja||alias):(choice.ja||choice.en||alias)):alias;}).join(', ')+')';
       }
-      if(enMode) return (suffix&&(en||ja)?(en||ja)+suffix:'') || it&&it.nameEn || ((en||ja)?(en||ja)+suffix:'') || it&&it.nameJa || nm;
+      if(enMode){
+        var large=/^\s*[（(]\s*(?:大盛り|大盛|大)\s*[）)]\s*$/.test(nm.slice(base.length))||/[（(]\s*(?:大盛り|大盛|大)\s*[）)]\s*$/.test(String(it&&it.nameJa||''));
+        var label=String(en||it&&it.nameEn||ja||it&&it.nameJa||nm);
+        if(large){label=label.replace(/\(\s*greatly\s*\)\s*$/i,'(large)');return /\(\s*large\s*\)\s*$/i.test(label)?label:label+' (large)';}
+        return (suffix&&(en||ja)?(en||ja)+suffix:'') || it&&it.nameEn || ((en||ja)?(en||ja)+suffix:'') || it&&it.nameJa || nm;
+      }
       return (suffix&&(ja||en)?(ja||en)+suffix:'') || it&&it.nameJa || ((ja||en)?(ja||en)+suffix:'') || it&&it.nameEn || nm;
     }
     function loadMenu(){
@@ -220,12 +226,12 @@
         var statusBusy=!!statusPending[o.id],statusErr=statusErrors[o.id]?'<div style="margin-top:8px;padding:7px 9px;border-radius:8px;background:#fee2e2;color:#b91c1c;font-size:12px;font-weight:800;line-height:1.45;">'+esc(statusErrors[o.id])+'</div>':'';
         var el = elapsedInfo(o.date);
         html += '<div class="ticket ' + (isNew?'new':'cook') + '">';
-        html += '<div class="t-head"><div class="t-table">🪑 ' + esc(seatLabel(o.table)) + '</div>'
+        html += '<div class="t-head"><div class="t-table" title="' + esc(seatLabel(o.table)) + '">🪑 ' + esc(seatLabel(o.table)) + '</div>'
              +  '<div style="display:flex;gap:6px;align-items:center;">'
              +  '<span class="t-badge ' + (isNew?'b-new':'b-cook') + '">' + (isNew?I18n.t('new'):I18n.t('cook')) + '</span>'
              +  '<span class="t-elapsed ' + el.cls + '">' + el.mins + I18n.t('min') + '</span></div></div>';
         html += '<div class="t-items">';
-        items.forEach(function(it){ html += '<div class="t-item"><span class="nm">' + esc(dispItemName(it)) + '</span><span class="qty">×' + it.qty + '</span></div>'; });
+        items.forEach(function(it){ html += '<div class="t-item"><span class="nm" title="' + esc(dispItemName(it)) + '">' + esc(dispItemName(it)) + '</span><span class="qty">×' + it.qty + '</span></div>'; });
         if (o.paid) html += '<div class="t-prepaid">💳 '+I18n.t('prepaid')+'</div>';
         html += '</div>';
         html += '<div class="t-time">🕐 ' + fmtTime(o.date) + '</div>';
@@ -271,9 +277,13 @@
     // 直前に見たバージョン番号を送り、サーバー側で変化が無ければunchanged:trueだけが返るため、
     // 平常時（8秒ごと・変化なし）はSpreadsheet読込自体が省略され、GAS実行が軽くなる。
     var _opsVersion = null;
+    // P0 D1: one cooldown across poll, wake and forced refresh paths.
+    var _opsFailures=0, _opsNextAllowedAt=0;
     var _loadInFlight = false, _loadPromise = null, _loadEpoch = 0, _loadStartedAt = 0;
     window.load = function(force){
       var loadNow = Date.now();
+      // Never hammer a blocked D1 service during quota/network outages.
+      if(loadNow < _opsNextAllowedAt) return Promise.resolve();
       if (_loadInFlight && force && _loadStartedAt && loadNow-_loadStartedAt>10000) {
         ++_loadEpoch; _loadInFlight=false; _loadPromise=null; _loadStartedAt=0; _forceLoadQueued=false;
       }
@@ -283,16 +293,23 @@
       var loadEpoch = _loadEpoch;
       var startedMutationSeq = _statusMutationSeq;
       // [修正点一覧C-2対応] getOperationsDelta/getOrders/getStaffCallsが認証必須になったため、tokenを送る。
-      var payload = (force || _opsVersion == null) ? { token: TOKEN } : { sinceVersion: _opsVersion, token: TOKEN };
+      var payload = (force || _opsVersion == null) ? { token: TOKEN, __silent:true, __noInternalRetry:true } : { sinceVersion: _opsVersion, token: TOKEN, __silent:true, __noInternalRetry:true };
       var p = API.post('getOperationsDelta', payload).then(function(r){
         if(loadEpoch !== _loadEpoch) return;
         if(startedMutationSeq !== _statusMutationSeq) return; // status更新より前に開始した古いsnapshotは適用しない
         __booted = true;
         var d = r.data || {};
+        if(r.ok===false || d.error) throw new Error(String(d.error||r.error||"operations_delta_failed"));
+        _opsFailures=0;_opsNextAllowedAt=0;
         _opsVersion = d.version != null ? d.version : _opsVersion;
         if (d.unchanged) return; // 変化なし：再描画不要
         render(d.orders || []);
-      }).catch(function(){
+      }).catch(function(err){
+        var failure=String(err&&err.message||err||"");
+        _opsFailures=Math.min(7,_opsFailures+1);
+        var isQuota=/d1|quota|rows.read|daily.limit|limit.exceeded|429|10000/i.test(failure);
+        var delay=Math.min(300000,8000*Math.pow(2,_opsFailures));
+        _opsNextAllowedAt=Date.now()+(isQuota?Math.max(900000,delay):delay)+Math.floor(Math.random()*2000);
         if(loadEpoch !== _loadEpoch) return;
         if(startedMutationSeq !== _statusMutationSeq) return;
         var lm=document.getElementById('loadMsg'); if(lm) lm.innerText=I18n.t('connErr');
@@ -330,7 +347,7 @@
     // [P0] タブが非表示（他アプリ切替・画面ロック等）の間はポーリング間隔を落とし、無駄なGAS実行を減らす。
     // 再表示時は即座に最新化する。
     var _pollTimer = null;
-    function _pollInterval(){ return (document.visibilityState === 'hidden') ? 45000 : 8000; }
+    function _pollInterval(){ return (document.visibilityState === 'hidden') ? 60000 : 15000; }
     function _resetPoll(){ if (_pollTimer) clearInterval(_pollTimer); _pollTimer = setInterval(load, _pollInterval()); }
     document.addEventListener('visibilitychange', function(){
       _resetPoll();

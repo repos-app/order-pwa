@@ -26,7 +26,9 @@
     .btn-danger{ background:#fee2e2; color:#b91c1c; } .btn-warning{ background:#fff7ed; color:#c2410c; }
     .btn-sm{ padding:8px 11px; font-size:12px; } .btn-xs{ padding:6px 9px; font-size:11px; border-radius:8px; margin-left:4px; } .btn-block{ width:100%; }
     .toggle-row{ display:flex; align-items:center; justify-content:space-between; }
-    .switch{ position:relative; width:54px; height:30px; flex-shrink:0; }
+    .switch{ position:relative; width:54px; height:44px; flex-shrink:0; display:flex; align-items:center; cursor:pointer; }
+    .switch .slider{top:7px;bottom:7px;}
+    .switch input:focus-visible + .slider{outline:2px solid #2563eb;outline-offset:3px;}
     .switch input{ opacity:0; width:0; height:0; }
     .slider{ position:absolute; inset:0; background:#cbd5e1; border-radius:30px; transition:.2s; cursor:pointer; }
     .slider:before{ content:""; position:absolute; width:24px; height:24px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; }
@@ -62,7 +64,12 @@
     .bt-inline-row .form-label{ flex:0 0 auto; margin:0; }
     .bt-inline-row .form-control{ min-width:0; }
     @media(max-width:520px){ .bt-inline-row{ align-items:stretch; flex-direction:column; } .bt-inline-row .btn{ width:100%; } }
-  </style>
+    /* Keep icon, queue and back-link hit targets accessible on touch screens. */
+    .header-actions button,.header-actions a,.card button,.cat-chip{min-height:44px;min-width:44px;box-sizing:border-box}
+    .header-actions a,.cat-chip{display:inline-flex;align-items:center;justify-content:center}
+    .pr-row .btn-xs,td .btn-xs{margin-top:2px;margin-bottom:2px}
+    @media (orientation:landscape) and (max-height:500px){ body{padding-bottom:220px;} #shopAddress{width:min(100%,320px);max-width:100%;font-size:16px;scroll-margin-top:72px;} }
+</style>
 </head>
 <body>
   <div class="header">
@@ -222,7 +229,7 @@
     </div>
   </div>
 
-  <script src="./date-display.js?v=auth4" data-iz-date-display></script><script src="./config.js?v=auth2"></script>
+  <script src="./date-display.js?v=auth5" data-iz-date-display></script><script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
   <script src="./confirm.js?v=auth2"></script>
   <script>
@@ -231,7 +238,7 @@
     function rpc(fn,args){ return API.post('rpc',{fn:fn,args:args||[],token:TOKEN}).then(function(r){ return r.data; }); }
     function onErr(e){ if(String(e&&(e.message||e)).indexOf('unauthorized')>=0){ location.href='./manage.html'; } }
     function requireSaveSuccess(r){ if(!r||r.success!==true) throw new Error((r&&r.error)||'save_failed'); return r; }
-    var currentLang = (function(){try{var s=localStorage.getItem('lang');if(s==='ja'||s==='en')return s;var first=(navigator.languages&&navigator.languages.length)?navigator.languages[0]:navigator.language;var d=String(first||'').toLowerCase().indexOf('ja')===0?'ja':'en';localStorage.setItem('lang',d);return d;}catch(e){return 'en';}})();
+    var currentLang = (function(){try{var s=localStorage.getItem('lang'),src=localStorage.getItem('langSource');if(src==='manual'&&(s==='ja'||s==='en'))return s;var def=localStorage.getItem('langDefaultCache');if(def==='ja'||def==='en')return def;var first=(navigator.languages&&navigator.languages.length)?navigator.languages[0]:navigator.language;return String(first||'').toLowerCase().indexOf('ja')===0?'ja':'en';}catch(e){return 'en';}})();
     var allPrinters = [], allCategories = [], selectedCats = [], refreshTimer = null, lastQueue = [], PRINT_HOST_CONFIG={printers:[]};
 
     var i18n = {
@@ -308,7 +315,7 @@
     window.btChangeScope=async function(){await btDisconnect();try{var key=btScopeStorageKey();if(key)localStorage.setItem(key,btScopeId());}catch(e){}btRefreshSaved();};
     function btInitOnce(){if(btInitialized)return;btRefreshScopes();btInitialized=true;btSetStatus('btDisconnected','');syncPrinterBluetoothVisibility();if($('guide-printer-setup').style.display!=='none')btReconnect(true);}
     function btApplyLang(){var t=i18n[currentLang];[['t-bt-scope','btScope'],['t-bt-saved','btSaved'],['t-bt-device','btDevice'],['t-bt-reconnect','btReconnect'],['t-bt-forget','btForget'],['t-bt-test','btTest']].forEach(function(pair){var el=$(pair[0]);if(el)el.textContent=t[pair[1]];});btRefreshScopes();btSetStatus(btStatusKey,$('btStatus').classList.contains('ok')?'ok':$('btStatus').classList.contains('run')?'run':$('btStatus').classList.contains('err')?'err':'',btStatusDetail);btSyncConnectionAction();}
-    function toggleLang(){ currentLang=currentLang==='ja'?'en':'ja'; localStorage.setItem('lang',currentLang); updateUI(); renderCatChips(); renderPrinters(); renderQueue(lastQueue); btApplyLang(); }
+    function toggleLang(){ currentLang=currentLang==='ja'?'en':'ja'; localStorage.setItem('lang',currentLang); localStorage.setItem('langSource','manual'); updateUI(); renderCatChips(); renderPrinters(); renderQueue(lastQueue); btApplyLang(); }
 
     function updateUI(){
       var t=i18n[currentLang];
@@ -398,6 +405,38 @@
       }).join('');
     }
     var PRINTER_SAVE_REQUEST_ID='', PRINTER_SAVE_REQUEST_SIG='';
+    // IZK-UT-075: HTML maxlength silently clips paste. Keep the existing
+    // 60-character backend limit, but report explicit JA/EN input errors.
+    function printerNameLengthMessage(){return currentLang==='ja'?'プリンタ名は60文字以内で入力してください。':'Printer name must be 60 characters or fewer.';}
+    function printerNameLengthValid(){
+      var input=$('prName'),msg=$('pr-msg');
+      if(!input||String(input.value||'').length<=60)return true;
+      msg.innerText=printerNameLengthMessage();msg.className='alert alert-error';msg.style.display='block';return false;
+    }
+    (function(){
+      var input=$('prName');if(!input)return;
+      function insertGuard(e){
+        if(e.isComposing||e.inputType==='insertCompositionText')return;
+        if(e.type==='beforeinput'&&e.inputType&&e.inputType.indexOf('insert')!==0)return;
+        // beforeinput insertFromPaste and paste may each fire, but only the
+        // paste event carries clipboardData in several WebViews.
+        if(e.type==='beforeinput'&&e.inputType==='insertFromPaste')return;
+        var text=e.type==='paste'?(e.clipboardData&&e.clipboardData.getData('text')):e.data;
+        if(!text)return;
+        var start=input.selectionStart==null?input.value.length:input.selectionStart;
+        var end=input.selectionEnd==null?start:input.selectionEnd;
+        if((input.value.slice(0,start)+text+input.value.slice(end)).length>60){
+          e.preventDefault();printerNameLengthValidForInsertion();
+        }
+      }
+      function printerNameLengthValidForInsertion(){
+        var msg=$('pr-msg');msg.innerText=printerNameLengthMessage();msg.className='alert alert-error';msg.style.display='block';
+      }
+      input.addEventListener('paste',insertGuard);
+      input.addEventListener('beforeinput',insertGuard);
+      input.addEventListener('input',printerNameLengthValid);
+      input.addEventListener('compositionend',printerNameLengthValid);
+    })();
     function resetPrinterSaveRequest(){ PRINTER_SAVE_REQUEST_ID=''; PRINTER_SAVE_REQUEST_SIG=''; }
     window.editPr=function(p){ resetPrinterSaveRequest(); $('prId').value=p.id; $('prName').value=p.name; $('prMac').value=p.mac||''; $('prEnabled').checked=!!p.enabled;$('prPurpose').value=p.purpose==='kitchen'?'kitchen':'general';selectedCats=(p.categories||[]).slice();var h=hostRow(p.id);$('prHostMode').value='keep';renderCatChips();onPrinterPurposeChange();syncPrinterBluetoothVisibility();$('printerEditorCard').scrollIntoView({behavior:'smooth',block:'start'}); };
     window.clearPrForm=function(preserveMessage){ resetPrinterSaveRequest(); $('prId').value=''; $('prName').value=''; $('prMac').value=''; $('prEnabled').checked=true;$('prPurpose').value='general';$('prHostMode').value='current';selectedCats=[];renderCatChips();onPrinterPurposeChange();syncPrinterBluetoothVisibility();if(!preserveMessage)$('pr-msg').style.display='none'; };
@@ -405,6 +444,7 @@
     function nextPrintRequestId(prefix){ try{ if(crypto&&typeof crypto.randomUUID==='function') return prefix+crypto.randomUUID(); }catch(e){} return prefix+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2); }
     window.savePr=function(){
       var t=i18n[currentLang], name=$('prName').value.trim(), msg=$('pr-msg');
+      if(!printerNameLengthValid())return;
       if(!name){ msg.innerText=t.nameReq; msg.className='alert alert-error'; msg.style.display='block'; return; }
       var purpose=$('prPurpose').value,cats=purpose==='kitchen'?selectedCats.slice():[];if(purpose==='kitchen'&&!cats.length){msg.innerText=t.categoryRequired;msg.className='alert alert-error';msg.style.display='block';return;}var originalId=$('prId').value,hostMode=$('prHostMode').value,profileScope=originalId||'draft';if($('prEnabled').checked&&hostMode==='current'&&!btProfileForScope(profileScope).deviceId){msg.innerText=API.userErrorText(new Error('printer_not_configured'));msg.className='alert alert-error';msg.style.display='block';return;}
       var p={ id:originalId, name:name, mac:$('prMac').value.trim(), categories:cats, enabled:$('prEnabled').checked };
@@ -473,5 +513,27 @@
       ]
     });
   </script>
+<script>
+  // Reposition the active field after landscape IME viewport changes.
+  (function(){
+    function recover(){
+      if(!matchMedia('(orientation:landscape) and (max-height:500px)').matches)return;
+      var el=document.activeElement;
+      if(!el||!el.matches('#shopAddress'))return;
+      var vv=window.visualViewport;
+      var top=(vv?vv.offsetTop:0)+Math.max(60,document.querySelector('.head')?.getBoundingClientRect().height||0)+8;
+      var bottom=(vv?vv.offsetTop+vv.height:innerHeight)-8;
+      var rect=el.getBoundingClientRect();
+      if(bottom-top<rect.height)return;
+      var delta=rect.top<top?rect.top-top:rect.bottom>bottom?rect.bottom-bottom:0;
+      if(delta)window.scrollBy(0,delta);
+    }
+    function settle(){recover();setTimeout(recover,130);setTimeout(recover,400);}
+    window.addEventListener('orientationchange',settle);
+    window.addEventListener('resize',settle);
+    window.visualViewport?.addEventListener('resize',settle);
+    document.addEventListener('focusin',settle);
+  })();
+</script>
 </body>
 </html>

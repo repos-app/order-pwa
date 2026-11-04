@@ -9,16 +9,15 @@
 //   こと＝XSS対策としてdata-tがtextContentである原則は崩さない）。
 //   I18n.init({ ja:{key:'日本語'}, en:{key:'English'} }, function(lang){ /* 動的部分を再描画 */ });
 //   動的文字列は I18n.t('key') で取得（t().key スタイルで多用する画面は I18n.d() で辞書全体を取得してもよい）。
-//   初回起動（langも既定言語cacheも無い）では端末の第一優先言語を見て、ja系なら日本語、
-//   それ以外はEnglishをlocalStorage.langへ保存する。以降はユーザーが切替えたlangを維持する。
-//   （以前は②③が無く、未設定時は常に日本語だった。店舗設定の既定言語を無視してしまう不具合のため統一）
+// Language precedence: explicit user selection > store default cache > device language.
+// Only a user-triggered language switch writes localStorage.lang; automatic detection stays transient.
+// langSource='manual' distinguishes an explicit choice from legacy auto-seeded lang values.
 (function () {
   var DICT = {}, cb = null;
-  function explicitLang() { try { var v = localStorage.getItem('lang'); return (v === 'en' || v === 'ja') ? v : null; } catch (e) { return null; } }
+  function explicitLang() { try { if (localStorage.getItem('langSource') !== 'manual') return null; var v = localStorage.getItem('lang'); return (v === 'en' || v === 'ja') ? v : null; } catch (e) { return null; } }
   function cachedDefault() { try { var v = localStorage.getItem('langDefaultCache'); return (v === 'en' || v === 'ja') ? v : null; } catch (e) { return null; } }
   function deviceLang() { try { var a=(navigator.languages&&navigator.languages.length)?navigator.languages[0]:navigator.language; return String(a||'').toLowerCase().indexOf('ja')===0?'ja':'en'; } catch (e) { return 'en'; } }
-  function initFirstRunLang() { if(explicitLang()||cachedDefault())return; var d=deviceLang(); try{localStorage.setItem('lang',d);}catch(e){} }
-  initFirstRunLang();
+
   function lang() { return explicitLang() || cachedDefault() || deviceLang(); }
   function apply() {
     var l = lang(), d = DICT[l] || {};
@@ -30,9 +29,15 @@
     document.documentElement.lang = l;
     if (cb) try { cb(l); } catch (e) {}
   }
+  function cacheDefaultLang(value) {
+    var def = value === 'ja' ? 'ja' : 'en', cur = cachedDefault();
+    try { localStorage.setItem('langDefaultCache', def); } catch (e) {}
+    if (!explicitLang() && def !== cur) apply();
+  }
   window.I18n = {
     init: function (dict, onChange) { DICT = dict || {}; cb = onChange || null; apply(); fetchDefaultLang(); },
-    toggle: function () { try { localStorage.setItem('lang', lang() === 'ja' ? 'en' : 'ja'); } catch (e) {} apply(); },
+    toggle: function () { try { localStorage.setItem('lang', lang() === 'ja' ? 'en' : 'ja'); localStorage.setItem('langSource', 'manual'); } catch (e) {} apply(); },
+    setDefaultLang: cacheDefaultLang,
     lang: lang,
     t: function (k) { var d = DICT[lang()] || {}; return d[k] != null ? d[k] : k; },
     // 現在言語の辞書オブジェクト全体を返す（t(key)ではなく t().key スタイルで多数参照する画面向け）。
@@ -42,7 +47,6 @@
   // 店舗設定の「既定言語」をバックグラウンドで取得し、ユーザーが手動切替していない場合のみ反映する。
   // 取得完了まではキャッシュ値（無ければ英語）で表示し、完了後に差分があれば再描画する。
   function fetchDefaultLang() {
-    if (explicitLang()) return; // ユーザーが既に手動で選択済みなら何もしない
     try {
       if (typeof window === 'undefined' || !window.APP_CONFIG || !window.APP_CONFIG.API_URL) return;
       var storeId = String(window.APP_CONFIG.STORE_ID || '').trim().toLowerCase();
@@ -53,12 +57,8 @@
         body: JSON.stringify({ action: 'getSettings', storeId: storeId }),
         redirect: 'follow'
       }).then(function (res) { return res.json(); }).then(function (json) {
-        if (explicitLang()) return; // 応答待ちの間にユーザーが手動切替していたら上書きしない
         var d = (json && json.ok && json.data) || {};
-        var def = (d.defaultLang === 'ja') ? 'ja' : 'en';
-        var cur = cachedDefault();
-        try { localStorage.setItem('langDefaultCache', def); } catch (e) {}
-        if (def !== cur) apply();
+        cacheDefaultLang(d.defaultLang);
       }).catch(function () {});
     } catch (e) {}
   }

@@ -38,7 +38,7 @@
     .cat-bug{ background:#fee2e2; color:#b91c1c; } .cat-ops{ background:#fef3c7; color:#92400e; } .cat-other{ background:#eef2f7; color:var(--navy); }
     .st-open{ background:#fee2e2; color:#b91c1c; } .st-prog{ background:#fef3c7; color:#92400e; } .st-done{ background:#dcfce7; color:#15803d; }
     .badge.overdue{ background:#fee2e2; color:#b91c1c; }
-    .item .content{ margin:8px 0; font-size:14px; line-height:1.6; white-space:pre-wrap; word-break:break-word; }
+    .item .content{ margin:8px 0; font-size:14px; line-height:1.6; white-space:pre-wrap; word-break:normal; }
     .item .note{ font-size:12.5px; color:var(--text-3); background:#f8fafc; border-radius:9px; padding:8px 10px; margin-top:6px; }
     .mgmt{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:8px; }
     select.mini{ height:40px; padding:0 6px; border:1px solid var(--border); border-radius:7px; font-family:inherit; font-size:12px; }
@@ -47,6 +47,8 @@
     .due-shell input.dueInp{ display:block; inline-size:100%!important; width:100%!important; min-inline-size:0!important; min-width:0!important; max-inline-size:100%!important; max-width:100%!important; margin:0; padding:0 8px; border:1px solid var(--border); border-radius:7px; font-family:inherit; font-size:12px; box-sizing:border-box; overflow:visible; }
     .delbtn{ width:44px; height:44px; background:none; border:0; color:#b91c1c; font-size:16px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; }
     .empty{ text-align:center; color:var(--text-3); padding:24px 0; }
+  /* Formal Android PT-CTL touch target: independent of common header injection. */
+  #submitReqBtn{min-height:44px;min-width:44px;box-sizing:border-box}
   </style>
 </head>
 <body>
@@ -91,6 +93,23 @@
     var CAN_MANAGE = (MY_ROLE === 'マネージャー' || MY_ROLE === '管理者' || MY_ROLE === 'システム' || MY_ROLE === 'manager' || MY_ROLE === 'admin' || MY_ROLE === 'system');
     function rpc(fn,args){ return API.post('rpc',{fn:fn,args:args||[],token:TOKEN}).then(function(r){ return r.data; }); }
     function $(id){ return document.getElementById(id); }
+    var visibleRequestError=null, visibleListError=null;
+    function showRequestError(raw,kind){
+      visibleRequestError={raw:raw,kind:kind||'server'};
+      refreshRequestErrors();
+    }
+    function clearRequestError(){ visibleRequestError=null; var el=$('subErr'); el.style.display='none'; el.dataset.errorKey=''; }
+    function refreshRequestErrors(){
+      var el=$('subErr');
+      if(visibleRequestError){
+        el.textContent=visibleRequestError.kind==='validation'?I18n.t('needContent'):I18n.t('errPrefix')+API.userErrorText(visibleRequestError.raw);
+        el.dataset.errorKey=visibleRequestError.kind==='validation'?'needContent':'server';
+        el.style.display='block';
+      }
+      if(visibleListError&&!__loaded){
+        $('list').innerHTML='<div style="color:#b91c1c;padding:16px;">'+I18n.t('loadErr')+esc(API.userErrorText(visibleListError))+'</div>';
+      }
+    }
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
 
     var ROWS = [], __loaded = false;
@@ -138,17 +157,17 @@
     // 新しい値でその場で書き換え（失敗時のみロールバック）、削除は該当行をローカルから除去するだけにする。
     window.submitReq = function(){
       var content = ($('newContent').value||'').trim();
-      var errEl = $('subErr'); errEl.style.display='none';
-      if (!content){ errEl.textContent = I18n.t('needContent'); errEl.style.display='block'; return; }
+      clearRequestError();
+      if (!content){ showRequestError(null,'validation'); return; }
       var category = $('newCat').value||'その他';
       var btn = $('submitReqBtn'); if (btn) btn.disabled = true;
       var clientRequestId = REQUEST_CLIENT_REQUEST_ID || (REQUEST_CLIENT_REQUEST_ID = nextRequestClientRequestId());
       rpc('submitRequest',[{ category: category, content: content, clientRequestId: clientRequestId }]).then(function(r){
         if (r && r.error) throw new Error(r.error);
-        if (r && r.row) { ROWS.unshift(r.row); render(); REQUEST_CLIENT_REQUEST_ID=''; }
+        if (r && r.row) { clearRequestError(); ROWS.unshift(r.row); render(); REQUEST_CLIENT_REQUEST_ID=''; }
         else { return reload(); } // 想定外形状のフォールバックのみ再取得
         $('newContent').value='';
-      }).catch(function(e){ errEl.textContent = I18n.t('errPrefix')+API.userErrorText(e); errEl.style.display='block'; })
+      }).catch(function(e){ showRequestError(e); })
         .finally(function(){ if (btn) btn.disabled = false; });
     };
     window.setStatus = function(id, status, note, due){
@@ -159,8 +178,9 @@
       var prev = { status: row.status, note: row.note, due: row.due };
       row.status = s; row.note = n; row.due = d; render(); // 楽観的更新
       rpc('updateRequestStatus',[id, s, n, d]).then(function(r){
-        if (!(r && r.success)) { row.status=prev.status; row.note=prev.note; row.due=prev.due; render(); var e=$('subErr'); if(e){ e.textContent=I18n.t('errPrefix')+API.userErrorText((r&&r.error)||'save_failed'); e.style.display='block'; } }
-      }).catch(function(err){ row.status=prev.status; row.note=prev.note; row.due=prev.due; render(); var e=$('subErr'); if(e){ e.textContent=I18n.t('errPrefix')+API.userErrorText(err); e.style.display='block'; } });
+        if (!(r && r.success)) { row.status=prev.status; row.note=prev.note; row.due=prev.due; render(); showRequestError((r&&r.error)||'save_failed'); }
+        else clearRequestError();
+      }).catch(function(err){ row.status=prev.status; row.note=prev.note; row.due=prev.due; render(); showRequestError(err); });
     };
     window.removeReq = function(id){
       // [負荷試験レビュー対応/優先#6] deleteRequestも失敗時は例外を投げず{success:false}を返すため、
@@ -168,20 +188,20 @@
       UIConfirm(I18n.t('confirmDelete')).then(function(ok){
         if (!ok) return;
         rpc('deleteRequest',[id]).then(function(r){
-          if (r && r.success) { ROWS = ROWS.filter(function(r2){ return r2.id!==id; }); render(); }
-          else { var e = $('subErr'); if (e) { e.textContent = I18n.t('errPrefix')+API.userErrorText((r&&r.error)||'delete_failed'); e.style.display='block'; } }
-        }).catch(function(e){ var box = $('subErr'); if (box) { box.textContent = I18n.t('errPrefix')+API.userErrorText(e); box.style.display='block'; } });
+          if (r && r.success) { clearRequestError(); ROWS = ROWS.filter(function(r2){ return r2.id!==id; }); render(); }
+          else showRequestError((r&&r.error)||'delete_failed');
+        }).catch(function(e){ showRequestError(e); });
       });
     };
     window.reload = function(){
-      return rpc('getRequests',[]).then(function(l){ ROWS=l||[]; render(); });
+      return rpc('getRequests',[]).then(function(l){ visibleListError=null; ROWS=l||[]; __loaded=true; render(); });
     };
 
     rpc('getRequests',[]).then(function(l){
-      ROWS = l||[]; __loaded = true; render();
+      visibleListError=null; ROWS = l||[]; __loaded = true; render();
     }).catch(function(e){
       if (String(e.message||e).indexOf('unauthorized')>=0){ location.href='./manage.html'; return; }
-      $('list').innerHTML = '<div style="color:#b91c1c;padding:16px;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</div>';
+      visibleListError=e; refreshRequestErrors();
     });
 
     I18n.init({
@@ -202,6 +222,7 @@
     }, function(){
       $('asName').textContent = MY_NAME ? (I18n.t('asNameLbl')+MY_NAME) : '';
       if (__loaded) render();
+      refreshRequestErrors();
     });
   </script>
 

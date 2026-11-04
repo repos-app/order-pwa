@@ -29,8 +29,12 @@
       if (window.I18n && window.I18n.current) return window.I18n.current;
     } catch (e) {}
     try {
-      var saved = localStorage.getItem('lang') || localStorage.getItem('izlang');
-      if (saved) return saved;
+      var saved = localStorage.getItem('lang'), source = localStorage.getItem('langSource');
+      if (source === 'manual' && (saved === 'ja' || saved === 'en')) return saved;
+      var def = localStorage.getItem('langDefaultCache');
+      if (def === 'ja' || def === 'en') return def;
+      var legacy = localStorage.getItem('izlang');
+      if (legacy === 'ja' || legacy === 'en') return legacy;
     } catch (e) {}
     var first=(navigator.languages&&navigator.languages.length)?navigator.languages[0]:navigator.language;
     return String(first||'').toLowerCase().indexOf('ja') === 0 ? 'ja' : 'en';

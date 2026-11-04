@@ -46,17 +46,17 @@
     table{ width:100%; min-width:940px; border-collapse:collapse; font-size:13px; }
     th,td{ padding:8px 6px; border-bottom:1px solid var(--border); text-align:left; vertical-align:middle; white-space:nowrap; }
     th{ font-size:11px; color:var(--text-3); }
-    td.wrap-text{ white-space:normal; overflow-wrap:anywhere; max-width:220px; }
+    td.wrap-text{ white-space:normal; overflow-wrap:normal; max-width:220px; }
     td.num{ text-align:right; font-variant-numeric:tabular-nums; }
     .coupon-actions{ display:flex; gap:6px; }
     #couponCards{ display:none; }
     .coupon-card-row{ border:1px solid var(--border); border-radius:12px; padding:11px; background:#fff; }
     .coupon-card-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
-    .coupon-card-code{ font-size:16px; font-weight:900; overflow-wrap:anywhere; }
+    .coupon-card-code{ font-size:16px; font-weight:900; min-width:0; flex:1 1 auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .coupon-card-status{ flex:0 0 auto; border-radius:999px; padding:3px 8px; font-size:11px; font-weight:800; background:#dcfce7; color:#166534; }
     .coupon-card-status.off{ background:#f1f5f9; color:#64748b; }
     .coupon-card-meta{ margin-top:9px; display:grid; grid-template-columns:1fr 1fr; gap:7px 10px; font-size:12px; color:#475569; }
-    .coupon-card-meta div{ min-width:0; overflow-wrap:anywhere; }
+    .coupon-card-meta div{ min-width:0; overflow-wrap:normal; word-break:normal; overflow-x:auto; }
     .coupon-card-meta strong{ color:var(--navy); }
     .coupon-card-desc{ grid-column:1/-1; }
     .coupon-card-actions{ display:flex; gap:8px; margin-top:10px; }
@@ -66,17 +66,25 @@
       .wrap{ padding:10px max(10px,env(safe-area-inset-right)) 14px max(10px,env(safe-area-inset-left)); }
       .card{ padding:12px; }
       .form-grid{ grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:9px 10px; }
-      .field-expiry,.field-desc{ grid-column:1/-1; }
+      .field-expiry,.field-start,.field-desc{ grid-column:1/-1; }
       .fc{ max-width:100%; }
       .coupon-table-wrap{ display:none; }
       #couponCards{ display:grid; gap:9px; }
     }
     @media(max-width:390px){
       .form-grid{ grid-template-columns:1fr; }
-      .field-expiry,.field-desc{ grid-column:auto; }
+      .field-expiry,.field-start,.field-desc{ grid-column:auto; }
       .form-actions{ flex-direction:column; }
       .btn-sec{ width:100%; }
     }
+    @media (orientation:landscape) and (max-height:480px) and (pointer:coarse){
+      .form-grid{grid-template-columns:minmax(0,1fr)}
+      .form-grid .fg,.form-grid .fg-full{grid-column:1/-1;min-width:0}
+      .form-grid .fc:focus{width:min(46vw,370px);max-width:100%}
+      .form-grid .fg:focus-within{scroll-margin-top:110px;scroll-margin-bottom:56px}
+    }
+  /* Formal Android PT-CTL touch target: independent of common header injection. */
+  #saveBtn,#clearBtn{min-height:44px;min-width:44px;box-sizing:border-box}
   </style>
 </head>
 <body>
@@ -93,6 +101,7 @@
         <div class="fg field-type"><label class="form-label" data-t="thType">種別</label><select id="fType" class="fc"><option value="amount" data-t="typeAmount">金額割引</option><option value="percent" data-t="typePercent">％割引</option></select></div>
         <div class="fg field-value"><label class="form-label" data-t="thVal">値</label><input id="fValue" class="fc" type="number" min="0" step="any" value="0"></div>
         <div class="fg field-min"><label class="form-label" data-t="thMin">最小注文</label><input id="fMin" class="fc" type="number" min="0" step="any" value="0"></div>
+        <div class="fg field-start"><label class="form-label" data-t="thStart">利用開始日</label><input id="fStart" class="fc" type="date"></div>
         <div class="fg field-expiry"><label class="form-label" data-t="thExp">有効期限</label><div class="coupon-expiry-shell"><input id="fExpiry" class="fc coupon-expiry" type="date"></div></div>
         <div class="fg field-limit"><label class="form-label" data-t="thLimit">上限</label><input id="fLimit" class="fc" type="number" min="0" step="1" value="0"></div>
         <div class="fg field-active"><label class="form-label" data-t="thActive">有効</label><label class="check-box"><input id="fActive" type="checkbox" checked><span data-t="activeHint">使用可能</span></label></div>
@@ -112,10 +121,10 @@
         <table>
           <thead><tr>
             <th data-t="thCode">コード</th><th data-t="thType">種別</th><th data-t="thVal">値</th>
-            <th data-t="thMin">最小注文</th><th data-t="thExp">有効期限</th><th data-t="thLimit">上限</th>
+            <th data-t="thMin">最小注文</th><th data-t="thStart">利用開始日</th><th data-t="thExp">有効期限</th><th data-t="thLimit">上限</th>
             <th data-t="thActive">有効</th><th data-t="thDesc">説明</th><th data-t="thUsed">利用</th><th></th>
           </tr></thead>
-          <tbody id="rows"><tr><td colspan="10" style="color:#aaa;padding:16px;text-align:center;" data-t="loading">読み込み中…</td></tr></tbody>
+          <tbody id="rows"><tr><td colspan="11" style="color:#aaa;padding:16px;text-align:center;" data-t="loading">読み込み中…</td></tr></tbody>
         </table>
       </div>
       <div id="couponCards"><div class="coupon-empty" data-t="loading">読み込み中…</div></div>
@@ -147,25 +156,27 @@
       if(!window.rows.length){ box.innerHTML='<div class="coupon-empty">'+I18n.t('empty')+'</div>'; return; }
       box.innerHTML=window.rows.map(function(r,i){
         return '<div class="coupon-card-row">'+
-          '<div class="coupon-card-head"><div class="coupon-card-code">'+esc(r.code||'')+'</div><span class="coupon-card-status'+(r.active?'':' off')+'">'+esc(activeLabel(r))+'</span></div>'+
+          '<div class="coupon-card-head"><div class="coupon-card-code" title="'+esc(r.code||'')+'">'+esc(r.code||'')+'</div><span class="coupon-card-status'+(r.active?'':' off')+'">'+esc(activeLabel(r))+'</span></div>'+
           '<div class="coupon-card-meta">'+
             '<div><strong>'+esc(I18n.t('thType'))+':</strong> '+esc(typeLabel(r.type))+'</div>'+
             '<div><strong>'+esc(I18n.t('thVal'))+':</strong> '+esc(valueLabel(r))+'</div>'+
             '<div><strong>'+esc(I18n.t('thMin'))+':</strong> '+esc((Number(r.min)||0).toLocaleString())+'</div>'+
+            '<div><strong>'+esc(I18n.t('thStart'))+':</strong> '+esc(dateLabel(r.start))+'</div>'+
             '<div><strong>'+esc(I18n.t('thExp'))+':</strong> '+esc(dateLabel(r.expiry))+'</div>'+
             '<div><strong>'+esc(I18n.t('thLimit'))+':</strong> '+esc(limitLabel(r))+'</div>'+
             '<div><strong>'+esc(I18n.t('thUsed'))+':</strong> '+esc((Number(r.used)||0).toLocaleString())+'</div>'+
-            '<div class="coupon-card-desc"><strong>'+esc(I18n.t('thDesc'))+':</strong> '+esc(r.desc||I18n.t('none'))+'</div>'+
+            '<div class="coupon-card-desc"><strong>'+esc(I18n.t('thDesc'))+':</strong> '+esc(displayCouponDescription(r.desc)||I18n.t('none'))+'</div>'+
           '</div>'+
           '<div class="coupon-card-actions"><button class="btn-sm" onclick="edit('+i+')"'+(SAVING?' disabled':'')+'>'+esc(I18n.t('edit'))+'</button><button class="btn-sm btn-danger" onclick="delRow('+i+')"'+(SAVING?' disabled':'')+'>'+esc(I18n.t('del'))+'</button></div>'+
         '</div>';
       }).join('');
     }
 
+    function displayCouponDescription(value){var desc=String(value||'');return I18n.lang()==='en' && desc.indexOf('誕生日クーポン ')===0 ? 'Birthday coupon '+desc.slice('誕生日クーポン '.length) : desc;}
     function render(){
       renderCards();
       if(!window.rows.length){
-        document.getElementById('rows').innerHTML='<tr><td colspan="10" style="color:#aaa;padding:16px;text-align:center;">'+I18n.t('empty')+'</td></tr>';
+        document.getElementById('rows').innerHTML='<tr><td colspan="11" style="color:#aaa;padding:16px;text-align:center;">'+I18n.t('empty')+'</td></tr>';
         return;
       }
       document.getElementById('rows').innerHTML=window.rows.map(function(r,i){
@@ -174,10 +185,11 @@
           '<td>'+esc(typeLabel(r.type))+'</td>'+
           '<td class="num">'+esc(valueLabel(r))+'</td>'+
           '<td class="num">'+esc((Number(r.min)||0).toLocaleString())+'</td>'+
+          '<td>'+esc(dateLabel(r.start))+'</td>'+
           '<td>'+esc(dateLabel(r.expiry))+'</td>'+
           '<td class="num">'+esc(limitLabel(r))+'</td>'+
           '<td>'+esc(activeLabel(r))+'</td>'+
-          '<td class="wrap-text">'+esc(r.desc||'')+'</td>'+
+          '<td class="wrap-text">'+esc(displayCouponDescription(r.desc))+'</td>'+
           '<td class="num">'+esc((Number(r.used)||0).toLocaleString())+'</td>'+
           '<td><div class="coupon-actions"><button class="btn-sm" onclick="edit('+i+')"'+(SAVING?' disabled':'')+'>'+esc(I18n.t('edit'))+'</button><button class="btn-sm btn-danger" onclick="delRow('+i+')"'+(SAVING?' disabled':'')+'>'+esc(I18n.t('del'))+'</button></div></td>'+
         '</tr>';
@@ -197,6 +209,7 @@
       document.getElementById('fType').value='amount';
       document.getElementById('fValue').value='0';
       document.getElementById('fMin').value='0';
+      document.getElementById('fStart').value='';
       document.getElementById('fExpiry').value='';
       document.getElementById('fLimit').value='0';
       document.getElementById('fActive').checked=true;
@@ -212,6 +225,7 @@
       document.getElementById('fType').value=r.type==='percent'?'percent':'amount';
       document.getElementById('fValue').value=Number(r.value)||0;
       document.getElementById('fMin').value=Number(r.min)||0;
+      document.getElementById('fStart').value=r.start||'';
       document.getElementById('fExpiry').value=r.expiry||'';
       document.getElementById('fLimit').value=Number(r.limit)||0;
       document.getElementById('fActive').checked=!!r.active;
@@ -229,6 +243,7 @@
         type:document.getElementById('fType').value==='percent'?'percent':'amount',
         value:Number(document.getElementById('fValue').value)||0,
         min:Number(document.getElementById('fMin').value)||0,
+        start:document.getElementById('fStart').value||'',
         expiry:document.getElementById('fExpiry').value||'',
         limit:Number(document.getElementById('fLimit').value)||0,
         used:current ? (Number(current.used)||0) : 0,
@@ -257,13 +272,14 @@
       }).catch(function(e){
         setBusy(false);
         var code=String(e&&e.message||e||'');
-        msg(code==='coupon_conflict'?I18n.t('conflict'):code==='duplicate_code'?I18n.t('duplicateCode'):I18n.t('errPrefix')+API.userErrorText(e),false);
+        msg(code==='coupon_date_range'?I18n.t('dateRangeError'):code==='invalid_coupon_date'?I18n.t('invalidDate'):code==='coupon_conflict'?I18n.t('conflict'):code==='duplicate_code'?I18n.t('duplicateCode'):I18n.t('errPrefix')+API.userErrorText(e),false);
       });
     }
     window.save = function(){
       if(SAVING) return;
       var row=formRow();
       if(!row.code){ msg(I18n.t('needCode'),false); document.getElementById('fCode').focus(); return; }
+      if(row.start && row.expiry && row.start>row.expiry){msg(I18n.t('dateRangeError'),false);document.getElementById('fStart').focus();return;}
       var duplicate=window.rows.some(function(r,i){ return i!==EDIT_INDEX && String(r.code||'').trim().toUpperCase()===row.code; });
       if(duplicate){ msg(I18n.t('duplicateCode'),false); document.getElementById('fCode').focus(); return; }
       var next=window.rows.slice();
@@ -281,7 +297,7 @@
     function msg(text, ok){ var m=document.getElementById('msg'); m.style.display='block'; m.style.background=ok?'#dcfce7':'#fee2e2'; m.style.color=ok?'#15803d':'#b91c1c'; m.innerText=text; }
     function renderLoadError(e){
       var text=I18n.t('loadErr')+API.userErrorText(e);
-      document.getElementById('rows').innerHTML='<tr><td colspan="10" style="color:#b91c1c;padding:16px;">'+esc(text)+'</td></tr>';
+      document.getElementById('rows').innerHTML='<tr><td colspan="11" style="color:#b91c1c;padding:16px;">'+esc(text)+'</td></tr>';
       document.getElementById('couponCards').innerHTML='<div class="coupon-empty" style="color:#b91c1c;">'+esc(text)+'</div>';
     }
 
@@ -289,8 +305,8 @@
       .catch(function(e){ if(String(e.message||e).indexOf('unauthorized')>=0){ location.href='./manage.html'; return; } renderLoadError(e); });
 
     I18n.init({
-      ja:{ title:'🎟️ クーポン', back:'← 管理へ', hint:'上のフォームでクーポンを登録・編集します。登録済みクーポンは下の一覧に表示され、利用回数は自動記録されます。', addTitle:'➕ クーポンを登録', editTitle:'✏️ クーポンを編集', listTitle:'🎟️ 登録済みクーポン', thCode:'コード', thType:'種別', thVal:'値', thMin:'最小注文', thExp:'有効期限', thLimit:'上限', thActive:'有効', thDesc:'説明', thUsed:'利用', activeHint:'使用可能', saveAdd:'💾 登録', saveEdit:'💾 変更を保存', clear:'クリア', loading:'読み込み中…', empty:'登録済みクーポンはありません', typeAmount:'金額割引', typePercent:'％割引', yes:'有効', no:'無効', noExpiry:'なし', none:'なし', edit:'編集', del:'削除', delConfirm:'このクーポンを削除しますか？', needCode:'クーポンコードを入力してください', duplicateCode:'同じクーポンコードが既に登録されています', conflict:'別の端末または画面でクーポンが変更されました。画面を再読み込みしてからもう一度操作してください。', saved:'✅ 保存しました', deleted:'✅ 削除しました', errPrefix:'エラー: ', loadErr:'読み込みエラー: ' },
-      en:{ title:'🎟️ Coupons', back:'← Manage', hint:'Register or edit a coupon in the form above. Registered coupons appear in the list below, and usage counts are tracked automatically.', addTitle:'➕ Register coupon', editTitle:'✏️ Edit coupon', listTitle:'🎟️ Registered coupons', thCode:'Code', thType:'Type', thVal:'Value', thMin:'Min order', thExp:'Expiry', thLimit:'Limit', thActive:'On', thDesc:'Description', thUsed:'Used', activeHint:'Available', saveAdd:'💾 Register', saveEdit:'💾 Save changes', clear:'Clear', loading:'Loading…', empty:'No registered coupons', typeAmount:'Amount off', typePercent:'% off', yes:'On', no:'Off', noExpiry:'None', none:'None', edit:'Edit', del:'Delete', delConfirm:'Delete this coupon?', needCode:'Enter a coupon code', duplicateCode:'That coupon code is already registered', conflict:'Coupons were changed in another device or window. Reload this page and try again.', saved:'✅ Saved', deleted:'✅ Deleted', errPrefix:'Error: ', loadErr:'Load error: ' }
+      ja:{ title:'🎟️ クーポン', back:'← 管理へ', hint:'上のフォームでクーポンを登録・編集します。登録済みクーポンは下の一覧に表示され、利用回数は自動記録されます。', addTitle:'➕ クーポンを登録', editTitle:'✏️ クーポンを編集', listTitle:'🎟️ 登録済みクーポン', thCode:'コード', thType:'種別', thVal:'値', thMin:'最小注文', thStart:'利用開始日', thExp:'有効期限', dateRangeError:'利用開始日は有効期限より後にできません。', invalidDate:'日付を正しく入力してください。', thLimit:'上限', thActive:'有効', thDesc:'説明', thUsed:'利用', activeHint:'使用可能', saveAdd:'💾 登録', saveEdit:'💾 変更を保存', clear:'クリア', loading:'読み込み中…', empty:'登録済みクーポンはありません', typeAmount:'金額割引', typePercent:'％割引', yes:'有効', no:'無効', noExpiry:'なし', none:'なし', edit:'編集', del:'削除', delConfirm:'このクーポンを削除しますか？', needCode:'クーポンコードを入力してください', duplicateCode:'同じクーポンコードが既に登録されています', conflict:'別の端末または画面でクーポンが変更されました。画面を再読み込みしてからもう一度操作してください。', saved:'✅ 保存しました', deleted:'✅ 削除しました', errPrefix:'エラー: ', loadErr:'読み込みエラー: ' },
+      en:{ title:'🎟️ Coupons', back:'← Manage', hint:'Register or edit a coupon in the form above. Registered coupons appear in the list below, and usage counts are tracked automatically.', addTitle:'➕ Register coupon', editTitle:'✏️ Edit coupon', listTitle:'🎟️ Registered coupons', thCode:'Code', thType:'Type', thVal:'Value', thMin:'Min order', thStart:'Valid from', thExp:'Expiry', dateRangeError:'Start date must not be after the expiry date.', invalidDate:'Enter a valid date.', thLimit:'Limit', thActive:'On', thDesc:'Description', thUsed:'Used', activeHint:'Available', saveAdd:'💾 Register', saveEdit:'💾 Save changes', clear:'Clear', loading:'Loading…', empty:'No registered coupons', typeAmount:'Amount off', typePercent:'% off', yes:'On', no:'Off', noExpiry:'None', none:'None', edit:'Edit', del:'Delete', delConfirm:'Delete this coupon?', needCode:'Enter a coupon code', duplicateCode:'That coupon code is already registered', conflict:'Coupons were changed in another device or window. Reload this page and try again.', saved:'✅ Saved', deleted:'✅ Deleted', errPrefix:'Error: ', loadErr:'Load error: ' }
     }, function(){ updateFormMode(); if(__loaded) render(); });
   </script>
 
@@ -309,6 +325,23 @@
         { ja: '⑦ 一覧の「削除」を押すと、そのクーポンを削除して保存します。', en: '⑦ Tap “Delete” in the list to remove that coupon and save the change.' }
       ]
     });
+  </script>
+<script>
+  (function(){
+    var active=null;
+    function adjust(){
+      if(!active||!active.isConnected||!matchMedia('(orientation:landscape) and (max-height:480px) and (pointer:coarse)').matches)return;
+      var r=active.getBoundingClientRect(),top=112,bottom=innerHeight-40;
+      if(r.top<top||r.bottom>bottom)window.scrollBy({top:r.top<top?r.top-top:r.bottom-bottom,behavior:'instant'});
+    }
+    document.addEventListener('focusin',function(e){
+      if(!e.target.matches('input,textarea,select')||!e.target.closest('.form-grid,.expense-grid,.cm-grid'))return;
+      active=e.target;setTimeout(adjust,60);
+    });
+    document.addEventListener('focusout',function(e){if(e.target===active)active=null});
+    window.addEventListener('resize',function(){setTimeout(adjust,60)});
+    window.addEventListener('orientationchange',function(){setTimeout(adjust,250)});
+  })();
   </script>
 </body>
 </html>

@@ -9,16 +9,15 @@
 //   こと＝XSS対策としてdata-tがtextContentである原則は崩さない）。
 //   I18n.init({ ja:{key:'日本語'}, en:{key:'English'} }, function(lang){ /* 動的部分を再描画 */ });
 //   動的文字列は I18n.t('key') で取得（t().key スタイルで多用する画面は I18n.d() で辞書全体を取得してもよい）。
-//   初回起動（langも既定言語cacheも無い）では端末の第一優先言語を見て、ja系なら日本語、
-//   それ以外はEnglishをlocalStorage.langへ保存する。以降はユーザーが切替えたlangを維持する。
-//   既存環境でlangDefaultCacheだけが残っている場合は移行互換としてその値を優先する。
+// Language precedence: explicit user selection > store default cache > device language.
+// Only a user-triggered language switch writes localStorage.lang; automatic detection stays transient.
+// langSource='manual' distinguishes an explicit choice from legacy auto-seeded lang values.
 (function () {
   var DICT = {}, cb = null, APPLIED_LANG = null;
-  function explicitLang() { try { var v = localStorage.getItem('lang'); return (v === 'en' || v === 'ja') ? v : null; } catch (e) { return null; } }
+  function explicitLang() { try { if (localStorage.getItem('langSource') !== 'manual') return null; var v = localStorage.getItem('lang'); return (v === 'en' || v === 'ja') ? v : null; } catch (e) { return null; } }
   function cachedDefault() { try { var v = localStorage.getItem('langDefaultCache'); return (v === 'en' || v === 'ja') ? v : null; } catch (e) { return null; } }
   function deviceLang() { try { var a=(navigator.languages&&navigator.languages.length)?navigator.languages[0]:navigator.language; return String(a||'').toLowerCase().indexOf('ja')===0?'ja':'en'; } catch (e) { return 'en'; } }
-  function initFirstRunLang() { if(explicitLang()||cachedDefault())return; var d=deviceLang(); try{localStorage.setItem('lang',d);}catch(e){} }
-  initFirstRunLang();
+
   function resolvedLang() { return explicitLang() || cachedDefault() || deviceLang(); }
   // Dynamic messages must use the language currently rendered on this page.
   // Reading localStorage on every t()/d() call can split the UI: the static DOM
@@ -36,7 +35,7 @@
     '会計確定':'Bill finalized','会計返金':'Refund','会計取消':'Bill voided','注文取消':'Order voided','割引承認':'Discount approved',
     '未対応':'Pending','調理中':'Preparing','提供済':'Served','会計済':'Paid','取消':'Voided','キャンセル':'Cancelled',
     '受付':'Received','確定':'Confirmed','来店済':'Arrived','受渡済':'Picked up',
-    'saveSettings':'Save settings','reprintReceipt':'Reprint receipt'
+    'saveSettings':'Save settings','reprintReceipt':'Reprint receipt','refundReceipt':'Refund receipt','deleteExpense':'Delete expense','updateReservationStatus':'Update reservation status','saveMenuItem':'Save menu item','stocktake':'Stocktake','voidOrder':'Void order','finalizeBill':'Finalize bill','updateOrderStatus':'Update order status','saveMember':'Create member','updateMember':'Update member','saveCoupons':'Save coupons'
   };
   function systemText(value) {
     var raw = String(value == null ? '' : value);
@@ -57,9 +56,16 @@
     document.documentElement.lang = l;
     if (cb) try { cb(l); } catch (e) {}
   }
+  function cacheDefaultLang(value) {
+    if (value !== 'ja' && value !== 'en') return;
+    var def = value, cur = cachedDefault();
+    try { localStorage.setItem('langDefaultCache', def); } catch (e) {}
+    if (!explicitLang() && (def !== cur || APPLIED_LANG !== def)) apply();
+  }
   window.I18n = {
     init: function (dict, onChange) { DICT = dict || {}; cb = onChange || null; apply(); fetchDefaultLang(); },
-    toggle: function () { try { localStorage.setItem('lang', lang() === 'ja' ? 'en' : 'ja'); } catch (e) {} apply(); },
+    toggle: function () { try { localStorage.setItem('lang', lang() === 'ja' ? 'en' : 'ja'); localStorage.setItem('langSource', 'manual'); } catch (e) {} apply(); },
+    setDefaultLang: cacheDefaultLang,
     lang: lang,
     t: function (k) { var d = DICT[lang()] || {}; return d[k] != null ? d[k] : k; },
     systemText: systemText,
@@ -73,7 +79,13 @@
   // language already painted in the DOM.
   if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
     window.addEventListener('storage', function (e) {
-      if (e && (e.key === 'lang' || e.key === 'langDefaultCache')) apply();
+      if (e && e.key === 'lang' && !explicitLang()) {
+        try {
+          var chosen = localStorage.getItem('lang');
+          if (chosen === 'ja' || chosen === 'en') localStorage.setItem('langSource', 'manual');
+        } catch (err) {}
+      }
+      if (e && (e.key === 'lang' || e.key === 'langSource' || e.key === 'langDefaultCache')) apply();
     });
   }
 
@@ -82,14 +94,23 @@
   function fetchDefaultLang() {
     try {
       if (typeof window === 'undefined' || !window.APP_CONFIG || !window.APP_CONFIG.API_URL) return;
-      var storeId = String(window.APP_CONFIG.STORE_ID || '').trim().toLowerCase();
-      if (!/^[a-z0-9][a-z0-9-]{2,31}$/.test(storeId)) return;
-      fetch(window.APP_CONFIG.API_URL + '?api=1', {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'getSettings', storeId: storeId }),
-        redirect: 'follow'
-      }).then(function (res) { return res.json(); }).then(function (json) {
+      var req = (window.API && typeof window.API.post === 'function')
+        ? window.API.post('getSettings', { __silent:true })
+        : (function () {
+          var storeId = String(window.APP_CONFIG.STORE_ID || '').trim().toLowerCase();
+          // Native normally has API.post, which derives Store from the signed
+          // session. If that common layer is unavailable and no explicit Store
+          // is configured, do not issue an ambiguous shared-DB request.
+          if (!/^[a-z0-9][a-z0-9-]{2,31}$/.test(storeId)) return Promise.reject(new Error('store_context_required'));
+          return fetch(window.APP_CONFIG.API_URL + '?api=1', {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action: 'getSettings', storeId: storeId }),
+            redirect: 'follow'
+          }).then(function (res) { return res.json(); });
+        })();
+      req.then(function (json) {
+        if (!json || !json.ok || !json.data || typeof json.data !== 'object') return;
         var d = (json && json.ok && json.data) || {};
         try {
           var regional={countryCode:d.countryCode||'',locale:d.locale||'',currencyCode:d.currencyCode||'',dateFormat:d.dateFormat||'',timezone:d.timezone||''};
@@ -100,11 +121,7 @@
           // 店舗の地域設定で描き直す。言語が変わらない場合も再描画が必要。
           if (cb) try { cb(lang()); } catch (e) {}
         } catch (e) {}
-        if (explicitLang()) return; // 手動言語は保持するが、地域/日付設定の同期は上で行う
-        var def = (d.defaultLang === 'ja') ? 'ja' : 'en';
-        var cur = cachedDefault();
-        try { localStorage.setItem('langDefaultCache', def); } catch (e) {}
-        if (def !== cur) apply();
+        cacheDefaultLang(d.defaultLang);
       }).catch(function () {});
     } catch (e) {}
   }

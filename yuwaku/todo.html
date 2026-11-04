@@ -17,6 +17,7 @@
     body{ margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans JP',sans-serif; background:var(--bg); color:var(--navy); }
     .head{ position:sticky; top:0; z-index:20; background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:space-between; padding:12px 16px; }
     .head h1{ font-size:18px; margin:0; font-weight:900; }
+    @media(max-width:430px){.head{flex-wrap:wrap;gap:8px}.head h1{flex:1 1 100%;min-width:0;white-space:normal;overflow-wrap:anywhere}.head>div{width:100%;justify-content:flex-end;flex-wrap:wrap}.head .hbtn{min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}}
     .hbtn{ background:rgba(255,255,255,.14); color:#fff; border:0; border-radius:9px; padding:8px 12px; font-size:13px; font-weight:800; cursor:pointer; text-decoration:none; }
     .wrap{ padding:16px; max-width:720px; margin:0 auto; }
     .card{ background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:14px; }
@@ -28,13 +29,20 @@
     .muted{ color:var(--text-3); }
     .row{ display:flex; gap:8px; flex-wrap:wrap; }
     .row .fg{ flex:1; min-width:120px; }
+    .todo-assignee-full{font-size:12px;line-height:1.4;overflow-wrap:anywhere;min-width:0;margin-top:4px;color:var(--text-3)}
+    .todo-form{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px 10px; align-items:start; }
+    .todo-form .fg{ min-width:0; margin-bottom:0; }
+    .todo-form .task-field{ grid-column:1 / -1; }
+    .todo-form .assignee-field{ grid-column:1; }
+    .todo-form .due-field{ grid-column:2; }
+    .todo-form .fc{ width:100%; min-width:0; max-width:100%; box-sizing:border-box; font-size:16px; }
     .todo-date-shell{ position:relative; width:100%; min-width:0; height:44px; padding-right:8px; overflow:visible; border-radius:9px; box-sizing:border-box; }
     .todo-date-shell .fc{ display:block; inline-size:100%!important; width:100%!important; min-inline-size:0!important; min-width:0!important; max-inline-size:100%!important; max-width:100%!important; margin:0; overflow:visible; }
     .item{ display:flex; align-items:flex-start; gap:10px; padding:12px 4px; border-bottom:1px solid var(--border); }
     .item:last-child{ border-bottom:0; }
     .item input[type=checkbox]{ width:22px; height:22px; margin-top:2px; flex:0 0 auto; cursor:pointer; }
     .item .body{ flex:1; min-width:0; }
-    .item .ttl{ font-weight:800; font-size:14.5px; word-break:break-word; }
+    .item .ttl{ font-weight:800; font-size:14.5px; word-break:normal; }
     .item.done .ttl{ text-decoration:line-through; color:var(--text-3); }
     .item .meta{ font-size:11.5px; color:var(--text-3); margin-top:3px; }
     .badge{ display:inline-block; background:#eef2f7; color:var(--navy); font-size:11px; font-weight:800; padding:2px 8px; border-radius:999px; margin-right:6px; margin-bottom:3px; }
@@ -42,6 +50,9 @@
     .delbtn{ background:none; border:0; color:#b91c1c; font-size:18px; cursor:pointer; flex:0 0 auto; padding:4px 6px; }
     .empty{ text-align:center; color:var(--text-3); padding:24px 0; }
     .created-line{ margin-top:2px; }
+  /* Formal Android PT-CTL touch target: independent of common header injection. */
+  #addBtn{min-height:44px;min-width:44px;box-sizing:border-box}
+      @media(max-width:430px){.todo-form{grid-template-columns:minmax(0,1fr)}.todo-form .assignee-field,.todo-form .due-field{grid-column:1 / -1}#newAssignee{width:100%;min-width:0;min-height:44px}}
   </style>
 </head>
 <body>
@@ -50,16 +61,17 @@
 
     <div class="card">
       <div class="card-title" data-t="addTitle">➕ 新しいタスク</div>
-      <div class="row">
-        <div class="fg" style="flex:2;">
+      <div class="todo-form">
+        <div class="fg task-field">
           <label class="form-label" data-t="taskLabel">タスク内容</label>
           <input id="newTitle" class="fc" placeholder="" data-tph="taskPh">
         </div>
-        <div class="fg" style="flex:1;">
+        <div class="fg assignee-field">
           <label class="form-label" data-t="assigneeLabel">担当者</label>
-          <select id="newAssignee" class="fc"></select>
+          <select id="newAssignee" class="fc" onchange="syncTodoAssigneeLabel()"></select>
+          <div id="newAssigneeFull" class="todo-assignee-full" aria-live="polite"></div>
         </div>
-        <div class="fg" style="flex:1;">
+        <div class="fg due-field">
           <label class="form-label" data-t="dueLabel">期限（任意）</label>
           <div class="todo-date-shell"><input id="newDue" type="date" class="fc"></div>
         </div>
@@ -119,6 +131,11 @@
       var opts = '<option value="">'+esc(I18n.t('unassignedOpt'))+'</option>';
       opts += EMPLOYEES.map(function(e){ return '<option value="'+esc(e.name)+'">'+esc(e.name)+'</option>'; }).join('');
       sel.innerHTML = opts;
+      syncTodoAssigneeLabel();
+    }
+    function syncTodoAssigneeLabel(){
+      var sel=$('newAssignee'), out=$('newAssigneeFull');
+      if(out&&sel)out.textContent=sel.selectedOptions.length ? sel.selectedOptions[0].textContent : '';
     }
     // [応答速度対応] 以前は保存/削除/完了切替のたびに全件再取得（getTodos）して一覧全体を再描画していた。
     // saveTodoが保存済み行をそのまま返すようになったので、その行だけをROWSに追加/更新し、
@@ -135,7 +152,7 @@
         if (btn) btn.disabled = false;
         if (r && r.row) { ROWS.unshift(r.row); render(); TODO_CLIENT_REQUEST_ID=''; }
         else { return reload(); } // 想定外形状のフォールバックのみ再取得
-        $('newTitle').value=''; $('newAssignee').value=''; $('newDue').value='';
+        $('newTitle').value=''; $('newAssignee').value=''; $('newDue').value=''; syncTodoAssigneeLabel();
         if(window.DateDisplay)DateDisplay.refresh();
       }).catch(function(e){ if (btn) btn.disabled = false; errEl.textContent = I18n.t('errPrefix')+API.userErrorText(e); errEl.style.display='block'; });
     };

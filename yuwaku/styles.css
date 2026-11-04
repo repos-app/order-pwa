@@ -97,10 +97,12 @@ body.order-attention .net-banner.offline-b { background:#fff1f2; color:#991b1b; 
 .cats::-webkit-scrollbar { display: none; }
 .cats { scrollbar-width:none; }
 @media (max-width: 480px) {
-  .quickbar { gap:4px; padding:6px 8px; overflow-x:hidden; }
-  .qbtn { flex:1 1 0; min-width:0; justify-content:center; gap:3px; padding:8px 4px; font-size:11px; }
-  .qbtn .ico { font-size:15px; }
-  .qbtn .lbl { overflow:hidden; text-overflow:ellipsis; }
+  /* Keep every quick action available by scrolling its own row. Shrinking all
+     six buttons to fit the viewport made labels unreadable or unreachable. */
+  .quickbar { gap:4px; padding:6px 8px; overflow-x:auto; }
+  .qbtn { flex:0 0 auto; min-width:44px; min-height:44px; justify-content:center; gap:4px; padding:9px 11px; font-size:12px; }
+  .qbtn .ico { font-size:16px; }
+  .qbtn .lbl { white-space:nowrap; }
 }
 .cat {
   flex: 0 0 auto; border: 1px solid var(--border); background: var(--surface);

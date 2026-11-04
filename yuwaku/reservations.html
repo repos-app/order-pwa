@@ -16,6 +16,7 @@
     body{ margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans JP',sans-serif; background:var(--bg); color:var(--navy); }
     .head{ position:sticky; top:0; z-index:20; background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:space-between; padding:12px 16px; }
     .head h1{ font-size:18px; margin:0; font-weight:900; }
+    @media(max-width:720px){.head{flex-wrap:wrap;gap:10px}.head h1{flex:1 0 100%;overflow-wrap:anywhere}.head>div{flex-wrap:wrap;min-width:0}}
     .hbtn{ background:rgba(255,255,255,.14); color:#fff; border:0; border-radius:9px; padding:8px 12px; font-size:13px; font-weight:800; cursor:pointer; text-decoration:none; }
     .wrap{ padding:16px; max-width:960px; margin:0 auto; }
     .card{ background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; }
@@ -23,14 +24,16 @@
     table{ width:100%; min-width:980px; table-layout:fixed; border-collapse:collapse; font-size:13px; }
     th,td{ padding:8px 6px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top; white-space:nowrap; }
     th{ font-size:11px; color:var(--text-3); white-space:nowrap; }
+    .card table td:nth-child(3){white-space:normal;overflow-wrap:anywhere;word-break:break-word}
     .muted{ color:var(--text-3); }
-    .email-link{ color:#2563eb; text-decoration:underline; text-underline-offset:2px; overflow-wrap:anywhere; word-break:break-word; }
+    .email-link{ color:#2563eb; text-decoration:underline; text-underline-offset:2px; overflow-wrap:normal; word-break:normal; }
     .email-cell{ width:210px; white-space:normal; }
     .status-cell{ width:150px; min-width:150px; }
     .status-stack{ display:flex; flex-direction:column; align-items:flex-start; gap:6px; min-width:0; }
     .st{ display:inline-block; border-radius:6px; padding:1px 7px; font-size:11px; font-weight:800; }
     .s-recv{ background:#e0e7ff; color:#3730a3; } .s-ok{ background:#dcfce7; color:#15803d; } .s-came{ background:#f1f5f9; color:#475569; } .s-cxl{ background:#fee2e2; color:#b91c1c; }
     select.mini{ width:100%; min-width:0; max-width:100%; box-sizing:border-box; padding:5px; border:1px solid var(--border); border-radius:7px; font-family:inherit; font-size:12px; }
+      @media(max-width:430px){#resUrl{flex:1 0 100%!important;font-size:16px!important}.card>div[style*="overflow:auto"]{max-width:100%;-webkit-overflow-scrolling:touch}}
   </style>
 </head>
 <body>

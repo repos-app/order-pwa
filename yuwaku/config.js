@@ -27,7 +27,7 @@ window.APP_CONFIG = {
 (function () {
   if (typeof document === 'undefined' || document.querySelector('script[data-iz-common-header]')) return;
   var script = document.createElement('script');
-  script.src = './header.js?v=auth13';
+script.src = './header.js?v=auth20';
   script.async = false;
   script.setAttribute('data-iz-common-header', '');
   document.head.appendChild(script);

@@ -44,7 +44,7 @@
     .expense-card-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
     .expense-card-date{ font-size:12px; color:var(--text-3); }
     .expense-card-amount{ font-size:17px; font-weight:900; white-space:nowrap; }
-    .expense-card-item{ margin-top:5px; font-size:15px; font-weight:800; overflow-wrap:anywhere; }
+    .expense-card-item{ margin-top:5px; font-size:15px; font-weight:800; overflow-wrap:normal; }
     .expense-card-cat{ display:inline-block; margin-top:5px; padding:3px 7px; border-radius:999px; background:#f1f5f9; color:#475569; font-size:11px; font-weight:700; }
     .expense-card-meta{ margin-top:8px; display:grid; gap:5px; font-size:12px; color:#475569; }
     .expense-card-meta strong{ color:var(--navy); }
@@ -59,6 +59,16 @@
     .receipt-modal-close{ position:absolute; top:-8px; right:-4px; width:44px; height:44px; border:0; border-radius:999px; background:#fff; color:#0f172a; font-size:28px; line-height:1; font-weight:900; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,.3); }
     .expense-card-actions{ display:flex; gap:8px; margin-top:10px; }
     .expense-card-actions .btn-sm{ flex:1 1 0; }
+    /* IZK-UT-073: long user-entered item/purchaser/memo must not push the
+       amount/actions off the 360 CSS-px viewport. Keep raw data unchanged. */
+    .expense-card-row,.expense-card-head,.expense-card-meta{ min-width:0; max-width:100%; }
+    .expense-card-head>div:first-child{ flex:1 1 auto; min-width:0; }
+    .expense-card-item{ display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; overflow-wrap:normal; }
+    .expense-card-cat{ max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .expense-card-amount{ flex:0 1 auto; max-width:48%; min-width:0; white-space:nowrap; overflow-x:auto; text-align:right; }
+    .expense-card-meta>div{ min-width:0; overflow-wrap:normal; word-break:normal; overflow-x:auto; }
+    .expense-card-receipt{ min-width:0; max-width:100%; overflow-wrap:normal; }
+    .expense-table-wrap{ max-width:100%; overscroll-behavior-x:contain; }
     .expense-empty{ padding:20px 8px; text-align:center; color:#94a3b8; font-size:13px; }
     .filepick{ display:flex; align-items:center; gap:10px; padding:10px; border:1px solid var(--border); border-radius:9px; background:var(--surface); cursor:pointer; min-width:0; }
     .filepick .btn-sm{ flex:0 0 auto; white-space:nowrap; }
@@ -85,6 +95,14 @@
     @media (max-width:390px){
       .expense-grid{ grid-template-columns:1fr 1fr; gap:8px 12px; }
     }
+    @media (orientation:landscape) and (max-height:480px) and (pointer:coarse){
+      .expense-grid{grid-template-columns:minmax(0,1fr)}
+      .expense-grid .fg,.expense-grid .field-amount,.expense-grid .field-purchaser{grid-column:1/-1}
+      .expense-grid .fc:focus{width:min(46vw,370px);max-width:100%}
+      .expense-grid .fg:focus-within{scroll-margin-top:110px;scroll-margin-bottom:56px}
+    }
+  /* Formal Android PT-CTL touch target: independent of common header injection. */
+  #saveBtn{min-height:44px;min-width:44px;box-sizing:border-box}
   </style>
 </head>
 <body>
@@ -211,6 +229,42 @@
       return 'exp-'+Date.now()+'-'+Math.random().toString(36).slice(2,12);
     }
     function msg(text, ok){ var m=document.getElementById('msg'); m.style.display='block'; m.style.background=ok?'#dcfce7':'#fee2e2'; m.style.color=ok?'#15803d':'#b91c1c'; m.innerText=text; }
+    // IZK-UT-075: mirror the existing server item/memo/purchaser bounds.
+    var EXPENSE_TEXT_LIMITS={eItem:80,eMemo:200,ePurchaser:60};
+    function expenseLengthError(){
+      return Object.keys(EXPENSE_TEXT_LIMITS).find(function(id){
+        return String(document.getElementById(id).value||'').length>EXPENSE_TEXT_LIMITS[id];
+      })||'';
+    }
+    function expenseLengthMessage(id){
+      var ja=I18n.lang&&I18n.lang()==='ja';
+      var fields={eItem:['品目','Item'],eMemo:['備考','Notes'],ePurchaser:['購入者','Purchaser']};
+      var label=(fields[id]||['入力','Input'])[ja?0:1],max=EXPENSE_TEXT_LIMITS[id];
+      return ja?label+'は'+max+'文字以内で入力してください。':label+' must be '+max+' characters or fewer.';
+    }
+    function validateExpenseLengths(){
+      var id=expenseLengthError();if(!id)return true;
+      msg(expenseLengthMessage(id),false);return false;
+    }
+    Object.keys(EXPENSE_TEXT_LIMITS).forEach(function(id){
+      var el=document.getElementById(id);if(!el)return;
+      function inserted(e){
+        if(e.isComposing||e.inputType==='insertCompositionText')return;
+        var text=e.type==='paste'?(e.clipboardData&&e.clipboardData.getData('text')):e.data;
+        if(e.type==='beforeinput'&&e.inputType&&e.inputType.indexOf('insert')!==0)return;
+        if(e.type==='beforeinput'&&e.inputType==='insertFromPaste')return;
+        if(!text)return;
+        var start=el.selectionStart==null?el.value.length:el.selectionStart;
+        var end=el.selectionEnd==null?start:el.selectionEnd;
+        if((el.value.slice(0,start)+text+el.value.slice(end)).length>EXPENSE_TEXT_LIMITS[id]){
+          e.preventDefault();msg(expenseLengthMessage(id),false);
+        }
+      }
+      el.addEventListener('paste',inserted);
+      el.addEventListener('beforeinput',inserted);
+      el.addEventListener('input',validateExpenseLengths);
+      el.addEventListener('compositionend',validateExpenseLengths);
+    });
     function clearForm(){
       EXPENSE_CLIENT_REQUEST_ID='';
       document.getElementById('eId').value=''; document.getElementById('eItem').value=''; document.getElementById('eAmount').value='';
@@ -300,6 +354,7 @@
       document.getElementById('receiptPreviewWrap').style.display='block';
     });
     window.save = function(){
+      if(!validateExpenseLengths())return;
       var file = document.getElementById('eReceiptFile').files && document.getElementById('eReceiptFile').files[0];
       var exp = { id:document.getElementById('eId').value, date:document.getElementById('eDate').value,
         category:document.getElementById('eCat').value, item:document.getElementById('eItem').value.trim(),
@@ -358,6 +413,23 @@
         { ja: '⑤ レシート画像が登録されている行では小さな画像が表示され、タップするとこの画面内で拡大表示されます。', en: '⑤ Rows with a receipt image show a thumbnail — tap it to view the full image inside this screen.' }
       ]
     });
+  </script>
+<script>
+  (function(){
+    var active=null;
+    function adjust(){
+      if(!active||!active.isConnected||!matchMedia('(orientation:landscape) and (max-height:480px) and (pointer:coarse)').matches)return;
+      var r=active.getBoundingClientRect(),top=112,bottom=innerHeight-40;
+      if(r.top<top||r.bottom>bottom)window.scrollBy({top:r.top<top?r.top-top:r.bottom-bottom,behavior:'instant'});
+    }
+    document.addEventListener('focusin',function(e){
+      if(!e.target.matches('input,textarea,select')||!e.target.closest('.form-grid,.expense-grid,.cm-grid'))return;
+      active=e.target;setTimeout(adjust,60);
+    });
+    document.addEventListener('focusout',function(e){if(e.target===active)active=null});
+    window.addEventListener('resize',function(){setTimeout(adjust,60)});
+    window.addEventListener('orientationchange',function(){setTimeout(adjust,250)});
+  })();
   </script>
 </body>
 </html>

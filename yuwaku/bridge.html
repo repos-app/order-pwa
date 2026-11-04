@@ -61,7 +61,7 @@
     <button id="btnStop" onclick="stopLoop()" disabled data-i="bStop">■ 停止</button>
   </div>
 
-  <label class="opt"><span>担当プリンタ：</span><select id="logicalPrinter" style="flex:1;min-width:0;padding:10px;border-radius:8px;border:1px solid #475569;"></select></label>
+  <label class="opt"><span data-i="logicalPrinterLabel">担当プリンタ：</span><select id="logicalPrinter" style="flex:1;min-width:0;padding:10px;border-radius:8px;border:1px solid #475569;"></select></label>
   <label class="opt"><span data-i="keyLabel">キー(任意)：</span><input type="text" id="key" placeholder="BRIDGE_KEY を設定した場合のみ" style="flex:1;"></label>
   <label class="opt"><input type="checkbox" id="safeMode"> <span data-i="safe">低速安全モード（20バイト送信）</span></label>
 
@@ -88,6 +88,7 @@ var API_URL = (window.APP_CONFIG && window.APP_CONFIG.API_URL) || '';
 var device=null, server=null, writeChar=null;
 var looping=false, busy=false, timer=null, wakeLock=null;
 var cntOk=0, cntErr=0;
+var _bridgeIdleStreak=0,_bridgeErrorStreak=0,_bridgeNextAllowedAt=0;
 var POLL_MS=1200; // 印刷キュー確認間隔（設定画面「印刷ブリッジ」カードで変更可能。既定1.2秒）
 var logoImg=null; // レシートロゴ（設定画面でアップロード）
 var logoScale=100; // ロゴ印字サイズ（58mm=100%）
@@ -101,20 +102,20 @@ var CANDIDATE_SERVICES = [
 ];
 
 var T={
-  ja:{ title:'🖨️ Bluetoothプリンタ', sub:'Bluetoothプリンタを検索・接続します。Android・Windows・Mac・Linuxの対応Chromeで利用できます（iOSブラウザは非対応。iOSはネイティブアプリを利用してください）。<br><b>動作確認済みプリンタ: PT-210</b>', kDone:'印刷済', kFail:'失敗', kConn:'接続', bConn:'🔗 Bluetoothプリンタに接続', bDisconnect:'切断', bForget:'登録解除', bStart:'▶ 監視開始', bStop:'■ 停止', keyLabel:'キー(任意)：', keyPh:'BRIDGE_KEY を設定した場合のみ', safe:'低速安全モード（20バイト送信）', note:'画面が消えると印刷が止まります。Bluetoothが切れたら再接続してください。困ったらこのログを共有してください。', langBtn:'EN',
+  ja:{ title:'🖨️ Bluetoothプリンタ', sub:'Bluetoothプリンタを検索・接続します。Android・Windows・Mac・Linuxの対応Chromeで利用できます（iOSブラウザは非対応。iOSはネイティブアプリを利用してください）。<br><b>動作確認済みプリンタ: PT-210</b>', kDone:'印刷済', kFail:'失敗', kConn:'接続', bConn:'🔗 Bluetoothプリンタに接続', bDisconnect:'切断', bForget:'登録解除', bStart:'▶ 監視開始', bStop:'■ 停止', logicalPrinterLabel:'担当プリンタ：', keyLabel:'キー(任意)：', keyPh:'BRIDGE_KEY を設定した場合のみ', safe:'低速安全モード（20バイト送信）', note:'画面が消えると印刷が止まります。Bluetoothが切れたら再接続してください。困ったらこのログを共有してください。', langBtn:'EN',
     disconnected:'未接続', selecting:'デバイス選択中…', noWrite:'このBluetooth機器では印刷設定を自動判定できませんでした', connFail:'接続失敗', connected:'接続完了（監視開始できます）', needConn:'先に接続してください', watching:'監視中…', stopped:'停止中', disconnErr:'切断：再接続してください', noBt:'この端末は Web Bluetooth 非対応', forgetConfirm:'この出力先のBluetoothプリンタ登録を解除しますか？ 現在の接続を切り、Izakanpai内の接続情報を削除します。ブラウザのBluetooth許可は残る場合があります。', forgetDone:'登録解除しました。Izakanpai内の接続情報を削除しました。ブラウザのBluetooth許可を消す場合はブラウザのサイト設定から解除してください。', forgetFailed:'登録解除に失敗しました' },
-  en:{ title:'🖨️ Bluetooth Printer', sub:'Search for and connect to a Bluetooth printer in supported Chrome on Android, Windows, Mac, or Linux (iOS browsers are not supported; use the native iOS app).<br><b>Verified printer: PT-210</b>', kDone:'Printed', kFail:'Failed', kConn:'Printer', bConn:'🔗 Connect Bluetooth printer', bDisconnect:'Disconnect', bForget:'Unregister', bStart:'▶ Start', bStop:'■ Stop', keyLabel:'Key (optional): ', keyPh:'Only if BRIDGE_KEY is set', safe:'Safe slow mode (20-byte writes)', note:'If the screen sleeps, printing stops. Reconnect if Bluetooth drops and share this log if troubleshooting is needed.', langBtn:'日本語',
+  en:{ title:'🖨️ Bluetooth Printer', sub:'Search for and connect to a Bluetooth printer in supported Chrome on Android, Windows, Mac, or Linux (iOS browsers are not supported; use the native iOS app).<br><b>Verified printer: PT-210</b>', kDone:'Printed', kFail:'Failed', kConn:'Printer', bConn:'🔗 Connect Bluetooth printer', bDisconnect:'Disconnect', bForget:'Unregister', bStart:'▶ Start', bStop:'■ Stop', logicalPrinterLabel:'Assigned printer: ', keyLabel:'Key (optional): ', keyPh:'Only if BRIDGE_KEY is set', safe:'Safe slow mode (20-byte writes)', note:'If the screen sleeps, printing stops. Reconnect if Bluetooth drops and share this log if troubleshooting is needed.', langBtn:'日本語',
     disconnected:'Not connected', selecting:'Selecting device…', noWrite:'Print settings could not be detected automatically for this Bluetooth device', connFail:'Connection failed', connected:'Connected (you can start)', needConn:'Connect first', watching:'Monitoring…', stopped:'Stopped', disconnErr:'Disconnected: reconnect', noBt:'This device has no Web Bluetooth', forgetConfirm:'Unregister the Bluetooth printer for this output? Izakanpai will disconnect it and clear its app-side connection profile. Browser Bluetooth permission may remain.', forgetDone:'Printer unregistered in Izakanpai. To remove browser Bluetooth permission too, use the browser site settings.', forgetFailed:'Could not unregister the printer' }
 };
-var curLang=(function(){ try{ var s=localStorage.getItem('lang');if(s==='ja'||s==='en')return s;var first=(navigator.languages&&navigator.languages.length)?navigator.languages[0]:navigator.language;var d=String(first||'').toLowerCase().indexOf('ja')===0?'ja':'en';localStorage.setItem('lang',d);return d;}catch(e){ return 'en'; } })();
+var curLang=(function(){ try{ var s=localStorage.getItem('lang'),manual=localStorage.getItem('langSource');if(manual==='manual'&&(s==='ja'||s==='en'))return s;var def=localStorage.getItem('langDefaultCache');if(def==='ja'||def==='en')return def;var first=(navigator.languages&&navigator.languages.length)?navigator.languages[0]:navigator.language;return String(first||'').toLowerCase().indexOf('ja')===0?'ja':'en';}catch(e){ return 'en'; } })();
 function tt(k){ return (T[curLang]&&T[curLang][k])||k; }
-function applyLang(l){
-  curLang=(l==='en')?'en':'ja'; try{ localStorage.setItem('lang',curLang); }catch(e){}
+function applyLang(l,persistManual){
+  curLang=(l==='en')?'en':'ja'; if(persistManual)try{ localStorage.setItem('lang',curLang); localStorage.setItem('langSource','manual'); }catch(e){}
   document.querySelectorAll('[data-i]').forEach(function(el){ var k=el.getAttribute('data-i'); if(T[curLang][k]!=null) el.innerHTML=T[curLang][k]; });
   var key=document.getElementById('key'); if(key) key.placeholder=T[curLang].keyPh;
   var lb=document.getElementById('langBtn'); if(lb) lb.textContent=T[curLang].langBtn;
 }
-function toggleLang(){ applyLang(curLang==='ja'?'en':'ja'); }
+function toggleLang(){ applyLang(curLang==='ja'?'en':'ja',true); }
 
 function log(m){ var el=document.getElementById('log'); var t=new Date().toLocaleTimeString('ja-JP'); el.textContent += '['+t+'] '+m+"\n"; el.scrollTop=el.scrollHeight; }
 function setStat(t, cls){ document.getElementById('statText').textContent=t; document.getElementById('stat').className='stat'+(cls?' '+cls:''); }
@@ -175,7 +176,7 @@ async function loadLogicalPrinters(){
 
 // URLの ?key= を初期値に
 (function(){ try{ var sk=(window.APP_CONFIG.STORAGE_PREFIX||'')+'bridgeKey'; var k=new URLSearchParams(location.search).get('key'); if(k){ document.getElementById('key').value=k; localStorage.setItem(sk,k);} else { var s=localStorage.getItem(sk); if(s) document.getElementById('key').value=s; } }catch(e){} })();
-applyLang(curLang); setStat(tt('disconnected'));
+applyLang(curLang,false); setStat(tt('disconnected'));
 
 async function connect(){
   if(!navigator.bluetooth){ setStat(tt('noBt'),'err'); log('navigator.bluetooth なし（iOS不可）'); return; }
@@ -215,7 +216,7 @@ function onDisconnect(){
 async function startLoop(){
   if(!writeChar){ setStat(tt('needConn'),'err'); return; }
   if(!selectedLogicalPrinterId()){setStat(curLang==='en'?'Select the assigned printer first':'先に担当プリンタを選択してください','err');return;}
-  looping=true;
+  looping=true;_bridgeIdleStreak=0;_bridgeErrorStreak=0;_bridgeNextAllowedAt=0;
   document.getElementById('btnStart').disabled=true;
   document.getElementById('btnStop').disabled=false;
   await requestWake();
@@ -234,7 +235,7 @@ async function loadPollInterval(){
   }catch(e){}
 }
 function stopLoop(){
-  looping=false; if(timer){ clearInterval(timer); timer=null; }
+  looping=false;_bridgeIdleStreak=0;_bridgeErrorStreak=0;_bridgeNextAllowedAt=0; if(timer){ clearInterval(timer); timer=null; }
   document.getElementById('btnStart').disabled=false;
   document.getElementById('btnStop').disabled=true;
   releaseWake();
@@ -244,11 +245,21 @@ function stopLoop(){
 
 async function tick(){
   if(!looping || busy) return;
+  // P0 D1: skip idle polling on a short bounded cooldown.
+  if(Date.now()<_bridgeNextAllowedAt)return;
   if(!writeChar){ return; } // 切断中はスキップ
   busy=true;
   try{
     try{await recoverPendingSuccessAck();}catch(recoverErr){log('完了通知の復旧待ち: '+API.userErrorText(recoverErr));stopLoop();return;}
     var jobs = await apiPoll();
+    _bridgeErrorStreak=0;
+    if(jobs.length){
+      _bridgeIdleStreak=0;_bridgeNextAllowedAt=0;
+    }else{
+      _bridgeIdleStreak=Math.min(3,_bridgeIdleStreak+1);
+      // Default 1.2s grows to 2.4s/4.8s, capped at 6s.
+      _bridgeNextAllowedAt=Date.now()+Math.min(Math.max(6000,POLL_MS),POLL_MS*Math.pow(2,_bridgeIdleStreak));
+    }
     for(var i=0;i<jobs.length && looping && writeChar;i++){
       var job=jobs[i];
       try{
@@ -267,6 +278,11 @@ async function tick(){
     if(looping && writeChar) setStat(tt('watching')+'（'+cntOk+'）','run');
     if(jobs.length && looping) setTimeout(function(){ tick(); }, 300); // 連続ジョブは待たず即処理
   }catch(err){
+    _bridgeErrorStreak=Math.min(7,_bridgeErrorStreak+1);
+    var msg=String(err&&err.message||err||'');
+    var quota=/d1|rows.read|quota|limit.exceeded|429/i.test(msg);
+    var cooldown=Math.min(300000,5000*Math.pow(2,_bridgeErrorStreak));
+    _bridgeNextAllowedAt=Date.now()+(quota?Math.max(900000,cooldown):cooldown)+Math.floor(Math.random()*2000);
     log('通信エラー: '+API.userErrorText(err));
   }finally{ busy=false; }
 }

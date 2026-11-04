@@ -88,6 +88,15 @@
     if (CFG.STORE_ID) return String(CFG.STORE_ID);
     return CFG.PUBLIC_ORDER === true ? publicStoreFromQuery() : '';
   };
+  API.currentToken = storedToken;
+  API.pageReady = function (options) {
+    options = options || {};
+    var token = storedToken() || '';
+    var storeId = API.currentStoreId();
+    if ((options.auth || 'optional') === 'required' && !token) return Promise.reject(new Error('unauthorized'));
+    if (options.requireStore === true && !storeId) return Promise.reject(new Error('invalid_store_link'));
+    return Promise.resolve(Object.freeze({ token:token, storeId:storeId }));
+  };
   API.clearSession = function () {
     try { localStorage.removeItem(AUTH_PREFIX + 'mgmtToken'); localStorage.removeItem(AUTH_PREFIX + 'mgmtRefreshToken'); } catch (e) {}
   };
@@ -127,6 +136,11 @@
         count = Math.max(0, count - 1); if (count > 0 || !el) return;
         el.classList.remove('on');
         hideTimer = setTimeout(function () { if (count === 0 && el) el.style.display = 'none'; }, 160);
+      },
+      reset: function () {
+        count = 0;
+        if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+        if (el) { el.classList.remove('on'); el.style.display = 'none'; }
       }
     };
   })();
@@ -135,7 +149,9 @@
   // 定期ポーリング等、待機表示を出さない（点滅防止）アクション
   const BG_ACTIONS = { checkToken: 1, getOrders: 1, getOperationsDelta: 1, checkoutStatus: 1, bootstrap: 1, getSettings: 1, getStaffCalls: 1, getTableCheckoutStamp: 1 };
   const TABLE_SESSION_ACTIONS = { submitOrder:1, getOrdersByTable:1, getTableCheckoutStamp:1, setTablePartySize:1, getTablePartySize:1, callStaff:1, submitFeedback:1 };
-  const BG_RPC = { getPrintQueue: 1, getPrintQueueCounts: 1, getSettings: 1 };
+  const BG_RPC = { getPrintQueue: 1, getPrintQueueCounts: 1, getSettings: 1, searchMenuImages: 1 };
+  const BACKGROUND_MUTATION_ACTIONS = { bridgePoll:1, bridgeAck:1 };
+  const BACKGROUND_MUTATION_RPC = { nativePrintPoll:1, nativePrintAck:1, searchMenuImages:1 };
 
   // ---- タイムアウト設定（全画面共通・唯一の定義元）----
   // [応答速度改善(2026-08-22)/タイムアウト共通化] 従来は各画面（admin.html/kds.html/dashboard.html/
@@ -160,10 +176,59 @@
   // それでも失敗した場合は控えめなバナーで案内する（次に何か1回でも成功すれば自動的に消える）。
   const _FETCH_TIMEOUT_MS = TIMEOUT_MS.default;
   const _RETRY_DELAY_MS = 1200;
-  const _READ_ACTIONS = { getSettings: 1, checkToken: 1, bootstrap: 1, checkoutStatus: 1, getStaffCalls: 1, getTableCheckoutStamp: 1, getOperationsDelta: 1, getEmployeeStatuses: 1 };
+  const _READ_ACTIONS = { getSettings: 1, checkToken: 1, bootstrap: 1, checkoutStatus: 1, getStaffCalls: 1, getTableCheckoutStamp: 1, getOperationsDelta: 1, getEmployeeStatuses: 1, validateCoupon:1, loyaltyLookup:1, verifyManagerApproval:1 };
+  const _READ_RPC = { exportSheetData:1, profitSimGetMonthly:1 };
   function _isReadOnly(action, fn) {
-    if (action === 'rpc') return /^(get|check|list|count|fetch)/i.test(fn || '');
-    return !!_READ_ACTIONS[action];
+    if (action === 'rpc') return !!_READ_RPC[fn] || /^(get|check|list|count|fetch)/i.test(fn || '');
+    return !!_READ_ACTIONS[action] || /^(get|check|list|count|fetch)/i.test(String(action || ''));
+  }
+  var _mutationSeq = 0;
+  var _activeMutations = new Map();
+  var _uncertainMutation = null;
+  var _mutationMarkerKey = AUTH_PREFIX + 'mutationPending';
+  function mutationSnapshot() {
+    var items = Array.from(_activeMutations.values());
+    return { pending:items.length > 0, count:items.length, actions:items.map(function (x) { return x.action; }), startedAt:items.length ? Math.min.apply(null, items.map(function (x) { return x.startedAt; })) : 0 };
+  }
+  function persistMutationMarker(entry) { try { localStorage.setItem(_mutationMarkerKey, JSON.stringify({ action:entry.action, startedAt:entry.startedAt })); } catch (e) {} }
+  function persistCurrentMutationMarker(){if(_activeMutations.size){var activeItems=Array.from(_activeMutations.values()),active=activeItems[activeItems.length-1];if(active)persistMutationMarker(active);return;}if(_uncertainMutation){try{localStorage.setItem(_mutationMarkerKey,JSON.stringify(_uncertainMutation));}catch(e){}return;}try{localStorage.removeItem(_mutationMarkerKey);}catch(e){}}
+  function emitMutationChange() {
+    try { if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' && typeof CustomEvent === 'function') window.dispatchEvent(new CustomEvent('iz:mutationchange', { detail:mutationSnapshot() })); } catch (e) {}
+  }
+  function beginMutation(action) {
+    var id='m'+(++_mutationSeq), entry={id:id,action:String(action||'write'),startedAt:Date.now()};
+    _activeMutations.set(id,entry); persistMutationMarker(entry); emitMutationChange(); return id;
+  }
+  function mutationOutcomeUncertain(error) {
+    if(!error||error.__abandonedWrite)return false;if(error.__server&&!/^http_5\d\d$/i.test(String(error.message||'')))return false;
+    var raw=String((error&&(error.code||error.message))||error||'');
+    return /(?:AbortError|timeout|timed out|failed to fetch|networkerror|network request failed|load failed|connection was lost|could not connect|invalid_server_response|stale_session_response|http_5\d\d)/i.test(raw);
+  }
+  function endMutation(id,uncertain){var entry=_activeMutations.get(id)||null;_activeMutations.delete(id);if(uncertain&&entry)_uncertainMutation={action:entry.action,startedAt:entry.startedAt,uncertain:true,endedAt:Date.now()};persistCurrentMutationMarker();emitMutationChange();}
+  function ensureMutationNotice() {
+    if (typeof document === 'undefined' || !document.body) return null;
+    var el=document.getElementById('izMutationNotice'); if(el)return el;
+    el=document.createElement('div'); el.id='izMutationNotice'; el.setAttribute('role','alert');
+    el.style.cssText='position:fixed;left:16px;right:16px;bottom:18px;z-index:2147483646;display:none;padding:13px 16px;border-radius:12px;background:#111827;color:#fff;font:800 14px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans JP",sans-serif;text-align:center;box-shadow:0 8px 28px rgba(0,0,0,.28)';
+    document.body.appendChild(el); return el;
+  }
+  function mutationBusyText(){return _isEN()?'Processing is still in progress. Please wait until it finishes before leaving this screen.':'処理中です。完了するまでこの画面でお待ちください。';}
+  API.mutationState=mutationSnapshot;
+  API.isMutationPending=function(){return _activeMutations.size>0;};
+  API.guardNavigation=function(){
+    if(!_activeMutations.size)return true;
+    var el=ensureMutationNotice(); if(el){el.textContent=mutationBusyText();el.style.display='block';clearTimeout(el.__izHideTimer);el.__izHideTimer=setTimeout(function(){if(el)el.style.display='none';},2600);} return false;
+  };
+  API.consumeInterruptedMutation=function(){
+    var raw='';try{raw=localStorage.getItem(_mutationMarkerKey)||'';}catch(e){}
+    if(!raw||_activeMutations.size)return null;
+    try{var marker=JSON.parse(raw);localStorage.removeItem(_mutationMarkerKey);_uncertainMutation=null;return marker&&marker.startedAt?marker:null;}catch(e){try{localStorage.removeItem(_mutationMarkerKey);}catch(_){}return null;}
+  };
+  API.resolveMutationUncertainty=function(action){if(_activeMutations.size)return false;if(_uncertainMutation&&action&&String(_uncertainMutation.action||'')!==String(action))return false;_uncertainMutation=null;persistCurrentMutationMarker();return true;};
+  if(typeof window!=='undefined'&&window.addEventListener){
+    window.addEventListener('beforeunload',function(event){if(!_activeMutations.size)return;event.preventDefault();event.returnValue='';return '';});
+    if(typeof document!=='undefined'&&document.addEventListener){document.addEventListener('click',function(event){if(!_activeMutations.size)return;event.preventDefault();event.stopImmediatePropagation();API.guardNavigation();},true);document.addEventListener('submit',function(event){if(!_activeMutations.size)return;event.preventDefault();event.stopImmediatePropagation();API.guardNavigation();},true);}
+    try{localStorage.removeItem(_mutationMarkerKey);}catch(e){}
   }
   function _isEN() { try { if(window.I18n&&typeof window.I18n.lang==='function')return window.I18n.lang()==='en';var s=localStorage.getItem('lang');if(s==='ja'||s==='en')return s==='en';var first=(navigator.languages&&navigator.languages.length)?navigator.languages[0]:navigator.language;return String(first||'').toLowerCase().indexOf('ja')!==0; } catch (e) { return true; } }
   API.userErrorText = function (error, fallback) {
@@ -271,7 +336,7 @@
     if (code === 'http_429') return en ? 'The image provider is temporarily rate-limiting downloads. Try again later.' : '画像配信元の利用上限に達しています。時間をおいて再度お試しください。';
     if (code.indexOf('plan_feature_pro_required') === 0) return en ? 'This feature is available on the Pro plan.' : 'この機能はProプランでご利用いただけます。';
     if (code === 'request_timeout') return en ? 'The order request timed out. Please check the order status before trying again.' : '注文送信がタイムアウトしました。注文状況を確認してから再試行してください。';
-    if (/^http_5\d\d$/.test(code)) return en ? 'The server could not complete the order request. Please try again after a moment.' : 'サーバー側で注文処理を完了できませんでした。少し時間をおいて再試行してください。';
+    if (/^http_5\d\d$/.test(code)) return en ? 'The server could not complete the request. Please check the operation status before trying again.' : 'サーバー側で処理を完了できませんでした。再試行する前に処理結果をご確認ください。';
     if (code === 'locked, please retry') return en ? 'The order could not be accepted because the server was busy. Please try again.' : 'サーバーが混み合っているため注文を受け付けられませんでした。もう一度お試しください。';
     if (/^(?:http_\d+|save_failed|delete_failed|load_failed|server_busy_retry|auth_environment_not_configured)$/.test(code)) return generic;
     if (/failed to fetch|networkerror|aborterror|fetch is aborted|\baborted\b|timeout/i.test(raw)) return network;
@@ -306,8 +371,15 @@
     };
   })();
 
-  function _fetchOnce(body, ms) {
+  const _readControllers = new Set();
+  const _foregroundWriteControllers = new Set();
+  function staleReadLifecycleError(){var e=new Error('stale_page_lifecycle');e.__staleLifecycle=true;return e;}
+  function abandonedPageWriteError(){var e=new Error('abandoned_page_write');e.__abandonedWrite=true;return e;}
+  function _abortForegroundWrites(){_foregroundWriteControllers.forEach(function(ctrl){try{ctrl.__izAbandonedWrite=true;ctrl.abort();}catch(e){}});_foregroundWriteControllers.clear();_activeMutations.clear();_uncertainMutation=null;persistCurrentMutationMarker();emitMutationChange();if(_load&&typeof _load.reset==='function')_load.reset();}
+  function _fetchOnce(body, ms, lifecycleBound, foregroundWrite) {
     const ctrl = new AbortController();
+    if(lifecycleBound)_readControllers.add(ctrl);
+    if(foregroundWrite)_foregroundWriteControllers.add(ctrl);
     const t = setTimeout(function () { ctrl.abort('timeout'); }, ms);
     return fetch(CFG.API_URL + '?api=1', {
       method: 'POST',
@@ -315,7 +387,7 @@
       body: body,
       redirect: 'follow',
       signal: ctrl.signal
-    }).then(function (res) {
+    }).catch(function(error){if(foregroundWrite&&ctrl.__izAbandonedWrite)throw abandonedPageWriteError();if(lifecycleBound&&ctrl.__izPageLifecycleAbort)throw staleReadLifecycleError();throw error;}).then(function (res) {
       if (!res.ok) {
         if (res.status >= 400 && res.status < 500) {
           return res.json().catch(function () { throw new Error('http_' + res.status); });
@@ -323,27 +395,43 @@
         throw new Error('http_' + res.status);
       }
       return res.json();
-    }).finally(function () { clearTimeout(t); });
+    }).finally(function () { clearTimeout(t); if(lifecycleBound)_readControllers.delete(ctrl); if(foregroundWrite)_foregroundWriteControllers.delete(ctrl); });
   }
 
   const _readFetchPending = new Map();
+  let _readLifecycleGeneration = 0;
+  function _resetReadLifecycle() {
+    _readLifecycleGeneration++;
+    refreshPending = null;
+    _readFetchPending.clear();
+    _readControllers.forEach(function(ctrl){try{ctrl.__izPageLifecycleAbort=true;ctrl.abort();}catch(e){}});
+    _readControllers.clear();
+  }
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('pagehide', function(){_abortForegroundWrites();_resetReadLifecycle();});
+    window.addEventListener('pageshow', function (event) { if (event && event.persisted) _resetReadLifecycle(); });
+  }
   function _fetchReadOnce(body, ms) {
-    const key = String(ms) + '\n' + body;
+    const generation = _readLifecycleGeneration;
+    const key = String(generation) + '\n' + String(ms) + '\n' + body;
     if (_readFetchPending.has(key)) return _readFetchPending.get(key);
-    const request = _fetchOnce(body, ms).finally(function () {
+    const request = _fetchOnce(body, ms, true).then(function(json){if(generation!==_readLifecycleGeneration)throw staleReadLifecycleError();return json;}).finally(function () {
       if (_readFetchPending.get(key) === request) _readFetchPending.delete(key);
     });
     _readFetchPending.set(key, request);
     return request;
   }
+  function _fetchForegroundWriteOnce(body, ms){return _fetchOnce(body,ms,false,true);}
 
   var refreshPending = null;
   API.refreshSession = function () {
     if (refreshPending) return refreshPending;
+    var refreshGeneration = _readLifecycleGeneration;
     var beforeToken = storedToken(), before = tokenInfo(beforeToken, true), refreshToken = storedRefreshToken();
     if (!before || before.version !== 'v3' || !refreshToken) return Promise.reject(new Error('invalid_refresh_session'));
-    refreshPending = _fetchOnce(JSON.stringify({ action:'refreshSession', storeId:before.store, refreshToken:refreshToken }), TIMEOUT_MS.fast)
+    var operation = _fetchOnce(JSON.stringify({ action:'refreshSession', storeId:before.store, refreshToken:refreshToken }), TIMEOUT_MS.fast)
       .then(function (json) {
+        if (refreshGeneration !== _readLifecycleGeneration) throw staleReadLifecycleError();
         var after = tokenInfo(json && json.token), nextRefresh = String(json && json.refreshToken || '');
         if (!json || !json.ok || !after || !validRefreshToken(nextRefresh) ||
             before.role !== after.role || before.store !== after.store || before.uid !== after.uid ||
@@ -356,6 +444,7 @@
         localStorage.setItem(AUTH_PREFIX + 'mgmtToken', json.token);
         return json.token;
       }).catch(function (error) {
+        if (error && error.__staleLifecycle) throw error;
         // Hosted Web は複数タブで localStorage のsessionを共有する。別タブが先に
         // refresh tokenをローテーションした場合、このタブの旧refreshは無効になるが、
         // その失敗で新しい共有sessionまで消してはいけない。
@@ -370,17 +459,21 @@
         }
         if (error && error.__authInvalid && currentToken === beforeToken && currentRefresh === refreshToken) API.clearSession();
         throw error;
-      }).finally(function () { refreshPending = null; });
+      });
+    var tracked = operation.finally(function () { if (refreshPending === tracked) refreshPending = null; });
+    refreshPending = tracked;
     return refreshPending;
   };
   API.logoutSession = async function () {
     var token = storedToken(), refreshToken = storedRefreshToken();
     var info = tokenInfo(token, true);
+    // Revoke browser-local credentials before any slow/offline network attempt.
+    API.clearSession();
     try {
       if (token || refreshToken) await _fetchOnce(JSON.stringify({ action:'logoutSession', storeId:info ? info.store : '', token:token, refreshToken:refreshToken }), TIMEOUT_MS.fast);
     } catch (e) {
       // Local logout must complete even while offline; server expiry remains the fallback.
-    } finally { API.clearSession(); }
+    }
   };
 
   // ---- 低レベル POST ----
@@ -397,10 +490,11 @@
     }
     payload = payload || {};
     const readOnly = _isReadOnly(action, payload.fn);
-    const silent = !!payload.__silent || BG_ACTIONS[action] || (action === 'rpc' && BG_RPC[payload.fn]);
+    const silent = readOnly || !!payload.__silent || BG_ACTIONS[action] || (action === 'rpc' && BG_RPC[payload.fn]);
     const timeoutMs = (typeof payload.__timeoutMs === 'number') ? payload.__timeoutMs : (readOnly ? TIMEOUT_MS.read : _FETCH_TIMEOUT_MS);
     const noInternalRetry = !!payload.__noInternalRetry;
-    const send = Object.assign({}, payload); delete send.__silent; delete send.__msg; delete send.__timeoutMs; delete send.__noInternalRetry;
+    const backgroundMutation = payload.__backgroundMutation === true || !!BACKGROUND_MUTATION_ACTIONS[action] || (action === 'rpc' && !!BACKGROUND_MUTATION_RPC[payload.fn]);
+    const send = Object.assign({}, payload); delete send.__silent; delete send.__msg; delete send.__timeoutMs; delete send.__noInternalRetry; delete send.__backgroundMutation;
     if (!send.storeId) {
       if (CFG.STORE_ID) send.storeId = CFG.STORE_ID;
       else if (CFG.PUBLIC_ORDER === true) send.storeId = publicStoreFromQuery();
@@ -431,15 +525,20 @@
     }
     const body = JSON.stringify(Object.assign({ action: action }, send));
     const canRetry = !noInternalRetry && readOnly;
-    const fetchOnce = readOnly ? _fetchReadOnce : _fetchOnce;
+    const retryGeneration = _readLifecycleGeneration;
+    const fetchOnce = readOnly ? _fetchReadOnce : (backgroundMutation ? _fetchOnce : _fetchForegroundWriteOnce);
+    const mutationId = (readOnly || backgroundMutation) ? '' : beginMutation(action === 'rpc' ? ('rpc:' + String(payload.fn || '')) : action);
+    let mutationUncertain = false;
     if (!silent) _load.show(payload.__msg);
     try {
       let json;
       try {
         json = await fetchOnce(body, timeoutMs);
       } catch (e1) {
+        if(e1&&e1.__abandonedWrite)throw e1;
         if (!canRetry) { if (!silent) _errBar.show(); throw e1; }
         await new Promise(function (r) { setTimeout(r, _RETRY_DELAY_MS); });
+        if (retryGeneration !== _readLifecycleGeneration) throw staleReadLifecycleError();
         try {
           json = await fetchOnce(body, timeoutMs);
         } catch (e2) {
@@ -477,7 +576,11 @@
         }
       }
       return json;
+    } catch (error) {
+      if (mutationId && !error.__abandonedWrite && mutationOutcomeUncertain(error)) mutationUncertain = true;
+      throw error;
     } finally {
+      if (mutationId) endMutation(mutationId, mutationUncertain);
       if (!silent) _load.hide();
     }
   };
@@ -536,15 +639,18 @@
   // ---- IndexedDB（送信待ち注文の保管） ----
   function openDB() {
     return new Promise((resolve, reject) => {
-      const r = indexedDB.open(CFG.OFFLINE_DB_NAME, 1);
+      const r = indexedDB.open(CFG.OFFLINE_DB_NAME, 2);
       r.onupgradeneeded = function () {
         const db = r.result;
         if (!db.objectStoreNames.contains('outbox')) {
           db.createObjectStore('outbox', { keyPath: 'id' });
         }
+        if (!db.objectStoreNames.contains('cashSettlements')) db.createObjectStore('cashSettlements', { keyPath:'id' });
+        if (!db.objectStoreNames.contains('checkoutSnapshots')) db.createObjectStore('checkoutSnapshots', { keyPath:'id' });
       };
       r.onsuccess = () => resolve(r.result);
       r.onerror = () => reject(r.error);
+      r.onblocked = () => reject(new Error('offline_storage_upgrade_blocked'));
     });
   }
   function tx(store, mode, fn) {
@@ -552,8 +658,9 @@
       const t = db.transaction(store, mode);
       const s = t.objectStore(store);
       const out = fn(s);
-      t.oncomplete = () => resolve(out && out.result !== undefined ? out.result : out);
-      t.onerror = () => reject(t.error);
+      t.oncomplete = () => { db.close(); resolve(out && out.result !== undefined ? out.result : out); };
+      t.onerror = () => { db.close(); reject(t.error); };
+      t.onabort = () => { db.close(); reject(t.error || new Error('offline_storage_transaction_aborted')); };
     }));
   }
   API.queuePut = (rec) => tx('outbox', 'readwrite', (s) => s.put(rec));
@@ -624,11 +731,12 @@
         return 'rejected:' + rejectReason;
       }   // サーバが拒否（例: Invalid table / coupon_unavailable）。キューせず即エラー通知
       return 'sent';
-    } catch (err) {
-      if (!API.isOrderOfflineError(err)) return 'rejected:' + API.orderSubmitErrorCode(err);
-      await API.queuePut({ id: order.clientId, storeId: queueStoreId, sessionId: queueSessionId, userId: queueUserId, order: order, token: authToken || '', ts: Date.now(), attempts: 0 });
-      return 'queued';
-    }
+      } catch (err) {
+        if (!API.isOrderOfflineError(err)) return 'rejected:' + API.orderSubmitErrorCode(err);
+        await API.queuePut({ id: order.clientId, storeId: queueStoreId, sessionId: queueSessionId, userId: queueUserId, order: order, token: authToken || '', ts: Date.now(), attempts: 0 });
+        API.resolveMutationUncertainty('submitOrder');
+        return 'queued';
+      }
   };
 
   // ---- 送信待ちの再送（online復帰・定期・起動時に呼ぶ） ----
@@ -676,7 +784,7 @@
           continue;
         }
       try {
-        const payload = { order: rec.order, __silent: true, __timeoutMs: TIMEOUT_MS.write };
+          const payload = { order: rec.order, __silent: true, __timeoutMs: TIMEOUT_MS.write, __backgroundMutation:true };
         if (rec.storeId) payload.storeId = rec.storeId;
         if (rec.token) payload.token = rec.token;
         const res = await API.post('submitOrder', payload);
@@ -685,18 +793,20 @@
           rec.attempts = (rec.attempts || 0) + 1;
           rec.blocked = true;
           rec.lastError = 'Locked, please retry';
-          await API.queuePut(rec);
-          continue;
-        }
-        if (d && d !== 'OK') {
+            await API.queuePut(rec);
+            continue;
+          }
+          if(d&&typeof d==='object'&&d.ok===true){await API.queueDel(rec.id);API.resolveMutationUncertainty('submitOrder');sent++;continue;}
+          if (d && d !== 'OK') {
           rec.attempts = (rec.attempts || 0) + 1;
           rec.blocked = true;
           rec.lastError = String((typeof d === 'object' && d.error) ? d.error : d);
           await API.queuePut(rec);
           continue;
-        }
-        await API.queueDel(rec.id);
-        sent++;
+          }
+          await API.queueDel(rec.id);
+          API.resolveMutationUncertainty('submitOrder');
+          sent++;
       } catch (err) {
         if (API.isOrderOfflineError(err)) break; // ネットワーク不通。次の機会に。
         rec.attempts = (rec.attempts || 0) + 1;
@@ -733,6 +843,202 @@
     return { sendable:sendable, attention:attention, attentionReasons:attentionReasons };
   };
 
+  // Cash accepted while offline is a durable local acknowledgement, NEVER an
+  // official checkout or receipt. The server owns the final settlement result.
+  function cashActor() {
+    if (!API.authReady() || CFG.PUBLIC_ORDER === true) return null;
+    var token = storedToken(), info = tokenInfo(token, true);
+    if (!info || !info.store || !info.uid || (CFG.STORE_ID && String(CFG.STORE_ID) !== info.store)) return null;
+    // A v3 session survives access-token rotation. A legacy v2 session may not
+    // replay after its token changes; this is preferable to cross-login replay.
+    var session = info.sessionId || token.slice(-32);
+    return { ownerKey:info.store + '|' + info.uid + '|' + session,
+      storeId:info.store, userId:info.uid, sessionId:info.sessionId };
+  }
+  // Offline permission fallback is limited to a recently server-authorized
+  // admin in this same signed session, before access-token expiry.
+  var offlineAdminGrantKey = AUTH_PREFIX + 'offlineAdminPermissionV1';
+  API.rememberOfflineAdminGrant = function () {
+    var actor = cashActor(), current = tokenInfo(storedToken());
+    if (!actor || !current) return;
+    try { localStorage.setItem(offlineAdminGrantKey, JSON.stringify({
+      ownerKey:actor.ownerKey, grantedAt:Date.now()
+    })); } catch(e) {}
+  };
+  API.hasOfflineAdminGrant = function () {
+    var actor = cashActor(), current = tokenInfo(storedToken());
+    if (!actor || !current) return false;
+    try {
+      var grant = JSON.parse(localStorage.getItem(offlineAdminGrantKey)||'null');
+      return !!grant && grant.ownerKey===actor.ownerKey &&
+        Number(grant.grantedAt)>0 && Date.now()-Number(grant.grantedAt)<=43200000 &&
+        Number(grant.grantedAt)<=Date.now();
+    } catch(e){return false;}
+  };
+  function cashRequestId() {
+    if (typeof crypto === 'undefined') throw new Error('offline_secure_id_unavailable');
+    if (typeof crypto.randomUUID === 'function') return 'offline-bill-' + crypto.randomUUID();
+    if (typeof crypto.getRandomValues !== 'function') throw new Error('offline_secure_id_unavailable');
+    var bytes = crypto.getRandomValues(new Uint8Array(16));
+    return 'offline-bill-' + Array.from(bytes, function(b){return b.toString(16).padStart(2,'0');}).join('');
+  }
+  API.saveOfflineCheckoutSnapshot = function (snapshot) {
+    var actor = cashActor();
+    if (!actor || !snapshot || !Array.isArray(snapshot.orders) || !snapshot.settings) return Promise.reject(new Error('offline_auth_required'));
+    return tx('checkoutSnapshots','readwrite',function(s){
+      return s.put({id:actor.ownerKey,storeId:actor.storeId,userId:actor.userId,
+        savedAt:Date.now(),orders:snapshot.orders,settings:snapshot.settings,
+        partySizes:snapshot.partySizes||{}});
+    });
+  };
+  API.getOfflineCheckoutSnapshot = function () {
+    var actor = cashActor();
+    if (!actor) return Promise.resolve(null);
+    return tx('checkoutSnapshots','readonly',function(s){return s.get(actor.ownerKey);})
+      .then(function(rec){
+        var latest=cashActor();
+        return latest && latest.ownerKey===actor.ownerKey && rec && rec.id===actor.ownerKey ? rec : null;
+      });
+  };
+  API.listOfflineCashSettlements = async function () {
+    var actor = cashActor();
+    if (!actor) return [];
+    var all = await tx('cashSettlements','readonly',function(s){
+      return new Promise(function(resolve,reject){
+        var rows=[],request=s.openCursor();
+        request.onsuccess=function(event){
+          var cursor=event.target.result;
+          if(!cursor){resolve(rows);return;}
+          rows.push(cursor.value);cursor.continue();
+        };
+        request.onerror=function(){reject(request.error);};
+      });
+    });
+    if(!cashActor() || cashActor().ownerKey!==actor.ownerKey)return [];
+    return all.filter(function(rec){return rec.ownerKey===actor.ownerKey;})
+      .sort(function(a,b){return b.createdAt-a.createdAt;});
+  };
+  API.queueOfflineCashSettlement = function (input) {
+    var actor = cashActor();
+    if (!actor) return Promise.reject(new Error('offline_auth_required'));
+    var total = Number(input && input.expectedTotal);
+    var ids = (input && input.orderIds || []).map(String).filter(Boolean);
+    var snapshot = input && input.offlineSourceSnapshot;
+    if (!input || input.method!=='cash' || !input.table || String(input.table).length>40 ||
+        !Number.isFinite(total) || total<0 || total>1e12 ||
+        !ids.length || ids.length>200 || ids.some(function(id){return id.length>120;}) ||
+        new Set(ids).size!==ids.length || !snapshot || !Array.isArray(snapshot.orders) ||
+        snapshot.orders.length!==ids.length ||
+        snapshot.orders.some(function(o){return !o || ids.indexOf(String(o.orderId))<0 || o.status!=='提供済' ||
+          String(o.table)!==String(input.table) || !Number.isFinite(Number(o.subtotal)) || Number(o.subtotal)<0;})) {
+      return Promise.reject(new Error('offline_checkout_invalid_snapshot'));
+    }
+    var record={id:cashRequestId(), ownerKey:actor.ownerKey,
+      storeId:actor.storeId,userId:actor.userId,sessionId:actor.sessionId,
+      table:String(input.table),orderIds:ids.slice().sort(),method:'cash',
+      expectedTotal:total,offlinePaidAt:new Date().toISOString(),
+      offlineSourceSnapshot:{orders:snapshot.orders.map(function(o){return {
+        orderId:String(o.orderId),subtotal:Number(o.subtotal),status:'提供済',table:String(o.table)
+      };})},
+      status:'pending',createdAt:Date.now(),attempts:0};
+    // One readwrite transaction serializes overlapping settlements even across
+    // tabs. Other staff's records are not exposed, but still prevent a second
+    // cash collection for the same store/order IDs.
+    return openDB().then(function(db){return new Promise(function(resolve,reject){
+      var txn=db.transaction('cashSettlements','readwrite'), store=txn.objectStore('cashSettlements');
+      var cursor=store.openCursor(), duplicate=false;
+      cursor.onsuccess=function(event){
+        var c=event.target.result;
+        if(c){
+          var other=c.value;
+          if(other && other.storeId===actor.storeId &&
+             other.orderIds && other.orderIds.some(function(id){return ids.indexOf(String(id))>=0;})){
+            duplicate=true;
+          }
+          c.continue();return;
+        }
+        if(!duplicate) store.add(record);
+      };
+      txn.oncomplete=function(){db.close();duplicate ? reject(new Error('offline_cash_already_recorded')) : resolve(record);};
+      txn.onabort=function(){db.close();reject(txn.error||new Error('offline_cash_storage_failed'));};
+      txn.onerror=function(){};
+    });});
+  };
+  var _cashFlushPromise = null;
+  API.flushOfflineCashSettlements = function () {
+    if (_cashFlushPromise) return _cashFlushPromise;
+    _cashFlushPromise=(async function(){
+      var actor=cashActor(), result={confirmed:0,pending:0,rejected:0,updated:[]};
+      if (!actor) return result;
+      var rows=await API.listOfflineCashSettlements();
+      if(typeof navigator!=='undefined'&&navigator.onLine===false){
+        result.pending=rows.filter(function(r){return r.status==='pending';}).length;
+        result.rejected=rows.filter(function(r){return r.status==='rejected';}).length;
+        return result;
+      }
+      for(var i=rows.length-1;i>=0;i--){
+        var rec=rows[i];
+        if(rec.status!=='pending')continue;
+        var current=cashActor();
+        if(!current || current.ownerKey!==rec.ownerKey)break;
+        try{
+          var response=await API.post('finalizeBill',{
+            storeId:rec.storeId,table:rec.table,method:'cash',orderIds:rec.orderIds,
+            clientRequestId:rec.id,offlinePaidAt:rec.offlinePaidAt,
+            expectedTotal:rec.expectedTotal,offlineSourceSnapshot:rec.offlineSourceSnapshot,
+            discountType:'',discountRuleId:'',discountId:'',discountName:'',
+            discountEligible:0,token:storedToken(),
+            __silent:true,__backgroundMutation:true,__noInternalRetry:true,__timeoutMs:TIMEOUT_MS.write
+          });
+          var data=response&&response.data;
+          if(data && data.error) throw Object.assign(new Error(String(data.error)),{__server:true});
+          if(data && data.demo) throw Object.assign(new Error('demo_checkout_not_recorded'),{__server:true});
+          if(!data || !data.orNo || !Number.isFinite(Number(data.total)))
+            throw new Error('offline_checkout_ack_unverified');
+          if(Math.abs(Number(data.total)-rec.expectedTotal)>0.01){
+            // A server receipt with a mismatched amount still requires manual
+            // reconciliation; never present its number as an approved receipt.
+            rec.status='rejected';rec.lastError='server_total_mismatch_after_ack';
+            rec.receiptNo=String(data.orNo);
+            await tx('cashSettlements','readwrite',function(s){return s.put(rec);});
+            result.rejected++;result.updated.push(rec);continue;
+          }
+          rec.status='confirmed';rec.confirmedAt=Date.now();rec.receiptNo=String(data.orNo);
+          rec.serverTotal=Number(data.total);
+          rec.serverData={orNo:String(data.orNo),total:Number(data.total),
+            subtotal:Number(data.subtotal)||0,vat:Number(data.vat)||0,
+            service:Number(data.service)||0,discountAmount:Number(data.discountAmount)||0,
+            paymentLabel:data.paymentLabel||'',paymentLabelJa:data.paymentLabelJa||'',
+            paymentLabelEn:data.paymentLabelEn||'',receiptPaymentLabel:data.receiptPaymentLabel||'',
+            receiptPaymentLabelJa:data.receiptPaymentLabelJa||'',receiptPaymentLabelEn:data.receiptPaymentLabelEn||''};
+          await tx('cashSettlements','readwrite',function(s){return s.put(rec);});
+          result.confirmed++;
+          result.updated.push(rec);
+        }catch(err){
+          var code=String(err&&err.message||err||'sync_failed');
+          if(err&&err.__server && !/^http_5\d\d$/.test(code)){
+            rec.status='rejected';rec.lastError=code.slice(0,120);
+            await tx('cashSettlements','readwrite',function(s){return s.put(rec);});
+            result.rejected++;result.updated.push(rec);
+            continue;
+          }
+          // Ambiguous timeout/HTTP 5xx/network: retain the same idempotency key.
+          // The server may have committed even if this client missed its reply.
+          break;
+        }
+      }
+      var latest=await API.listOfflineCashSettlements();
+      result.pending=latest.filter(function(r){return r.status==='pending';}).length;
+      result.rejected=latest.filter(function(r){return r.status==='rejected';}).length;
+      return result;
+    })().finally(function(){_cashFlushPromise=null;});
+    return _cashFlushPromise;
+  };
+  if (typeof window!=='undefined') {
+    window.addEventListener('online',function(){
+      API.flushOfflineCashSettlements().catch(function(){});
+    });
+  }
   function bufferToBase64(buffer) {
     var bytes = new Uint8Array(buffer), out = '', chunk = 0x8000;
     for (var i = 0; i < bytes.length; i += chunk) out += String.fromCharCode.apply(null, bytes.subarray(i, Math.min(i + chunk, bytes.length)));
@@ -825,7 +1131,7 @@
     try {
       if (document.referrer) {
         var ref = new URL(document.referrer);
-        if (ref.origin === location.origin && history.length > 1) { history.back(); return; }
+        if (!(CFG && CFG.NATIVE_DISABLE_SERVICE_WORKER === true) && ref.origin === location.origin && history.length > 1) { history.back(); return; }
       }
     } catch (e) {}
     location.replace('./manage.html?permission=denied');
@@ -939,7 +1245,13 @@
       if(permissionLinkMe){finish();return;} API.enforcePagePermission().then(function(ok){if(ok)finish();}).catch(function(){});
     }, true);
   }
-  API.enforcePagePermission = async function () {
+  var permissionGuardGeneration = 0;
+  var permissionGuardPending = null;
+  async function restoredPermissionToken() {
+    var context = await API.pageReady({ auth:'optional' });
+    return context.token || storedToken();
+  }
+  async function enforcePagePermissionGeneration(generation) {
     if (typeof location === 'undefined' || typeof document === 'undefined') return true;
     var page = localPageName();
     var key = PAGE_PERMISSION[page];
@@ -947,10 +1259,17 @@
     var shouldInspectLinks = page === 'overview.html';
     var accountPage = page === 'account.html';
     if (!key && !accountPage && !shouldInspectLinks) return true;
-    var token = storedToken();
+    var token = await restoredPermissionToken();
+    if (generation !== permissionGuardGeneration) return false;
     if (!token) { if (key || accountPage) { hidePermissionGate(); denyPage(); } return false; }
+    if (key==='admin' && typeof navigator!=='undefined' && navigator.onLine===false && API.hasOfflineAdminGrant()) {
+      permissionConfirmedThisDocument=true;
+      hidePermissionGate();
+      return true;
+    }
     try {
       var r = await API.post('checkToken', { token:token, __silent:true, __timeoutMs:6000 });
+      if (generation !== permissionGuardGeneration) return false;
       if (!r || !r.valid || !r.me) { if (key || accountPage) { hidePermissionGate(); denyPage(); } return false; }
       filterPermissionLinks(r.me);
       if (accountPage && r.me.accountOwner !== true) { hidePermissionGate(); denyPage(); return false; }
@@ -958,30 +1277,44 @@
       if (nativePrintOneShot) {
         if (!(allowed.admin === true || allowed.receipts === true || allowed.printers === true || allowed.settings === true)) { hidePermissionGate(); denyPage(); return false; }
       } else if (key && allowed[key] !== true) { hidePermissionGate(); denyPage(); return false; }
+      if (key==='admin' && allowed.admin===true) API.rememberOfflineAdminGrant();
       if (key || accountPage) hidePermissionGate();
       hidePermissionTransientNotice();
       permissionConfirmedThisDocument = true;
       rememberPermissionPage(page);
       return true;
     } catch (e) {
+      if (generation !== permissionGuardGeneration) return false;
       var code = String(e && e.message || e || '');
       if (e && e.__server && /^(?:forbidden|forbidden_page:|forbidden_fn)/.test(code)) { permissionConfirmedThisDocument = false; if (key || accountPage) { hidePermissionGate(); denyPage(); } return false; }
       if (code === 'unauthorized' || code === 'stale_session_response') { permissionConfirmedThisDocument = false; hidePermissionTransientNotice(); if (key || accountPage) hidePermissionGate(); return false; }
       if ((key || accountPage) && permissionConfirmedThisDocument) {
         hidePermissionGate();
-        showPermissionTransientNotice(e, function(){ API.enforcePagePermission().catch(function(){}); });
+        showPermissionTransientNotice(e, function(){ API.enforcePagePermission({force:true}).catch(function(){}); });
       } else if (key || accountPage) {
-        showPermissionGate('network', function(){ API.enforcePagePermission().catch(function(){}); }, e);
+        showPermissionGate('network', function(){ API.enforcePagePermission({force:true}).catch(function(){}); }, e);
       }
       return false;
     }
+  }
+  API.enforcePagePermission = function (options) {
+    var force = !!(options && options.force === true);
+    if (permissionGuardPending && !force) return permissionGuardPending;
+    var generation = ++permissionGuardGeneration;
+    var run = enforcePagePermissionGeneration(generation);
+    var tracked = run.finally(function () { if (permissionGuardPending === tracked) permissionGuardPending = null; });
+    permissionGuardPending = tracked;
+    return tracked;
   };
-  function runPagePermissionGuard() { API.enforcePagePermission().catch(function () {}); }
+  function runPagePermissionGuard(force) { API.enforcePagePermission(force ? {force:true} : null).catch(function () {}); }
   if (typeof document !== 'undefined') {
     bindOverviewPermissionNavigation();
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ showPermissionNotice(); runPagePermissionGuard(); }, { once:true });
     else { showPermissionNotice(); runPagePermissionGuard(); }
-    window.addEventListener('pageshow', function (event) { showPermissionNotice(); if (event.persisted) runPagePermissionGuard(); });
+    window.addEventListener('pageshow', function (event) { showPermissionNotice(); if (event.persisted) runPagePermissionGuard(true); });
+    document.addEventListener('visibilitychange', function () {
+      if (!document.visibilityState || document.visibilityState === 'visible') runPagePermissionGuard(true);
+    });
   }
 
 

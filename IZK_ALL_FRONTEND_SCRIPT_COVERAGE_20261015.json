@@ -1,0 +1,690 @@
+{
+  "schema": "IZK-shipped-frontend-js-v1",
+  "scope": "syntax/static source only",
+  "summary": {
+    "total": 67,
+    "pass": 67,
+    "fail": 0,
+    "bySurface": {
+      "native": 26,
+      "web-production": 16,
+      "web-test": 16,
+      "public-order": 2,
+      "public-takeout": 2,
+      "public-test": 5
+    }
+  },
+  "files": [
+    {
+      "surface": "public-order",
+      "path": "docs/order/config.js",
+      "sha256": "3f3411c08a9f75ff57dd713ec5902c64344b6103b40ae3533c636102219354d9",
+      "bytes": 608,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "public-order",
+      "path": "docs/order/sw.js",
+      "sha256": "559d0f508351f22f1fd0377c21988c6b55df199274c992c1143a1589bd53bb31",
+      "bytes": 1319,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "public-takeout",
+      "path": "docs/takeout/config.js",
+      "sha256": "08d018096f18316b3359e6f4a003a7ac800a22e00fb1f7ed5e7478f9979f6a85",
+      "bytes": 614,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "public-takeout",
+      "path": "docs/takeout/sw.js",
+      "sha256": "685bc27625cb7de90d763e1df5307560a348ac10041644a0b7e07f900f8cf341",
+      "bytes": 1237,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "public-test",
+      "path": "docs/test/date-display.js",
+      "sha256": "c0c1f7963d81bbf0818ab83da0cc01d519975b9943e359acf9c7174d894581a7",
+      "bytes": 6686,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "public-test",
+      "path": "docs/test/order/config.js",
+      "sha256": "4097b2fd39cb085ec634dac17fae5421d26d4f96502a14481eb8b583e2aa9237",
+      "bytes": 588,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "public-test",
+      "path": "docs/test/order/sw.js",
+      "sha256": "a523de76ddac6d9a18fbce3a5643d0b21dc0f43a5ea878d77d594e04a969f57b",
+      "bytes": 1325,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "public-test",
+      "path": "docs/test/takeout/config.js",
+      "sha256": "f3d14b36f878a63635753adf606505400d3ae561f21156e69bc460c4eebd961d",
+      "bytes": 594,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "public-test",
+      "path": "docs/test/takeout/sw.js",
+      "sha256": "6caec898633de12356107a0b10e714d919f39c1c501805154b4a624acf980843",
+      "bytes": 1234,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/ai-credit-hub.js",
+      "sha256": "3ac1d88c84a157039ebf0d2929d4565d1d89c7871fbc86dd9d2e3d8ae4129143",
+      "bytes": 11805,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/ai-credit-ui.js",
+      "sha256": "fdc5fc050b6c0a0c4ac1c44b211f58c29d7f09f8e942f5dec1f5426e9033fef6",
+      "bytes": 5518,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/ai-image-quality.js",
+      "sha256": "d88d6858aad42dc16d05b206e65add016eb76aeb7df866104b5ac31905dcd7cf",
+      "bytes": 3275,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/api.js",
+      "sha256": "5ae7e3939d4277059d13bf8f87ee7bd4c05866a222dd1303f9ca48ca42e47879",
+      "bytes": 99359,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/app.js",
+      "sha256": "deee5235163ad6ae517ece4c0e7ab924f4eadb941b539d3a80a56ab4e33b5d6e",
+      "bytes": 70849,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/config.js",
+      "sha256": "89bad10aba317a00d78a66c439930de2ddde7829eb4b863d09fb09db7b010b64",
+      "bytes": 2328,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/confirm.js",
+      "sha256": "18c0df9b3896cfcaf40e2b9c3d1ccde3dcc65122d92f8eb217095edb7cb1a61d",
+      "bytes": 7021,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/date-display.js",
+      "sha256": "c0c1f7963d81bbf0818ab83da0cc01d519975b9943e359acf9c7174d894581a7",
+      "bytes": 6686,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/external-browser.js",
+      "sha256": "6e9deea7fbba4ecdbf1c344991e888b9f7c1777d7c54c8245731fa9e9451546e",
+      "bytes": 2470,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/header.js",
+      "sha256": "5b268e032c911aba5684b5c04ea4df33a3616937bf720d1ef08722a380590409",
+      "bytes": 37859,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/help.js",
+      "sha256": "8d705e81941e22d4392bd43f9aeeffbbc7fee287cd4d353e9221db212b65f630",
+      "bytes": 8534,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/i18n.js",
+      "sha256": "9c6c11824a37b7732432f74a6ab60ac13f3abe52e1e64cd8b69cb74492be43ee",
+      "bytes": 10814,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/legal.js",
+      "sha256": "559cd2bda3d654157136f78736e6553c8b6f959468885d8ae640f17b8df0fd1e",
+      "bytes": 1303,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/native-file-export.js",
+      "sha256": "3758c507692e490e2b33675581e7ebea6881231e13e38e7d430b29ea62338cfb",
+      "bytes": 4595,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/print-renderer.js",
+      "sha256": "f71d9d983e5f42a5597d46d03e312aa68cb2d412ea8d268fcfb89dd967c4953e",
+      "bytes": 5389,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/sw.js",
+      "sha256": "21929f8e9af1e62f6621f4745ca808bd7b8cad538546215fd01fe6742c8cae3d",
+      "bytes": 17070,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/ai-credit-hub.js",
+      "sha256": "3ac1d88c84a157039ebf0d2929d4565d1d89c7871fbc86dd9d2e3d8ae4129143",
+      "bytes": 11805,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/ai-credit-ui.js",
+      "sha256": "fdc5fc050b6c0a0c4ac1c44b211f58c29d7f09f8e942f5dec1f5426e9033fef6",
+      "bytes": 5518,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/ai-image-quality.js",
+      "sha256": "d88d6858aad42dc16d05b206e65add016eb76aeb7df866104b5ac31905dcd7cf",
+      "bytes": 3275,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/api.js",
+      "sha256": "5ae7e3939d4277059d13bf8f87ee7bd4c05866a222dd1303f9ca48ca42e47879",
+      "bytes": 99359,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/app.js",
+      "sha256": "deee5235163ad6ae517ece4c0e7ab924f4eadb941b539d3a80a56ab4e33b5d6e",
+      "bytes": 70849,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/config.js",
+      "sha256": "0e4f9f847d2d2f2b43fa6c948859cac44316e12d60d3f061bca1485ba7bacb2f",
+      "bytes": 1554,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/confirm.js",
+      "sha256": "18c0df9b3896cfcaf40e2b9c3d1ccde3dcc65122d92f8eb217095edb7cb1a61d",
+      "bytes": 7021,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/date-display.js",
+      "sha256": "c0c1f7963d81bbf0818ab83da0cc01d519975b9943e359acf9c7174d894581a7",
+      "bytes": 6686,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/external-browser.js",
+      "sha256": "6e9deea7fbba4ecdbf1c344991e888b9f7c1777d7c54c8245731fa9e9451546e",
+      "bytes": 2470,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/header.js",
+      "sha256": "5b268e032c911aba5684b5c04ea4df33a3616937bf720d1ef08722a380590409",
+      "bytes": 37859,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/help.js",
+      "sha256": "8d705e81941e22d4392bd43f9aeeffbbc7fee287cd4d353e9221db212b65f630",
+      "bytes": 8534,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/i18n.js",
+      "sha256": "9c6c11824a37b7732432f74a6ab60ac13f3abe52e1e64cd8b69cb74492be43ee",
+      "bytes": 10814,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/legal.js",
+      "sha256": "559cd2bda3d654157136f78736e6553c8b6f959468885d8ae640f17b8df0fd1e",
+      "bytes": 1303,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/native-file-export.js",
+      "sha256": "3758c507692e490e2b33675581e7ebea6881231e13e38e7d430b29ea62338cfb",
+      "bytes": 4595,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/print-renderer.js",
+      "sha256": "f71d9d983e5f42a5597d46d03e312aa68cb2d412ea8d268fcfb89dd967c4953e",
+      "bytes": 5389,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/sw.js",
+      "sha256": "d0c2abe775c5b30e463d612839e60ca1c82e1a81b1a3d982cab53fde4846e844",
+      "bytes": 16472,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/ai-credit-hub.js",
+      "sha256": "3ac1d88c84a157039ebf0d2929d4565d1d89c7871fbc86dd9d2e3d8ae4129143",
+      "bytes": 11805,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/ai-credit-ui.js",
+      "sha256": "fdc5fc050b6c0a0c4ac1c44b211f58c29d7f09f8e942f5dec1f5426e9033fef6",
+      "bytes": 5518,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/ai-image-quality.js",
+      "sha256": "d88d6858aad42dc16d05b206e65add016eb76aeb7df866104b5ac31905dcd7cf",
+      "bytes": 3275,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/api.js",
+      "sha256": "9c13b0bd46cc4baa02a18754fc670a525b0198226632c56d446b6e5a33f47c33",
+      "bytes": 124205,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/app.js",
+      "sha256": "4c6508b14846c459dc6405936f0799969c8bda74b4320aa88ebac2a1d0d21e90",
+      "bytes": 79605,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/billing-credit-recovery.js",
+      "sha256": "67e16ed6fe0864c9bd932ecb768c50872a161fc52425891853ee70e1384b9615",
+      "bytes": 3061,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/billing-native.js",
+      "sha256": "78598b173ab92563e449a5d42c594162df5746afba5b9839361c03e43c3de81a",
+      "bytes": 51510,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/commission-app.js",
+      "sha256": "81f6e9463e93a072144e1d4bc42d0a299697595fb07e0cf509ea5882127b6af6",
+      "bytes": 19868,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/config.js",
+      "sha256": "88ca9e4de9515e8d3a21b1bc7eac5ea132f74b16cafc2762cbe90edde3e47f37",
+      "bytes": 9795,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/confirm.js",
+      "sha256": "c6242a0286cca4e3d474fdadf6759b467a241381e65450ee20c636c9edbde51f",
+      "bytes": 7171,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/date-display.js",
+      "sha256": "c0c1f7963d81bbf0818ab83da0cc01d519975b9943e359acf9c7174d894581a7",
+      "bytes": 6686,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/external-browser.js",
+      "sha256": "1d7d134d3fdd7f38b1dd3a675b7475d7dc9de7c89163a16287f3f61dc5503411",
+      "bytes": 2638,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/header.js",
+      "sha256": "d31ce3dcc8e093345453a642994740bbed08b2c38e2301fb40ea74584e6fc887",
+      "bytes": 42111,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/help.js",
+      "sha256": "cac7d32ae3d993a23c486647735f89c65d95cd8a456e2e750456c2671eff9592",
+      "bytes": 7153,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/i18n.js",
+      "sha256": "a344c7748717d89400aadfaacd65440320ea60bf6b741cc366e558f4f6fca746",
+      "bytes": 11419,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/legal.js",
+      "sha256": "90b3ac5f24fdc0216eedd431d9424b3496ca31bea38f6aa83bbb50c66d33fec2",
+      "bytes": 2545,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/menu-ai-bulk.js",
+      "sha256": "e2dbedce5b2a3129eced1f0ac6faf180e02bdf8efb6bd0b9617cd5d86fa73b89",
+      "bytes": 6272,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/menu-ai-import.js",
+      "sha256": "b11dc08ae2879cfbf708db54b8d4946812344bcf09ed478a0fe00f921efc0280",
+      "bytes": 27763,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/menu-ai-regions.js",
+      "sha256": "2a8ec504d276f475b659bae0a4d749720032caf3835eef2053108ab8d6757cc4",
+      "bytes": 4958,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/menu-ai-review.js",
+      "sha256": "0f5f0e5eee6a3198684b7ac38915131136c9d68eb6bc56e373d47dab3aa0e808",
+      "bytes": 8381,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/native-auth.js",
+      "sha256": "2bb1d4e83b0fec12f5028f6c7f14db6f41d6b663b3638ab3f4e9415b36256a92",
+      "bytes": 15264,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/native-file-export.js",
+      "sha256": "96219c6f0f74c7739b8043616ee6617347a53b1211e0ea5c9bc64368fd8476e0",
+      "bytes": 5691,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/native-print-ui.js",
+      "sha256": "1961876899e5ff649e45e92301fdc66dbe09de39d4924cfec68922286f044dde",
+      "bytes": 23520,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/print-renderer.js",
+      "sha256": "f71d9d983e5f42a5597d46d03e312aa68cb2d412ea8d268fcfb89dd967c4953e",
+      "bytes": 5389,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/remember-login.js",
+      "sha256": "2738525eed0258758f283edc37df1eba783ca0ca2ce4debd39f176feb4094f5c",
+      "bytes": 7755,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/sw.js",
+      "sha256": "e0f7c9953554e807d963abad14b40fdb5f8b5d0ac97dfdf352df7d6f85908d0e",
+      "bytes": 22503,
+      "syntax": "PASS",
+      "error": null,
+      "runtime": "NOT_TESTED",
+      "browser": "NOT_TESTED"
+    }
+  ],
+  "caveat": "Passing node --check never proves browser APIs, DOM behavior, CSP, Bluetooth, login or physical 720px UI."
+}

@@ -1,0 +1,3278 @@
+{
+  "generatedBy": "scripts/izk-ut-073-page-coverage.mjs",
+  "scope": "all enumerated HTML paths, not runtime navigation routes",
+  "counts": {
+    "native": 44,
+    "web-production": 38,
+    "web-test": 38,
+    "public-production": 0,
+    "public-order": 1,
+    "public-takeout": 1,
+    "public-test": 3,
+    "public-root": 1
+  },
+  "totals": {
+    "syntaxErrors": 0,
+    "handlerSyntaxErrors": 0,
+    "unresolvedHandlers": 0,
+    "missingLocalTargets": 0,
+    "unequalWebPairs": 0
+  },
+  "webParity": [
+    {
+      "production": "docs/yuwaku/account.html",
+      "test": "docs/yuwaku/test/account.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/admin.html",
+      "test": "docs/yuwaku/test/admin.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/attendance.html",
+      "test": "docs/yuwaku/test/attendance.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/audit.html",
+      "test": "docs/yuwaku/test/audit.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/backup.html",
+      "test": "docs/yuwaku/test/backup.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/birthdays.html",
+      "test": "docs/yuwaku/test/birthdays.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/bridge.html",
+      "test": "docs/yuwaku/test/bridge.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/clock.html",
+      "test": "docs/yuwaku/test/clock.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/coupons.html",
+      "test": "docs/yuwaku/test/coupons.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/dashboard.html",
+      "test": "docs/yuwaku/test/dashboard.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/data_admin.html",
+      "test": "docs/yuwaku/test/data_admin.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/drink_inv.html",
+      "test": "docs/yuwaku/test/drink_inv.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/expenses.html",
+      "test": "docs/yuwaku/test/expenses.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/feedback.html",
+      "test": "docs/yuwaku/test/feedback.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/index.html",
+      "test": "docs/yuwaku/test/index.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/inventory.html",
+      "test": "docs/yuwaku/test/inventory.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/kds.html",
+      "test": "docs/yuwaku/test/kds.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/manage.html",
+      "test": "docs/yuwaku/test/manage.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/members.html",
+      "test": "docs/yuwaku/test/members.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/menu_editor.html",
+      "test": "docs/yuwaku/test/menu_editor.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/moves.html",
+      "test": "docs/yuwaku/test/moves.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/order_items.html",
+      "test": "docs/yuwaku/test/order_items.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/overview.html",
+      "test": "docs/yuwaku/test/overview.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/printers.html",
+      "test": "docs/yuwaku/test/printers.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/profit_sim.html",
+      "test": "docs/yuwaku/test/profit_sim.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/profit.html",
+      "test": "docs/yuwaku/test/profit.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/purchasing.html",
+      "test": "docs/yuwaku/test/purchasing.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/receipts.html",
+      "test": "docs/yuwaku/test/receipts.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/recipe.html",
+      "test": "docs/yuwaku/test/recipe.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/register.html",
+      "test": "docs/yuwaku/test/register.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/requests.html",
+      "test": "docs/yuwaku/test/requests.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/reservations.html",
+      "test": "docs/yuwaku/test/reservations.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/reserve.html",
+      "test": "docs/yuwaku/test/reserve.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/sales.html",
+      "test": "docs/yuwaku/test/sales.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/settings.html",
+      "test": "docs/yuwaku/test/settings.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/takeout.html",
+      "test": "docs/yuwaku/test/takeout.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/todo.html",
+      "test": "docs/yuwaku/test/todo.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    },
+    {
+      "production": "docs/yuwaku/users.html",
+      "test": "docs/yuwaku/test/users.html",
+      "byteEqual": true,
+      "expectedEnvironmentDivergence": "UNKNOWN_REQUIRES_SEMANTIC_REVIEW"
+    }
+  ],
+  "caveat": "Static heuristics only; handler unresolved and links need manual adjudication; prod/test byte differences can be intentional; no simulated or physical 720px PASS",
+  "pages": [
+    {
+      "surface": "public-order",
+      "path": "docs/order/index.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": false
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 1,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "ea711c56beabe85a6b4d8c789296182c323719ced2701ca64316fbe7eebf2ff5",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "public-root",
+      "path": "docs/reserve.html",
+      "structure": {
+        "scroll": false,
+        "flex": true,
+        "grid": true,
+        "wrap": true,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 3,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "fc317492daaf366f4fbda980c33b9646093a55470f38a52f287b9a1da6b934f3",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "public-takeout",
+      "path": "docs/takeout/index.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 6,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "da6315b534b1fea3d770b76b80f115fbee34c477320af4b532fbb4aa30f181e6",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "public-test",
+      "path": "docs/test/order/index.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": false
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 1,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "e121778156a286f7e6406064fac8c031634f383491b7883d653cde4e81a53507",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "public-test",
+      "path": "docs/test/reserve.html",
+      "structure": {
+        "scroll": false,
+        "flex": true,
+        "grid": true,
+        "wrap": true,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 3,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "a43c711b19242bc20fcef71c02841a642084338a685ff96da62c3f3c533d938c",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "public-test",
+      "path": "docs/test/takeout/index.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 6,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "c75ce3b6b4d66ea27e3ec1d7c27660e67f2a79817e285d53ee1d094a0cc3479d",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/account.html",
+      "structure": {
+        "scroll": false,
+        "flex": false,
+        "grid": false,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": false
+      },
+      "audit": {
+        "inlineScripts": 5,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "7b1f3fe8443472602194783dc7194771692bb7009b41efea7c4b85454fd4ec45",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/admin.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "51b6ff69fe4325e6561c8d5045b4c1d9010a960e9b2870fdbf3f57f03d8b38ff",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/attendance.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "0f40c2cc06050be247a8c43392bb8b6b248e89c7189430cb57139c7bcb8e4044",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/audit.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "b6dbd7b83415c6506db71a7405035a1bbf5805baa039356833253f2c1d57bf52",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/backup.html",
+      "structure": {
+        "scroll": false,
+        "flex": true,
+        "grid": false,
+        "wrap": true,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 9,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "3792f6640ffaf8fd2a1e234d53040690ee3424bf1a74b441026309a928aefe15",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/birthdays.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "3adea8d947332e93279ea3b11cc8562bd31e87b448159b6a4a38cf2b8469a0e6",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/bridge.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "b4725996062a45e505cdd300577556aad4ad713bd67d35b14025ea487c549d5f",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/clock.html",
+      "structure": {
+        "scroll": false,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "01dc5cbd7d7577f8d6d55e896dc49cbd47b93effc32f713395c649a29348b22f",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/coupons.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 9,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "7fd73928364de9c95e13c8702016621b67882286f2184e5d266631e9217d8d25",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/dashboard.html",
+      "structure": {
+        "scroll": false,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 6,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "ce25366e526c5edd9717b7d8080e126e87f3d38b9a7a74cfaaac3b72d917e489",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/data_admin.html",
+      "structure": {
+        "scroll": false,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 11,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "a68624255bb7aa93383655b28f1cf3ffe8553738e5d13c5023d3c78a2b8cb574",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/drink_inv.html",
+      "structure": {
+        "scroll": false,
+        "flex": false,
+        "grid": false,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": false
+      },
+      "audit": {
+        "inlineScripts": 1,
+        "compiled": 1,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "a977eb79103d7ca1e9dce60b6bb4f672ab2b410713c282cbb29b5e1f946f46a3",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/expenses.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 9,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "40f1359c63142d2f0ead920c3626c923e9ddc3146a25c0b7e6abae43546ca1af",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/feedback.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "bd493a816e68ce6d36311ec091b73887e0ce26aa88ca1978464ffb92be567118",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/index.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": false
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 1,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "4cf1d8578ee66a7cd60a6ec14008916aab4586a9c280ccbc445c263f0f165b3e",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/inventory.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "d88d5b33b2bc99410b433b8d35a770e74c1af69c0380b026856a7bc289a27519",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/kds.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 6,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "a40d9a1fbeea53e8cda3198529faf6b2425414ed5f9e0e8747f5b6fbe72ac73a",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "KDS_FLEX_LONG_LABEL_LOCAL_FIXED_SOURCE_ONLY"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/manage.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 4,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "662719f285fad1eefa8a0f53e5cf2061fc9cead5df7a88253631a75556cf9356",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/members.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "848b6f3f7560fa72d71a1a27e02d7e32c5a5931bf9c4e252eceb08cdc2532700",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/menu_editor.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 9,
+        "compiled": 4,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "4580f11020c9fd343e0d2de8da2df8591e44681b8d5592b3c96bf7dc625bfb63",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/moves.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "811cba41e6881adc0e814b0dd0e35a41d276b8d997eb80196d4f9e1159e3a9a0",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/order_items.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "e6cf81652b13d6e1fbca0c235f7efed7137446b54738a29ff8477550522330ae",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/overview.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": false
+      },
+      "audit": {
+        "inlineScripts": 6,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "b3a6933a707ca567534e1cda5809e98fb031a0af6e8086f36ceb7bc0a2f0570e",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/printers.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "372c71fb4fc94fc5f4face66fe6b638a5578a503e5d2cb824d8db376294b71c7",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/profit_sim.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "a021416a31664df6dcfcf40bcb44fa81777046b190663810abf641eb4c977ded",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/profit.html",
+      "structure": {
+        "scroll": false,
+        "flex": true,
+        "grid": false,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "3f66c17b785bedbfc46776e43482e85376053a26abedadb91107997791e2ab64",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/purchasing.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "2b62bb2373480aff45e12870afdda5f6791b7b914ae756868d1e4cc5585a40ee",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/receipts.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 9,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "3c4718b588320501b61e30f54355dca50145d0964cb4708e03555cdc869fded3",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/recipe.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 6,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "97429eb4298ae095459d582ba4c8b6bfed904fafaaf323c4d9d1a719f4c9dadf",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/register.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "aeeb3b266c9ff098c17293a36c43827e6d67e500ac809aa739c6c242b3b0ed5a",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/requests.html",
+      "structure": {
+        "scroll": false,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "a66ddb36679cf590495d5d34df4970d862b3571b3cc3148296da9e0c3120a9f3",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/reservations.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "6af3e9ce7c5450f4f78641b8251fa0e9816148a1b4eb0060e34d57f91a95d7b8",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/reserve.html",
+      "structure": {
+        "scroll": false,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 6,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "6d4332f9fd169abc7115bd34b587b1edb155b0f13175b88c26641c37d8f75363",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/sales.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "a2c427bc366aa0fa95c03b7fef6c4d7aef5eb9ead6c8b28f406dccaa6d5f3455",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/settings.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 11,
+        "compiled": 4,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "55d0e1f501ff3482b7c27882ba55be5d7f0b54701001975c4039c4ed8176b711",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/takeout.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "b7d378be840f8f4a17ab58f99a3fa5ac8850b5d35703f9591ba8e091b8ecd64f",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/account.html",
+      "structure": {
+        "scroll": false,
+        "flex": false,
+        "grid": false,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": false
+      },
+      "audit": {
+        "inlineScripts": 5,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "7b1f3fe8443472602194783dc7194771692bb7009b41efea7c4b85454fd4ec45",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/admin.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "51b6ff69fe4325e6561c8d5045b4c1d9010a960e9b2870fdbf3f57f03d8b38ff",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/attendance.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "0f40c2cc06050be247a8c43392bb8b6b248e89c7189430cb57139c7bcb8e4044",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/audit.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "b6dbd7b83415c6506db71a7405035a1bbf5805baa039356833253f2c1d57bf52",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/backup.html",
+      "structure": {
+        "scroll": false,
+        "flex": true,
+        "grid": false,
+        "wrap": true,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 9,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "3792f6640ffaf8fd2a1e234d53040690ee3424bf1a74b441026309a928aefe15",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/birthdays.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "3adea8d947332e93279ea3b11cc8562bd31e87b448159b6a4a38cf2b8469a0e6",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/bridge.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "b4725996062a45e505cdd300577556aad4ad713bd67d35b14025ea487c549d5f",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/clock.html",
+      "structure": {
+        "scroll": false,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "01dc5cbd7d7577f8d6d55e896dc49cbd47b93effc32f713395c649a29348b22f",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/coupons.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 9,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "7fd73928364de9c95e13c8702016621b67882286f2184e5d266631e9217d8d25",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/dashboard.html",
+      "structure": {
+        "scroll": false,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 6,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "ce25366e526c5edd9717b7d8080e126e87f3d38b9a7a74cfaaac3b72d917e489",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/data_admin.html",
+      "structure": {
+        "scroll": false,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 11,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "a68624255bb7aa93383655b28f1cf3ffe8553738e5d13c5023d3c78a2b8cb574",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/drink_inv.html",
+      "structure": {
+        "scroll": false,
+        "flex": false,
+        "grid": false,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": false
+      },
+      "audit": {
+        "inlineScripts": 1,
+        "compiled": 1,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "a977eb79103d7ca1e9dce60b6bb4f672ab2b410713c282cbb29b5e1f946f46a3",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/expenses.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 9,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "40f1359c63142d2f0ead920c3626c923e9ddc3146a25c0b7e6abae43546ca1af",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/feedback.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "bd493a816e68ce6d36311ec091b73887e0ce26aa88ca1978464ffb92be567118",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/index.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": false
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 1,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "4cf1d8578ee66a7cd60a6ec14008916aab4586a9c280ccbc445c263f0f165b3e",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/inventory.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "d88d5b33b2bc99410b433b8d35a770e74c1af69c0380b026856a7bc289a27519",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/kds.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 6,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "a40d9a1fbeea53e8cda3198529faf6b2425414ed5f9e0e8747f5b6fbe72ac73a",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "KDS_FLEX_LONG_LABEL_LOCAL_FIXED_SOURCE_ONLY"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/manage.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 4,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "662719f285fad1eefa8a0f53e5cf2061fc9cead5df7a88253631a75556cf9356",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/members.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "848b6f3f7560fa72d71a1a27e02d7e32c5a5931bf9c4e252eceb08cdc2532700",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/menu_editor.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 9,
+        "compiled": 4,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "4580f11020c9fd343e0d2de8da2df8591e44681b8d5592b3c96bf7dc625bfb63",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/moves.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "811cba41e6881adc0e814b0dd0e35a41d276b8d997eb80196d4f9e1159e3a9a0",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/order_items.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "e6cf81652b13d6e1fbca0c235f7efed7137446b54738a29ff8477550522330ae",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/overview.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": false
+      },
+      "audit": {
+        "inlineScripts": 6,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "b3a6933a707ca567534e1cda5809e98fb031a0af6e8086f36ceb7bc0a2f0570e",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/printers.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "372c71fb4fc94fc5f4face66fe6b638a5578a503e5d2cb824d8db376294b71c7",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/profit_sim.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "a021416a31664df6dcfcf40bcb44fa81777046b190663810abf641eb4c977ded",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/profit.html",
+      "structure": {
+        "scroll": false,
+        "flex": true,
+        "grid": false,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "3f66c17b785bedbfc46776e43482e85376053a26abedadb91107997791e2ab64",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/purchasing.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "2b62bb2373480aff45e12870afdda5f6791b7b914ae756868d1e4cc5585a40ee",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/receipts.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 9,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "3c4718b588320501b61e30f54355dca50145d0964cb4708e03555cdc869fded3",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/recipe.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 6,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "97429eb4298ae095459d582ba4c8b6bfed904fafaaf323c4d9d1a719f4c9dadf",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/register.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "aeeb3b266c9ff098c17293a36c43827e6d67e500ac809aa739c6c242b3b0ed5a",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/requests.html",
+      "structure": {
+        "scroll": false,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "a66ddb36679cf590495d5d34df4970d862b3571b3cc3148296da9e0c3120a9f3",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/reservations.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "6af3e9ce7c5450f4f78641b8251fa0e9816148a1b4eb0060e34d57f91a95d7b8",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/reserve.html",
+      "structure": {
+        "scroll": false,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 6,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "6d4332f9fd169abc7115bd34b587b1edb155b0f13175b88c26641c37d8f75363",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/sales.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "a2c427bc366aa0fa95c03b7fef6c4d7aef5eb9ead6c8b28f406dccaa6d5f3455",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/settings.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 11,
+        "compiled": 4,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "55d0e1f501ff3482b7c27882ba55be5d7f0b54701001975c4039c4ed8176b711",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/takeout.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "b7d378be840f8f4a17ab58f99a3fa5ac8850b5d35703f9591ba8e091b8ecd64f",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/todo.html",
+      "structure": {
+        "scroll": false,
+        "flex": true,
+        "grid": true,
+        "wrap": true,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "4723935b8ecc15e705b4f9178b2d142a4d3e128a8ea317fa3a1ee8dd9de5a0c6",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-test",
+      "path": "docs/yuwaku/test/users.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "a7676cf73d10d42c8bf39cf4594ad0cc2af505bf60a00434fb61bfcb239a5e35",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/todo.html",
+      "structure": {
+        "scroll": false,
+        "flex": true,
+        "grid": true,
+        "wrap": true,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "4723935b8ecc15e705b4f9178b2d142a4d3e128a8ea317fa3a1ee8dd9de5a0c6",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "web-production",
+      "path": "docs/yuwaku/users.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "a7676cf73d10d42c8bf39cf4594ad0cc2af505bf60a00434fb61bfcb239a5e35",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/account.html",
+      "structure": {
+        "scroll": false,
+        "flex": false,
+        "grid": false,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": false
+      },
+      "audit": {
+        "inlineScripts": 6,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "00713d9b952d5ed7a29667870f07fa5cba6927b4d65af1357006f4e65fcefb9a",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/admin.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 11,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "077b9dc33fb671cd322ca3d886727d9d3259360d0036847606f82a0c8fab2f81",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/attendance.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "b26a80de437c9b8738a547b61e585ff624707dc562cc93ee916d2b9b7b3a000b",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/audit.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "b8715963d065e8319bea3c0ca04dea0c2ce29116036a5333486205f3b3c4e902",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/backup.html",
+      "structure": {
+        "scroll": false,
+        "flex": true,
+        "grid": false,
+        "wrap": true,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 10,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "9fd6960ef8d961e42754e8b5ba4fced79f7065abfc4c9288861c9c441fb78d90",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/birthdays.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 9,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "722ae9348d06f0e226267ba4d020a8048abd1d33362e5765d715d8cd75503faa",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/bridge.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "400045fdaeb19d53bd613da9140dca21ecff4cdf95d08e6006c41cba62201c2d",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/clock.html",
+      "structure": {
+        "scroll": false,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "44c4d1f6fb7463e16cb0ba3c518ac0a61a23a8ff68d96c430651d5bf52169a8c",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/commission.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": false
+      },
+      "audit": {
+        "inlineScripts": 9,
+        "compiled": 1,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "b736d8bf353e4a5d9d9a285d5e54318f535ebe10de26ce358ce029c0675ff25b",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/coupons.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 10,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "6739c077f85fe60e5270f66c8924a02186cb783f0fd53d546a1f23affed8d8f7",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/dashboard.html",
+      "structure": {
+        "scroll": false,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "a89a913c4c91c69207b517344b0cdf039a7dc3759c5e424f7a90f1c418a3d423",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/data_admin.html",
+      "structure": {
+        "scroll": false,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 12,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "bb4bb0986ebc37fab38dfbdecb3a3a3e26f3ea71a502d580744dbccd605b4e8d",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/drink_inv.html",
+      "structure": {
+        "scroll": false,
+        "flex": false,
+        "grid": false,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": false
+      },
+      "audit": {
+        "inlineScripts": 1,
+        "compiled": 1,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "3df1e4a7d837bb5938cb2884c75e18f10e0e597863dc6f4edc60e4ea73f140d2",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/expenses.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 10,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "7ed694e5533dbf6e3672bff5651586646e1efc99c14667224b62e7b0d1635392",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/feedback.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "820511c966f2e10dd11749f635664324f4e9a2ca1b2ee6240cfbb312e13574ff",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/index.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 12,
+        "compiled": 4,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "4585e1a28e0a07d9fc977db1eba1207bff70cee9314ac4548676b9637a85fad5",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/inventory.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 9,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "b433ef31b142ada434a724767eb8fb3e2c03b7b7ea7ac297f0f295466f28c7b8",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/kds.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 10,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "6db8d2abe023a60416482a1d8844fecbb7fb973132b879458ae1cc928dc9d771",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "KDS_FLEX_LONG_LABEL_LOCAL_FIXED_SOURCE_ONLY"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/manage.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 12,
+        "compiled": 4,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "4585e1a28e0a07d9fc977db1eba1207bff70cee9314ac4548676b9637a85fad5",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/members.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "e72cef29d74bbe50a87b4b867a045ed6adf17ed5f094d377d894bc73e308ced2",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/menu_editor.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 12,
+        "compiled": 4,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "a0eaa9ea77c2cf9f2e4f864c34f96e62ded12719cab4d13aaed888cd29bfea3a",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/moves.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "38ad2e1df49cb4a9004249a2fbb5d38944965b4e644d20cb0da87ac79172fd97",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/order_items.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 9,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "7d1e64f9c6b6811d8d0b1383505f05e04250c9b599e06f36cb41940b3f5338a8",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/order-entry.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": false
+      },
+      "audit": {
+        "inlineScripts": 11,
+        "compiled": 1,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "bedd2bda27ec67e8900e2464a84df51567e0def4d7f435cf0bf96b7b6a81964c",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/overview.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": false
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "2b705a2c4221ee629736265cc3216456395b3e3ef4c9d92166634724f46ec8f1",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/printers.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 11,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "b28cc93615ea0a8d0aab0f7ebadd5e715241af5e12fd21ed8034df9e419452fa",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/privacy.html",
+      "structure": {
+        "scroll": false,
+        "flex": false,
+        "grid": false,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": false
+      },
+      "audit": {
+        "inlineScripts": 4,
+        "compiled": 1,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "bc9672b6165763bc3c3474c57ca07155865653fc156753b49122edf2aa10aa00",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/profit_sim.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 9,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "63d8c6d08d005360e596445308738dcafa9f85855d82b2d6354144cedc3ea82b",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/profit.html",
+      "structure": {
+        "scroll": false,
+        "flex": true,
+        "grid": false,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "ecc9b76d69589021e62f1c1f30aa1c5db8b07327e807a6282ee439da3ffdf5e5",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/purchasing.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 9,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "a2a9da2c1dbf84925e4bb18e4bb164010888410f6fce63b6d3d8111e351c1e40",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/receipts.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 12,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "909d9b69b93bf3a80ececb8283ec3a29a68d7b135ce09899d7bf7c8dd8bf9ffd",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/recipe.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "1ef4d9aab21810e55a4a45bf14b9b2e6fdf4949f7ce3c73db8e5953a3d602ebf",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/register.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 8,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "71e2d8250f023d8862d4f652bef4b30a7f386c0e28a27967bad8f3cf40d4922b",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/requests.html",
+      "structure": {
+        "scroll": false,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 9,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "d8909fe8e0feb79161f4fa3decf288154f2394b0269de075a67a2d49dfb1b1c2",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/reservations.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": true,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 9,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "035488c632a6d6b1f71bca14a44e2bc133ac00da4c2c580803176807c910fc99",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/reserve.html",
+      "structure": {
+        "scroll": false,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "f9a0dd2fde77c4feac892149a153193ac1db0a021cb0c8fd1c11a0eb26769942",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/sales.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": false,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 9,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "db06d94ebe8577727cd691bafa1a0d3a23a56f1a06925a7d195ec3edbebc3074",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/settings.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 14,
+        "compiled": 4,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "b0b40d20a98b27ce43e9b280424fe16848a6b76a2201f17151cf2eeb02f06aec",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/subscription.html",
+      "structure": {
+        "scroll": false,
+        "flex": false,
+        "grid": false,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": false
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 0,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "c66047fa680a3bd0e48abb5e67824bdc3c4c2b1acd82c41c7f481eb1c81351cd",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/support.html",
+      "structure": {
+        "scroll": false,
+        "flex": false,
+        "grid": false,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": false
+      },
+      "audit": {
+        "inlineScripts": 6,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "94d381dcd61fa7ebe9cdbf1d0f48c4f54edcc612b91ee23f443f50b0c0c68941",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/takeout.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": true,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 7,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "38145e98f90750010345c7898c2573ae9106b5b1740b6c5256610ea397b361ac",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/terms.html",
+      "structure": {
+        "scroll": false,
+        "flex": false,
+        "grid": false,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": false
+      },
+      "audit": {
+        "inlineScripts": 4,
+        "compiled": 1,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "bc793acbfb70b9c9b2d0897d6e64bfaee7d3d67a2f3e9d5f75a628cac613eb13",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/todo.html",
+      "structure": {
+        "scroll": false,
+        "flex": true,
+        "grid": true,
+        "wrap": true,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 9,
+        "compiled": 2,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "53b5331a1d6b017c398e6baa496bbad8982bdb39121f9281ea25e75c61f838f5",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    },
+    {
+      "surface": "native",
+      "path": "mobile-app/web/users.html",
+      "structure": {
+        "scroll": true,
+        "flex": true,
+        "grid": true,
+        "wrap": false,
+        "nowrap": false,
+        "dynamicDom": true
+      },
+      "audit": {
+        "inlineScripts": 9,
+        "compiled": 3,
+        "syntaxErrors": [],
+        "handlerSyntax": [],
+        "unresolvedHandlers": [],
+        "missingLocalTargets": []
+      },
+      "sourceSha256": "2a83cf6dc419861b96db9dce23eeb46a13e1c76ebc5762160d57a5e3ce6ba1b6",
+      "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
+      "physical720px": "NOT_TESTED",
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
+    }
+  ]
+}

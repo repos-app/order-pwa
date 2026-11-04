@@ -31,7 +31,13 @@
     .fc{ width:100%; padding:10px; border:1px solid var(--border); border-radius:9px; font-size:15px; font-family:inherit; background:var(--surface); }
     .btn{ border:0; border-radius:11px; padding:12px 16px; font-size:15px; font-weight:900; cursor:pointer; font-family:inherit; background:var(--navy); color:#fff; }
     .btn-sm{ background:#eef2f7; color:var(--navy); border:0; border-radius:8px; padding:7px 10px; font-weight:800; cursor:pointer; }
-    .sup-group{ border:1px solid var(--border); border-radius:12px; padding:10px 12px; margin-bottom:10px; }
+    .sup-group{ border:1px solid var(--border); border-radius:12px; padding:10px 12px; margin-bottom:10px; min-width:0; max-width:100%; }
+    .sup-h span{min-width:0;overflow-wrap:normal;}
+    /* IZK-UT-073: supplier strings wrap without expanding the action column. */
+    #supRows td:not(:last-child){white-space:normal;overflow-wrap:normal;word-break:normal;}
+    #supRows td:last-child{white-space:nowrap;}
+    .sup-group [id^="mailStatus"]{overflow-wrap:normal;}
+    .reorder-table-wrap{max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;}
     .sup-h{ font-weight:900; margin-bottom:6px; }
     .alert{ margin-top:10px; display:none; padding:11px; border-radius:9px; font-size:14px; font-weight:700; }
     .low{ color:#b91c1c; font-weight:800; }
@@ -49,6 +55,14 @@
       .po-table input{ font-size:16px; padding:8px 5px; }
       .po-table .po-del .btn-sm{ width:32px; padding-left:0; padding-right:0; }
     }
+    @media (orientation:landscape) and (max-height:500px){
+      .wrap{max-width:none;padding:8px 12px 220px;}
+      .grid{grid-template-columns:minmax(0,1fr);}
+      .fg{min-width:0;}
+      .fg .fc{width:min(100%,320px);max-width:100%;font-size:16px;}
+      .fg .fc:focus{scroll-margin-top:65px;scroll-margin-bottom:12px;}
+    }
+    @media (max-width:430px){ .head{flex-wrap:wrap;gap:8px} .head h1{flex:1 1 100%;min-width:0;overflow-wrap:anywhere} .head>div{min-width:0;flex-wrap:wrap} }
   </style>
 </head>
 <body>
@@ -71,8 +85,10 @@
         <button class="btn-sm" onclick="openPoPicker('item')" data-t="poFromItem">📋 発注アイテムから追加</button>
       </div>
       <button class="btn" style="margin-top:12px;" id="poSendBtn" onclick="sendPo()" data-t="poSendBtn">📧 発注依頼</button>
+      <button class="btn" type="button" id="poCreateBtn" onclick="createPoRecord()" style="margin-top:12px;">💾 発注を記録 / Save PO</button>
       <div class="alert" id="poMsg"></div>
     </div>
+    <div class="card"><div class="card-title">📋 発注履歴 / Purchase orders</div><button class="btn-sm" type="button" onclick="loadPoHistory()">更新 / Refresh</button><div id="poHistory" class="muted"></div></div>
 
     <div class="card">
       <div class="card-title" data-t="reorderTitle">🔔 発注提案（最小在庫以下）</div>
@@ -129,15 +145,40 @@
     var SUPS = [], REORDER = [], SYM='₱', __loaded=false;
     var MENU_ALL_PO = [], ORDER_ITEMS_PO = [];
     var PO_ROWS = [{ name:'', nameJa:'', nameEn:'', qty:1, unit:'' }];
+    var PO_RECORD_KEY='',PO_RECORD_SIG='';
+    function currentPoItems(){return PO_ROWS.filter(function(r){return String(r.nameJa||r.nameEn||r.name||'').trim()&&Number(r.qty)>0;}).map(function(r){var ja=String(r.nameJa!==undefined?r.nameJa:r.name||'').trim(),en=String(r.nameEn||'').trim();return {name:ja||en,nameJa:ja,nameEn:en,qty:Number(r.qty),unit:(r.unit||'').trim()};});}
+    function poLineLengthError(){poMsg(isEN()?'Purchase item names must be 160 characters or fewer and units 32 characters or fewer.':'発注品目名は160文字以内、単位は32文字以内で入力してください。',false);}
+    function poLineLengthsValid(){return PO_ROWS.every(function(r){return String(r.name||'').length<=160&&String(r.nameJa||'').length<=160&&String(r.nameEn||'').length<=160&&String(r.unit||'').length<=32;});}
+    document.getElementById('poRows').addEventListener('paste',function(e){var el=e.target;if(!el.matches('input[data-po-max]'))return;var n=Number(el.dataset.poMax),s=e.clipboardData.getData('text');if(el.value.length-(el.selectionEnd-el.selectionStart)+s.length>n){e.preventDefault();poLineLengthError();}});
+    document.getElementById('poRows').addEventListener('beforeinput',function(e){var el=e.target;if(!el.matches('input[data-po-max]')||e.isComposing||e.inputType==='insertCompositionText'||!e.inputType||!e.inputType.startsWith('insert'))return;var s=e.data;if(s===null&&e.dataTransfer)s=e.dataTransfer.getData('text/plain');if(s!==null&&el.value.length-(el.selectionEnd-el.selectionStart)+s.length>Number(el.dataset.poMax)){e.preventDefault();poLineLengthError();}});
+    window.createPoRecord=function(){
+      if(!poLineLengthsValid()){poLineLengthError();return;}
+      var name=document.getElementById('poSupplier').value,items=currentPoItems();
+      if(!name||!items.length){poMsg(!name?I18n.t('poNeedSupplier'):I18n.t('poNeedItems'),false);return;}
+      var sig=JSON.stringify([name,items]);
+      if(PO_RECORD_SIG!==sig){PO_RECORD_SIG=sig;PO_RECORD_KEY=nextEmailRequestId('record-');}
+      var btn=document.getElementById('poCreateBtn');btn.disabled=true;
+      rpc('createPurchaseOrder',[name,items,PO_RECORD_KEY]).then(function(r){
+        if(!r||!r.success)throw Error((r&&r.error)||'save_failed');
+        poMsg('✅ PO '+r.po.id+' saved',true);loadPoHistory();
+      }).catch(function(e){poMsg(API.userErrorText(e),false);}).finally(function(){btn.disabled=false;});
+    };
+    window.loadPoHistory=function(){
+      rpc('getPurchaseOrders',[]).then(function(rows){
+        document.getElementById('poHistory').innerHTML=(rows||[]).map(function(po){
+          return '<div style="padding:10px 0;border-bottom:1px solid #e5e7eb;"><strong>'+esc(po.supplierName)+'</strong> · '+esc(po.createdAt)+'<br>'+po.items.map(function(it){return esc(it.name)+' × '+esc(it.qty)+' '+esc(it.unit);}).join('<br>')+'</div>';
+        }).join('')||'No saved purchase orders';
+      }).catch(function(e){document.getElementById('poHistory').textContent=API.userErrorText(e);});
+    };
 
     // ── 新規発注（自由入力） ──
     function poRenderRows(){
       var html = PO_ROWS.map(function(r,i){
         var ja=(r.nameJa!==undefined?r.nameJa:r.name||''), val=loc(ja,r.nameEn), prop=isEN()?'nameEn':'nameJa';
         return '<tr>'+
-          '<td><input value="'+esc(val)+'" oninput="PO_ROWS['+i+'].'+prop+'=this.value;PO_ROWS['+i+'].name=(PO_ROWS['+i+'].nameJa||PO_ROWS['+i+'].nameEn||\'\')"></td>'+
+          '<td><input data-po-max="160" value="'+esc(val)+'" oninput="PO_ROWS['+i+'].'+prop+'=this.value;PO_ROWS['+i+'].name=(PO_ROWS['+i+'].nameJa||PO_ROWS['+i+'].nameEn||\'\')"></td>'+
           '<td class="po-qty"><input type="number" min="0" step="any" value="'+(r.qty||'')+'" oninput="PO_ROWS['+i+'].qty=Number(this.value)||0"></td>'+
-          '<td class="po-unit"><input value="'+esc(r.unit||'')+'" oninput="PO_ROWS['+i+'].unit=this.value"></td>'+
+          '<td class="po-unit"><input data-po-max="32" value="'+esc(r.unit||'')+'" oninput="PO_ROWS['+i+'].unit=this.value"></td>'+
           '<td class="po-del"><button class="btn-sm" onclick="poDelRow('+i+')">🗑</button></td></tr>';
       }).join('');
       if(!PO_ROWS.length) html = '<tr><td colspan="4" style="color:#aaa;padding:14px;text-align:center;">'+I18n.t('poEmpty')+'</td></tr>';
@@ -224,30 +265,44 @@
     // 文言は定義済みだったが未使用で、確認なしにメールが即送信されていた。宛先・品目・数量を
     // 表示するUIConfirmを送信直前に追加する。
     window.sendPo = function(){
+      if(!poLineLengthsValid()){poLineLengthError();return;}
       var supplierName = document.getElementById('poSupplier').value;
       if(!supplierName){ poMsg(I18n.t('poNeedSupplier'), false); return; }
       var sup = SUPS.filter(function(s){ return s.name===supplierName; })[0];
       var items = PO_ROWS.filter(function(r){ return String(r.nameJa||r.nameEn||r.name||'').trim() && Number(r.qty)>0; })
         .map(function(r){ var ja=String(r.nameJa!==undefined?r.nameJa:r.name||'').trim(),en=String(r.nameEn||'').trim();return { name:ja||en, nameJa:ja, nameEn:en, qty:Number(r.qty)||0, unit:(r.unit||'').trim() }; });
       if(!items.length){ poMsg(I18n.t('poNeedItems'), false); return; }
-      if(!sup || !sup.email){ poClipboardFallback(supplierName, items, I18n.t('poNeedEmailFirst')); return; }
+      if(!sup){ poMsg(I18n.t('poNeedSupplier'), false); return; }
       var lines = items.map(function(it){ return '・'+loc(it.nameJa!==undefined?it.nameJa:it.name, it.nameEn)+' × '+it.qty+(it.unit?(' '+it.unit):''); });
-      var confirmMsg = I18n.t('poSendConfirm') + loc(sup.nameJa!==undefined?sup.nameJa:sup.name,sup.nameEn) + '（' + sup.email + '）\n' + lines.join('\n');
+      var confirmMsg = (sup.email?I18n.t('poSendConfirm'):(isEN()?'Save this purchase order?\n':'この発注を記録しますか？\n')) + loc(sup.nameJa!==undefined?sup.nameJa:sup.name,sup.nameEn) + (sup.email?'（'+sup.email+'）':'') + '\n' + lines.join('\n');
       UIConfirm(confirmMsg).then(function(ok){
         if(!ok) return;
         var btn = document.getElementById('poSendBtn'); if(btn) btn.disabled = true;
-        var sig=JSON.stringify([supplierName,sup.email||'',sup.language||'ja',items]);
-        if(!PO_EMAIL_REQUEST_ID||PO_EMAIL_REQUEST_SIG!==sig){ PO_EMAIL_REQUEST_SIG=sig; PO_EMAIL_REQUEST_ID=nextEmailRequestId('po-'); }
-        rpc('sendPurchaseOrderEmail', [supplierName, items, PO_EMAIL_REQUEST_ID]).then(function(r){
-          if(btn) btn.disabled = false;
-          if(r && r.success){ PO_EMAIL_REQUEST_ID=''; PO_EMAIL_REQUEST_SIG=''; poMsg(I18n.t('poSendDone'), true); }
-          else { if(deterministicEmailReject(r&&r.error)){ PO_EMAIL_REQUEST_ID=''; PO_EMAIL_REQUEST_SIG=''; } poClipboardFallback(supplierName, items, I18n.t('sendMailFail')+API.userErrorText((r&&r.error)||'')); }
-        }).catch(function(e){
-          if(btn) btn.disabled = false;
-          poClipboardFallback(supplierName, items, I18n.t('sendMailFail')+API.userErrorText(e));
-        });
+        var recordSig=JSON.stringify([supplierName,items]);
+        if(PO_RECORD_SIG!==recordSig){PO_RECORD_SIG=recordSig;PO_RECORD_KEY=nextEmailRequestId('record-');}
+        rpc('createPurchaseOrder',[supplierName,items,PO_RECORD_KEY]).then(function(saved){
+          if(!saved||!saved.success||!saved.po||!saved.po.id)throw Error((saved&&saved.error)||'po_save_failed');
+          loadPoHistory();
+          poMsg('✅ PO '+saved.po.id+' saved',true);
+          if(!sup.email){
+            poClipboardFallback(supplierName,items,'✅ PO '+saved.po.id+' saved. '+I18n.t('poNeedEmailFirst'));
+            return;
+          }
+          return sendSavedPoEmail(saved.po.id,supplierName,sup,items);
+        }).catch(function(e){poMsg('PO save failed: '+API.userErrorText(e),false);}).finally(function(){if(btn)btn.disabled=false;});
       });
     };
+    function sendSavedPoEmail(savedId,supplierName,sup,items){
+        var savedNotice='✅ PO '+savedId+' saved. ';
+        var sig=JSON.stringify([supplierName,sup.email||'',sup.language||'ja',items]);
+        if(!PO_EMAIL_REQUEST_ID||PO_EMAIL_REQUEST_SIG!==sig){ PO_EMAIL_REQUEST_SIG=sig; PO_EMAIL_REQUEST_ID=nextEmailRequestId('po-'); }
+        return rpc('sendPurchaseOrderEmail', [supplierName, items, PO_EMAIL_REQUEST_ID]).then(function(r){
+          if(r && r.success){ PO_EMAIL_REQUEST_ID=''; PO_EMAIL_REQUEST_SIG=''; poMsg(savedNotice+I18n.t('poSendDone'), true); }
+          else { if(deterministicEmailReject(r&&r.error)){ PO_EMAIL_REQUEST_ID=''; PO_EMAIL_REQUEST_SIG=''; } poClipboardFallback(supplierName, items, savedNotice+I18n.t('sendMailFail')+API.userErrorText((r&&r.error)||'')); }
+        }).catch(function(e){
+          poClipboardFallback(supplierName, items, savedNotice+I18n.t('sendMailFail')+API.userErrorText(e));
+        });
+    }
 
     function renderReorder(){
       if(!REORDER.length){ document.getElementById('reorder').innerHTML='<div class="muted">'+I18n.t('reorderEmpty')+'</div>'; return; }
@@ -260,7 +315,7 @@
           '<button class="btn-sm" style="background:#dcfce7;color:#15803d;" id="mailBtn'+gi+'" onclick="sendOrderEmail('+gi+')" title="'+(g.email?'':esc(I18n.t('noEmailHint')))+'">'+I18n.t('sendMailBtn')+(g.email?'':(' <span class="muted" style="font-weight:400;">('+I18n.t('noEmailBadge')+')</span>'))+'</button>'
           : '';
         return '<div class="sup-group"><div class="sup-h" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;"><span>🏢 '+head+'</span>'+mailBtn+'</div>'+
-          '<table><thead><tr><th>'+I18n.t('thItem')+'</th><th class="num">'+I18n.t('thStock')+'</th><th class="num">'+I18n.t('thMin')+'</th><th class="num">'+I18n.t('thSuggest')+'</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+          '<div class="reorder-table-wrap"><table><thead><tr><th>'+I18n.t('thItem')+'</th><th class="num">'+I18n.t('thStock')+'</th><th class="num">'+I18n.t('thMin')+'</th><th class="num">'+I18n.t('thSuggest')+'</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
           '<div class="muted" id="mailStatus'+gi+'" style="margin-top:6px;"></div></div>';
       }).join('');
     }
@@ -334,7 +389,29 @@
         }).catch(function(e){ msg(I18n.t('errPrefix')+API.userErrorText(e), false); });
       });
     };
+    var supplierLengthLimits={sContact:80,sEmail:120,sItems:200,sMemo:200};
+    function purchasingLengthError(id,limit){msg((isEN()?'Maximum '+limit+' characters for ':'最大'+limit+'文字まで入力できます: ')+id,false);}
+    function supplierLengthPreflight(){for(var id in supplierLengthLimits){var e=document.getElementById(id),limit=supplierLengthLimits[id];if(e.value.trim().length>limit){purchasingLengthError(id,limit);return false;}}return true;}
+    Object.keys(supplierLengthLimits).forEach(function(id){
+      // No HTML maxLength: it silently clips paste/IME before our explicit error.
+      var field=document.getElementById(id),limit=supplierLengthLimits[id];
+      function overflow(incoming){return field.value.length-(field.selectionEnd-field.selectionStart)+incoming.length>limit;}
+      field.addEventListener('paste',function(e){if(overflow(e.clipboardData.getData('text'))){e.preventDefault();purchasingLengthError(id,limit);}});
+      field.addEventListener('beforeinput',function(e){if(e.isComposing||e.inputType==='insertCompositionText'||!e.inputType||!e.inputType.startsWith('insert'))return;var data=e.data;if(data===null&&e.dataTransfer)data=e.dataTransfer.getData('text/plain');if(data!==null&&overflow(data)){e.preventDefault();purchasingLengthError(id,limit);}});
+      field.addEventListener('compositionend',function(){if(field.value.length>limit)purchasingLengthError(id,limit);});
+    });
     window.save = function(){
+      if(!supplierLengthPreflight())return;
+      var emailField=document.getElementById('sEmail');
+      if(/[\x00-\x1f\x7f]/.test(emailField.value)){msg(isEN()?'Supplier email must not contain control characters':'メールアドレスに制御文字は入力できません',false);emailField.focus();return;}
+      var supplierEmail=emailField.value.trim();
+      if(supplierEmail){
+        var emailParts=supplierEmail.split('@'),local=emailParts[0]||'',domain=emailParts[1]||'';
+        var emailValid=emailParts.length===2&&local.length<=64&&!local.startsWith('.')&&!local.endsWith('.')&&!local.includes('..')&&
+          /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~.-]+$/.test(local)&&domain.length<=253&&domain.indexOf('.')!==-1&&
+          domain.split('.').every(function(label){return label.length>0&&label.length<=63&&/^[\p{L}\p{N}](?:[\p{L}\p{N}-]*[\p{L}\p{N}])?$/u.test(label);});
+        if(!emailValid||/[\s<>\x00-\x1f\x7f]/u.test(supplierEmail)){msg(isEN()?'Enter a valid supplier email address':'仕入先メールアドレスの形式が正しくありません',false);emailField.focus();return;}
+      }
       var nameJa=document.getElementById('sName').value.trim(),nameEn=document.getElementById('sNameEn').value.trim();
       var sup = { id:document.getElementById('sId').value, name:nameJa||nameEn, nameJa:nameJa, nameEn:nameEn, contact:document.getElementById('sContact').value.trim(), email:document.getElementById('sEmail').value.trim(), language:document.getElementById('sLanguage').value, items:document.getElementById('sItems').value.trim(), memo:document.getElementById('sMemo').value.trim() };
       if(!nameJa&&!nameEn){ msg(I18n.t('needName'), false); return; }
@@ -362,6 +439,7 @@
       .catch(function(e){ if(String(e.message||e).indexOf('unauthorized')>=0){ location.href='./manage.html'; return; } document.getElementById('supRows').innerHTML='<tr><td colspan="6" style="color:#b91c1c;padding:14px;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</td></tr>'; });
     rpc('getAllMenuForAdmin',[]).then(function(l){ MENU_ALL_PO=l||[]; }).catch(function(){});
     rpc('getOrderItems',[]).then(function(l){ ORDER_ITEMS_PO=l||[]; }).catch(function(){});
+    loadPoHistory();
     poRenderRows();
 
     I18n.init({
@@ -388,5 +466,32 @@
       ]
     });
   </script>
+<script>
+  // Keep the active supplier field in the ~190px viewport after Android IME rotation.
+  (function(){
+    function recoverPurchasingFocus(){
+      if(!matchMedia('(orientation:landscape) and (max-height:500px)').matches)return;
+      var field=document.activeElement;
+      if(!field||!field.matches('input.fc,textarea.fc,select.fc')||!field.closest('.wrap'))return;
+      var viewport=window.visualViewport;
+      var top=(viewport?viewport.offsetTop:0)+Math.max(56,document.querySelector('.head')?.getBoundingClientRect().height||0)+6;
+      var bottom=(viewport?viewport.offsetTop+viewport.height:innerHeight)-8;
+      if(bottom-top<field.getBoundingClientRect().height)return;
+      var rect=field.getBoundingClientRect();
+      var offset=rect.top<top?rect.top-top:rect.bottom>bottom?rect.bottom-bottom:0;
+      if(offset)window.scrollBy(0,offset);
+    }
+    function afterPurchasingLayout(){
+      recoverPurchasingFocus();
+      setTimeout(recoverPurchasingFocus,120);
+      setTimeout(recoverPurchasingFocus,380);
+    }
+    window.addEventListener('orientationchange',afterPurchasingLayout);
+    window.addEventListener('resize',afterPurchasingLayout);
+    window.visualViewport?.addEventListener('resize',afterPurchasingLayout);
+    window.visualViewport?.addEventListener('scroll',recoverPurchasingFocus);
+    document.addEventListener('focusin',afterPurchasingLayout);
+  })();
+</script>
 </body>
 </html>

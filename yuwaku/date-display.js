@@ -59,6 +59,15 @@
       return format(day,(opts&&opts.dateFormat)||state.dateFormat)+(time?' '+time:'');
     }catch(e){return raw;}
   }
+  // SQLite datetime('now') produces UTC without a suffix. Only callers
+  // holding actual UTC database timestamps should use this entrypoint;
+  // reservation/local wall-time timestamps keep formatDateTime semantics.
+  function formatUtcDateTime(v,opts){
+    var raw=String(v||'').trim(); if(!raw)return raw;
+    var sqlUtc=/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})(?::(\d{2}))?$/.exec(raw);
+    var iso=sqlUtc ? sqlUtc[1]+'T'+sqlUtc[2]+':'+(sqlUtc[3]||'00')+'Z' : raw;
+    return formatDateTime(iso,opts);
+  }
   function sync(input){
     if(!input||(input.type!=='date'&&input.type!=='month'))return;
     var wrap=input.parentElement;
@@ -94,7 +103,7 @@
     save(); refresh(document);
   }
   load(); state.dateFormat=validFormat(state.dateFormat)||inferFormat(state);
-  window.DateDisplay={format:format,formatMonth:formatMonth,formatDateTime:formatDateTime,refresh:function(){refresh(document);},setSettings:setSettings,getFormat:function(){return state.dateFormat;}};
+  window.DateDisplay={format:format,formatMonth:formatMonth,formatDateTime:formatDateTime,formatUtcDateTime:formatUtcDateTime,refresh:function(){refresh(document);},setSettings:setSettings,getFormat:function(){return state.dateFormat;}};
   window.addEventListener('iz:regional-settings',function(e){setSettings(e&&e.detail||{});});
   function start(){
     refresh(document);

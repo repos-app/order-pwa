@@ -66,7 +66,21 @@
       .service-time-grid{ grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; }
       .service-time-grid input[type="time"]{ inline-size:100%!important; width:100%!important; max-inline-size:148px!important; max-width:148px!important; height:38px; padding:0 6px; font-size:16px; }
     }
-  </style>
+    @media (orientation:landscape) and (max-height:500px){ body{padding-bottom:220px;} #mName,#mAllergens{width:min(100%,320px);max-width:100%;font-size:16px;scroll-margin-top:72px;} }
+/* Formal Android PT-CTL touch target: independent of common header injection. */
+#saveBtn{min-height:44px;min-width:44px;box-sizing:border-box}
+    /* Landscape WebView native time-picker confirmation can be clipped. */
+    .menu-landscape-time-overlay{position:fixed;inset:0;z-index:10000;background:rgba(15,23,42,.64);display:none;align-items:center;justify-content:center;padding:12px}
+    .menu-landscape-time-overlay.open{display:flex}
+    .menu-landscape-time-dialog{background:#fff;border-radius:14px;width:min(100%,360px);max-height:calc(100dvh - 24px);overflow-y:auto;padding:16px;color:#0f172a}
+    .menu-landscape-time-dialog label{display:block;font-weight:800;margin-bottom:10px}
+    .menu-landscape-time-selectors,.menu-landscape-time-actions{display:flex;gap:10px;align-items:center;justify-content:center}
+    .menu-landscape-time-selectors select{min-height:44px;min-width:82px;font-size:18px;border:1px solid #cbd5e1;border-radius:8px;background:white}
+    .menu-landscape-time-actions{margin-top:12px}
+    .menu-landscape-time-actions button{flex:1;min-height:44px;border:0;border-radius:9px;font-weight:800;background:#e2e8f0;color:#0f172a}
+    .menu-landscape-time-actions button:last-child{background:#0f172a;color:#fff}
+    .service-time-grid input.menu-landscape-time-trigger{width:100%;max-width:180px;min-height:44px;cursor:pointer;text-align:center}
+</style>
 </head>
 <body>
   <div class="head"><h1 data-t="title">🍽️ メニュー編集</h1><div style="display:flex;gap:8px;"><button class="hbtn" data-tlang onclick="I18n.toggle()">EN</button><a class="hbtn" href="./manage.html" data-t="back">← 管理へ</a></div></div>
@@ -111,7 +125,7 @@
       <div class="fg"><label class="form-label" data-t="lblAllerg">アレルゲン（任意・カンマ区切り）</label><input id="mAllergens" class="fc" data-tph="phAllerg" placeholder="例: 卵, 小麦, えび"></div>
       <div class="fg"><label class="form-label" data-t="lblSpicy">辛さ</label><select id="mSpicy" class="fc"><option value="0" data-t="spicy0">なし</option><option value="1">🌶×1</option><option value="2">🌶×2</option><option value="3">🌶×3</option><option value="4">🌶×4</option><option value="5">🌶×5</option></select></div>
       <label id="guide-kitchen-setting" data-guide-anchor style="display:flex;gap:8px;align-items:center;font-size:14px;font-weight:700;margin:10px 0 4px;cursor:pointer;"><input type="checkbox" id="mKitchen" checked><span data-t="lblKitchen">🍳 キッチン画面に表示する（ドリンク等、調理不要な商品はオフ）</span></label>
-      <label style="display:flex;gap:8px;align-items:center;font-size:14px;font-weight:700;margin:10px 0 4px;cursor:pointer;"><input type="checkbox" id="mTakeout"><span data-t="lblTakeout">🥡 テイクアウト可</span></label>
+<label style="display:flex;gap:8px;align-items:center;font-size:14px;font-weight:700;margin:10px 0 4px;cursor:pointer;"><input type="checkbox" id="mTakeout" checked><span data-t="lblTakeout">🥡 テイクアウト可</span></label>
       <div class="fg" style="margin-top:6px;">
         <label class="form-label" data-t="lblLinkInv">🔗 在庫紐づけ（任意）</label>
         <select id="mLinkInv" class="fc"></select>
@@ -156,10 +170,12 @@
     var curCat = 'all', VIEW = [];
     var INVENTORY = [];
     var URL_IMG_DATA = null; // URLから取得した画像（{data,type,name}）。ファイル選択時はクリアされる。
+    // The latest selection wins even when earlier image requests finish later.
+    var _imgChoiceSeq = 0, _imgSearchSeq = 0;
     function isSampleItem(m){ return !!(m && (m.sample || m.isSample || Number(m['サンプル']||0))); }
     function refreshSampleCard(){ document.getElementById('sampleDataCard').style.display=MENU.some(isSampleItem)?'block':'none'; }
 
-    window.onFilePicked = function(){ URL_IMG_DATA = null; document.getElementById('mImgUrl').value=''; hideMsg('imgUrlMsg'); document.getElementById('imgPreview').style.display='none'; };
+    window.onFilePicked = function(){ ++_imgChoiceSeq;  URL_IMG_DATA = null; document.getElementById('mImgUrl').value=''; hideMsg('imgUrlMsg'); document.getElementById('imgPreview').style.display='none'; };
     window.openImgSearch = function(){
       var q = document.getElementById('mImgQuery').value.trim() || loc(document.getElementById('mName').value,document.getElementById('mNameEn').value);
       var url = 'https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(q || (isEN()?'food':'料理'));
@@ -177,13 +193,16 @@
     window.fetchImgUrl = function(e){
       var url = document.getElementById('mImgUrl').value.trim();
       if (!url){ showMsg('imgUrlMsg', I18n.t('imgNeedUrl'), false); return; }
+      var seq = ++_imgChoiceSeq;
       var btn = e && e.target; if (btn) btn.disabled = true;
       showMsg('imgUrlMsg', I18n.t('imgFetching'), true);
-      rpc('fetchImageFromUrl',[url]).then(function(r){ if (btn) btn.disabled = false; _applyFetchedImage(r, 'imgUrlMsg'); })
-        .catch(function(e2){ if (btn) btn.disabled=false; showMsg('imgUrlMsg', I18n.t('imgFetchErr')+API.userErrorText(e2), false); });
+      rpc('fetchImageFromUrl',[url]).then(function(r){ if (btn) btn.disabled = false; if(seq === _imgChoiceSeq && document.getElementById('mImgUrl').value.trim()===url)_applyFetchedImage(r, 'imgUrlMsg'); })
+        .catch(function(e2){ if (btn) btn.disabled=false; if(seq === _imgChoiceSeq && document.getElementById('mImgUrl').value.trim()===url)showMsg('imgUrlMsg', I18n.t('imgFetchErr')+API.userErrorText(e2), false); });
     };
     window.searchImgs = function(e){
       var q = document.getElementById('mImgQuery').value.trim() || loc(document.getElementById('mName').value,document.getElementById('mNameEn').value);
+      var seq = ++_imgSearchSeq;
+      ++_imgChoiceSeq; // A new search cancels outdated image selections.
       var grid = document.getElementById('imgResults'); grid.style.display='none'; grid.innerHTML='';
       document.getElementById('pixabayCredit').style.display='none';
       if (!q){ showMsg('imgSearchMsg', I18n.t('imgNeedQuery'), false); return; }
@@ -191,6 +210,7 @@
       showMsg('imgSearchMsg', I18n.t('imgSearching'), true);
       rpc('searchMenuImages',[q]).then(function(r){
         if (btn) btn.disabled = false;
+        if(seq !== _imgSearchSeq || q !== (document.getElementById('mImgQuery').value.trim() || loc(document.getElementById('mName').value,document.getElementById('mNameEn').value)))return;
         if (!r || !r.success){
           if (r && r.error==='not_configured') showMsg('imgSearchMsg', I18n.t('imgNotConfigured'), false);
           else if (r && r.error==='image_search_rate_limited') showMsg('imgSearchMsg', I18n.t('imgRateLimited'), false);
@@ -202,14 +222,15 @@
         grid.innerHTML = r.items.map(function(it){ return '<img src="'+esc(it.thumbnail)+'" data-url="'+esc(it.url)+'" title="'+esc(it.title)+'" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;border:2px solid var(--border);cursor:pointer;" onclick="selectSearchImg(this)" alt="">'; }).join('');
         grid.style.display='grid';
         document.getElementById('pixabayCredit').style.display='block';
-      }).catch(function(e2){ if (btn) btn.disabled=false; showMsg('imgSearchMsg', I18n.t('imgFetchErr')+API.userErrorText(e2), false); });
+      }).catch(function(e2){ if (btn) btn.disabled=false; if(seq === _imgSearchSeq)showMsg('imgSearchMsg', I18n.t('imgFetchErr')+API.userErrorText(e2), false); });
     };
     window.selectSearchImg = function(el){
+      var seq = ++_imgChoiceSeq;
       document.querySelectorAll('#imgResults img').forEach(function(im){ im.style.borderColor='var(--border)'; });
       el.style.borderColor = '#2563eb';
       showMsg('imgSearchMsg', I18n.t('imgFetching'), true);
-      rpc('fetchImageFromUrl',[el.getAttribute('data-url')]).then(function(r){ _applyFetchedImage(r, 'imgSearchMsg'); })
-        .catch(function(e){ showMsg('imgSearchMsg', I18n.t('imgFetchErr')+API.userErrorText(e), false); });
+      rpc('fetchImageFromUrl',[el.getAttribute('data-url')]).then(function(r){ if(seq === _imgChoiceSeq)_applyFetchedImage(r, 'imgSearchMsg'); })
+        .catch(function(e){ if(seq === _imgChoiceSeq)showMsg('imgSearchMsg', I18n.t('imgFetchErr')+API.userErrorText(e), false); });
     };
     // value（送信値・バックエンド照合キー）は常に日本語の在庫名、表示テキストのみ現在の言語に合わせる。
     function renderInvSel(){
@@ -393,6 +414,7 @@
       });
     };
     window.edit = function(i){
+      ++_imgChoiceSeq; ++_imgSearchSeq;
       var m = MENU[i]; if(!m) return;
       editSnapshot={name:String(m['商品名']||''),category:String(m['カテゴリ']||''),nameJa:String(m['商品名_JA']||''),nameEn:String(m['商品名_EN']||''),categoryJa:String(m['カテゴリ_JA']||''),categoryEn:String(m['カテゴリ_EN']||'')};
       document.getElementById('oldName').value = m['商品名'];
@@ -415,10 +437,17 @@
       renderOpts();
       window.scrollTo({top:0,behavior:'smooth'});
     };
-    window.clearForm = function(){ editSnapshot=null; ['oldName','mName','mPrice','mNameEn','mFile','mSvcStart','mSvcEnd','mAllergens'].forEach(function(id){ document.getElementById(id).value=''; }); setCatSel('mCat','mCatNew',''); setCatSel('mCatEn','mCatEnNew',''); document.getElementById('mStatus').value='販売中'; document.getElementById('mSpicy').value='0'; document.getElementById('mKitchen').checked=true; document.getElementById('mTakeout').checked=false; document.getElementById('mLinkInv').value=''; curOpts=[]; renderOpts(); document.getElementById('msg').style.display='none'; URL_IMG_DATA=null; document.getElementById('mImgUrl').value=''; document.getElementById('mImgQuery').value=''; hideMsg('imgUrlMsg'); hideMsg('imgSearchMsg'); var ir=document.getElementById('imgResults'); ir.innerHTML=''; ir.style.display='none'; document.getElementById('imgPreview').style.display='none'; };
+window.clearForm = function(){ ++_imgChoiceSeq; ++_imgSearchSeq;  editSnapshot=null; ['oldName','mName','mPrice','mNameEn','mFile','mSvcStart','mSvcEnd','mAllergens'].forEach(function(id){ document.getElementById(id).value=''; }); setCatSel('mCat','mCatNew',''); setCatSel('mCatEn','mCatEnNew',''); document.getElementById('mStatus').value='販売中'; document.getElementById('mSpicy').value='0'; document.getElementById('mKitchen').checked=true; document.getElementById('mTakeout').checked=true; document.getElementById('mLinkInv').value=''; curOpts=[]; renderOpts(); document.getElementById('msg').style.display='none'; URL_IMG_DATA=null; document.getElementById('mImgUrl').value=''; document.getElementById('mImgQuery').value=''; hideMsg('imgUrlMsg'); hideMsg('imgSearchMsg'); var ir=document.getElementById('imgResults'); ir.innerHTML=''; ir.style.display='none'; document.getElementById('imgPreview').style.display='none'; };
     function msg(text, ok){ var m=document.getElementById('msg'); m.style.display='block'; m.style.background=ok?'#dcfce7':'#fee2e2'; m.style.color=ok?'#15803d':'#b91c1c'; m.innerText=text; }
 
+    var allergensField=document.getElementById('mAllergens');
+    // Do not set HTML maxLength: it silently clips paste/IME before the explicit error.
+    function allergensLimitError(){msg(isEN()?'Allergens must be 120 characters or fewer.':'アレルゲンは120文字以内で入力してください。',false);}
+    function allergensWouldOverflow(s){return allergensField.value.length-(allergensField.selectionEnd-allergensField.selectionStart)+s.length>120;}
+    allergensField.addEventListener('paste',function(e){if(allergensWouldOverflow(e.clipboardData.getData('text'))){e.preventDefault();allergensLimitError();}});
+    allergensField.addEventListener('beforeinput',function(e){if(e.isComposing||e.inputType==='insertCompositionText'||!e.inputType||e.inputType.indexOf('insert')!==0)return;var s=e.data;if(s===null&&e.dataTransfer)s=e.dataTransfer.getData('text/plain');if(s!==null&&allergensWouldOverflow(s)){e.preventDefault();allergensLimitError();}});
     window.save = function(){
+      if(allergensField.value.length>120){allergensLimitError();return;}
       var nameJa=document.getElementById('mName').value.trim(),nameEn=document.getElementById('mNameEn').value.trim();
       if (!nameJa&&!nameEn){ msg(I18n.t('needName'), false); return; }
       var catSel=document.getElementById('mCat').value;
@@ -436,7 +465,7 @@
       var btn=document.getElementById('saveBtn'); btn.disabled=true;
       var file = document.getElementById('mFile').files[0];
       function send(fd){
-        rpc('saveMenuItem',[item, fd],(API.TIMEOUT_MS&&API.TIMEOUT_MS.ai)||45000).then(function(res){ btn.disabled=false; if(!res||res.success===false||String(res).indexOf('Error')===0){ var er=res&&res.error; msg(er==='plan_limit_menu_items'?I18n.t('planLimit'):I18n.t('errPrefix')+API.userErrorText(er||res||'error'), false); return; } clearForm(); msg(I18n.t('saved'), true); rpc('getAllMenuForAdmin',[]).then(function(l){ MENU=l||[]; render(); }).catch(function(e){ document.getElementById('list').innerHTML='<div style="color:#b91c1c;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</div>'; }); })
+        rpc('saveMenuItem',[item, fd],(API.TIMEOUT_MS&&API.TIMEOUT_MS.ai)||45000).then(function(res){ btn.disabled=false; if(!res||res.success===false||String(res).indexOf('Error')===0){ var er=res&&res.error; msg(er==='plan_limit_menu_items'?I18n.t('planLimit'):I18n.t('errPrefix')+API.userErrorText(er||res||'error'), false); return; } clearForm(); msg(I18n.t('saved'), true); if(Array.isArray(res.menu)){ MENU=res.menu; render(); return; } rpc('getAllMenuForAdmin',[]).then(function(l){ MENU=l||[]; render(); }).catch(function(e){ document.getElementById('list').innerHTML='<div style="color:#b91c1c;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</div>'; }); })
           .catch(function(e){ btn.disabled=false; msg(I18n.t('errPrefix')+API.userErrorText(e), false); });
       }
       if (file){ API.fileToBase64(file).then(function(b64){ send({ data:b64, type:file.type, name:file.name }); }).catch(function(e){ btn.disabled=false; msg(I18n.t('errPrefix')+API.userErrorText(e), false); }); }
@@ -477,5 +506,51 @@
       ]
     });
   </script>
+<script>
+  // Reposition the active field after landscape IME viewport changes.
+  (function(){
+    function recover(){
+      if(!matchMedia('(orientation:landscape) and (max-height:500px)').matches)return;
+      var el=document.activeElement;
+      if(!el||!el.matches('#mName,#mAllergens'))return;
+      var vv=window.visualViewport;
+      var top=(vv?vv.offsetTop:0)+Math.max(60,document.querySelector('.head')?.getBoundingClientRect().height||0)+8;
+      var bottom=(vv?vv.offsetTop+vv.height:innerHeight)-8;
+      var rect=el.getBoundingClientRect();
+      if(bottom-top<rect.height)return;
+      var delta=rect.top<top?rect.top-top:rect.bottom>bottom?rect.bottom-bottom:0;
+      if(delta)window.scrollBy(0,delta);
+    }
+    function settle(){recover();setTimeout(recover,130);setTimeout(recover,400);}
+    window.addEventListener('orientationchange',settle);
+    window.addEventListener('resize',settle);
+    window.visualViewport?.addEventListener('resize',settle);
+    document.addEventListener('focusin',settle);
+  })();
+</script>
+<script>
+  // Native Android time-picker Set button may be outside the landscape viewport.
+  (function(){
+    var fields=['mSvcStart','mSvcEnd'].map(function(id){return document.getElementById(id);}).filter(Boolean);
+    if(!fields.length)return;
+    var landscape=function(){return matchMedia('(orientation:landscape) and (max-height:500px)').matches;};
+    var overlay=document.createElement('div');overlay.className='menu-landscape-time-overlay';overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');
+    overlay.innerHTML='<div class="menu-landscape-time-dialog"><label id="menuTimeTitle">Time</label><div class="menu-landscape-time-selectors"><select aria-label="Hour" id="menuTimeHour"></select><span>:</span><select aria-label="Minute" id="menuTimeMinute"></select></div><div class="menu-landscape-time-actions"><button type="button" id="menuTimeCancel">Cancel</button><button type="button" id="menuTimeSet">Set</button></div></div>';
+    document.body.appendChild(overlay);
+    var hour=overlay.querySelector('#menuTimeHour'),minute=overlay.querySelector('#menuTimeMinute'),active=null;
+    [hour,minute].forEach(function(sel,i){for(var n=0;n<(i?60:24);n++){var o=document.createElement('option');o.value=String(n).padStart(2,'0');o.textContent=o.value;sel.appendChild(o);}});
+    function close(){overlay.classList.remove('open');if(active){var f=active;active=null;f.focus();}}
+    function sync(){if(!landscape())close();fields.forEach(function(f){var v=f.value;if(landscape()&&f.type==='time'){f.type='text';f.readOnly=true;f.inputMode='none';f.classList.add('menu-landscape-time-trigger');f.value=v;}else if(!landscape()&&f.type==='text'){f.type='time';f.readOnly=false;f.classList.remove('menu-landscape-time-trigger');f.value=v;}});}
+    fields.forEach(function(f){
+      function open(e){if(!landscape())return;e.preventDefault();active=f;var parts=/^(\\d{2}):(\\d{2})$/.exec(f.value);hour.value=parts?parts[1]:'00';minute.value=parts?parts[2]:'00';overlay.querySelector('#menuTimeTitle').textContent=f.closest('.fg')?.querySelector('label')?.textContent||'Time';overlay.classList.add('open');hour.focus();}
+      f.addEventListener('click',open);f.addEventListener('keydown',function(e){if(landscape()&&(e.key==='Enter'||e.key===' '))open(e);});
+    });
+    overlay.querySelector('#menuTimeCancel').addEventListener('click',close);
+    overlay.querySelector('#menuTimeSet').addEventListener('click',function(){if(active){var f=active,v=hour.value+':'+minute.value;if(f.value!==v){f.value=v;f.dispatchEvent(new Event('input',{bubbles:true}));f.dispatchEvent(new Event('change',{bubbles:true}));}}close();});
+    overlay.addEventListener('click',function(e){if(e.target===overlay)close();});
+    overlay.addEventListener('keydown',function(e){if(e.key==='Escape')close();});
+    window.addEventListener('resize',sync);window.addEventListener('orientationchange',sync);sync();
+  })();
+</script>
 </body>
 </html>

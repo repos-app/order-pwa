@@ -77,12 +77,32 @@
     var CFG = window.APP_CONFIG;
     var TOKEN = localStorage.getItem(CFG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
     if (!TOKEN) location.href = './manage.html';
+    function ownPunchRole(){
+      var token=localStorage.getItem(CFG.AUTH_STORAGE_PREFIX+'mgmtToken')||TOKEN;
+      var parts=String(token||'').split('.')[0].split('~');
+      if(!/^(?:v2|v3)$/.test(parts[0])||parts.length<6)return false;
+      var role=String(parts[2]||'').toLowerCase();
+      return ['staff','general','manager','一般','スタッフ','マネージャー'].indexOf(role)>=0;
+    }
+    function canOperate(e){
+      var token=localStorage.getItem(CFG.AUTH_STORAGE_PREFIX+'mgmtToken')||TOKEN;
+      var parts=String(token||'').split('.')[0].split('~');
+      return !!e&&e.canPunch===true&&ownPunchRole()&&parts.length>=6&&String(e.id)===String(parts[4]);
+    }
     var video = document.getElementById('video');
     var stream = null, camReady = false;
     var employees = [], selected = null, lastGPS = null;
     var PENDING_PUNCH_ID = '', PENDING_PUNCH_SIG = '';
 
     function $(id){ return document.getElementById(id); }
+    // Observe paste and IME composition without altering the entered text.
+    function updateMemoValidity(){
+      var field=$('mMemo'),tooLong=field.value.replace(/[\x00-\x1f\x7f]/g,'').length>200;
+      field.setAttribute('aria-invalid',tooLong?'true':'false');
+      field.style.borderColor=tooLong?'#dc2626':'';
+    }
+    $('mMemo').addEventListener('input',updateMemoValidity);
+    $('mMemo').addEventListener('compositionend',updateMemoValidity);
     function p(n){ return (n<10?'0':'')+n; }
 
     async function apiPost(action, payload){
@@ -122,9 +142,9 @@
       return new Promise(function(res){
         if(!navigator.geolocation) return res(null);
         navigator.geolocation.getCurrentPosition(
-          function(pos){ res({ lat:pos.coords.latitude, lng:pos.coords.longitude }); },
+          function(pos){ res(pos && pos.coords && Number.isFinite(pos.coords.latitude) && Number.isFinite(pos.coords.longitude) ? { lat:pos.coords.latitude, lng:pos.coords.longitude } : null); },
           function(){ res(null); },
-          { enableHighAccuracy:true, timeout:8000, maximumAge:15000 }
+          { enableHighAccuracy:true, timeout:8000, maximumAge:0 }
         );
       });
     }
@@ -142,8 +162,9 @@
       var html = '<div class="grid">';
       employees.forEach(function(e, i){
         var sm = SMAP[e.status] || SMAP['未出勤'];
-        var action = e.canPunch === true ? ' onclick="__open('+i+')"' : '';
-        html += '<div class="emp'+(e.canPunch===true?'':' view-only')+'"'+action+'><div class="nm">'+esc(e.name)+'</div><span class="stt '+sm[0]+'">'+I18n.t(sm[1])+'</span>'+(e.canPunch===true?'':'<div class="view-note">'+I18n.t('viewOnly')+'</div>')+'</div>';
+        var actionable=canOperate(e);
+        var action = actionable ? ' onclick="__open('+i+')"' : '';
+        html += '<div class="emp'+(actionable?'':' view-only')+'"'+action+'><div class="nm">'+esc(e.name)+'</div><span class="stt '+sm[0]+'">'+I18n.t(sm[1])+'</span>'+(actionable?'':'<div class="view-note">'+I18n.t('viewOnly')+'</div>')+'</div>';
       });
       html += '</div>';
       area.innerHTML = html;
@@ -152,7 +173,7 @@
 
     window.__open = function(i){
       selected = employees[i];
-      if(!selected || selected.canPunch!==true){ selected=null; return; }
+      if(!canOperate(selected)){ selected=null; return; }
       $('mName').textContent = selected.name;
       var sm = SMAP[selected.status] || SMAP['未出勤'];
       $('mStatus').textContent = I18n.t(sm[1]);
@@ -173,7 +194,11 @@
     function expectedStatus(type){ return ({ '出勤':'勤務中', '休憩開始':'休憩中', '休憩終了':'勤務中', '退勤':'退勤済' })[type]||''; }
 
     window.__punch = async function(type){
-      if(!selected || selected.canPunch!==true) return;
+      if(!canOperate(selected)) return;
+      if($('mMemo').value.replace(/[\x00-\x1f\x7f]/g,'').length>200){
+        toast(I18n.currentLang&&I18n.currentLang()==='en'?'Punch memo must be 200 characters or fewer.':'打刻メモは200文字以内で入力してください。',true);
+        $('mMemo').focus();return;
+      }
       if(!camReady || !stream){ toast(I18n.t('camDeny'), true); return; }
       var btns = document.querySelectorAll('#mBtns .btn'); btns.forEach(function(b){ b.disabled=true; });
       var empId=selected.id, memo=$('mMemo').value;
@@ -182,6 +207,7 @@
       try {
         var photo = capture(selected.name);
         var gps = await getGPS();
+        if(!gps){ PENDING_PUNCH_ID=''; PENDING_PUNCH_SIG=''; toast(I18n.t('eLoc'), true); btns.forEach(function(b){ b.disabled=false; }); return; }
         var res = await apiPost('punch', { empId:empId, type:type, memo:memo, photo:photo, lat:gps&&gps.lat, lng:gps&&gps.lng, clientRequestId:PENDING_PUNCH_ID });
         if(res && res.success){ PENDING_PUNCH_ID=''; PENDING_PUNCH_SIG=''; closeModal(); toast('✅ '+(DONE(type)||I18n.t('done'))); loadEmployees(); }
         else {

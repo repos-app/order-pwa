@@ -45,7 +45,7 @@
       ? 'This coupon is no longer available. Please remove it or choose another coupon, then submit the order again.'
       : 'このクーポンは現在ご利用いただけません。クーポンを外すか別のクーポンを選び、もう一度注文してください。';
     if (code === 'request_timeout') return en ? 'The order request timed out. Please check the order status before trying again.' : '注文送信がタイムアウトしました。注文状況を確認してから再試行してください。';
-    if (/^http_5\d\d$/.test(code)) return en ? 'The server could not complete the order request. Please try again after a moment.' : 'サーバー側で注文処理を完了できませんでした。少し時間をおいて再試行してください。';
+    if (/^http_5\d\d$/.test(code)) return en ? 'The server could not complete the request. Please check the operation status before trying again.' : 'サーバー側で処理を完了できませんでした。再試行する前に処理結果をご確認ください。';
     if (code === 'locked, please retry') return en ? 'The order could not be accepted because the server was busy. Please try again.' : 'サーバーが混み合っているため注文を受け付けられませんでした。もう一度お試しください。';
     if (/^(?:http_\d+|api_error|internal_error|save_failed|request_failed)$/.test(code)) return generic;
     if (/failed to fetch|networkerror|aborterror|fetch is aborted|\baborted\b|timeout/i.test(raw)) return network;

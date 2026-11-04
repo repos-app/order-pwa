@@ -27,6 +27,15 @@
     .fc{ width:100%; padding:12px; border:1px solid var(--border); border-radius:10px; font-size:16px; font-family:inherit; margin-bottom:12px; }
     .btn{ width:100%; border:0; border-radius:11px; padding:14px; font-size:15px; font-weight:900; color:#fff; background:var(--navy); cursor:pointer; font-family:inherit; }
     .err{ display:none; color:var(--red); font-size:13px; font-weight:700; text-align:center; margin-bottom:10px; }
+    #loginCard #izErrBar{position:relative;inset:auto;width:100%;box-sizing:border-box;margin:0 0 12px;border-radius:9px;z-index:1;}
+    #loginView input{scroll-margin-block:110px 24px;}
+    /* Keep portrait iOS login cards fixed while the keyboard resizes its
+       visual viewport; avoid viewport-relative 8vh margin oscillation. */
+    @supports (-webkit-touch-callout: none) {
+      @media (max-width: 600px) and (orientation: portrait) {
+        #loginView .login {margin:32px auto 16px;}
+      }
+    }
     /* Hub */
     .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; }
     .tile{ background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:18px 14px; text-decoration:none; color:var(--navy); display:flex; flex-direction:column; gap:6px; cursor:pointer; }
@@ -37,7 +46,7 @@
     .mtabs{ display:flex; gap:8px; overflow-x:auto; padding-bottom:12px; -webkit-overflow-scrolling:touch; }
     .mtab{ flex:0 0 auto; background:var(--surface); border:1px solid var(--border); color:var(--text-3); border-radius:999px; padding:9px 16px; font-size:14px; font-weight:800; cursor:pointer; font-family:inherit; white-space:nowrap; }
     .mtab.on{ background:var(--navy); color:#fff; border-color:var(--navy); }
-.deletion-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;padding:12px 14px;border:2px solid #dc2626;border-radius:13px;background:#fef2f2;color:#991b1b;font-size:13px;font-weight:900}.deletion-banner.hidden{display:none}.deletion-banner a{flex:none;border-radius:9px;background:#b91c1c;color:#fff;padding:8px 11px;text-decoration:none;font-weight:900}
+    .hub-offline-banner{display:block;margin-bottom:12px;padding:12px 14px;border:2px solid #f59e0b;border-radius:12px;background:#fffbeb;color:#92400e;font:800 13px/1.5 inherit}.hub-offline-banner.hidden{display:none}\n    .deletion-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;padding:12px 14px;border:2px solid #dc2626;border-radius:13px;background:#fef2f2;color:#991b1b;font-size:13px;font-weight:900}.deletion-banner.hidden{display:none}.deletion-banner a{flex:none;border-radius:9px;background:#b91c1c;color:#fff;padding:8px 11px;text-decoration:none;font-weight:900}
   </style>
 </head>
 <body>
@@ -57,8 +66,9 @@
       <h2 data-t="login">ログイン</h2>
       <p data-t="loginSub">ログインIDとパスワードを入力</p>
       <div class="err" id="loginErr" data-t="loginErr">IDまたはパスワードが違います</div>
-      <input class="fc" id="loginId" placeholder="ログインID" data-tph="ph_loginId" autocapitalize="none" autocomplete="username">
-      <input class="fc" id="loginPass" type="password" placeholder="パスワード" data-tph="ph_pass" autocomplete="current-password">
+      <div id="loginApiErrorSlot"></div>
+      <input class="fc" id="loginId" placeholder="ログインID" data-tph="ph_loginId" autocapitalize="none" autocomplete="off">
+      <input class="fc" id="loginPass" type="password" placeholder="パスワード" data-tph="ph_pass" autocomplete="off">
       <button class="btn" id="loginBtn" onclick="doLogin()" data-t="loginBtn">🔓 ログイン</button>
       <div style="text-align:center;margin-top:14px;"><a href="#" onclick="toggleChgPw(true);return false;" style="font-size:13px;font-weight:700;color:var(--text-3);" data-t="chgPwLink">🔑 パスワードを変更</a></div>
     </div>
@@ -78,11 +88,42 @@
 
   <!-- Hub view -->
   <div class="wrap hidden" id="hubView">
+    <div id="hubOfflineBanner" class="hub-offline-banner hidden" role="status" aria-live="polite" aria-atomic="true"></div>
     <div class="deletion-banner hidden" id="deletionBanner"><span id="deletionBannerText"></span><a href="./account.html" id="deletionBannerLink">確認</a></div>
     <div class="mtabs" id="mtabs"></div>
     <div class="grid" id="tiles"></div>
   </div>
 
+  <script>
+(function(){
+  var failure=false,disconnected=navigator.onLine===false,seq=0;
+  function render(){
+    var box=document.getElementById('hubOfflineBanner');if(!box)return;
+    var offline=disconnected||navigator.onLine===false;
+    var en=window.I18n&&typeof window.I18n.lang==='function'&&window.I18n.lang()==='en';
+    box.textContent=offline?(en?'Offline: no network connection. Cached menu remains available.':"\u30aa\u30d5\u30e9\u30a4\u30f3\u3067\u3059\u3002\u30cd\u30c3\u30c8\u30ef\u30fc\u30af\u63a5\u7d9a\u304c\u3042\u308a\u307e\u305b\u3093\u3002\u4fdd\u5b58\u6e08\u307f\u306e\u30e1\u30cb\u30e5\u30fc\u306f\u8868\u793a\u3067\u304d\u307e\u3059\u3002")
+      :(en?'Could not connect to the server. Cached menu remains available.':"\u30b5\u30fc\u30d0\u30fc\u306b\u63a5\u7d9a\u3067\u304d\u307e\u305b\u3093\u3002\u4fdd\u5b58\u6e08\u307f\u306e\u30e1\u30cb\u30e5\u30fc\u306f\u8868\u793a\u3067\u304d\u307e\u3059\u3002");
+    box.classList.toggle('hidden',!offline&&!failure);
+  }
+  function refresh(){
+    disconnected=navigator.onLine===false;render();
+    var n=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Network;
+    if(!n||typeof n.getStatus!=='function')return;
+    var generation=++seq;
+    Promise.resolve().then(function(){return n.getStatus();}).then(function(s){
+      if(generation!==seq||!s||typeof s.connected!=='boolean')return;
+      disconnected=!s.connected;render();
+    }).catch(function(){});
+  }
+  window.izkManageOfflineStatus={refresh:refresh,markFailure:function(){failure=true;render();},markVerified:function(){failure=false;refresh();}};
+  window.addEventListener('offline',function(){disconnected=true;render();});
+  window.addEventListener('online',function(){disconnected=false;refresh();});
+  window.addEventListener('pageshow',refresh);
+  document.addEventListener('visibilitychange',function(){if(!document.hidden)refresh();});
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',refresh,{once:true});
+  else refresh();
+})();
+</script>
   <script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
   <script src="./i18n.js?v=auth3"></script>
@@ -95,6 +136,7 @@
     var lastAllowed = (hubCache.allowed&&typeof hubCache.allowed==='object')?hubCache.allowed:{}, ACCOUNT_OWNER = hubCache.accountOwner===true;
     var authAttempt = 0;
     var authCheckSeq = 0;
+    var authCheckPending = null;
 
     // key: 権限キー（null=公開・常時表示）, active: 移設済みか
     var GROUPS = [
@@ -143,14 +185,23 @@
     ];
     var curTab = (function(){ try { return localStorage.getItem('mgmtTab') || null; } catch(e){ return null; } })();
 
-    function showLogin(){ ACCOUNT_OWNER=false; var db=document.getElementById('deletionBanner');if(db)db.classList.add('hidden'); document.getElementById('loadingView').classList.add('hidden'); document.getElementById('loginView').classList.remove('hidden'); document.getElementById('hubView').classList.add('hidden'); document.getElementById('logoutBtn').classList.add('hidden'); document.getElementById('who').innerText=''; var _lc=document.getElementById('loginCard'); if(_lc)_lc.classList.remove('hidden'); var _cc=document.getElementById('chgPwCard'); if(_cc)_cc.classList.add('hidden'); }
+    function scrubCredentialForms(){
+      ['loginId','loginPass','cpLoginId','cpOldPass','cpNewPass','cpNewPass2'].forEach(function(id){
+        var field=document.getElementById(id); if(field)field.value='';
+      });
+      ['loginErr','chgMsg'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});
+      ['loginBtn','cpBtn'].forEach(function(id){var btn=document.getElementById(id);if(btn)btn.disabled=false;});
+    }
+    function showLogin(){ ACCOUNT_OWNER=false; var db=document.getElementById('deletionBanner');if(db)db.classList.add('hidden'); document.getElementById('loadingView').classList.add('hidden'); document.getElementById('loginView').classList.remove('hidden'); document.getElementById('hubView').classList.add('hidden'); document.getElementById('logoutBtn').classList.add('hidden'); document.getElementById('who').innerText=''; var _lc=document.getElementById('loginCard'); if(_lc)_lc.classList.remove('hidden'); var _cc=document.getElementById('chgPwCard'); if(_cc)_cc.classList.add('hidden'); if(window.IZHeader&&IZHeader.syncAuthDisplay)IZHeader.syncAuthDisplay(); }
     function showHub(allowed, accountOwner){
       ACCOUNT_OWNER=accountOwner===true;
       document.getElementById('loadingView').classList.add('hidden');
       document.getElementById('loginView').classList.add('hidden');
       document.getElementById('hubView').classList.remove('hidden');
+      window.izkManageOfflineStatus.refresh();
       document.getElementById('logoutBtn').classList.remove('hidden');
       document.getElementById('who').innerText = NAME ? ('👤 '+NAME) : '';
+      if(window.IZHeader&&IZHeader.syncAuthDisplay)IZHeader.syncAuthDisplay();
       lastAllowed = allowed || {};
       try{sessionStorage.setItem(HUB_CACHE_KEY,JSON.stringify({allowed:lastAllowed,accountOwner:ACCOUNT_OWNER}));}catch(e){}
       renderHub();
@@ -218,6 +269,7 @@
         API.acceptLogin(r);
         btn.disabled=false;
         TOKEN = r.token; NAME = r.name || ''; ROLE = r.role || '';
+        scrubCredentialForms();
         // [応答速度改善(2026-08-22)/ログイン再改善] loginレスポンスに権限メニュー(me)が
         // 同封されるようになったため、直後のcheckToken往復を省いて即座に表示する。
         // 念のため未同封（旧サーバー版との混在デプロイ等）の場合のみ従来通りcheckAndShowにフォールバック。
@@ -225,14 +277,24 @@
       }).catch(function(e){
         if (attempt !== authAttempt) return;
         btn.disabled=false;
-        if (e.message === 'auth') errEl.textContent = I18n.t('loginErr');
+        // Avoid revealing whether a store exists if a tenant route rejects login.
+        if (e.message === 'auth' || e.message === 'store_not_found') errEl.textContent = I18n.t('loginErr');
         else if (e.message === 'email_unverified') errEl.textContent = I18n.t('emailUnverified');
         else if (e.message === 'login_rate_limited') errEl.textContent = I18n.t('loginRateLimited');
         else errEl.textContent = I18n.t('authUnavailable');
         errEl.style.display='block';
       });
     };
-    window.logout = async function(){ ++authAttempt; await API.logoutSession(); localStorage.removeItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtName'); localStorage.removeItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtRole'); TOKEN=''; NAME=''; ROLE=''; showLogin(); };
+    window.logout = function(){
+      ++authAttempt; ++authCheckSeq; authCheckPending=null;
+      var pending;
+      try{pending=API.logoutSession();}catch(e){pending=Promise.reject(e);}
+      [window.APP_CONFIG.AUTH_STORAGE_PREFIX+'mgmtName',window.APP_CONFIG.AUTH_STORAGE_PREFIX+'mgmtRole'].forEach(function(key){try{localStorage.removeItem(key);}catch(e){}});
+      try{sessionStorage.removeItem(HUB_CACHE_KEY);}catch(e){}
+      TOKEN=''; NAME=''; ROLE=''; lastAllowed={}; ACCOUNT_OWNER=false;
+      scrubCredentialForms(); showLogin();
+      return Promise.resolve(pending).catch(function(){console.error('logout_session_cleanup_failed');});
+    };
 
     // ログイン画面からのパスワード変更（ログインID＋現在のパスワードで本人確認）
     window.toggleChgPw = function(show){
@@ -258,14 +320,16 @@
     };
 
     function checkAndShow(){
-      if (!TOKEN){ showLogin(); return; }
+      if (!TOKEN){ showLogin(); return Promise.resolve(); }
+      if (authCheckPending) return authCheckPending;
       var attempt = authAttempt;
       var checkSeq = ++authCheckSeq;
       var checkedToken = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || TOKEN;
-      API.post('checkToken', { token: checkedToken, __timeoutMs:6000, __silent:true }).then(function(r){
+      var run = API.post('checkToken', { token: checkedToken, __timeoutMs:6000, __silent:true }).then(function(r){
         if (attempt !== authAttempt || checkSeq !== authCheckSeq || !API.isCurrentToken ||
             (!API.isCurrentToken(checkedToken) && !API.isCurrentToken(r.newToken))) return;
         if (r.valid && r.me){
+          window.izkManageOfflineStatus.markVerified();
           // 2026-08-27追記: ROLEをここでもサーバー応答から更新する（ログイン後にロールが
           // 変更された場合、次回ログインまで古いROLEのままdata_adminタイル等が出続ける/消えない
           // という表示上のズレを防ぐ。実際の実行可否は常にサーバー側で再検証されるため、これは
@@ -276,6 +340,7 @@
         else { logout(); }
       }).catch(function(){
         if (attempt !== authAttempt || checkSeq !== authCheckSeq) return;
+        window.izkManageOfflineStatus.markFailure();
         var current = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
         if (!current) { showLogin(); return; }
         if ((lastAllowed && Object.keys(lastAllowed).length) || ROLE) {
@@ -289,6 +354,9 @@
           p.onclick=function(){ p.textContent=I18n.t('loading'); p.style.cursor=''; p.onclick=null; checkAndShow(); };
         }
       });
+      var tracked = run.finally(function(){ if(authCheckPending===tracked) authCheckPending=null; });
+      authCheckPending=tracked;
+      return tracked;
     }
     // ログイン画面の画像（設定で登録した画像を表示。getSettingsはログイン前でも公開）
     API.post('getSettings', {}).then(function(r){ var d=(r&&r.data)||{}; if(d.systemTopImageId){ var im=document.getElementById('loginPic'); if(im){ im.src=API.imageUrl(d.systemTopImageId); im.style.display='block'; } } }).catch(function(){});
@@ -298,11 +366,12 @@
     }, function(){ if(!document.getElementById('hubView').classList.contains('hidden')) showHub(lastAllowed, ACCOUNT_OWNER); });
     document.addEventListener('DOMContentLoaded', checkAndShow);
     window.addEventListener('pageshow', function(e){
-      if(e.persisted && !document.getElementById('loadingView').classList.contains('hidden')) checkAndShow();
+      if(e.persisted && !API.currentToken())scrubCredentialForms();
+      if(e.persisted && !document.getElementById('loadingView').classList.contains('hidden') && !authCheckPending) checkAndShow();
     });
     document.addEventListener('visibilitychange', function(){
       if(document.visibilityState && document.visibilityState!=='visible') return;
-      if(!document.getElementById('loadingView').classList.contains('hidden')) checkAndShow();
+      if(!document.getElementById('loadingView').classList.contains('hidden') && !authCheckPending) checkAndShow();
     });
   </script>
   <script src="./help.js?v=auth2"></script>
@@ -319,6 +388,22 @@
         { ja: '⑥ 「ログアウト」を押すとログインし直すまでメニューにアクセスできなくなります。', en: '⑥ Tap "Logout" to sign out; you\'ll need to log in again to access the menu.' }
       ]
     });
+  </script>
+  <script>
+    (function(){
+      var slot=document.getElementById('loginApiErrorSlot');
+      var login=document.getElementById('loginView');
+      var observer=new MutationObserver(function(){
+        var bar=document.getElementById('izErrBar');
+        if(!bar)return;
+        if(!login.classList.contains('hidden') && bar.parentNode!==slot)slot.appendChild(bar);
+        else if(login.classList.contains('hidden') && bar.parentNode===slot)document.body.appendChild(bar);
+      });
+      observer.observe(document.body,{childList:true});
+      observer.observe(login,{attributes:true,attributeFilter:['class']});
+      var existing=document.getElementById('izErrBar');
+      if(existing && !login.classList.contains('hidden'))slot.appendChild(existing);
+    })();
   </script>
 </body>
 </html>

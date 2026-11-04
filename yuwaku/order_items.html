@@ -31,7 +31,13 @@
     .btn{ border:0; border-radius:11px; padding:12px 16px; font-size:15px; font-weight:900; cursor:pointer; font-family:inherit; background:var(--navy); color:#fff; }
     .btn-sm{ background:#eef2f7; color:var(--navy); border:0; border-radius:8px; padding:7px 10px; font-weight:800; cursor:pointer; }
     .alert{ margin-top:10px; display:none; padding:11px; border-radius:9px; font-size:14px; font-weight:700; }
-  </style>
+    /* IZK-UT-073: master text wraps; edit/delete actions keep their column. */
+    #rows td:not(:last-child){white-space:normal;overflow-wrap:normal;word-break:normal;}
+    #rows td:last-child{white-space:nowrap;}
+    @media (orientation:landscape) and (max-height:500px){ body{padding-bottom:220px;} #iMemo{width:min(100%,320px);max-width:100%;font-size:16px;scroll-margin-top:72px;} }
+/* Formal Android PT-CTL touch target: independent of common header injection. */
+#saveBtn{min-height:44px;min-width:44px;box-sizing:border-box}
+</style>
 </head>
 <body>
   <div class="head"><h1 data-t="title">📋 発注アイテム管理</h1><div style="display:flex;gap:8px;"><button class="hbtn" data-tlang onclick="I18n.toggle()">EN</button><a class="hbtn" href="./purchasing.html" data-t="pur">🚚 仕入・発注</a><a class="hbtn" href="./manage.html" data-t="back">← 管理へ</a></div></div>
@@ -97,7 +103,17 @@
     // [負荷試験レビュー対応/優先#6] deleteOrderItemは失敗時も例外を投げず{error:...}を返すため、
     // 結果を見ずに一覧から消していたのを修正（成功時のみローカル配列から除去する）。
     window.del = function(id){ UIConfirm(I18n.t('delConfirm')).then(function(ok){ if(!ok) return; rpc('deleteOrderItem',[id]).then(function(r){ if(r && r.ok){ ITEMS = ITEMS.filter(function(x){ return x.id!==id; }); render(); } else { msg(I18n.t('errPrefix')+API.userErrorText((r&&r.error)||'delete_failed'), false); } }).catch(function(e){ msg(I18n.t('errPrefix')+API.userErrorText(e), false); }); }); };
+    var orderLengthLimits={iUnit:20,iMemo:200};
+    function orderLengthError(id,n){msg((isEN()?'Maximum '+n+' characters: ':'最大'+n+'文字まで: ')+id,false);}
+    function orderLengthPreflight(){for(var id in orderLengthLimits){var e=document.getElementById(id),n=orderLengthLimits[id];if(e.value.trim().length>n){orderLengthError(id,n);return false;}}var supplier=document.getElementById('iSupplier');if(supplier.value.length>60){orderLengthError('iSupplier',60);return false;}return true;}
+    Object.keys(orderLengthLimits).forEach(function(id){
+      var e=document.getElementById(id),n=orderLengthLimits[id];e.maxLength=n;
+      function over(s){return e.value.length-(e.selectionEnd-e.selectionStart)+s.length>n;}
+      e.addEventListener('paste',function(ev){if(over(ev.clipboardData.getData('text'))){ev.preventDefault();orderLengthError(id,n);}});
+      e.addEventListener('beforeinput',function(ev){if(ev.isComposing||ev.inputType==='insertCompositionText'||!ev.inputType||!ev.inputType.startsWith('insert'))return;var s=ev.data;if(s===null&&ev.dataTransfer)s=ev.dataTransfer.getData('text/plain');if(s!==null&&over(s)){ev.preventDefault();orderLengthError(id,n);}});
+    });
     window.save = function(){
+      if(!orderLengthPreflight())return;
       var nameJa=document.getElementById('iName').value.trim(), nameEn=document.getElementById('iNameEn').value.trim();
       var it = { id:document.getElementById('iId').value, name:nameJa||nameEn, nameJa:nameJa, nameEn:nameEn, unit:document.getElementById('iUnit').value.trim(), supplier:document.getElementById('iSupplier').value, memo:document.getElementById('iMemo').value.trim() };
       if(!nameJa&&!nameEn){ msg(I18n.t('needName'), false); return; }
@@ -142,5 +158,27 @@
       ]
     });
   </script>
+<script>
+  // Reposition the active field after landscape IME viewport changes.
+  (function(){
+    function recover(){
+      if(!matchMedia('(orientation:landscape) and (max-height:500px)').matches)return;
+      var el=document.activeElement;
+      if(!el||!el.matches('#iMemo'))return;
+      var vv=window.visualViewport;
+      var top=(vv?vv.offsetTop:0)+Math.max(60,document.querySelector('.head')?.getBoundingClientRect().height||0)+8;
+      var bottom=(vv?vv.offsetTop+vv.height:innerHeight)-8;
+      var rect=el.getBoundingClientRect();
+      if(bottom-top<rect.height)return;
+      var delta=rect.top<top?rect.top-top:rect.bottom>bottom?rect.bottom-bottom:0;
+      if(delta)window.scrollBy(0,delta);
+    }
+    function settle(){recover();setTimeout(recover,130);setTimeout(recover,400);}
+    window.addEventListener('orientationchange',settle);
+    window.addEventListener('resize',settle);
+    window.visualViewport?.addEventListener('resize',settle);
+    document.addEventListener('focusin',settle);
+  })();
+</script>
 </body>
 </html>
