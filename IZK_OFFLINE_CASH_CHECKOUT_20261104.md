@@ -114,6 +114,38 @@ strict binding inheritance. Never replace it with a generic Wrangler deploy.
   outcome and public mirror publication evidence separately; never infer
   success from the count of registered steps alone.
 
+### Final release evidence (2026-11-04 PHT)
+
+- Fresh complete `npm test`: **215/215 ordered project steps PASS (exit 0)**.
+  This is source, simulated D1 and browser testing, **not** formal real-device QA.
+- Private `repos-app/izakanpai` main: commit
+  `c0a0b46148d6c05ebe5653262943d69fc2dc9b4c` pushed and independently
+  read back from `origin/main`; 79 changed files were included.
+- Public `repos-app/order-pwa` main: commit
+  `e1a1f66bd112fa1a2d1ecd82bdd68b6d91685fb3` pushed with existing
+  `publish_pwa_mirror.bat`, preserving the no-publish test tree policy.
+  Independent cache-bypassing HTTPS GETs of the public production
+  `https://izakanpai.com/yuwaku/api.js` and `/yuwaku/admin.html` returned
+  HTTP 200 and verified the new `queueOfflineCashSettlement`,
+  `saveOfflineCheckoutSnapshot`, and `submitDurableCash` implementation.
+- The final future-store Template Worker was deployed with version
+  `306fb6e6-b65c-43a9-b324-9f830a3755ed` (including 0053 checkpoint
+  account-deletion integrity fix). Existing 13 tenant Workers were then
+  code-only refreshed with strict binding inheritance: **13/13
+  updated_verified, 0 blocked**, all nonsecret binding fingerprints unchanged.
+- An **independent final read-only** tenant Worker pass subsequently returned
+  **13/13 already_current, 0 blocked, exit 0**, with every store's
+  `preflightReady: true`, D1 schema `0054_offline_cash_settlements.sql` and
+  unchanged per-store binding fingerprint.
+- `npm run mobile:sync` and `npm run verify:distribution` after frontend
+  changes: PASS, 111 files identical among canonical native source, iOS,
+  Android and native output. No signed native build or TestFlight distribution
+  was performed by this release.
+- Realistic local SQLite D1 fixtures also found and fixed the 0053 operator
+  checkpoint FK blocking full account erasure; safe erasure/retry, 0054 cash
+  reconciliation parent-child links, exact-store export/copy and foreign-store
+  isolation were regression-verified. No production user data deletion was run.
+
 Official Android/Realme and iOS/TestFlight cash-in-hand, reboot, disconnection,
 resend, printer/receipt, conflict and cross-device QA evidence remains separate
 from the tests above.
