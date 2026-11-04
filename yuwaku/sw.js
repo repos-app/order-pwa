@@ -124,7 +124,8 @@ const CACHE_PREFIX = 'yuwaku-production-';
 // v294: hide the partial checkout action from Orders while retaining its code.
 // v295: inventory's AI credit and image-quality scripts are release pinned;
 // precache the exact versioned URLs so first-launch offline works after update.
-const CACHE = CACHE_PREFIX + 'v295';
+// v296: refresh cached checkout without the obsolete split-bill reference widget.
+const CACHE = CACHE_PREFIX + 'v296';
 const SHELL = [
   './',
   './index.html',

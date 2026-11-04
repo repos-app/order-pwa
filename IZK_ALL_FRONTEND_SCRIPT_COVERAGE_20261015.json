@@ -258,8 +258,8 @@
     {
       "surface": "web-production",
       "path": "docs/yuwaku/sw.js",
-      "sha256": "21929f8e9af1e62f6621f4745ca808bd7b8cad538546215fd01fe6742c8cae3d",
-      "bytes": 17070,
+      "sha256": "a727f05c8ca59fe2b634556ec25becfdb9da1bf954331685e9f0adf2adbcb391",
+      "bytes": 17153,
       "syntax": "PASS",
       "error": null,
       "runtime": "NOT_TESTED",
@@ -418,8 +418,8 @@
     {
       "surface": "web-test",
       "path": "docs/yuwaku/test/sw.js",
-      "sha256": "d0c2abe775c5b30e463d612839e60ca1c82e1a81b1a3d982cab53fde4846e844",
-      "bytes": 16472,
+      "sha256": "71e42b308eb9750b3700391cbcb30b5e5395d1be632c511258047a80fe194871",
+      "bytes": 16555,
       "syntax": "PASS",
       "error": null,
       "runtime": "NOT_TESTED",
@@ -678,8 +678,8 @@
     {
       "surface": "native",
       "path": "mobile-app/web/sw.js",
-      "sha256": "e0f7c9953554e807d963abad14b40fdb5f8b5d0ac97dfdf352df7d6f85908d0e",
-      "bytes": 22503,
+      "sha256": "68490feaeb4abfca6307d0d5ffdabf79323d396477d24e8cff477ea550e18fb0",
+      "bytes": 22587,
       "syntax": "PASS",
       "error": null,
       "runtime": "NOT_TESTED",
