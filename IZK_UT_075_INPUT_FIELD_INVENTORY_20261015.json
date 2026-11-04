@@ -8,27 +8,27 @@
   ],
   "summary": {
     "native": {
-      "candidates": 321,
+      "candidates": 320,
       "textLength": 164,
       "textMissingMaxlength": 128,
       "explicitMaxlength": 36,
-      "numericRange": 133,
+      "numericRange": 132,
       "dateTime": 22
     },
     "webProduction": {
-      "candidates": 277,
+      "candidates": 276,
       "textLength": 136,
       "textMissingMaxlength": 116,
       "explicitMaxlength": 20,
-      "numericRange": 121,
+      "numericRange": 120,
       "dateTime": 18
     },
     "webTest": {
-      "candidates": 277,
+      "candidates": 276,
       "textLength": 136,
       "textMissingMaxlength": 116,
       "explicitMaxlength": 20,
-      "numericRange": 121,
+      "numericRange": 120,
       "dateTime": 18
     },
     "publicReservation": {
@@ -206,22 +206,6 @@
       "max": null,
       "step": null,
       "placeholder": "パスワード",
-      "disposition": "REVIEW_PENDING",
-      "evidence": "static_source_only"
-    },
-    {
-      "surface": "native",
-      "page": "admin.html",
-      "tag": "input",
-      "id": "splitN",
-      "type": "number",
-      "kind": "numeric-range",
-      "maxlength": null,
-      "minlength": null,
-      "min": "1",
-      "max": null,
-      "step": null,
-      "placeholder": null,
       "disposition": "REVIEW_PENDING",
       "evidence": "static_source_only"
     },
@@ -5349,22 +5333,6 @@
       "surface": "webProduction",
       "page": "admin.html",
       "tag": "input",
-      "id": "splitN",
-      "type": "number",
-      "kind": "numeric-range",
-      "maxlength": null,
-      "minlength": null,
-      "min": "1",
-      "max": null,
-      "step": null,
-      "placeholder": null,
-      "disposition": "REVIEW_PENDING",
-      "evidence": "static_source_only"
-    },
-    {
-      "surface": "webProduction",
-      "page": "admin.html",
-      "tag": "input",
       "id": "payEmail",
       "type": "email",
       "kind": "text-length",
@@ -9774,22 +9742,6 @@
       "max": null,
       "step": null,
       "placeholder": "パスワード",
-      "disposition": "REVIEW_PENDING",
-      "evidence": "static_source_only"
-    },
-    {
-      "surface": "webTest",
-      "page": "admin.html",
-      "tag": "input",
-      "id": "splitN",
-      "type": "number",
-      "kind": "numeric-range",
-      "maxlength": null,
-      "minlength": null,
-      "min": "1",
-      "max": null,
-      "step": null,
-      "placeholder": null,
       "disposition": "REVIEW_PENDING",
       "evidence": "static_source_only"
     },

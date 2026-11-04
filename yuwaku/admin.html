@@ -127,11 +127,6 @@
             </div>
           </div>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;font-size:13px;">
-          <span id="splitLbl">割り勘 ÷</span>
-          <input id="splitN" type="number" min="1" value="1" style="width:70px;padding:7px;border:1px solid #e5e7eb;border-radius:8px;font-family:inherit;" oninput="updSplit()">
-          <span id="splitRes" style="font-weight:800;"></span>
-        </div>
         <div hidden aria-hidden="true" style="display:none;margin-bottom:10px;"><input id="payEmail" type="email" placeholder="e-receipt email (任意)" autocomplete="off" tabindex="-1" style="width:100%;padding:9px;border:1px solid #e5e7eb;border-radius:8px;font-family:inherit;box-sizing:border-box;"></div>
         <button class="pbtn" id="payBtnGcash" style="background:linear-gradient(135deg,#0f4c81,#1565c0);" onclick="gcashPay()">📱 <span id="qrPayLbl">QR決済</span></button>
         <button class="pbtn" id="payBtnCard" style="background:linear-gradient(135deg,#2e7d32,#43a047);" onclick="cardPay()">💳 <span id="cardPayLbl">カード</span></button>
@@ -217,7 +212,7 @@
             openPay:'支払いページを開く', checkBtn:'支払い確認', checking:'確認中…', notYet:'まだ支払いが確認できません。',
             noKey:'オンライン決済は未設定です。', cashRecv:'現金を受け取りましたか？', cardRecv:'💳 決済端末でクレジットカード決済をしてください。決済を確認したら、下のボタンを押して会計を完了してください。', gcashHint:'お客様にQRコードをスキャンして送金していただき、入金を確認したら下のボタンを押してください。', gcashConfirm:'入金を確認した', confirmed:'支払い完了', done:'完了（会計済にする）', processing:'処理中…', lang:'EN',
             disc:'割引', senior:'シニア', idPh:'ID番号', eligPh:'対象額', discLine:'割引', vatNote:'うちVAT', orLbl:'レシート番号', printBtn:'🖨️ レシート印刷', close:'閉じる', tableW:'卓', totalW:'合計',
-            partial:'🧾 一部会計', partTitle:'一部会計 — 明細を選択', selected:'選択', selPay:'選択分を会計', splitLbl:'割り勘 ÷', each:'/人',
+            partial:'🧾 一部会計', partTitle:'一部会計 — 明細を選択', selected:'選択', selPay:'選択分を会計',
             callHdr:'🔔 呼び出し', callLbl:'スタッフ呼出', billLbl:'お会計希望', resolve:'対応済', agoMin:'分前', stay:'滞在', voidBtn:'取消', voidT:'注文の取消', reason:'取消理由', approver:'承認者（マネージャー以上のログイン）', loginPh:'ログインID', passPh:'パスワード', voidGo:'取消を承認', voidGoNoApproval:'取消を実行', needReason:'取消理由を入力してください', needApprover:'マネージャー以上の承認者ID・パスワードを入力してください', authFail:'マネージャー以上の承認者IDまたはパスワードを確認してください', voided:'取消しました', alreadySettled:'会計済のため取消できません', eReceipt:'eレシート送信先メール（任意）',
             entryFeeLbl:'入場料', extFeeLbl:'延長料',
             discApprover:'承認者（マネージャー以上のログイン）', discNeedAppr:'マネージャー以上の承認者ログインID・パスワードを入力してください', discNotManager:'マネージャー以上の権限が必要です', discDisabled:'シニア/PWD割引は現在無効化されています', discVerifying:'承認確認中…', unservedBill:'未提供の注文が含まれています。先に対象明細を「提供済」にしてから会計してください。', demoTag:'🧪 デモ', demoDone:'デモ会計が完了しました。売上・レシート・ポイント・在庫には計上されません。' },
@@ -226,7 +221,7 @@
             openPay:'Open payment page', checkBtn:'Check status', checking:'Checking…', notYet:'Payment not confirmed yet.',
             noKey:'Online payment is not set up.', cashRecv:'Cash received?', cardRecv:'💳 Please process the credit card payment on the card terminal. Once confirmed, press the button below to complete checkout.', gcashHint:'Ask the customer to scan the QR code and pay, then press the button below once you\'ve confirmed the payment.', gcashConfirm:'Payment confirmed', confirmed:'Paid', done:'Done (settle)', processing:'Processing…', lang:'JP',
             disc:'Discount', senior:'Senior', idPh:'ID no.', eligPh:'Eligible amt', discLine:'Discount', vatNote:'incl. VAT', orLbl:'Receipt no.', printBtn:'🖨️ Print receipt', close:'Close', tableW:'Table', totalW:'TOTAL',
-            partial:'🧾 Partial', partTitle:'Partial checkout — select items', selected:'Selected', selPay:'Checkout selected', splitLbl:'Split ÷', each:'/person',
+            partial:'🧾 Partial', partTitle:'Partial checkout — select items', selected:'Selected', selPay:'Checkout selected',
             callHdr:'🔔 Requests', callLbl:'Call staff', billLbl:'Bill please', resolve:'Done', agoMin:'m ago', stay:'Seated', voidBtn:'Void', voidT:'Void order', reason:'Reason', approver:'Approver (Manager or above login)', loginPh:'Login ID', passPh:'Password', voidGo:'Approve void', voidGoNoApproval:'Void order', needReason:'Please enter a reason', needApprover:'Enter a Manager-or-above approver login ID and password', authFail:'Check the Manager-or-above approver login ID and password', voided:'Order voided', alreadySettled:'Cannot void a settled order', eReceipt:'e-receipt email (optional)',
             entryFeeLbl:'Entry fee', extFeeLbl:'Extension fee',
             discApprover:'Approver (Manager-or-above login)', discNeedAppr:'Please enter a Manager-or-above approver login ID and password', discNotManager:'Manager-or-above role required', discDisabled:'Senior/PWD discount is currently disabled', discVerifying:'Verifying approval…', unservedBill:'This checkout includes unserved orders. Mark every selected order as served before checkout.', demoTag:'🧪 DEMO', demoDone:'Demo checkout completed. It was not recorded in sales, receipts, points, or inventory.' }
@@ -916,7 +911,6 @@
         document.getElementById('payBtnGcash').style.display='none';
       }
       var _pe=document.getElementById('payEmail'); if(_pe){ _pe.value=''; _pe.placeholder=t().eReceipt; }
-      document.getElementById('splitN').value = 1; document.getElementById('splitLbl').innerText = t().splitLbl;
       document.getElementById('ps1t').innerText = t().pTitle;
       document.getElementById('cashLbl').innerText = settingLoc('cashPaymentLabel',t().cash);
       document.getElementById('cardPayLbl').innerText = settingLoc('cardPaymentLabel',t().card);
@@ -974,11 +968,6 @@
       html += '<div class="big">'+money(total)+'</div>';
       document.getElementById('paySum').innerHTML = html;
       document.getElementById('dcNote').innerText = on ? ((lang==='en'?'incl. ':'うち')+taxName()+' '+money(vat)) : '';
-      updSplit();
-    };
-    window.updSplit = function(){
-      var n = Math.max(1, parseInt(document.getElementById('splitN').value,10)||1);
-      document.getElementById('splitRes').innerText = n>1 ? (money(Math.ceil((payTotal||0)/n))+' '+t().each) : '';
     };
     window.openPartial = function(tn){
       if(!PARTIAL_CHECKOUT_UI_ENABLED) return false;
