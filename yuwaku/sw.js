@@ -125,7 +125,8 @@ const CACHE_PREFIX = 'yuwaku-production-';
 // v295: inventory's AI credit and image-quality scripts are release pinned;
 // precache the exact versioned URLs so first-launch offline works after update.
 // v296: refresh cached checkout without the obsolete split-bill reference widget.
-const CACHE = CACHE_PREFIX + 'v296';
+// v298: reload vertically stacked AI credit badge without increasing common header height.
+const CACHE = CACHE_PREFIX + 'v300';
 const SHELL = [
   './',
   './index.html',
@@ -141,7 +142,8 @@ const SHELL = [
   './attendance.html',
   './users.html',
   './menu_editor.html',
-  './ai-credit-hub.js?v=auth4',
+  './menu-ai-review-reasons.js',
+  './ai-credit-hub.js?v=auth7',
   './ai-credit-ui.js?v=auth1',
   './ai-image-quality.js?v=auth1',
   './inventory.html',

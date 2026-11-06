@@ -317,7 +317,7 @@
         "unresolvedHandlers": [],
         "missingLocalTargets": []
       },
-      "sourceSha256": "da6315b534b1fea3d770b76b80f115fbee34c477320af4b532fbb4aa30f181e6",
+      "sourceSha256": "50a3460b14521d4de72127ee491ab1aad78076400871edf3c07fb1b01072878a",
       "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
       "physical720px": "NOT_TESTED",
       "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
@@ -389,7 +389,7 @@
         "unresolvedHandlers": [],
         "missingLocalTargets": []
       },
-      "sourceSha256": "c75ce3b6b4d66ea27e3ec1d7c27660e67f2a79817e285d53ee1d094a0cc3479d",
+      "sourceSha256": "31d98c0efacd6a49a4cc9fce75e09a81bee050dbfc1049cd5221039d5859b111",
       "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
       "physical720px": "NOT_TESTED",
       "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
@@ -437,7 +437,7 @@
         "unresolvedHandlers": [],
         "missingLocalTargets": []
       },
-      "sourceSha256": "18433f8068bd925792e48450cc94790fda7ea8ef29b16f809526f514049ee088",
+      "sourceSha256": "f9572200abd0ee21218c05c7e395ffa005709fdb9cc2747a09fbef78fa8a3a77",
       "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
       "physical720px": "NOT_TESTED",
       "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
@@ -857,7 +857,7 @@
         "scroll": true,
         "flex": true,
         "grid": true,
-        "wrap": false,
+        "wrap": true,
         "nowrap": true,
         "dynamicDom": true
       },
@@ -869,10 +869,10 @@
         "unresolvedHandlers": [],
         "missingLocalTargets": []
       },
-      "sourceSha256": "4580f11020c9fd343e0d2de8da2df8591e44681b8d5592b3c96bf7dc625bfb63",
+      "sourceSha256": "71e3f7d5ea84b92dbc6dbe1d4297a254e76158b9292db90ca4fb61ba1102f71e",
       "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
       "physical720px": "NOT_TESTED",
-      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
     },
     {
       "surface": "web-production",
@@ -1253,7 +1253,7 @@
         "unresolvedHandlers": [],
         "missingLocalTargets": []
       },
-      "sourceSha256": "b7d378be840f8f4a17ab58f99a3fa5ac8850b5d35703f9591ba8e091b8ecd64f",
+      "sourceSha256": "ffeadd3cf72cdfd2f88ba91ba76b0e5407b4431f7d834082ce9d9549f48d53d0",
       "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
       "physical720px": "NOT_TESTED",
       "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
@@ -1301,7 +1301,7 @@
         "unresolvedHandlers": [],
         "missingLocalTargets": []
       },
-      "sourceSha256": "18433f8068bd925792e48450cc94790fda7ea8ef29b16f809526f514049ee088",
+      "sourceSha256": "f9572200abd0ee21218c05c7e395ffa005709fdb9cc2747a09fbef78fa8a3a77",
       "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
       "physical720px": "NOT_TESTED",
       "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
@@ -1721,7 +1721,7 @@
         "scroll": true,
         "flex": true,
         "grid": true,
-        "wrap": false,
+        "wrap": true,
         "nowrap": true,
         "dynamicDom": true
       },
@@ -1733,10 +1733,10 @@
         "unresolvedHandlers": [],
         "missingLocalTargets": []
       },
-      "sourceSha256": "4580f11020c9fd343e0d2de8da2df8591e44681b8d5592b3c96bf7dc625bfb63",
+      "sourceSha256": "71e3f7d5ea84b92dbc6dbe1d4297a254e76158b9292db90ca4fb61ba1102f71e",
       "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
       "physical720px": "NOT_TESTED",
-      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
     },
     {
       "surface": "web-test",
@@ -2117,7 +2117,7 @@
         "unresolvedHandlers": [],
         "missingLocalTargets": []
       },
-      "sourceSha256": "b7d378be840f8f4a17ab58f99a3fa5ac8850b5d35703f9591ba8e091b8ecd64f",
+      "sourceSha256": "ffeadd3cf72cdfd2f88ba91ba76b0e5407b4431f7d834082ce9d9549f48d53d0",
       "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
       "physical720px": "NOT_TESTED",
       "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
@@ -2261,7 +2261,7 @@
         "unresolvedHandlers": [],
         "missingLocalTargets": []
       },
-      "sourceSha256": "dd0d92aea566b27576e737bc9b9bee4e1d4a982f4e47902d969c16c9ff7a8cdf",
+      "sourceSha256": "31f62ac84e793fb89fc582d627986f7b0558b02bb9b4355c4da0be7f5fb687af",
       "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
       "physical720px": "NOT_TESTED",
       "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
@@ -2705,7 +2705,7 @@
         "scroll": true,
         "flex": true,
         "grid": true,
-        "wrap": false,
+        "wrap": true,
         "nowrap": true,
         "dynamicDom": true
       },
@@ -2717,10 +2717,10 @@
         "unresolvedHandlers": [],
         "missingLocalTargets": []
       },
-      "sourceSha256": "a0eaa9ea77c2cf9f2e4f864c34f96e62ded12719cab4d13aaed888cd29bfea3a",
+      "sourceSha256": "a47ca7ac583d38d5de362372a3fc994556d0ea9ebba23b86bc21ec9697984a3e",
       "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
       "physical720px": "NOT_TESTED",
-      "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"
+      "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
     },
     {
       "surface": "native",
@@ -3159,11 +3159,11 @@
       "path": "mobile-app/web/support.html",
       "structure": {
         "scroll": false,
-        "flex": false,
-        "grid": false,
-        "wrap": false,
+        "flex": true,
+        "grid": true,
+        "wrap": true,
         "nowrap": false,
-        "dynamicDom": false
+        "dynamicDom": true
       },
       "audit": {
         "inlineScripts": 6,
@@ -3173,7 +3173,7 @@
         "unresolvedHandlers": [],
         "missingLocalTargets": []
       },
-      "sourceSha256": "94d381dcd61fa7ebe9cdbf1d0f48c4f54edcc612b91ee23f443f50b0c0c68941",
+      "sourceSha256": "662d9563c7654b64eb440f1c6b853727d276e7dedde42ca3f62aabbb5a3a28c2",
       "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
       "physical720px": "NOT_TESTED",
       "finding": "NO_CONFIRMED_DEFECT_STATIC_ONLY"
@@ -3197,7 +3197,7 @@
         "unresolvedHandlers": [],
         "missingLocalTargets": []
       },
-      "sourceSha256": "38145e98f90750010345c7898c2573ae9106b5b1740b6c5256610ea397b361ac",
+      "sourceSha256": "c177b4c3c31d35f17095bfc806618c1c4725cf2a062733fdd3bdac2c4ea609c3",
       "dynamicRenderedWidth": "UNKNOWN_SOURCE_ONLY",
       "physical720px": "NOT_TESTED",
       "finding": "STATIC_FLEX_NOWRAP_REVIEW_CANDIDATE"

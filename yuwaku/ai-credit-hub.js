@@ -41,11 +41,16 @@
     css.id = 'izAiCreditStyle';
     css.textContent =
       '#izAiCreditBadge{appearance:none;border:1px solid rgba(216,180,254,.65)!important;border-radius:7px!important;' +
-      'background:#6d28d9!important;color:#fff!important;padding:1px 5px!important;' +
-      'font-family:inherit;font-size:11px!important;font-weight:800!important;line-height:18px!important;' +
-      'cursor:pointer;flex:0 0 44px!important;white-space:nowrap;min-width:44px!important;' +
-      'width:44px!important;' +
-      'max-width:44px;overflow:hidden;text-overflow:ellipsis;box-sizing:border-box}' +
+      'background:#6d28d9!important;color:#fff!important;padding:1px 2px!important;' +
+      'display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;' +
+      'font-family:inherit;font-weight:800!important;cursor:pointer;gap:0!important;' +
+      'flex:0 0 44px!important;min-width:44px!important;width:44px!important;max-width:44px!important;' +
+      'height:32px!important;min-height:32px!important;overflow:hidden;box-sizing:border-box}' +
+      '#izAiCreditBadge .iz-ai-credit-icon{display:block;flex:0 0 auto;font-size:14px!important;line-height:14px!important}' +
+      '#izAiCreditBadge .iz-ai-credit-count{display:block;flex:0 0 auto;font-size:11px;line-height:12px!important;' +
+      'font-variant-numeric:tabular-nums;white-space:nowrap;max-width:100%}' +
+      '@media(max-width:720px){#izAiCreditBadge{height:30px!important;min-height:30px!important}}' +
+      '@media(pointer:coarse){#izAiCreditBadge{height:44px!important;min-height:44px!important}}' +
       '#izAiCreditBadge:focus-visible{outline:3px solid #f5d0fe;outline-offset:2px}' +
       '#izAiCreditOverlay{position:fixed;inset:0;z-index:2147483050;background:rgba(15,23,42,.68);' +
       'display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box}' +
@@ -55,6 +60,10 @@
       '#izAiCreditDialog h2{font-size:19px;margin:0 0 12px}' +
       '#izAiCreditDialog p{margin:8px 0}' +
       '#izAiCreditDialog ul{padding-left:22px;margin:8px 0}' +
+      '#izAiCreditBuy{display:block;text-align:center;text-decoration:none;min-height:44px;'+
+      'margin-top:14px;padding:10px 12px;border-radius:9px;box-sizing:border-box;'+
+      'background:#6d28d9;color:#fff;font-size:15px;font-weight:800}' +
+      '#izAiCreditBuy:focus-visible{outline:3px solid #a78bfa;outline-offset:2px}' +
       '#izAiCreditClose{width:100%;min-height:44px;margin-top:12px;padding:10px 12px;' +
       'border:0;border-radius:9px;background:#6d28d9;color:#fff;font-size:15px;font-weight:800;cursor:pointer}' +
       '@media(max-width:430px){#izAiCreditBadge{max-width:44px}}';
@@ -66,7 +75,18 @@
   }
   function redrawBadge() {
     if (!badge) return;
-    badge.textContent = '🤖' + balanceText();
+    var countText = balanceText();
+    // Keep the chip's original footprint; do not use ellipsis for balances.
+    // Separate lines mean a three-digit balance fits without enlarging the header.
+    var robot = document.createElement('span');
+    robot.className = 'iz-ai-credit-icon';
+    robot.setAttribute('aria-hidden', 'true');
+    robot.textContent = '🤖';
+    var count = document.createElement('span');
+    count.className = 'iz-ai-credit-count';
+    count.textContent = countText;
+    count.style.fontSize = countText.length > 7 ? '8px' : countText.length > 5 ? '9px' : '11px';
+    badge.replaceChildren(robot, count);
     var label = balanceError
       ? t('AIポイント残高を取得できません。', 'AI credit balance is unavailable. ')
       : t('AIポイント残高：', 'AI credit balance: ') + balanceText();
@@ -102,6 +122,14 @@
       'The fixed unit price, maximum charge, and current balance appear before analysis. Only successful analyses consume credits.'));
     row(dialog, 'p', t('※利用できる機能はアプリの提供状況・設定・アカウント権限によって異なります。',
       'Availability depends on the app version, feature settings, and account permissions.'));
+    // Web PWA has no native checkout/subscription.html. Avoid a dead link:
+    // only the packaged iOS/Android app can open the actual store checkout.
+    if (nativeMenu) {
+      var buy = row(dialog, 'a', t('AIポイントを購入', 'Buy AI credits'));
+      buy.id = 'izAiCreditBuy'; buy.href = './subscription.html#aiCreditsCard';
+    }
+    row(dialog, 'p', t('購入はiPhone／Androidアプリの店舗オーナーのみ利用できます。',
+      'Purchases are available to the store owner in the iOS/Android app.'));
     var close = row(dialog, 'button', t('閉じる', 'Close'));
     close.id = 'izAiCreditClose'; close.type = 'button'; close.addEventListener('click', closeDialog);
     if (wasFocused) close.focus();

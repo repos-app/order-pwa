@@ -176,6 +176,12 @@
   // それでも失敗した場合は控えめなバナーで案内する（次に何か1回でも成功すれば自動的に消える）。
   const _FETCH_TIMEOUT_MS = TIMEOUT_MS.default;
   const _RETRY_DELAY_MS = 1200;
+  // Common-Worker 429 is a rejection BEFORE any tenant business handler runs.
+  // Repeat only proven read-only actions, never payments, orders or purchases.
+  const _BACKPRESSURE_READ_ACTIONS = { bootstrap:1, getSettings:1, getAllMenuForAdmin:1, getOperationsDelta:1 };
+  function _backpressureDelay(attempt) {
+    return Math.min(3000, 1000 * Math.pow(1.4, attempt)) + Math.floor(Math.random() * 200);
+  }
   const _READ_ACTIONS = { getSettings: 1, checkToken: 1, bootstrap: 1, checkoutStatus: 1, getStaffCalls: 1, getTableCheckoutStamp: 1, getOperationsDelta: 1, getEmployeeStatuses: 1, validateCoupon:1, loyaltyLookup:1, verifyManagerApproval:1 };
   const _READ_RPC = { exportSheetData:1, profitSimGetMonthly:1 };
   function _isReadOnly(action, fn) {
@@ -525,6 +531,7 @@
     }
     const body = JSON.stringify(Object.assign({ action: action }, send));
     const canRetry = !noInternalRetry && readOnly;
+    const canRetryBackpressure = canRetry && !!_BACKPRESSURE_READ_ACTIONS[action];
     const retryGeneration = _readLifecycleGeneration;
     const fetchOnce = readOnly ? _fetchReadOnce : (backgroundMutation ? _fetchOnce : _fetchForegroundWriteOnce);
     const mutationId = (readOnly || backgroundMutation) ? '' : beginMutation(action === 'rpc' ? ('rpc:' + String(payload.fn || '')) : action);
@@ -545,6 +552,12 @@
           if (!silent) _errBar.show();
           throw e2;
         }
+      }
+      for (let retry = 0; canRetryBackpressure && json &&
+           json.ok === false && json.error === 'common_gateway_busy' && retry < 4; retry++) {
+        await new Promise(function(resolve){ setTimeout(resolve, _backpressureDelay(retry)); });
+        if (retryGeneration !== _readLifecycleGeneration) throw staleReadLifecycleError();
+        json = await fetchOnce(body, timeoutMs);
       }
       _errBar.hide();
       if (!json.ok) {
@@ -875,13 +888,6 @@
         Number(grant.grantedAt)<=Date.now();
     } catch(e){return false;}
   };
-  function cashRequestId() {
-    if (typeof crypto === 'undefined') throw new Error('offline_secure_id_unavailable');
-    if (typeof crypto.randomUUID === 'function') return 'offline-bill-' + crypto.randomUUID();
-    if (typeof crypto.getRandomValues !== 'function') throw new Error('offline_secure_id_unavailable');
-    var bytes = crypto.getRandomValues(new Uint8Array(16));
-    return 'offline-bill-' + Array.from(bytes, function(b){return b.toString(16).padStart(2,'0');}).join('');
-  }
   API.saveOfflineCheckoutSnapshot = function (snapshot) {
     var actor = cashActor();
     if (!actor || !snapshot || !Array.isArray(snapshot.orders) || !snapshot.settings) return Promise.reject(new Error('offline_auth_required'));
@@ -918,127 +924,15 @@
     return all.filter(function(rec){return rec.ownerKey===actor.ownerKey;})
       .sort(function(a,b){return b.createdAt-a.createdAt;});
   };
-  API.queueOfflineCashSettlement = function (input) {
-    var actor = cashActor();
-    if (!actor) return Promise.reject(new Error('offline_auth_required'));
-    var total = Number(input && input.expectedTotal);
-    var ids = (input && input.orderIds || []).map(String).filter(Boolean);
-    var snapshot = input && input.offlineSourceSnapshot;
-    if (!input || input.method!=='cash' || !input.table || String(input.table).length>40 ||
-        !Number.isFinite(total) || total<0 || total>1e12 ||
-        !ids.length || ids.length>200 || ids.some(function(id){return id.length>120;}) ||
-        new Set(ids).size!==ids.length || !snapshot || !Array.isArray(snapshot.orders) ||
-        snapshot.orders.length!==ids.length ||
-        snapshot.orders.some(function(o){return !o || ids.indexOf(String(o.orderId))<0 || o.status!=='提供済' ||
-          String(o.table)!==String(input.table) || !Number.isFinite(Number(o.subtotal)) || Number(o.subtotal)<0;})) {
-      return Promise.reject(new Error('offline_checkout_invalid_snapshot'));
-    }
-    var record={id:cashRequestId(), ownerKey:actor.ownerKey,
-      storeId:actor.storeId,userId:actor.userId,sessionId:actor.sessionId,
-      table:String(input.table),orderIds:ids.slice().sort(),method:'cash',
-      expectedTotal:total,offlinePaidAt:new Date().toISOString(),
-      offlineSourceSnapshot:{orders:snapshot.orders.map(function(o){return {
-        orderId:String(o.orderId),subtotal:Number(o.subtotal),status:'提供済',table:String(o.table)
-      };})},
-      status:'pending',createdAt:Date.now(),attempts:0};
-    // One readwrite transaction serializes overlapping settlements even across
-    // tabs. Other staff's records are not exposed, but still prevent a second
-    // cash collection for the same store/order IDs.
-    return openDB().then(function(db){return new Promise(function(resolve,reject){
-      var txn=db.transaction('cashSettlements','readwrite'), store=txn.objectStore('cashSettlements');
-      var cursor=store.openCursor(), duplicate=false;
-      cursor.onsuccess=function(event){
-        var c=event.target.result;
-        if(c){
-          var other=c.value;
-          if(other && other.storeId===actor.storeId &&
-             other.orderIds && other.orderIds.some(function(id){return ids.indexOf(String(id))>=0;})){
-            duplicate=true;
-          }
-          c.continue();return;
-        }
-        if(!duplicate) store.add(record);
-      };
-      txn.oncomplete=function(){db.close();duplicate ? reject(new Error('offline_cash_already_recorded')) : resolve(record);};
-      txn.onabort=function(){db.close();reject(txn.error||new Error('offline_cash_storage_failed'));};
-      txn.onerror=function(){};
-    });});
+  // Fail closed even when a legacy cached Orders page invokes these APIs.
+  // Historical local cash records remain in IndexedDB for manual reconciliation,
+  // but no new offline payment or automatic replay is permitted.
+  API.queueOfflineCashSettlement = function () {
+    return Promise.reject(new Error('offline_checkout_disabled'));
   };
-  var _cashFlushPromise = null;
   API.flushOfflineCashSettlements = function () {
-    if (_cashFlushPromise) return _cashFlushPromise;
-    _cashFlushPromise=(async function(){
-      var actor=cashActor(), result={confirmed:0,pending:0,rejected:0,updated:[]};
-      if (!actor) return result;
-      var rows=await API.listOfflineCashSettlements();
-      if(typeof navigator!=='undefined'&&navigator.onLine===false){
-        result.pending=rows.filter(function(r){return r.status==='pending';}).length;
-        result.rejected=rows.filter(function(r){return r.status==='rejected';}).length;
-        return result;
-      }
-      for(var i=rows.length-1;i>=0;i--){
-        var rec=rows[i];
-        if(rec.status!=='pending')continue;
-        var current=cashActor();
-        if(!current || current.ownerKey!==rec.ownerKey)break;
-        try{
-          var response=await API.post('finalizeBill',{
-            storeId:rec.storeId,table:rec.table,method:'cash',orderIds:rec.orderIds,
-            clientRequestId:rec.id,offlinePaidAt:rec.offlinePaidAt,
-            expectedTotal:rec.expectedTotal,offlineSourceSnapshot:rec.offlineSourceSnapshot,
-            discountType:'',discountRuleId:'',discountId:'',discountName:'',
-            discountEligible:0,token:storedToken(),
-            __silent:true,__backgroundMutation:true,__noInternalRetry:true,__timeoutMs:TIMEOUT_MS.write
-          });
-          var data=response&&response.data;
-          if(data && data.error) throw Object.assign(new Error(String(data.error)),{__server:true});
-          if(data && data.demo) throw Object.assign(new Error('demo_checkout_not_recorded'),{__server:true});
-          if(!data || !data.orNo || !Number.isFinite(Number(data.total)))
-            throw new Error('offline_checkout_ack_unverified');
-          if(Math.abs(Number(data.total)-rec.expectedTotal)>0.01){
-            // A server receipt with a mismatched amount still requires manual
-            // reconciliation; never present its number as an approved receipt.
-            rec.status='rejected';rec.lastError='server_total_mismatch_after_ack';
-            rec.receiptNo=String(data.orNo);
-            await tx('cashSettlements','readwrite',function(s){return s.put(rec);});
-            result.rejected++;result.updated.push(rec);continue;
-          }
-          rec.status='confirmed';rec.confirmedAt=Date.now();rec.receiptNo=String(data.orNo);
-          rec.serverTotal=Number(data.total);
-          rec.serverData={orNo:String(data.orNo),total:Number(data.total),
-            subtotal:Number(data.subtotal)||0,vat:Number(data.vat)||0,
-            service:Number(data.service)||0,discountAmount:Number(data.discountAmount)||0,
-            paymentLabel:data.paymentLabel||'',paymentLabelJa:data.paymentLabelJa||'',
-            paymentLabelEn:data.paymentLabelEn||'',receiptPaymentLabel:data.receiptPaymentLabel||'',
-            receiptPaymentLabelJa:data.receiptPaymentLabelJa||'',receiptPaymentLabelEn:data.receiptPaymentLabelEn||''};
-          await tx('cashSettlements','readwrite',function(s){return s.put(rec);});
-          result.confirmed++;
-          result.updated.push(rec);
-        }catch(err){
-          var code=String(err&&err.message||err||'sync_failed');
-          if(err&&err.__server && !/^http_5\d\d$/.test(code)){
-            rec.status='rejected';rec.lastError=code.slice(0,120);
-            await tx('cashSettlements','readwrite',function(s){return s.put(rec);});
-            result.rejected++;result.updated.push(rec);
-            continue;
-          }
-          // Ambiguous timeout/HTTP 5xx/network: retain the same idempotency key.
-          // The server may have committed even if this client missed its reply.
-          break;
-        }
-      }
-      var latest=await API.listOfflineCashSettlements();
-      result.pending=latest.filter(function(r){return r.status==='pending';}).length;
-      result.rejected=latest.filter(function(r){return r.status==='rejected';}).length;
-      return result;
-    })().finally(function(){_cashFlushPromise=null;});
-    return _cashFlushPromise;
+    return Promise.resolve({confirmed:0,pending:0,rejected:0,updated:[],disabled:true});
   };
-  if (typeof window!=='undefined') {
-    window.addEventListener('online',function(){
-      API.flushOfflineCashSettlements().catch(function(){});
-    });
-  }
   function bufferToBase64(buffer) {
     var bytes = new Uint8Array(buffer), out = '', chunk = 0x8000;
     for (var i = 0; i < bytes.length; i += chunk) out += String.fromCharCode.apply(null, bytes.subarray(i, Math.min(i + chunk, bytes.length)));

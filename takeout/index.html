@@ -241,6 +241,25 @@
         return Array.isArray(parsed) ? parsed : [];
       } catch(e){ return []; }
     }
+    // Legacy AI prices were stored as surcharges. Display only the precise old
+    // Serving/提供方法 group as a full amount; the cart still adds saved deltas.
+    function isLegacyAiServingGroup(groups,g,basePrice){
+      if(!g||g.kind||g.nameJa!=='提供方法'||g.nameEn!=='Serving'||
+        g.type!=='single'||g.required!==true||!Array.isArray(g.choices)||
+        !g.choices.length||g.choices.length>3||!Number.isFinite(basePrice)||basePrice<0||
+        groups.filter(function(x){return x&&!x.kind&&x.nameJa==='提供方法'&&x.nameEn==='Serving';}).length!==1||
+        groups.some(function(x){return x&&x.kind==='price_variant';}))return false;
+      var names=Object.create(null),hasZero=false;
+      for(var i=0;i<g.choices.length;i++){
+        var c=g.choices[i],label=c&&c.labelEn;
+        var price=c&&(typeof c.price==='number'||(typeof c.price==='string'&&c.price.trim()!==''))?Number(c.price):NaN;
+        if((label!=='Regular'&&label!=='Glass'&&label!=='Bottle')||
+          names[label]||!Number.isFinite(price)||price<0||basePrice+price>1e9||
+          Math.abs(price*100-Math.round(price*100))>1e-6)return false;
+        names[label]=true;if(price===0)hasZero=true;
+      }
+      return hasZero;
+    }
     function menuItem(nm){ for(var i=0;i<MENU.length;i++) if(String(MENU[i]['商品名'])===String(nm)) return MENU[i]; return null; }
     function optionLabel(ja,en,canonical){
       var a=String(ja||'').trim(), b=String(en||'').trim(), c=String(canonical||'').trim();
@@ -324,9 +343,11 @@
           '<button type="button" onclick="removeOptLine('+i+')">'+esc(t.optRemove)+'</button></div></div>';
       }).join('');
       document.getElementById('optBody').innerHTML=groups.map(function(g,gi){
-        var multi=g.type==='multi', minRaw=g.min??g.minSelect??g.minSelections;
-        var min=minRaw==null||minRaw===''?(g.required?1:0):Number(minRaw);
-        if(g.required) min=Math.max(1,min);
+        var variant=g.kind==='price_variant',multi=g.type==='multi'&&!variant, minRaw=g.min??g.minSelect??g.minSelections;
+        var projectedDelta=g.kind==='legacy_sale_unit_delta';
+        var legacyServing=isLegacyAiServingGroup(groups,g,priceOf(optCtx.base));
+        var min=minRaw==null||minRaw===''?(g.required||variant||projectedDelta?1:0):Number(minRaw);
+        if(g.required||variant||projectedDelta) min=Math.max(1,min);
         var checked=(prior.find(function(sel){return sel.groupIndex===gi;})||{}).choiceIndexes||[];
         var html='<div class="opt-group" data-gi="'+gi+'"><div class="opt-gname">'+
           esc(optionLabel(g.nameJa,g.nameEn,g.name))+
@@ -335,7 +356,8 @@
           var add=Number(choice.price)||0;
           html+='<label class="opt-choice"><input type="'+(multi?'checkbox':'radio')+'" name="takeout-option-'+gi+
             '" value="'+ci+'"'+(checked.indexOf(ci)>=0?' checked':'')+'><span>'+
-            esc(optionLabel(choice.labelJa,choice.labelEn,choice.label))+(add?' +'+money(add):'')+'</span></label>';
+            esc(optionLabel(choice.labelJa,choice.labelEn,choice.label))+(variant?' '+money(add):
+              legacyServing||projectedDelta?' '+money(priceOf(optCtx.base)+add):(add?' +'+money(add):''))+'</span></label>';
         });
         return html+'</div>';
       }).join('');
@@ -378,8 +400,8 @@
         var indexes=selected?selected.choiceIndexes:[];
         var minRaw=group.min??group.minSelect??group.minSelections;
         var maxRaw=group.max??group.maxSelect??group.maxSelections;
-        var min=minRaw==null||minRaw===''?(group.required?1:0):Number(minRaw);
-        if(group.required) min=Math.max(1,min);
+        var min=minRaw==null||minRaw===''?(group.required||group.kind==='price_variant'||group.kind==='legacy_sale_unit_delta'?1:0):Number(minRaw);
+        if(group.required||group.kind==='price_variant'||group.kind==='legacy_sale_unit_delta') min=Math.max(1,min);
         var max=maxRaw==null||maxRaw===''?(group.type==='multi'?(group.choices||[]).length:1):Number(maxRaw);
         if(!Number.isInteger(min)||!Number.isInteger(max)||min<0||max<min||max>(group.choices||[]).length||
           (group.type!=='multi'&&max>1)) error=t.optInvalid;
@@ -389,7 +411,7 @@
           var choice=(group.choices||[])[ci]||{},amount=choice.price==null||choice.price===''?0:Number(choice.price);
           var label=canonicalChoice(choice);
           if(!label||!Number.isFinite(amount)||amount<0) error=t.optInvalid;
-          chosen.push(label); extra+=amount;
+          chosen.push(label); extra+=group.kind==='price_variant'?amount-priceOf(optCtx.base):amount;
         });
       });
       var signature=optCtx.base+'||'+JSON.stringify(selections);

@@ -187,7 +187,7 @@
       <div class="test-row">
         <div class="test-box">
           <b>Draftテスト</b>
-          <p class="muted">画像は選択しただけでは読み込みません。「Draftをテスト」を押した時だけ一時的に読み込み、テストAPIへ送ります。管理画面やsessionStorageには保存しません。画像なしでは形式確認のみで、本番公開には実画像でのAIテスト成功が必要です。</p>
+          <p class="muted">画像は選択しただけでは読み込みません。「Draftをテスト」を押した時だけ一時的に読み込み、テストAPIへ送ります。管理画面やsessionStorageには保存しません。画像なしでは形式確認のみで、本番公開には実画像でのAIテスト成功が必要です。メニューのDraftテストは選択したプロンプトの1回分の推論であり、店舗の2段階解析全体の精度を保証しません。実運用時は公開版にコード側の追加指示が付与されます。</p>
           <label class="prompt-field" for="promptTestImage">テスト画像（公開前テストでは必須）</label>
           <input id="promptTestImage" type="file" accept="image/jpeg,image/png,image/webp">
           <label class="prompt-field" for="promptTestCandidates">在庫候補（任意・1行1件）</label>
@@ -696,8 +696,8 @@
     $('promptHelp').textContent=promptKey==='inventory_vision'
       ?'在庫写真から商品を数えるプロンプトです。{{INVENTORY_CANDIDATES}} が必須です。'
       :promptKey==='menu_document_vision'
-        ?'PDF／写真のメニュー名・カテゴリ・価格を抽出します。プレースホルダーは不要です。'
-        :'日本語のメニュー名を画像から再確認します。{{MENU_ITEM_ANCHORS}} が必須です。テスト時は英語の商品名を下欄へ入力してください。';
+        ?'PDF／写真のメニュー名・カテゴリ・価格を抽出します。プレースホルダーは不要です。公開版にレイアウト対応などの共通指示を追加して実行します。'
+        :'日本語のメニュー名を画像から再確認します。{{MENU_ITEM_ANCHORS}} が必須です。テスト時は英語の商品名を下欄へ入力してください。公開版に候補位置・言語確認などの共通指示を追加して実行します。';
     $('promptTestCandidates').placeholder=promptKey==='menu_document_japanese'
       ?'例：SAMPLE DRINK（日本語照合の対象商品名）':'';
     if($('adminToken').value.trim())loadPrompt();

@@ -363,9 +363,18 @@
       var lockedOrders = Object.create(null);
       offlineCashRows.forEach(function(rec){(rec.orderIds||[]).forEach(function(id){lockedOrders[String(id)]=true;});});
       var active = orders.filter(function(o){ return o.status !== '会計済' && o.status !== '取消' && !lockedOrders[String(o.id)]; });
-      document.getElementById('cnt').innerText = active.length;
+      // A failed/unfinished first fetch is not proof that the store has zero orders.
+      document.getElementById('cnt').innerText = (!_ordersSnapshotLoaded && !orders.length) ? '—' : active.length;
       var el = document.getElementById('list');
-      if (!active.length){ el.innerHTML = '<div class="empty">✅ '+t().noOrder+'</div>'; return; }
+      if (!active.length){
+        if (!_ordersSnapshotLoaded && !orders.length){
+          el.innerHTML = '<div class="empty">'+(_opsLastError
+            ? '⚠️ '+esc(opsReadErrorText(_opsLastError))
+            : (lang==='en'?'⏳ Loading orders…':'⏳ 注文を読み込み中…'))+'</div>';
+          return;
+        }
+        el.innerHTML = '<div class="empty">✅ '+t().noOrder+'</div>'; return;
+      }
       var map = {}, order = [];
       active.slice().reverse().forEach(function(o){ var k=String(o.table); if(!map[k]){ map[k]=[]; order.push(k); } map[k].push(o); });
       var now = Date.now();
@@ -406,17 +415,27 @@
       if(!relevant.length){panel.style.display='none';panel.innerHTML='';return;}
       panel.style.display='block';
       var en=lang==='en';
-      var heading=en?'Cash recorded locally — synchronization status':'現金受領記録（ローカル）・サーバー同期状況';
+      var heading=en?'Legacy cash records — automatic sync is disabled':'旧版の現金受領記録（自動同期停止・要手動確認）';
+      var cashErrorDescription=function(code){
+        if(code==='offline_checkout_snapshot_changed')return en
+          ?'The original cash record could not be matched to the server orders. Do not collect again; recheck the same record.'
+          :'元の現金記録とサーバー注文の一致を確認できません。再徴収せず、この記録を再照合してください。';
+        if(code==='offline_checkout_amount_changed')return en
+          ?'The server amount differs from the cash received. Manual reconciliation is required; do not collect again.'
+          :'サーバー計算額と受領金額が一致しません。再徴収せず、手動確認してください。';
+        return code;
+      };
       var html='<div style="border:1px solid #f59e0b;border-radius:10px;background:#fffbeb;padding:12px;font-size:13px;">'
         +'<div style="font-weight:900;margin-bottom:6px;">'+heading+'</div>';
       relevant.slice(0,15).forEach(function(r){
         var msg=r.status==='confirmed'
           ?(en?'Server confirmed':'サーバー確定')+' / '+(en?'Receipt':'レシート番号')+' '+esc(r.receiptNo||'')
-          :(r.status==='rejected'?(en?'Server rejected — check manually; do not collect again':'サーバー拒否・要手動確認（再徴収禁止）')
-            :(en?'Cash received · pending server synchronization (not an official receipt)':'現金受領済・サーバー同期待ち（正式レシート未発行）'));
+          :(r.status==='rejected'?(en?'Legacy record rejected — manual review; do not collect again':'旧版の現金記録が拒否されました・再徴収禁止')
+            :(en?'Legacy record not synchronized. Do not collect or settle again; contact an administrator.':'旧版の未同期現金記録です。再徴収・再会計せず、管理者に確認してください。'));
         html+='<div style="border-top:1px solid #fcd34d;padding:7px 0;">'
           +'<b>'+esc(seatLabel(r.table))+' / '+money(r.expectedTotal)+'</b> — '+msg
-          +(r.lastError?'<div style="font-size:12px;color:#9a3412;">'+esc(r.lastError)+'</div>':'')+'</div>';
+          +(r.lastError?'<div style="font-size:12px;color:#9a3412;">'+esc(cashErrorDescription(r.lastError))+'</div>':'')
+          +'</div>';
       });
       if(relevant.length>15)html+='<div>+'+(relevant.length-15)+'</div>';
       html+='</div>';
@@ -454,82 +473,12 @@
       return offlineSnapshotRestore;
     }
     function offlineCheckoutWarning(){
-      return lang==='en'?'Offline card/QR payments and discounts are unavailable. Use cash without a discount.':'オフライン中はカード・QR決済と割引を利用できません。割引なしの現金会計を選んでください。';
+      return lang==='en'?'Checkout requires an online connection. Reconnect and verify the latest orders before accepting payment.':'会計にはオンライン接続が必要です。通信復帰後、最新の注文を確認してから会計してください。';
     }
     function cashRecordBlocks(table,ids){
       return offlineCashRows.some(function(rec){
         return rec.table===String(table) && (rec.orderIds||[]).some(function(id){return ids.indexOf(String(id))>=0;});
       });
-    }
-    function showCashPending(rec){
-      var en=lang==='en';
-      document.getElementById('ps3').innerHTML='<div style="font-size:34px;">⏳</div>'
-        +'<div style="font-size:17px;font-weight:900;margin:8px 0;">'
-        +(en?'Cash received · waiting for server sync':'現金受領済・サーバー同期待ち')+'</div>'
-        +'<div style="font-size:15px;font-weight:800;margin-bottom:8px;">'+money(rec.expectedTotal)+' — '+esc(seatLabel(rec.table))+'</div>'
-        +'<div style="font-size:13px;color:#92400e;margin-bottom:16px;">'
-        +(en?'No official receipt yet. Do not collect cash again.':'正式レシートは未発行です。現金を再徴収しないでください。')+'</div>'
-        +'<button class="pbtn" onclick="closePay()">'+t().close+'</button>';
-      step(3);
-    }
-    function showCashRejected(rec){
-      var en=lang==='en';
-      document.getElementById('ps3').innerHTML='<div style="font-size:34px;">⚠️</div>'
-        +'<div style="font-size:17px;font-weight:900;color:#b91c1c;margin:8px 0;">'
-        +(en?'Cash received · server reconciliation rejected':'現金受領済・サーバー同期拒否')+'</div>'
-        +'<div style="font-size:15px;font-weight:800;margin-bottom:8px;">'+money(rec.expectedTotal)+' — '+esc(seatLabel(rec.table))+'</div>'
-        +'<div style="font-size:13px;color:#92400e;margin-bottom:16px;">'
-        +(en?'Manual review required. Do not collect cash again or issue a receipt.':'手動確認が必要です。再徴収・正式レシート発行をしないでください。')+'</div>'
-        +'<button class="pbtn" onclick="closePay()">'+t().close+'</button>';
-      step(3);
-    }
-    function submitDurableCash(btn){
-      if(offlineCashBusy)return;
-      if(document.getElementById('dcOn').checked){UIAlert(offlineCheckoutWarning());btn.disabled=false;btn.innerText=t().done;return;}
-      var chosen=checkoutTargets(orders,payTable,payOrderIds);
-      if(!chosen.length || chosen.some(function(o){return o.status!=='提供済'||!!servedPending[o.id];})){
-        UIAlert(t().unservedBill);btn.disabled=false;btn.innerText=t().done;return;
-      }
-      if(chosen.some(function(o){
-        return o.demo===true || o.paid===true || o.paid===1 || o.paid==='1' || Number(o.prepaid)>0;
-      })){
-        UIAlert(lang==='en'?'Offline cash cannot settle demo or prepaid orders. Reconnect and check the server before accepting cash.':'デモ注文・前払い注文はオフライン現金会計できません。現金受領前に再接続して確認してください。');
-        btn.disabled=false;btn.innerText=t().done;return;
-      }
-      var ids=chosen.map(function(o){return String(o.id);});
-      if(cashRecordBlocks(payTable,ids)){
-        UIAlert(lang==='en'?'Cash was already recorded for these orders. Check the synchronization status.':'対象注文の現金受領記録が既にあります。同期状況を確認してください。');
-        btn.disabled=false;btn.innerText=t().done;return;
-      }
-      offlineCashBusy=true;
-      API.queueOfflineCashSettlement({table:payTable,method:'cash',orderIds:ids,expectedTotal:payTotal,
-        offlineSourceSnapshot:{orders:chosen.map(function(o){return {
-          orderId:String(o.id),subtotal:Number(o.price),status:o.status,table:String(o.table)
-        };})}})
-        .then(async function(rec){
-          await refreshOfflineCashStatus();
-          var row=rec;
-          if(typeof navigator==='undefined'||navigator.onLine!==false){
-            try{
-              await API.flushOfflineCashSettlements();
-              var refreshed=await refreshOfflineCashStatus();
-              row=refreshed.find(function(r){return r.id===rec.id;})||rec;
-            }catch(e){row=rec;}
-          }
-          if(row.status==='confirmed'&&row.serverData){
-            var d=row.serverData;
-            showReceipt(row.receiptNo,{table:row.table,method:'cash',subtotal:d.subtotal,
-              vat:d.vat,service:d.service,discountAmount:d.discountAmount,total:d.total,
-              paymentLabel:d.paymentLabel,paymentLabelJa:d.paymentLabelJa,paymentLabelEn:d.paymentLabelEn,
-              receiptPaymentLabel:d.receiptPaymentLabel,receiptPaymentLabelJa:d.receiptPaymentLabelJa,
-              receiptPaymentLabelEn:d.receiptPaymentLabelEn});
-          } else if(row.status==='rejected') showCashRejected(row);
-          else showCashPending(rec);
-          if(row.status==='rejected')UIAlert(lang==='en'?'The server rejected this settlement. Cash is already received; check manually before any further action.':'サーバーが会計を拒否しました。現金は受領済みのため、追加操作前に手動確認してください。');
-          if(row.status==='confirmed')load(true);
-        }).catch(function(e){
-          UIAlert((lang==='en'?'Could not safely record cash. No local settlement was created: ':'現金受領記録を安全に保存できません。ローカル会計は作成されていません: ')+API.userErrorText(e));
-        }).finally(function(){offlineCashBusy=false;btn.disabled=false;if(btn.isConnected)btn.innerText=t().done;});
     }
     function renderCalls(){
       var w = document.getElementById('callsWrap');
@@ -625,7 +574,7 @@
     // 直前に見たバージョンを送り、変化が無ければunchanged:trueだけ返る＝Spreadsheet読込自体を省略できる。
     var _opsVersion = null;
     // P0 D1: one cooldown across poll, wake and forced refresh paths.
-    var _opsFailures=0, _opsNextAllowedAt=0, _opsLastError='';
+    var _opsFailures=0, _opsNextAllowedAt=0, _opsLastError='', _ordersSnapshotLoaded=false;
     var _loadInFlight = false, _loadPromise = null, _loadEpoch = 0, _loadStartedAt = 0;
     function opsReadErrorText(error){
       var code=String(error&&error.message||error||'').toLowerCase();
@@ -648,6 +597,7 @@
     window.load = function(force){
       if(typeof navigator!=='undefined'&&navigator.onLine===false){
         displayOpsReadError('offline');
+        if(!_ordersSnapshotLoaded&&!orders.length)render();
         return restoreOfflineOrders().then(function(){return {ok:false,error:'offline'};});
       }
       var loadNow = Date.now();
@@ -670,9 +620,15 @@
         _opsFailures=0;_opsNextAllowedAt=0;
         clearOpsReadError();
         if(startedMutationSeq !== _statusMutationSeq) return {ok:false,error:'stale_snapshot'}; // never claim a stale response is a fresh update
+        if (d.unchanged){
+          if (!_ordersSnapshotLoaded) throw new Error('invalid_server_response');
+          _opsVersion = d.version != null ? d.version : _opsVersion;
+          return {ok:true};
+        }
+        // Never interpret a malformed/missing order snapshot as a valid empty list.
+        if (!Array.isArray(d.orders) || !Array.isArray(d.calls)) throw new Error('invalid_server_response');
         _opsVersion = d.version != null ? d.version : _opsVersion;
-        if (d.unchanged) return {ok:true}; // 変化なし：再描画不要
-        orders = d.orders || []; calls = d.calls || [];
+        orders = d.orders; calls = d.calls; _ordersSnapshotLoaded = true;
         if (d.partySizes) PARTY_SIZES = d.partySizes;
         render(); renderCalls(); saveOfflineOrders();
         return {ok:true};
@@ -685,6 +641,7 @@
         if(loadEpoch !== _loadEpoch) return {ok:false,error:'stale_snapshot'};
         if(startedMutationSeq !== _statusMutationSeq) return {ok:false,error:'stale_snapshot'};
         displayOpsReadError(err);
+        if(!_ordersSnapshotLoaded&&!orders.length)render();
         var lm=document.getElementById('loadMsg'); if(lm) lm.innerText=opsReadErrorText(err);
         return {ok:false,error:failure};
       }).finally(function(){
@@ -703,8 +660,8 @@
     window.addEventListener('pageshow', function(e){ if(e.persisted) recoverOpsAfterPageRestore(); });
     window.addEventListener('offline',function(){displayOpsReadError('offline');});
     window.addEventListener('online',function(){
-      API.flushOfflineCashSettlements().then(function(){return refreshOfflineCashStatus();})
-        .catch(function(){}).finally(function(){load(true);});
+      // Old local cash records are read-only; never auto-finalize legacy payments.
+      refreshOfflineCashStatus().finally(function(){load(true);});
     });
     if(typeof navigator!=='undefined'&&navigator.onLine===false)displayOpsReadError('offline');
     // 手動更新ボタン：getOrders自体はポーリング用に静音（ローディング非表示）のため、
@@ -813,7 +770,10 @@
     // Block unserved orders at the first checkout tap, not after cash is confirmed.
     // Keep the authoritative finalizeBill status check as a second safety gate.
     function checkoutTargets(list, table, ids){
-      var active=list.filter(function(o){return String(o.table)===String(table)&&o.status!=='会計済'&&o.status!=='取消';});
+      // Match the visible cards: recorded cash from a different order on the
+      // same seat must not silently enter this checkout or block it.
+      var active=list.filter(function(o){return String(o.table)===String(table)&&o.status!=='会計済'&&o.status!=='取消'
+        &&!cashRecordBlocks(table,[String(o.id)]);});
       if(!ids||!ids.length)return active;
       var selected={};ids.forEach(function(id){selected[String(id)]=true;});
       return active.filter(function(o){return !!selected[String(o.id)];});
@@ -833,16 +793,16 @@
       if(checkoutPreflightBusy||offlineCashBusy)return Promise.resolve(false);
       var local=checkoutTargets(orders,tn,orderIds);
       if(!local.length||(orderIds&&local.length!==orderIds.length)){checkoutChanged();return Promise.resolve(false);}
-      if(cashRecordBlocks(tn,local.map(function(o){return String(o.id);}))){
-        UIAlert(lang==='en'?'A cash settlement is already recorded for these orders. Check its sync status.':'対象注文の現金会計記録があります。同期状況を確認してください。');
-        refreshOfflineCashStatus();return Promise.resolve(false);
-      }
+      // Internal explicit IDs isolate new orders from a prior cash record;
+      // this does not enable the disabled split-checkout interface.
+      var recordedOnSeat=orders.some(function(o){return String(o.table)===String(tn)&&o.status!=='会計済'&&o.status!=='取消'&&cashRecordBlocks(tn,[String(o.id)]);});
+      var effectiveIds=orderIds||(recordedOnSeat?local.map(function(o){return String(o.id);}):null);
       var unserved=local.filter(function(o){return o.status!=='提供済'||!!servedPending[o.id];});
       if(unserved.length){UIAlert(checkoutBlockedMessage(unserved));return Promise.resolve(false);}
       var partialAtStart=!!(orderIds&&document.getElementById('partModal').classList.contains('on'));
-      // Offline mode retains the prior local path; the server validates on replay.
+      // Payments are online-only. Cached orders may be viewed offline, never settled.
       if(typeof navigator!=='undefined'&&navigator.onLine===false){
-        closePart();openPayReady(tn,subtotal,orderIds);return Promise.resolve(true);
+        UIAlert(offlineCheckoutWarning());return Promise.resolve(false);
       }
       // Online: re-read actual order statuses before showing payment controls.
       checkoutPreflightBusy=true;
@@ -877,7 +837,9 @@
         }
         if(d.partySizes)PARTY_SIZES=d.partySizes;
         var latestSubtotal=latest.reduce(function(sum,o){return sum+(Number(o.price)||0);},0);
-        closePart();openPayReady(tn,latestSubtotal,orderIds,d.orders);return true;
+        var latestRecorded=d.orders.some(function(o){return String(o.table)===String(tn)&&o.status!=='会計済'&&o.status!=='取消'&&cashRecordBlocks(tn,[String(o.id)]);});
+        var finalIds=orderIds||(latestRecorded?latest.map(function(o){return String(o.id);}):null);
+        closePart();openPayReady(tn,latestSubtotal,finalIds,d.orders);return true;
       }).catch(function(){
         UIAlert(lang==='en'?'Could not verify the latest order status. Please check your connection and try again.':'最新の注文状態を確認できませんでした。通信状態を確認し、再度お試しください。');
         return false;
@@ -887,6 +849,7 @@
       });
     };
     function openPayReady(tn, subtotal, orderIds, freshOrders){
+      if(typeof navigator!=='undefined'&&navigator.onLine===false){UIAlert(offlineCheckoutWarning());return;}
       resetPs3();
       payMethod = 'cash';
       payTable = tn; payCheckoutId = null; payOrderIds = (orderIds && orderIds.length) ? orderIds : null; paySub = Number(subtotal)||0; payBase = breakdown(paySub);
@@ -1072,7 +1035,7 @@
       }).catch(function(e){ _dcAlert('Error: '+API.userErrorText(e)); });
     }
     window.cashPay = function(){
-      if(typeof navigator!=='undefined'&&navigator.onLine===false&&document.getElementById('dcOn').checked){UIAlert(offlineCheckoutWarning());return;}
+      if(typeof navigator!=='undefined'&&navigator.onLine===false){UIAlert(offlineCheckoutWarning());return;}
       _dcVerifyThenGo(function(){
         payMethod = 'cash';
         document.getElementById('ps3lbl').innerText = t().cashRecv;
@@ -1120,7 +1083,7 @@
     };
     window.finalize = function(){
       if(offlineCashBusy)return;
-      if(typeof navigator!=='undefined'&&navigator.onLine===false&&(payMethod!=='cash'||document.getElementById('dcOn').checked)){
+      if(typeof navigator!=='undefined'&&navigator.onLine===false){
         UIAlert(offlineCheckoutWarning());return;
       }
       if(document.getElementById('dcOn').checked&&_dcLengthError())return;
@@ -1136,7 +1099,6 @@
         discountType: pv.discountType||'', discountRuleId:pv.discountRuleId||'', discountId: pv.discountId||'', discountName: pv.discountName||'', discountEligible: pv.discountEligible||0,
         discountApproverLogin: discOn&&!currentUserCanApprove()?document.getElementById('dcApprLogin').value.trim():'', discountApproverPass: discOn&&!currentUserCanApprove()?document.getElementById('dcApprPass').value:'',
         __timeoutMs: API.TIMEOUT_MS.write }; // [タイムアウト共通化] 会計確定は複数注文まとめての場合もあり時間がかかり得るため専用枠を使う
-      if(payMethod==='cash'&&!discOn){submitDurableCash(btn);return;}
       API.post('finalizeBill', req).then(function(r){
         btn.disabled=false; btn.innerText=t().done; var d=r.data||{};
         if (d.error==='discount_auth'){ UIAlert(t().authFail); return; }
@@ -1169,7 +1131,7 @@
         TOKEN=ctx.token||TOKEN;
         return refreshOfflineCashStatus().then(function(){
           if(typeof navigator!=='undefined'&&navigator.onLine===false)return restoreOfflineOrders();
-          return API.flushOfflineCashSettlements().then(function(){return refreshOfflineCashStatus();});
+          return null; // Historic records are retained; no automatic payment replay.
         });
       }).catch(function(){});
       updateHeadClock();

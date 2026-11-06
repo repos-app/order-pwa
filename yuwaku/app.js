@@ -109,6 +109,29 @@
     try { var a = JSON.parse(it['オプション'] || '[]'); return Array.isArray(a) ? a : []; }
     catch (e) { return []; }
   }
+  // Pre-2026 AI importer saved bilingual serving amounts as EXTRA prices.
+  // Only the exact old AI schema is displayed as a full amount; payloads and
+  // charge calculations retain the saved deltas for older iPhone clients.
+  function isLegacyAiServingGroup(groups, g, basePrice) {
+    if (!g || g.kind || g.nameJa !== '提供方法' || g.nameEn !== 'Serving' ||
+        g.type !== 'single' || g.required !== true || !Array.isArray(g.choices) ||
+        !g.choices.length || g.choices.length > 3 ||
+        !Number.isFinite(basePrice) || basePrice < 0 ||
+        groups.filter(function (x) { return x && !x.kind && x.nameJa === '提供方法' && x.nameEn === 'Serving'; }).length !== 1 ||
+        groups.some(function (x) { return x && x.kind === 'price_variant'; })) return false;
+    var names = Object.create(null), hasZero = false;
+    for (var i = 0; i < g.choices.length; i++) {
+      var c = g.choices[i], label = c && c.labelEn;
+      var price = c && (typeof c.price === 'number' || (typeof c.price === 'string' && c.price.trim() !== '')) ? Number(c.price) : NaN;
+      if ((label !== 'Regular' && label !== 'Glass' && label !== 'Bottle') ||
+          names[label] || !Number.isFinite(price) || price < 0 ||
+          basePrice + price > 1e9 ||
+          Math.abs(price * 100 - Math.round(price * 100)) > 1e-6) return false;
+      names[label] = true;
+      if (price === 0) hasZero = true;
+    }
+    return hasZero;
+  }
   function menuItem(name) {
     for (var i = 0; i < state.menu.length; i++) { if (state.menu[i]['商品名'] === name) return state.menu[i]; }
     return null;
@@ -374,13 +397,18 @@
     }
     // グループ
     groups.forEach(function (g, gi) {
-      var multi = g.type === 'multi';
-      var req = g.required ? ' <span class="opt-req">(' + escHtml(x.optRequired) + ')</span>' : '';
-      html += '<div class="opt-group" data-gi="' + gi + '" data-type="' + (multi ? 'multi' : 'single') + '" data-req="' + (g.required ? 1 : 0) + '">' +
+      var variant = g.kind === 'price_variant';
+      var projectedDelta = g.kind === 'legacy_sale_unit_delta';
+      var legacyServing = isLegacyAiServingGroup(groups, g, Number(it['価格']) || 0);
+      var multi = g.type === 'multi' && !variant;
+      var required = g.required || variant || projectedDelta;
+      var req = required ? ' <span class="opt-req">(' + escHtml(x.optRequired) + ')</span>' : '';
+      html += '<div class="opt-group" data-gi="' + gi + '" data-type="' + (multi ? 'multi' : 'single') + '" data-req="' + (required ? 1 : 0) + '">' +
         '<div class="opt-gname">' + escHtml(optionLoc(g.nameJa,g.nameEn,g.name)) + req + '</div>';
       (g.choices || []).forEach(function (c, ci) {
         var add = (Number(c.price) || 0);
-        var addTxt = add ? '　+' + money(add) : '';
+        var addTxt = variant ? '　' + money(add) :
+          (legacyServing || projectedDelta) ? '　' + money((Number(it['価格']) || 0) + add) : (add ? '　+' + money(add) : '');
         html += '<label class="opt-choice">' +
           '<input type="' + (multi ? 'checkbox' : 'radio') + '" name="og' + gi + '" value="' + ci + '" data-price="' + add + '">' +
           '<span>' + escHtml(optionLoc(c.labelJa,c.labelEn,c.label)) + addTxt + '</span></label>';
@@ -422,7 +450,8 @@
         var ci = Number(inp.value);
         var c = (groups[gi].choices || [])[ci] || {};
         chosen.push(c.label || c.labelJa || c.labelEn || ''); selectedIdxs.push(ci);
-        extra += Number(inp.getAttribute('data-price')) || 0;
+        var price = Number(inp.getAttribute('data-price')) || 0;
+        extra += groups[gi].kind === 'price_variant' ? price - (Number(it['価格']) || 0) : price;
       });
       if(selectedIdxs.length) selections.push({groupIndex:gi,choiceIndexes:selectedIdxs});
     });

@@ -245,6 +245,25 @@
 
     function menuItem(base){ return MENU.find(function(it){return it['商品名']===base;})||null; }
     function itemOpts(it){ try{var a=JSON.parse(it&&it['オプション']||'[]');return Array.isArray(a)?a:[];}catch(e){return [];} }
+    // Only the exact old AI Serving/提供方法 group gets a full-price display.
+    // Stored choices and checkout still use their original surcharge values.
+    function isLegacyAiServingGroup(groups,g,basePrice){
+      if(!g||g.kind||g.nameJa!=='提供方法'||g.nameEn!=='Serving'||
+        g.type!=='single'||g.required!==true||!Array.isArray(g.choices)||
+        !g.choices.length||g.choices.length>3||!Number.isFinite(basePrice)||basePrice<0||
+        groups.filter(function(x){return x&&!x.kind&&x.nameJa==='提供方法'&&x.nameEn==='Serving';}).length!==1||
+        groups.some(function(x){return x&&x.kind==='price_variant';}))return false;
+      var names=Object.create(null),hasZero=false;
+      for(var i=0;i<g.choices.length;i++){
+        var c=g.choices[i],label=c&&c.labelEn;
+        var price=c&&(typeof c.price==='number'||(typeof c.price==='string'&&c.price.trim()!==''))?Number(c.price):NaN;
+        if((label!=='Regular'&&label!=='Glass'&&label!=='Bottle')||
+          names[label]||!Number.isFinite(price)||price<0||basePrice+price>1e9||
+          Math.abs(price*100-Math.round(price*100))>1e-6)return false;
+        names[label]=true;if(price===0)hasZero=true;
+      }
+      return hasZero;
+    }
     function optLoc(ja,en,legacy){ja=String(ja||'').trim();en=String(en||'').trim();return lang==='en'?(en||ja||legacy||''):(ja||en||legacy||'');}
     function optionLineLabel(line){
       var it=menuItem(line.base),groups=itemOpts(it),names=[];
@@ -325,13 +344,15 @@
         html+='</div>';
       }
       groups.forEach(function(g,gi){
-        var multi=g.type==='multi';
+        var variant=g.kind==='price_variant',projectedDelta=g.kind==='legacy_sale_unit_delta',multi=g.type==='multi'&&!variant;
+        var legacyServing=isLegacyAiServingGroup(groups,g,priceOf(base));
         html+='<div class="opt-group" data-gi="'+gi+'"><div class="opt-gname">'+esc(optLoc(g.nameJa,g.nameEn,g.name))+
-          (g.required?' ('+esc(optWords('required'))+')':'')+'</div>';
+          (g.required||variant||projectedDelta?' ('+esc(optWords('required'))+')':'')+'</div>';
         (g.choices||[]).forEach(function(c,ci){
           var extra=Number(c.price)||0;
           html+='<label class="opt-choice"><input type="'+(multi?'checkbox':'radio')+'" name="takeoutOption'+gi+'" value="'+ci+'"><span>'+
-            esc(optLoc(c.labelJa,c.labelEn,c.label))+(extra?' +'+money(extra):'')+'</span></label>';
+            esc(optLoc(c.labelJa,c.labelEn,c.label))+(variant?' '+money(extra):
+              legacyServing||projectedDelta?' '+money(priceOf(base)+extra):(extra?' +'+money(extra):''))+'</span></label>';
         });html+='</div>';
       });
       document.getElementById('optBody').innerHTML=html;
@@ -350,11 +371,11 @@
         var gi=Number(el.getAttribute('data-gi')),g=groups[gi],selected=Array.prototype.map.call(el.querySelectorAll('input:checked'),function(inp){return Number(inp.value);});
         var minRaw=g.min!=null?g.min:(g.minSelect!=null?g.minSelect:g.minSelections);
         var maxRaw=g.max!=null?g.max:(g.maxSelect!=null?g.maxSelect:g.maxSelections);
-        var min=minRaw==null||minRaw===''?(g.required?1:0):Number(minRaw);
+        var min=minRaw==null||minRaw===''?(g.required||g.kind==='price_variant'||g.kind==='legacy_sale_unit_delta'?1:0):Number(minRaw);
         var max=maxRaw==null||maxRaw===''?(g.type==='multi'?(g.choices||[]).length:1):Number(maxRaw);
-        if(!Number.isInteger(min)||!Number.isInteger(max)||min<0||max<min||max>(g.choices||[]).length||(g.type!=='multi'&&max>1)||selected.length<min||selected.length>max||(g.required&&!selected.length)){valid=false;reason=selected.length<min||g.required&&!selected.length?'pick':'range';}
+        if(!Number.isInteger(min)||!Number.isInteger(max)||min<0||max<min||max>(g.choices||[]).length||(g.type!=='multi'&&max>1)||selected.length<min||selected.length>max||((g.required||g.kind==='price_variant'||g.kind==='legacy_sale_unit_delta')&&!selected.length)){valid=false;reason=selected.length<min||(g.required||g.kind==='price_variant'||g.kind==='legacy_sale_unit_delta')&&!selected.length?'pick':'range';}
         if(selected.length)selections.push({groupIndex:gi,choiceIndexes:selected});
-        selected.forEach(function(ci){var c=(g.choices||[])[ci]||{};chosen.push(c.label||c.labelJa||c.labelEn||'');extra+=Number(c.price)||0;});
+        selected.forEach(function(ci){var c=(g.choices||[])[ci]||{};chosen.push(c.label||c.labelJa||c.labelEn||'');extra+=g.kind==='price_variant'?(Number(c.price)||0)-priceOf(optCtx.base):(Number(c.price)||0);});
       });
       if(!valid){document.getElementById('optError').textContent=optWords(reason);return;}
       var label=chosen.filter(Boolean).join(', '),sig=optCtx.base+'||'+JSON.stringify(selections);

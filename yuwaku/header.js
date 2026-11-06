@@ -651,7 +651,7 @@
     if (window.IZAICreditHub) { window.IZAICreditHub.sync(); return; }
     if (!policy || !policy.showAiCredit || document.querySelector('[data-iz-ai-hub]')) return;
     var creditScript = document.createElement('script');
-    creditScript.src = './ai-credit-hub.js?v=auth4';
+    creditScript.src = './ai-credit-hub.js?v=auth7';
     creditScript.setAttribute('data-iz-ai-hub','');
     document.head.appendChild(creditScript);
   }

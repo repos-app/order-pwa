@@ -41,6 +41,7 @@
     if (code === 'invalid_table_session') return en ? 'This table link is no longer valid. Please scan the QR code again.' : 'この席のリンクは無効になっています。QRコードをもう一度読み取ってください。';
     if (code === 'invalid_store_link' || code === 'store_not_found') return en ? 'This store link is not valid.' : 'この店舗リンクは無効です。';
     if (code === 'rate_limited') return en ? 'Too many attempts were made. Please wait a while and try again.' : '操作回数が多すぎます。しばらく待ってからもう一度お試しください。';
+    if (code === 'common_gateway_busy') return en ? 'The menu is busy. Please try again in a moment.' : 'メニューへのアクセスが集中しています。少し待ってから再度お試しください。';
     if (code === 'coupon_unavailable') return en
       ? 'This coupon is no longer available. Please remove it or choose another coupon, then submit the order again.'
       : 'このクーポンは現在ご利用いただけません。クーポンを外すか別のクーポンを選び、もう一度注文してください。';
@@ -83,7 +84,21 @@
     delete send.__silent; delete send.__msg; delete send.__timeoutMs; delete send.__noInternalRetry;
     send.storeId = CFG.STORE_ID;
     if (TABLE_SESSION_ACTIONS[action] && !send.tableToken) send.tableToken = tableTokenFromUrl();
-    var json = await fetchOnce(JSON.stringify(Object.assign({ action:action }, send)), timeoutMs);
+    var requestBody = JSON.stringify(Object.assign({ action:action }, send));
+    var json = await fetchOnce(requestBody, timeoutMs);
+    // The Control canary admits ONLY exact, anonymous, two-field bootstrap.
+    // A common_gateway_busy response is an explicit pre-admission rejection,
+    // so retry this read with jitter, never QR orders / payments / writes.
+    if (action === 'bootstrap' && !payload.__noInternalRetry &&
+        Object.keys(send).length === 1 && send.storeId === CFG.STORE_ID) {
+      for (var attempt = 0; attempt < 4 && json &&
+           json.ok === false && json.error === 'common_gateway_busy'; attempt++) {
+        await new Promise(function (resolve) {
+          setTimeout(resolve, 1000 + attempt * 350 + Math.floor(Math.random() * 180));
+        });
+        json = await fetchOnce(requestBody, timeoutMs);
+      }
+    }
     if (!json || json.ok === false) {
       var err = new Error(json && json.error || 'api_error');
       err.__server = true;
