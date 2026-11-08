@@ -71,6 +71,7 @@
       <input class="fc" id="loginPass" type="password" placeholder="パスワード" data-tph="ph_pass" autocomplete="off">
       <button class="btn" id="loginBtn" onclick="doLogin()" data-t="loginBtn">🔓 ログイン</button>
       <div style="text-align:center;margin-top:14px;"><a href="#" onclick="toggleChgPw(true);return false;" style="font-size:13px;font-weight:700;color:var(--text-3);" data-t="chgPwLink">🔑 パスワードを変更</a></div>
+      <div style="text-align:center;margin-top:10px;"><a href="https://izakanpai.com/app/reset-password.html" onclick="return openPasswordRecovery(this);" target="_blank" rel="noopener noreferrer" style="font-size:13px;color:var(--text-3);" data-t="forgotPwLink">パスワードを忘れた方</a></div>
     </div>
     <div class="login hidden" id="chgPwCard">
       <div class="emoji">🔑</div>
@@ -158,6 +159,7 @@
       { grp:'sales', key:'profit', ic:'📉', tt:'月間粗利', ds:'売上−原価', ttEn:'Gross profit', dsEn:'Revenue − costs', url:'./profit.html', active:true },
       { grp:'sales', key:null, ic:'📐', tt:'営業利益シミュレーション', ds:'経費入力・実績読込で試算', ttEn:'Operating profit sim.', dsEn:'Estimate from costs · actuals', url:'./profit_sim.html', active:true },
       { grp:'sales', key:'register', ic:'💵', tt:'レジ締め', ds:'現金過不足・X/Z', ttEn:'Register', dsEn:'Cash close · X/Z', url:'./register.html', active:true },
+      { grp:'sales', key:'commission', ic:'💰', tt:'歩合・スタッフ報酬', ds:'SC分配・歩合・支払管理', ttEn:'Commission & rewards', dsEn:'SC sharing · payouts', url:'./commission.html', active:true },
       { grp:'sales', key:'receipts', ic:'🧾', tt:'会計履歴', ds:'過去の会計・再印刷', ttEn:'Receipts', dsEn:'Past bills · reprint', url:'./receipts.html', active:true },
       { grp:'sales', key:'feedback', ic:'⭐', tt:'お客様の声', ds:'評価・コメント', ttEn:'Feedback', dsEn:'Ratings · comments', url:'./feedback.html', active:true },
       { grp:'stock', key:'inventory', ic:'📦', tt:'在庫管理', ds:'在庫数・原価・低在庫', ttEn:'Inventory', dsEn:'Stock · cost · low-stock', url:'./inventory.html', active:true },
@@ -181,7 +183,7 @@
       { grp:'system', key:'backup', ic:'💾', tt:'データバックアップ・管理', ds:'書出・削除・復元', ttEn:'Data backup & management', dsEn:'Export · delete · restore', url:'./data_admin.html', active:true },
       { grp:'system', key:'settings', ic:'⚙️', tt:'設定', ds:'店舗設定', ttEn:'Settings', dsEn:'Store settings', url:'./settings.html', active:true },
       { grp:'system', key:null, ic:'📖', tt:'全体利用ガイド', ds:'店舗運営の使い方・流れ', ttEn:'Store operations guide', dsEn:'Daily workflow · how to use', url:'./overview.html', active:true },
-      { grp:'system', key:null, ownerOnly:true, ic:'👤', tt:'アカウントとデータ削除', ds:'オーナー本人による削除申請', ttEn:'Account & data deletion', dsEn:'Owner deletion request', url:'./account.html', active:true },
+      { grp:'system', key:null, ownerOnly:true, ic:'👤', tt:'アカウント管理', ds:'メール・パスワード・削除', ttEn:'Account management', dsEn:'Email, password & deletion', url:'./account.html', active:true },
     ];
     var curTab = (function(){ try { return localStorage.getItem('mgmtTab') || null; } catch(e){ return null; } })();
 
@@ -297,9 +299,20 @@
     };
 
     // ログイン画面からのパスワード変更（ログインID＋現在のパスワードで本人確認）
+    window.openPasswordRecovery = function(link){
+      var wsEl=document.getElementById('workspaceId'), idEl=document.getElementById('loginId');
+      var workspace=wsEl?wsEl.value:((window.APP_CONFIG&&window.APP_CONFIG.STORE_ID)||'');
+      var loginId=idEl?idEl.value:'';
+      var lang=(window.I18n&&I18n.lang&&I18n.lang()==='en')?'en':'ja';
+      var url='https://izakanpai.com/app/reset-password.html?lang='+lang;
+      if(workspace)url+='&workspace='+encodeURIComponent(String(workspace).trim());
+      if(loginId)url+='&loginId='+encodeURIComponent(String(loginId).trim());
+      link.href=url; return true;
+    };
     window.toggleChgPw = function(show){
       document.getElementById('loginCard').classList.toggle('hidden', !!show);
       document.getElementById('chgPwCard').classList.toggle('hidden', !show);
+      if(show) document.getElementById('cpLoginId').value=document.getElementById('loginId').value;
       var m=document.getElementById('chgMsg'); if(m) m.style.display='none';
     };
     window.doChangePw = function(){
@@ -361,8 +374,8 @@
     // ログイン画面の画像（設定で登録した画像を表示。getSettingsはログイン前でも公開）
     API.post('getSettings', {}).then(function(r){ var d=(r&&r.data)||{}; if(d.systemTopImageId){ var im=document.getElementById('loginPic'); if(im){ im.src=API.imageUrl(d.systemTopImageId); im.style.display='block'; } } }).catch(function(){});
     I18n.init({
-      ja: { title:'管理', logout:'ログアウト', loading:'読み込み中…', login:'ログイン', loginSub:'ログインIDとパスワードを入力', loginErr:'IDまたはパスワードが違います', emailUnverified:'メールアドレスの確認が完了していません。確認メール内のリンクを開いてからログインしてください。', loginRateLimited:'ログイン失敗が続いたため一時的に制限しています。しばらく待って再試行してください。', authUnavailable:'認証サービスを利用できません。時間をおいて再試行してください。', needLogin:'ログインIDとパスワードを入力してください', ph_loginId:'ログインID', ph_pass:'パスワード', loginBtn:'🔓 ログイン', chgPwLink:'🔑 パスワードを変更', chgTitle:'パスワード変更', chgSub:'ログインIDと現在のパスワードで変更できます', ph_cpOld:'現在のパスワード', ph_cpNew:'新しいパスワード（8文字以上）', ph_cpNew2:'新しいパスワード（確認）', cpBtn:'🔑 変更する', backToLogin:'← ログインに戻る', m_needId:'ログインIDを入力してください', m_needOld:'現在のパスワードを入力してください', m_short:'新しいパスワードは8文字以上にしてください', m_mismatch:'新しいパスワードが一致しません', m_ok:'✅ 変更しました。新しいパスワードでログインしてください', m_wrong:'ログインIDまたは現在のパスワードが違います', m_err:'エラー: ' },
-      en: { title:'Management', logout:'Logout', loading:'Loading…', login:'Login', loginSub:'Enter your login ID and password', loginErr:'Incorrect ID or password', emailUnverified:'Your email address is not verified. Open the link in the verification email, then log in.', loginRateLimited:'Too many failed attempts. Please wait and try again.', authUnavailable:'Authentication service is unavailable. Please wait and try again.', needLogin:'Please enter your login ID and password', ph_loginId:'Login ID', ph_pass:'Password', loginBtn:'🔓 Login', chgPwLink:'🔑 Change password', chgTitle:'Change password', chgSub:'Change it with your login ID and current password', ph_cpOld:'Current password', ph_cpNew:'New password (8+ chars)', ph_cpNew2:'New password (confirm)', cpBtn:'🔑 Change', backToLogin:'← Back to login', m_needId:'Please enter your login ID', m_needOld:'Please enter your current password', m_short:'New password must be 8+ characters', m_mismatch:'New passwords do not match', m_ok:'✅ Changed. Please log in with your new password', m_wrong:'Login ID or current password is incorrect', m_err:'Error: ' }
+      ja: { title:'管理', logout:'ログアウト', loading:'読み込み中…', login:'ログイン', loginSub:'ログインIDとパスワードを入力', loginErr:'IDまたはパスワードが違います', emailUnverified:'メールアドレスの確認が完了していません。確認メール内のリンクを開いてからログインしてください。', loginRateLimited:'ログイン失敗が続いたため一時的に制限しています。しばらく待って再試行してください。', authUnavailable:'認証サービスを利用できません。時間をおいて再試行してください。', needLogin:'ログインIDとパスワードを入力してください', ph_loginId:'ログインID', ph_pass:'パスワード', loginBtn:'🔓 ログイン', chgPwLink:'🔑 パスワードを変更', forgotPwLink:'パスワードを忘れた方', chgTitle:'パスワード変更', chgSub:'ログインIDと現在のパスワードで変更できます', ph_cpOld:'現在のパスワード', ph_cpNew:'新しいパスワード（8文字以上）', ph_cpNew2:'新しいパスワード（確認）', cpBtn:'🔑 変更する', backToLogin:'← ログインに戻る', m_needId:'ログインIDを入力してください', m_needOld:'現在のパスワードを入力してください', m_short:'新しいパスワードは8文字以上にしてください', m_mismatch:'新しいパスワードが一致しません', m_ok:'✅ 変更しました。新しいパスワードでログインしてください', m_wrong:'ログインIDまたは現在のパスワードが違います', m_err:'エラー: ' },
+      en: { title:'Management', logout:'Logout', loading:'Loading…', login:'Login', loginSub:'Enter your login ID and password', loginErr:'Incorrect ID or password', emailUnverified:'Your email address is not verified. Open the link in the verification email, then log in.', loginRateLimited:'Too many failed attempts. Please wait and try again.', authUnavailable:'Authentication service is unavailable. Please wait and try again.', needLogin:'Please enter your login ID and password', ph_loginId:'Login ID', ph_pass:'Password', loginBtn:'🔓 Login', chgPwLink:'🔑 Change password', forgotPwLink:'Forgot password?', chgTitle:'Change password', chgSub:'Change it with your login ID and current password', ph_cpOld:'Current password', ph_cpNew:'New password (8+ chars)', ph_cpNew2:'New password (confirm)', cpBtn:'🔑 Change', backToLogin:'← Back to login', m_needId:'Please enter your login ID', m_needOld:'Please enter your current password', m_short:'New password must be 8+ characters', m_mismatch:'New passwords do not match', m_ok:'✅ Changed. Please log in with your new password', m_wrong:'Login ID or current password is incorrect', m_err:'Error: ' }
     }, function(){ if(!document.getElementById('hubView').classList.contains('hidden')) showHub(lastAllowed, ACCOUNT_OWNER); });
     document.addEventListener('DOMContentLoaded', checkAndShow);
     window.addEventListener('pageshow', function(e){

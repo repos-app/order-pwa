@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>izakanpai | Confirm owner email change</title>
+  <link rel="stylesheet" href="./legal.css">
+</head>
+<body>
+  <header class="top">
+    <a href="../">izakanpai</a>
+    <h1><span class="ja">新しいメールアドレスを確認</span><span class="en">Confirm new email address</span></h1>
+    <button id="langBtn" type="button">EN</button>
+  </header>
+  <main class="wrap">
+    <section class="card">
+      <p class="ja">店舗オーナーの登録メールアドレスを変更します。この操作は登録オーナー本人が申請した場合のみ行ってください。</p>
+      <p class="en">Confirm the new store owner email address. Proceed only if you requested this change.</p>
+      <p class="ja">確認が完了するまでは、元のメールアドレスが有効です。</p>
+      <p class="en">The original email remains active until verification is completed.</p>
+      <button class="btn" id="confirmBtn" type="button"><span class="ja">メールアドレスの変更を確定</span><span class="en">Confirm email change</span></button>
+      <div id="message" class="msg" role="status" aria-live="polite"></div>
+      <p class="muted ja">メール内のリンクは30分間有効です。変更後、元のアドレスにも通知します。</p>
+      <p class="muted en">The link expires in 30 minutes. We will also notify your old address.</p>
+    </section>
+    <div class="card links"><a href="./support.html">Support</a><a href="mailto:admin@izakanpai.com">admin@izakanpai.com</a></div>
+  </main>
+  <script src="./legal.js"></script>
+  <script>
+  (function () {
+    'use strict';
+    var endpoint = 'https://izakanpai-api.izakanpai.workers.dev/?api=1';
+    var params = new URLSearchParams(location.search);
+    var token = params.get('token') || '';
+    var lang = params.get('lang') === 'en' ? 'en' : 'ja';
+    var match = /^ec2\.([a-z0-9][a-z0-9-]{2,31})\.[a-f0-9]{64}$/.exec(token);
+    // Never leave the bearer token in browser navigation history/referrers.
+    history.replaceState(null, '', location.pathname + '?lang=' + lang);
+    var button = document.getElementById('confirmBtn');
+    function show(ja, en, good) {
+      var message = document.getElementById('message');
+      message.textContent = document.documentElement.dataset.lang === 'en' ? en : ja;
+      message.className = 'msg ' + (good ? 'ok' : 'err');
+    }
+    if (!match) {
+      button.disabled = true;
+      show('リンクが無効です。アカウント管理画面から再度変更を申請してください。',
+        'Invalid link. Request another email change from account management.', false);
+      return;
+    }
+    button.addEventListener('click', async function () {
+      this.disabled = true;
+      try {
+        var response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'content-type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'confirmOwnerEmailChange', storeId: match[1], token: token }),
+          cache: 'no-store'
+        });
+        var payload = await response.json();
+        if (!response.ok || payload.ok !== true || payload.data?.success !== true)
+          throw new Error(payload.data?.error || 'confirmation_failed');
+        token = '';
+        show('メールアドレスの変更が完了しました。次回から新しいアドレスへ通知が届きます。',
+          'Your owner email address has been changed successfully.', true);
+      } catch (_) {
+        show('確定できませんでした。リンクの期限内に再試行してください。',
+          'The change could not be completed. Retry with the same link before it expires.', false);
+        this.disabled = false;
+      }
+    });
+  })();
+  </script>
+</body>
+</html>
