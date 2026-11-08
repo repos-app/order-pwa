@@ -126,7 +126,7 @@ const CACHE_PREFIX = 'yuwaku-production-';
 // precache the exact versioned URLs so first-launch offline works after update.
 // v296: refresh cached checkout without the obsolete split-bill reference widget.
 // v298: reload vertically stacked AI credit badge without increasing common header height.
-const CACHE = CACHE_PREFIX + 'v301';
+const CACHE = CACHE_PREFIX + 'v302';
 const SHELL = [
   './',
   './index.html',
@@ -169,7 +169,7 @@ const SHELL = [
   './requests.html',
   './printers.html',
   './account.html',
-  './account-owner.js?v=auth3',
+  './account-owner.js?v=auth4',
   './legal.css',
   './legal.js',
   './overview.html',

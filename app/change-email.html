@@ -55,7 +55,8 @@
         var response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'content-type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'confirmOwnerEmailChange', storeId: match[1], token: token }),
+          body: JSON.stringify({ action: 'confirmOwnerEmailChange', storeId: match[1], token: token,
+            lang: document.documentElement.dataset.lang === 'en' ? 'en' : 'ja' }),
           cache: 'no-store'
         });
         var payload = await response.json();

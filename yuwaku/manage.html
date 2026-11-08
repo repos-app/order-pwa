@@ -220,6 +220,7 @@
       if(!ACCOUNT_OWNER||!TOKEN){box.classList.add('hidden');return;}
       API.post('rpc',{fn:'getAccountDeletionStatus',args:[],token:TOKEN,__silent:true,__noInternalRetry:true}).then(function(r){
         var d=r&&r.data||{},en=window.I18n&&I18n.lang()==='en';
+        link.href='./account.html?lang='+(en?'en':'ja');
         if(d.status!=='pending'){box.classList.add('hidden');return;}
         textEl.textContent=d.phase==='processing'?(en?'Cancellation deadline passed. Deletion is being processed.':'取消期限を過ぎました。削除処理中です。'):(en?'Deletion request pending — Cancel by: ':'削除申請中　取消期限: ')+deletionDeadlineText(d.cancelDeadlineAt);
         link.textContent=en?'Review':'確認';box.classList.remove('hidden');
@@ -247,7 +248,7 @@
         if (x.ownerOnly && !ACCOUNT_OWNER) return;
         if (x.key && !allowed[x.key]) return;
         var tt = (en && x.ttEn) ? x.ttEn : x.tt, ds = (en && x.dsEn) ? x.dsEn : x.ds;
-        if (x.active){ html += '<a class="tile" href="'+x.url+'"><span class="ic">'+x.ic+'</span><span class="tt">'+tt+'</span><span class="ds">'+ds+'</span></a>'; }
+        if (x.active){ var tileUrl=x.url==='./account.html'?x.url+'?lang='+(en?'en':'ja'):x.url; html += '<a class="tile" href="'+tileUrl+'"><span class="ic">'+x.ic+'</span><span class="tt">'+tt+'</span><span class="ds">'+ds+'</span></a>'; }
         else { html += '<div class="tile soon"><span class="ic">'+x.ic+'</span><span class="tt">'+tt+'</span><span class="ds">'+ds+'</span></div>'; }
       });
       document.getElementById('tiles').innerHTML = html;

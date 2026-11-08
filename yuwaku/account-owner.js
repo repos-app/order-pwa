@@ -42,7 +42,8 @@
         }
         this.disabled = true;
         try {
-          var result = await rpc('requestOwnerEmailChange', { newEmail: next, password: password });
+          var result = await rpc('requestOwnerEmailChange', { newEmail: next, password: password,
+            lang: document.documentElement.dataset.lang === 'en' ? 'en' : 'ja' });
           if (!result || result.success !== true) {
             show('ownerEmailMsg',
               result && result.error === 'wrong_password' ? '現在のパスワードが違います。' :
