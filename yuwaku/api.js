@@ -133,7 +133,9 @@
   // ---- ロード中オーバーレイ（全アクション共通の待機表示。完了で自動クローズ）----
   // api.js は全ページが読み込むため、ここに置くだけで共通部品になる。
   const _load = (function () {
-    let count = 0, el = null, txt = null, hideTimer = null;
+    let count = 0, el = null, txt = null, hideTimer = null, watchTimer = null;
+    let visibleSince = 0;
+    function clearWatch(){if(watchTimer){clearTimeout(watchTimer);watchTimer=null;}visibleSince=0;}
     function ensure() {
       if (el || typeof document === 'undefined' || !document.body) return;
       const st = document.createElement('style');
@@ -152,18 +154,34 @@
     function defMsg() { return _isEN() ? 'Please wait…' : '処理中…'; }
     return {
       show: function (msg) {
-        count++; ensure(); if (!el) return;
+        count++;
+        if(count===1){
+          visibleSince=Date.now();
+          watchTimer=setTimeout(function(){
+            watchTimer=null;
+            if(count<=0)return;
+            try{API.reportDiagnostic('ui','blocking_overlay','failed',
+              'client_ui_stalled',Date.now()-visibleSince);}catch(_){}
+            if(txt)txt.textContent=_isEN()
+              ? 'Still processing. Check your orders before trying again.'
+              : '処理が長引いています。再注文前に注文履歴を確認してください。';
+          },60000);
+          if(watchTimer&&typeof watchTimer.unref==='function')watchTimer.unref();
+        }
+        ensure(); if (!el) return;
         if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
         if (txt) txt.textContent = msg || defMsg();
         el.style.display = 'flex'; void el.offsetWidth; el.classList.add('on');
       },
       hide: function () {
-        count = Math.max(0, count - 1); if (count > 0 || !el) return;
+        count = Math.max(0, count - 1); if (count > 0) return;
+        clearWatch(); if (!el) return;
         el.classList.remove('on');
         hideTimer = setTimeout(function () { if (count === 0 && el) el.style.display = 'none'; }, 160);
       },
       reset: function () {
         count = 0;
+        clearWatch();
         if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
         if (el) { el.classList.remove('on'); el.style.display = 'none'; }
       }
@@ -429,6 +447,7 @@
     if (code === 'http_429') return en ? 'Too many requests were made (HTTP 429). Wait a moment and check the operation result before retrying.' : 'アクセス回数の制限に達しました（HTTP 429）。少し待ち、処理結果を確認してから再試行してください。';
     if (code.indexOf('plan_feature_pro_required') === 0) return en ? 'This feature is available on the Pro plan.' : 'この機能はProプランでご利用いただけます。';
     if (code === 'request_timeout') return en ? 'The order request timed out. Please check the order status before trying again.' : '注文送信がタイムアウトしました。注文状況を確認してから再試行してください。';
+    if (code === 'offline_storage_timeout') return en ? 'Saving the pending order on this device timed out. It was not confirmed as queued; check the order status before trying again.' : '端末への未送信注文の保存がタイムアウトしました。送信待ちへの登録は確認できません。注文状況を確認してから再試行してください。';
     if (/^http_5\d\d$/.test(code)) return en ? 'The server returned '+code+'. Check the operation status before retrying; contact support with this code if it continues.' : 'サーバーエラー '+code+' が発生しました。再試行前に処理結果を確認し、続く場合はこのコードをサポートへお伝えください。';
     if (code === 'locked, please retry') return en ? 'The order could not be accepted because the server was busy. Please try again.' : 'サーバーが混み合っているため注文を受け付けられませんでした。もう一度お試しください。';
     if (code === 'save_failed') return en
@@ -491,14 +510,30 @@
     const ctrl = new AbortController();
     if(lifecycleBound)_readControllers.add(ctrl);
     if(foregroundWrite)_foregroundWriteControllers.add(ctrl);
-    const t = setTimeout(function () { ctrl.abort('timeout'); }, ms);
-    return fetch(CFG.API_URL + '?api=1', {
+    // Some WebViews never settle fetch()/response.json() after abort().
+    // A separate deadline guarantees that foreground loading can close.
+    let t;
+    const deadline = new Promise(function (_, reject) {
+      t = setTimeout(function () {
+        const error = new Error('request_timeout');
+        error.name = 'AbortError';
+        error.__izTimedOut = true;
+        error.__izDiagnosticTransport = 'webview';
+        reject(ctrl.__izAbandonedWrite ? abandonedPageWriteError() :
+          (lifecycleBound && ctrl.__izPageLifecycleAbort) ? staleReadLifecycleError() : error);
+        try { ctrl.abort('timeout'); } catch (_) {}
+      }, ms);
+    });
+    // Start fetch synchronously to preserve existing read coalescing.
+    let request;
+    try { request = fetch(CFG.API_URL + '?api=1', {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: body,
       redirect: 'follow',
       signal: ctrl.signal
-    }).catch(function(error){if(foregroundWrite&&ctrl.__izAbandonedWrite)throw abandonedPageWriteError();if(lifecycleBound&&ctrl.__izPageLifecycleAbort)throw staleReadLifecycleError();throw error;}).then(function (res) {
+    }); } catch (error) { request = Promise.reject(error); }
+    const transport = Promise.resolve(request).catch(function(error){if(foregroundWrite&&ctrl.__izAbandonedWrite)throw abandonedPageWriteError();if(lifecycleBound&&ctrl.__izPageLifecycleAbort)throw staleReadLifecycleError();throw error;}).then(function (res) {
       if (!res.ok) {
         if (res.status >= 400 && res.status < 500) {
           return res.json().catch(function () { throw new Error('http_' + res.status); });
@@ -506,7 +541,8 @@
         throw new Error('http_' + res.status);
       }
       return res.json();
-    }).finally(function () { clearTimeout(t); if(lifecycleBound)_readControllers.delete(ctrl); if(foregroundWrite)_foregroundWriteControllers.delete(ctrl); });
+    });
+    return Promise.race([transport, deadline]).finally(function () { clearTimeout(t); if(lifecycleBound)_readControllers.delete(ctrl); if(foregroundWrite)_foregroundWriteControllers.delete(ctrl); });
   }
 
   const _readFetchPending = new Map();
@@ -524,7 +560,10 @@
   }
   function _fetchReadOnce(body, ms) {
     const generation = _readLifecycleGeneration;
-    const key = String(generation) + '\n' + String(ms) + '\n' + body;
+    // A unique diagnostic trace must not break the shared read coalescer.
+    // Coalescing affects read-only transport only, never any mutation.
+    const dedupBody = body.replace(/,"__diagnosticTraceId":"[a-zA-Z0-9_-]{8,64}"(?=})/, '');
+    const key = String(generation) + '\n' + String(ms) + '\n' + dedupBody;
     if (_readFetchPending.has(key)) return _readFetchPending.get(key);
     const request = _fetchOnce(body, ms, true).then(function(json){if(generation!==_readLifecycleGeneration)throw staleReadLifecycleError();return json;}).finally(function () {
       if (_readFetchPending.get(key) === request) _readFetchPending.delete(key);
@@ -594,6 +633,126 @@
   //   payload.__timeoutMs         : このリクエストのfetchタイムアウトを個別に指定（省略時は既定25秒）
   //   payload.__noInternalRetry   : trueならAPI.post自身の内部再送を行わない（＝常に1 fetchのみ）
   // これにより「内部再送」と「画面側再送」の責務を分離し、二重再試行を避ける。
+  // Hosted-Web diagnostics share the signed Control D1 sink and v2 event
+  // provenance with native. Never store URLs, stacks, request bodies or tokens.
+  // The queue survives a tab reload; it is acknowledged only by the server.
+  const _diagnosticQueueKey=String(CFG.STORAGE_PREFIX||'izakanpai:')+'diagnosticQueueV1';
+  const _diagnosticAppVersion='web_'+String(CFG.VERSION||'unknown')
+    .replace(/[^a-zA-Z0-9_.+-]/g,'').slice(0,30);
+  let _diagnosticSending=false,_diagnosticLastSend=0,_diagnosticRetryTimer=null;
+  let _diagnosticRetryDelay=30000;
+  function _diagnosticTrace(){
+    try{return crypto.randomUUID().replace(/-/g,'');}catch(_){}
+    return String(Date.now())+String(Math.random()).slice(2,16);
+  }
+  function _diagnosticQueue(){
+    try{const rows=JSON.parse(localStorage.getItem(_diagnosticQueueKey)||'[]');
+      return Array.isArray(rows)?rows.filter(x=>x&&x.at>Date.now()-7*86400000).slice(-50):[];
+    }catch(_){return [];}
+  }
+  function _saveDiagnosticQueue(rows){
+    try{localStorage.setItem(_diagnosticQueueKey,JSON.stringify(rows.slice(-50)));}catch(_){}
+  }
+  function _scheduleDiagnosticFlush(ms){
+    if(_diagnosticRetryTimer)return;
+    _diagnosticRetryTimer=setTimeout(function(){
+      _diagnosticRetryTimer=null;_flushDiagnostics();
+    },ms);
+    if(_diagnosticRetryTimer&&typeof _diagnosticRetryTimer.unref==='function')
+      _diagnosticRetryTimer.unref();
+  }
+  function _flushDiagnostics(){
+    if(_diagnosticSending||Date.now()-_diagnosticLastSend<10000)return;
+    const token=storedToken(),storeId=API.currentStoreId();
+    if(!token||!storeId)return;
+    const pending=_diagnosticQueue();
+    const item=pending.find(x=>x.storeId===storeId);
+    if(!item)return;
+    _diagnosticSending=true;_diagnosticLastSend=Date.now();
+    const ctrl=new AbortController();
+    let timeout;
+    const deadline=new Promise(function(_,reject){
+      timeout=setTimeout(function(){
+        reject(new Error('diagnostic_transport_timeout'));
+        try{ctrl.abort();}catch(_){}
+      },5000);
+    });
+    let transport;
+    try{transport=fetch(CFG.API_URL+'?api=1',{
+      method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({action:'recordClientDiagnostic',storeId:storeId,
+        token:token,event:item.event}),signal:ctrl.signal,
+    });}catch(error){transport=Promise.reject(error);}
+    let acknowledged=false;
+    Promise.race([Promise.resolve(transport).then(r=>r.ok?r.json():null),deadline])
+      .then(function(data){
+        if(data&&data.ok===true){
+          acknowledged=true;
+          _saveDiagnosticQueue(_diagnosticQueue().filter(v=>v.id!==item.id));
+        }
+      }).catch(function(){}).finally(function(){
+        clearTimeout(timeout);_diagnosticSending=false;
+        _diagnosticRetryDelay=acknowledged?30000:Math.min(300000,_diagnosticRetryDelay*2);
+        if(_diagnosticQueue().some(v=>v.storeId===storeId))
+          _scheduleDiagnosticFlush(acknowledged?11000:_diagnosticRetryDelay);
+      });
+  }
+  API.reportDiagnostic=function(feature,operation,outcome,errorCode,durationMs,traceId,deferSend,context){
+    const storeId=API.currentStoreId();
+    if(!storeId)return;
+    const eventId=_diagnosticTrace();
+    const event={
+      traceId:/^[a-zA-Z0-9_-]{8,64}$/.test(String(traceId||''))?traceId:_diagnosticTrace(),
+      feature:/^[a-z][a-z0-9_]{0,47}$/.test(String(feature))?feature:'client',
+      operation:/^[a-zA-Z][a-zA-Z0-9_:.-]{0,63}$/.test(String(operation))?operation:'unknown',
+      outcome:['failed','slow','pending','completed'].includes(outcome)?outcome:'failed',
+      errorCode:/^[a-z][a-z0-9_]{0,63}$/.test(String(errorCode))?errorCode:'client_error',
+      durationMs:Math.min(600000,Math.max(0,Math.floor(Number(durationMs)||0))),
+      eventId,occurredAt:new Date().toISOString(),transport:'webview',
+      attemptCount:Number.isInteger(context?.attemptCount)&&context.attemptCount>=1&&context.attemptCount<=8?
+        context.attemptCount:1,appVersion:_diagnosticAppVersion,
+    };
+    const rows=_diagnosticQueue();rows.push({id:eventId,storeId,at:Date.now(),event});
+    _saveDiagnosticQueue(rows);
+    if(!deferSend)_flushDiagnostics();
+  };
+  function _webDiagnosticFailure(error){
+    if(error?.__izTimedOut)return 'client_timeout';
+    const msg=String(error&&error.message||error||'');
+    if(error?.__server&&/^[a-z][a-z0-9_]{1,63}$/.test(msg))return msg;
+    if(/request_timeout|timed?\s*out|timeout/i.test(msg))return 'client_timeout';
+    if(/failed to fetch|network|connection|load failed|fetch failed/i.test(msg))
+      return 'client_transport_failure';
+    if(/SyntaxError|JSON|not valid JSON/i.test(msg))return 'client_invalid_response';
+    return 'client_error';
+  }
+  if(typeof window!=='undefined'&&window.addEventListener){
+    window.addEventListener('online',_flushDiagnostics);
+    window.addEventListener('pageshow',_flushDiagnostics);
+    document.addEventListener('visibilitychange',function(){if(!document.hidden)_flushDiagnostics();});
+    function page(){const n=String(location.pathname||'').split('/').pop().toLowerCase();
+      return /^[a-z][a-z0-9-]{0,23}\.html$/.test(n)?n.slice(0,-5).replace(/-/g,'_'):'other';}
+    function code(error){const type=String(error&&error.name||'');
+      return type==='TypeError'?'js_type_error':type==='ReferenceError'?'js_reference_error':
+        type==='SyntaxError'?'js_syntax_error':type==='RangeError'?'js_range_error':'uncaught_exception';}
+    function stackSite(error){
+      const raw=String(error&&error.stack||'').slice(0,4096);
+      const found=/(?:^|[/\\( ])([a-zA-Z][a-zA-Z0-9-]{0,20})\.js:([1-9][0-9]{0,5})/.exec(raw);
+      return found?':'+found[1].replace(/-/g,'_')+':'+found[2]:'';
+    }
+    window.addEventListener('error',function(e){
+      if(!e||!e.error)return;
+      const f=String(e.filename||'').split(/[?#]/,1)[0].split('/').pop()||'';
+      const source=/^[a-zA-Z][a-zA-Z0-9-]{0,20}\.js$/.test(f)?f.slice(0,-3).replace(/-/g,'_'):'script';
+      const line=Number.isInteger(e.lineno)&&e.lineno>=1&&e.lineno<=999999?e.lineno:0;
+      API.reportDiagnostic('client','js:'+page()+':'+source+':'+line,'failed',code(e.error),0);
+    });
+    window.addEventListener('unhandledrejection',function(e){
+      const kind=code(e&&e.reason);
+      API.reportDiagnostic('client','rejection:'+page()+stackSite(e&&e.reason),'failed',
+        kind==='uncaught_exception'?'unhandled_rejection':kind,0);
+    });
+  }
   API.post = async function (action, payload) {
     if (environmentMismatch()) {
       blockEnvironmentMismatch();
@@ -634,17 +793,20 @@
         }
       }
     }
+    const diagnosticTraceId=_diagnosticTrace(),diagnosticStart=Date.now();
+    send.__diagnosticTraceId=diagnosticTraceId;
     const body = JSON.stringify(Object.assign({ action: action }, send));
     const canRetry = !noInternalRetry && readOnly;
     const canRetryBackpressure = canRetry && !!_BACKPRESSURE_READ_ACTIONS[action];
     const retryGeneration = _readLifecycleGeneration;
     const fetchOnce = readOnly ? _fetchReadOnce : (backgroundMutation ? _fetchOnce : _fetchForegroundWriteOnce);
     const mutationId = (readOnly || backgroundMutation) ? '' : beginMutation(action === 'rpc' ? ('rpc:' + String(payload.fn || '')) : action);
-    let mutationUncertain = false;
+    let mutationUncertain = false,diagnosticFailed=false,diagnosticAttempts=0;
     if (!silent) _load.show(payload.__msg);
     try {
       let json;
       try {
+        diagnosticAttempts++;
         json = await fetchOnce(body, timeoutMs);
       } catch (e1) {
         if(e1&&e1.__abandonedWrite)throw e1;
@@ -652,6 +814,7 @@
         await new Promise(function (r) { setTimeout(r, _RETRY_DELAY_MS); });
         if (retryGeneration !== _readLifecycleGeneration) throw staleReadLifecycleError();
         try {
+          diagnosticAttempts++;
           json = await fetchOnce(body, timeoutMs);
         } catch (e2) {
           if (!silent) _errBar.show();
@@ -662,6 +825,7 @@
            json.ok === false && json.error === 'common_gateway_busy' && retry < 4; retry++) {
         await new Promise(function(resolve){ setTimeout(resolve, _backpressureDelay(retry)); });
         if (retryGeneration !== _readLifecycleGeneration) throw staleReadLifecycleError();
+        diagnosticAttempts++;
         json = await fetchOnce(body, timeoutMs);
       }
       _errBar.hide();
@@ -695,9 +859,23 @@
       }
       return json;
     } catch (error) {
+      diagnosticFailed=true;
+      if(!error?.__staleLifecycle&&!error?.__abandonedWrite){
+        API.reportDiagnostic(action==='rpc'?'rpc':'api',
+          action==='rpc'?'rpc:'+String(payload.fn||'unknown'):String(action||'unknown'),
+          'failed',_webDiagnosticFailure(error),Date.now()-diagnosticStart,
+          diagnosticTraceId,false,{attemptCount:diagnosticAttempts});
+      }
       if (mutationId && !error.__abandonedWrite && mutationOutcomeUncertain(error)) mutationUncertain = true;
       throw error;
     } finally {
+      if(!diagnosticFailed&&Date.now()-diagnosticStart>=5000){
+        API.reportDiagnostic(action==='rpc'?'rpc':'api',
+          action==='rpc'?'rpc:'+String(payload.fn||'unknown'):String(action||'unknown'),
+          'slow','none',Date.now()-diagnosticStart,diagnosticTraceId,false,
+          {attemptCount:diagnosticAttempts});
+      }
+      _flushDiagnostics();
       if (mutationId) endMutation(mutationId, mutationUncertain);
       if (!silent) _load.hide();
     }
@@ -772,14 +950,30 @@
     });
   }
   function tx(store, mode, fn) {
-    return openDB().then((db) => new Promise((resolve, reject) => {
-      const t = db.transaction(store, mode);
-      const s = t.objectStore(store);
-      const out = fn(s);
-      t.oncomplete = () => { db.close(); resolve(out && out.result !== undefined ? out.result : out); };
-      t.onerror = () => { db.close(); reject(t.error); };
-      t.onabort = () => { db.close(); reject(t.error || new Error('offline_storage_transaction_aborted')); };
-    }));
+    let activeDb = null, activeTx = null, timedOut = false, timer;
+    const operation = openDB().then((db) => {
+      if (timedOut) { db.close(); throw new Error('offline_storage_timeout'); }
+      activeDb = db;
+      return new Promise((resolve, reject) => {
+        try {
+          const t = activeTx = db.transaction(store, mode);
+          const s = t.objectStore(store);
+          const out = fn(s);
+          t.oncomplete = () => { db.close(); resolve(out && out.result !== undefined ? out.result : out); };
+          t.onerror = () => { db.close(); reject(t.error); };
+          t.onabort = () => { db.close(); reject(t.error || new Error('offline_storage_transaction_aborted')); };
+        } catch (error) { db.close(); reject(error); }
+      });
+    });
+    const deadline = new Promise((_, reject) => {
+      timer = setTimeout(() => {
+        timedOut = true;
+        reject(new Error('offline_storage_timeout'));
+        try { if (activeTx) activeTx.abort(); } catch (_) {}
+        try { if (activeDb) activeDb.close(); } catch (_) {}
+      }, 10000);
+    });
+    return Promise.race([operation, deadline]).finally(() => clearTimeout(timer));
   }
   API.queuePut = (rec) => tx('outbox', 'readwrite', (s) => s.put(rec));
   API.queueDel = (id) => tx('outbox', 'readwrite', (s) => s.delete(id));
