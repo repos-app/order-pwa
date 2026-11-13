@@ -658,7 +658,16 @@
           /^[a-z][a-z0-9_]{0,47}$/.test(String(e.feature||''))&&
           /^[a-zA-Z][a-zA-Z0-9_:.-]{0,63}$/.test(String(e.operation||''))&&
           ['failed','slow','pending','completed'].includes(e.outcome)&&
-          /^[a-z][a-z0-9_]{0,63}$/.test(String(e.errorCode||''));
+          /^[a-z][a-z0-9_]{0,63}$/.test(String(e.errorCode||''))&&
+          Number.isInteger(e.durationMs)&&e.durationMs>=0&&e.durationMs<=600000&&
+          (e.occurredAt==null||(
+            /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(e.occurredAt)&&
+            Number.isFinite(Date.parse(e.occurredAt))&&
+            new Date(Date.parse(e.occurredAt)).toISOString()===e.occurredAt))&&
+          (e.transport==null||['native','webview','unknown'].includes(e.transport))&&
+          (e.attemptCount==null||(Number.isInteger(e.attemptCount)&&
+            e.attemptCount>=1&&e.attemptCount<=8))&&
+          (e.appVersion==null||/^[a-zA-Z0-9_.+-]{1,40}$/.test(e.appVersion));
       }).slice(-50).map(x=>{
         // Readback is an untrusted persistence boundary, not an API payload.
         const e=x.event;
@@ -762,6 +771,9 @@
     window.addEventListener('online',_flushDiagnostics);
     window.addEventListener('pageshow',_flushDiagnostics);
     window.addEventListener('iz-auth-session-changed',_flushDiagnostics);
+    window.addEventListener('storage',function(e){
+      if(e&&e.key===_diagnosticQueueKey)_flushDiagnostics();
+    });
     document.addEventListener('visibilitychange',function(){if(!document.hidden)_flushDiagnostics();});
     function page(){const n=String(location.pathname||'').split('/').pop().toLowerCase();
       return /^[a-z][a-z0-9-]{0,23}\.html$/.test(n)?n.slice(0,-5).replace(/-/g,'_'):'other';}
