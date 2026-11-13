@@ -662,12 +662,15 @@
       _diagnosticRetryTimer.unref();
   }
   function _flushDiagnostics(){
-    if(_diagnosticSending||Date.now()-_diagnosticLastSend<10000)return;
+    if(_diagnosticSending)return;
     const token=storedToken(),storeId=API.currentStoreId();
     if(!token||!storeId)return;
     const pending=_diagnosticQueue();
     const item=pending.find(x=>x.storeId===storeId);
     if(!item)return;
+    // An event added during the send throttle still needs a future attempt.
+    const throttleMs=10000-(Date.now()-_diagnosticLastSend);
+    if(throttleMs>0){_scheduleDiagnosticFlush(throttleMs);return;}
     _diagnosticSending=true;_diagnosticLastSend=Date.now();
     const ctrl=new AbortController();
     let timeout;
