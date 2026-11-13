@@ -647,11 +647,38 @@
   }
   function _diagnosticQueue(){
     try{const rows=JSON.parse(localStorage.getItem(_diagnosticQueueKey)||'[]');
-      return Array.isArray(rows)?rows.filter(x=>x&&x.at>Date.now()-7*86400000).slice(-50):[];
+      const now=Date.now();
+      return Array.isArray(rows)?rows.filter(x=>{
+        const e=x&&x.event;
+        return x&&Number.isFinite(x.at)&&x.at>now-7*86400000&&x.at<=now+5*60000&&
+          /^[a-zA-Z0-9_-]{8,64}$/.test(String(x.id||''))&&
+          /^[a-z0-9][a-z0-9-]{0,31}$/.test(String(x.storeId||''))&&
+          e&&typeof e==='object'&&!Array.isArray(e)&&e.eventId===x.id&&
+          /^[a-zA-Z0-9_-]{8,64}$/.test(String(e.traceId||''))&&
+          /^[a-z][a-z0-9_]{0,47}$/.test(String(e.feature||''))&&
+          /^[a-zA-Z][a-zA-Z0-9_:.-]{0,63}$/.test(String(e.operation||''))&&
+          ['failed','slow','pending','completed'].includes(e.outcome)&&
+          /^[a-z][a-z0-9_]{0,63}$/.test(String(e.errorCode||''));
+      }).slice(-50).map(x=>{
+        // Readback is an untrusted persistence boundary, not an API payload.
+        const e=x.event;
+        return {id:x.id,storeId:x.storeId,at:x.at,event:{
+          traceId:e.traceId,feature:e.feature,operation:e.operation,
+          outcome:e.outcome,errorCode:e.errorCode,durationMs:e.durationMs,
+          eventId:e.eventId,occurredAt:e.occurredAt,transport:e.transport,
+          attemptCount:e.attemptCount,appVersion:e.appVersion,
+        }};
+      }):[];
     }catch(_){return [];}
   }
   function _saveDiagnosticQueue(rows){
-    try{localStorage.setItem(_diagnosticQueueKey,JSON.stringify(rows.slice(-50)));}catch(_){}
+    const bounded=rows.slice();
+    while(bounded.length>50){
+      const low=bounded.findIndex(x=>x&&x.event&&
+        ['completed','slow'].includes(x.event.outcome));
+      bounded.splice(low>=0?low:0,1);
+    }
+    try{localStorage.setItem(_diagnosticQueueKey,JSON.stringify(bounded));}catch(_){}
   }
   function _scheduleDiagnosticFlush(ms){
     if(_diagnosticRetryTimer)return;
@@ -691,7 +718,8 @@
       .then(function(data){
         if(data&&data.ok===true){
           acknowledged=true;
-          _saveDiagnosticQueue(_diagnosticQueue().filter(v=>v.id!==item.id));
+          _saveDiagnosticQueue(_diagnosticQueue().filter(v=>
+            v.id!==item.id||v.storeId!==storeId));
         }
       }).catch(function(){}).finally(function(){
         clearTimeout(timeout);_diagnosticSending=false;
