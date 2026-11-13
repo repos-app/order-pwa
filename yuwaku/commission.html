@@ -62,7 +62,11 @@
   .cm-drink-row .cm-field select{font-size:13px;padding:7px 4px;min-height:36px}
   .cm-drink-info{min-width:0;display:flex;flex-direction:column;gap:3px}
   .cm-drink-eligibility{font-size:12px;font-weight:800;color:#475569}
-  .cm-drink-category-label{font-size:12px;font-weight:600;color:#64748b;overflow-wrap:anywhere}
+  .cm-drink-info>strong{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cm-drink-meta{display:flex;align-items:baseline;gap:8px;min-width:0;max-width:100%}
+  .cm-drink-category-label{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600;color:#64748b}
+  .cm-drink-price{flex:0 0 auto;white-space:nowrap;font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;color:#0f172a}
+  .cm-drink-info .cm-switch{white-space:nowrap;gap:6px;font-size:14px}
   .cm-drink-row .cm-field input{font-size:16px}.cm-drink-summary{font-size:13px;color:#64748b;margin:9px 0}
   .cm-sc-user{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 2px;border-bottom:1px solid #e2e8f0;min-height:48px}
   .cm-sc-user:last-child{border-bottom:0}.cm-sc-user .cm-check{flex:0 0 auto;min-height:44px}
@@ -105,7 +109,16 @@
   #cmScReallocPreview{display:grid;gap:5px;font-size:13px;margin-top:10px}
   #cmScReallocPreview .cm-rowtop{flex-direction:row;align-items:baseline}
   #cmScReallocPreview strong{white-space:nowrap;font-variant-numeric:tabular-nums}
-  @media(max-width:420px){.cm-drink-row{grid-template-columns:minmax(0,1fr) 110px;gap:7px}.cm-drink-thumb{width:44px;height:44px;flex-basis:44px}.cm-drink-name{gap:6px}}
+  /* On phones, keep the entire product-info row wide enough for the price.
+     Move the extra-charge fields below it instead of ellipsizing the price. */
+  @media(max-width:640px){
+    .cm-drink-row{grid-template-columns:minmax(0,1fr);gap:6px;padding:12px 2px}
+    .cm-drink-name{gap:8px;align-items:flex-start}
+    .cm-drink-thumb{width:44px;height:44px;flex-basis:44px}
+    .cm-drink-info{flex:1 1 auto}
+    .cm-drink-row>.cm-field{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 8px}
+    .cm-drink-row>.cm-field>label{grid-column:1/-1}
+  }
   </style>
   <link rel="stylesheet" href="./ui-ellipsis.css?v=1">
 </head>

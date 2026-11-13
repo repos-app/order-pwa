@@ -19,9 +19,10 @@
     .hbtn{ background:rgba(255,255,255,.14); color:#fff; border:0; border-radius:9px; padding:8px 12px; font-size:13px; font-weight:800; cursor:pointer; text-decoration:none; }
     .wrap{ padding:16px; max-width:900px; margin:0 auto; }
     .grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:14px; }
-    .kpi{ background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px 16px; }
+    .kpi{ min-width:0; background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px 16px; }
     .kpi .lb{ font-size:12px; color:var(--text-3); font-weight:700; }
     .kpi .v{ font-size:24px; font-weight:900; margin-top:4px; font-variant-numeric:tabular-nums; }
+    .kpi .v[data-autofit="amount"]{ display:block; width:100%; white-space:nowrap; overflow:hidden; }
     .kpi .sub{ font-size:12px; color:var(--text-3); margin-top:2px; }
     .card{ background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:14px; }
     .card-title{ font-weight:900; font-size:15px; margin-bottom:10px; }
@@ -97,6 +98,26 @@
     var SYM='₱', SETTINGS={}, D=null, targetSaveError='';
     function money(v){ var digits=SETTINGS.currencyCode==='PHP'?2:SETTINGS.currencyCode==='JPY'?0:Math.max(0,Math.min(3,Number(SETTINGS.currencyDecimalDigits)||0)); return SYM+(Number(v)||0).toLocaleString(SETTINGS.locale||undefined,{minimumFractionDigits:digits,maximumFractionDigits:digits}); }
 
+    // Keep full monetary values on a single line at the largest font that fits the actual card width.
+    // Recalculate after every render (data / language / settings) and viewport or font changes.
+    function fitSalesAmounts(){
+      document.querySelectorAll('.kpi .v[data-autofit="amount"]').forEach(function(el){
+        el.style.fontSize='';
+        var max=parseFloat(getComputedStyle(el).fontSize)||24;
+        if(!el.clientWidth || el.scrollWidth<=el.clientWidth) return;
+        var low=1, high=max;
+        for(var i=0;i<14;i++){
+          var mid=(low+high)/2;
+          el.style.fontSize=mid+'px';
+          if(el.scrollWidth<=el.clientWidth) low=mid;
+          else high=mid;
+        }
+        el.style.fontSize=Math.max(1,Math.floor(low*10)/10)+'px';
+      });
+    }
+    window.addEventListener('resize',fitSalesAmounts);
+    if(document.fonts && document.fonts.ready) document.fonts.ready.then(fitSalesAmounts);
+
     window.saveTarget = function(){
       var v = Number(document.getElementById('tgt').value)||0;
       rpc('saveSettings',[{ salesTargetMonthly:v }]).then(function(r){ if(!r||r.success!==true) throw new Error((r&&r.error)||'save_failed'); targetSaveError=''; if(D){ D.target=v; render(); } }).catch(function(e){ targetSaveError=I18n.t('saveErr')+API.userErrorText(e); render(); });
@@ -118,9 +139,9 @@
 
       var html = '';
       html += '<div class="grid">'
-        + '<div class="kpi"><div class="lb">'+I18n.t('todaySales')+'</div><div class="v" style="color:var(--green)">'+money(t.revenue)+'</div><div class="sub">'+(t.orders||0)+I18n.t('ordersU')+' ・ '+I18n.t('avg')+' '+money(avgT)+'</div></div>'
-        + '<div class="kpi"><div class="lb">'+I18n.t('monthSales')+'</div><div class="v">'+money(m.revenue)+'</div><div class="sub">'+(m.orders||0)+I18n.t('ordersU')+'</div></div>'
-        + '<div class="kpi"><div class="lb">'+I18n.t('grossProfit')+'</div><div class="v" style="color:'+(profit>=0?'var(--navy)':'var(--red)')+'">'+money(profit)+'</div><div class="sub">'+I18n.t('margin')+' '+margin+'%</div></div>'
+        + '<div class="kpi"><div class="lb">'+I18n.t('todaySales')+'</div><div class="v" data-autofit="amount" style="color:var(--green)">'+money(t.revenue)+'</div><div class="sub">'+(t.orders||0)+I18n.t('ordersU')+' ・ '+I18n.t('avg')+' '+money(avgT)+'</div></div>'
+        + '<div class="kpi"><div class="lb">'+I18n.t('monthSales')+'</div><div class="v" data-autofit="amount">'+money(m.revenue)+'</div><div class="sub">'+(m.orders||0)+I18n.t('ordersU')+'</div></div>'
+        + '<div class="kpi"><div class="lb">'+I18n.t('grossProfit')+'</div><div class="v" data-autofit="amount" style="color:'+(profit>=0?'var(--navy)':'var(--red)')+'">'+money(profit)+'</div><div class="sub">'+I18n.t('margin')+' '+margin+'%</div></div>'
         + '<div class="kpi"><div class="lb">'+I18n.t('primeRate')+'</div><div class="v"><span class="pill '+primePill+'">'+primeRate+'%</span></div><div class="sub">'+I18n.t('primeSub')+'</div></div>'
         + '</div>';
 
@@ -148,6 +169,7 @@
         + '</div>';
 
       document.getElementById('wrap').innerHTML = html;
+      fitSalesAmounts();
     }
 
     API.post('getSettings', {}).then(function(r){ SETTINGS=r.data||{}; if(SETTINGS.currencySymbol) SYM=SETTINGS.currencySymbol; if(D) render(); }).catch(function(){});

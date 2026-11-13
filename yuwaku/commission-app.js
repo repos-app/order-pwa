@@ -200,7 +200,7 @@
       commissionStaffTitle:'コミッション対象従業員',commissionStaffHint:'チェックした在籍従業員だけが注文時のコミッション対象者と会計伝票の担当割当に表示されます。SC分配は別設定です。',
       commissionStaffCount:'選択中: {count}人',commissionStaffEligible:'対象',saveCommissionStaff:'対象従業員を保存',
       drinkNote:'商品画像の左のチェックは一括操作の選択です。コミッションON/OFFは別に設定します。追加料金は固定額または商品価格に対する割合（%）を選べます。変更後は保存してください。',
-      drinkEligible:'コミッション対象',
+      drinkEligible:'コミッション',
       drinkSearch:'商品名で絞り込み',drinkCategoryFilter:'カテゴリで絞り込み',drinkAllCategories:'すべて',
       drinkNoCategory:'カテゴリ未設定',drinkBulk:'選択商品に設定する追加料金・割合',
       drinkBulkMode:'一括設定方式',drinkModeFixed:'固定額（₱）',drinkModePercent:'商品価格の割合（%）',
@@ -208,7 +208,7 @@
       drinkSelectShown:'表示中を全選択',drinkClearShown:'表示中の選択解除',
       drinkEnableSelected:'選択商品をコミッションON',drinkDisableSelected:'選択商品をコミッションOFF',
       drinkApply:'選択商品に金額・割合を適用',drinkSave:'対象商品と追加料金を保存',
-      drinkExtra:'追加料金・割合',drinkEmpty:'表示できる商品がありません。',drinkCount:'対象商品',drinkSelected:'一括選択',
+      drinkExtra:'追加料金・割合',drinkItemPrice:'商品価格',drinkEmpty:'表示できる商品がありません。',drinkCount:'対象商品',drinkSelected:'一括選択',
       drinkSelect:'一括操作の対象に選択',drinkNoneSelected:'一括操作する商品を左側のチェックで選択してください。',
       invalidAmount:'固定額は0以上、割合は0～100%で小数2桁以内にしてください。',
       invalidRate:'コミッション率は0〜100の小数2桁以内で入力してください。',
@@ -237,7 +237,7 @@
       commissionStaffTitle:'Commission-eligible staff',commissionStaffHint:'Only checked active employees appear as order commission recipients and in receipt assignments. SC sharing is configured separately.',
       commissionStaffCount:'Selected: {count}',commissionStaffEligible:'Eligible',saveCommissionStaff:'Save eligible staff',
       drinkNote:'Checkboxes left of images only select items for bulk actions; commission ON/OFF is separate. Set extra charges as a fixed amount or percentage of the item price, then save.',
-      drinkEligible:'Commission eligible',
+      drinkEligible:'Commission',
       drinkSearch:'Filter by item name',drinkCategoryFilter:'Filter by category',drinkAllCategories:'All',
       drinkNoCategory:'Uncategorized',drinkBulk:'Bulk extra charge or percentage',
       drinkBulkMode:'Bulk calculation',drinkModeFixed:'Fixed amount (₱)',drinkModePercent:'Percent of item price (%)',
@@ -245,7 +245,7 @@
       drinkSelectShown:'Select all visible',drinkClearShown:'Deselect visible',
       drinkEnableSelected:'Commission ON for selected',drinkDisableSelected:'Commission OFF for selected',
       drinkApply:'Apply amount or percentage',drinkSave:'Save items and extra charges',
-      drinkExtra:'Extra charge / rate',drinkEmpty:'No menu items match.',drinkCount:'Eligible items',drinkSelected:'Bulk selected',
+      drinkExtra:'Extra charge / rate',drinkItemPrice:'Item price',drinkEmpty:'No menu items match.',drinkCount:'Eligible items',drinkSelected:'Bulk selected',
       drinkSelect:'Select for bulk action',drinkNoneSelected:'Select items with the checkboxes to the left of their images.',
       invalidAmount:'Use a non-negative fixed amount or a percentage from 0 to 100, with at most 2 decimals.',
       invalidRate:'Enter rates from 0 to 100 with at most 2 decimals.',
@@ -395,8 +395,9 @@
         '<span class="cm-drink-thumb cm-drink-thumb-empty" aria-hidden="true">🍽️</span>';
       return '<div class="cm-drink-row"><div class="cm-drink-name">'+
         '<label class="cm-drink-pick"><input type="checkbox" data-drink-select="'+esc(row.id)+'" aria-label="'+esc(ct('drinkSelect')+' '+name)+'"'+(row.selected?' checked':'')+'></label>'+thumb+
-        '<div class="cm-drink-info"><strong data-iz-ellipsis="item" title="'+esc(name)+'">'+esc(name)+'</strong><span class="cm-drink-category-label" data-iz-ellipsis="category" title="'+esc(drinkCategoryName(row)+' · '+money(row.price))+'">'+
-        esc(drinkCategoryName(row))+' · '+money(row.price)+'</span>'+
+        '<div class="cm-drink-info"><strong data-iz-ellipsis="item" title="'+esc(name)+'">'+esc(name)+'</strong>'+
+        '<div class="cm-drink-meta"><span class="cm-drink-category-label" data-iz-ellipsis="category" title="'+esc(drinkCategoryName(row))+'">'+
+        esc(drinkCategoryName(row))+'</span><strong class="cm-drink-price" aria-label="'+esc(ct('drinkItemPrice')+' '+money(row.price))+'">'+esc(money(row.price))+'</strong></div>'+
         '<label class="cm-switch"><input type="checkbox" aria-label="'+esc(ct('drinkEligible')+' '+name)+
         '" data-drink-id="'+esc(row.id)+'"'+(row.enabled?' checked':'')+'>'+esc(ct('drinkEligible'))+'</label></div></div>'+
         '<div class="cm-field"><label>'+esc(ct('drinkExtra'))+'</label>'+drinkModeSelect(row)+
