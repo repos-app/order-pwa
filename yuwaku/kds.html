@@ -21,6 +21,20 @@
     .kds-head .actions{ display:flex; gap:8px; align-items:center; }
     .kbtn{ background:#1e293b; color:#e2e8f0; border:1px solid #334155; border-radius:9px; padding:8px 12px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
     .kbtn.on{ background:#16a34a; border-color:#16a34a; color:#fff; }
+    #soundBtn{position:relative;width:44px;min-width:44px;max-width:44px;
+      height:44px;min-height:44px;max-height:44px;padding:4px;font-size:18px;line-height:1}
+    #soundBtn.sound-off{background:#475569;border-color:#64748b}
+    #soundBtn.sound-off::after{content:'';position:absolute;left:8px;right:8px;top:50%;
+      height:3px;border-radius:999px;background:#e2e8f0;transform:rotate(-45deg)}
+    @media(max-width:430px){
+      /* Back already returns to management. Avoid a duplicate Manage action
+         crowding the kitchen sound toggle in the existing 2-row header. */
+      #izCommonHeader #izHeaderManage{display:none!important}
+      #izHeaderExtra #soundBtn{width:40px!important;min-width:40px!important;max-width:40px!important}
+    }
+    @media(max-width:340px){
+      #izHeaderExtra #soundBtn{width:38px!important;min-width:38px!important;max-width:38px!important}
+    }
     .kcount{ background:#dc2626; color:#fff; border-radius:999px; padding:2px 11px; font-weight:900; font-size:14px; }
     .kgrid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:12px; padding:14px; }
     .ticket{ background:#1e293b; border:1px solid #334155; border-radius:14px; overflow:hidden; display:flex; flex-direction:column; border-left:6px solid #64748b; }
@@ -57,9 +71,8 @@
     <div class="kds-title">🍳 <span id="lblTitle" data-t="title">キッチン</span><span class="sub" id="lblSub" data-t="sub">未提供オーダー</span></div>
     <div class="actions">
       <button class="kbtn" data-tlang onclick="I18n.toggle()">EN</button>
-      <button class="kbtn" onclick="location.href='./manage.html'" data-t="back">← 管理</button>
-      <span class="kcount" id="kcount">0</span>
-      <button class="kbtn on" id="soundBtn" onclick="toggleSound()">🔔 音 ON</button>
+      <span class="kcount" id="kcount" hidden aria-hidden="true">0</span>
+      <button class="kbtn on" id="soundBtn" onclick="toggleSound()" aria-label="通知音ON" title="通知音ON">🔊</button>
       <button class="kbtn" id="reloadBtn" onclick="reloadAll()">↻</button>
     </div>
   </div>
@@ -67,7 +80,7 @@
   <div id="guide-kds-orders" data-guide-anchor></div>
   <div class="kgrid" id="grid"><div class="kempty" id="loadMsg" data-t="loading">読み込み中…</div></div>
 
-  <script src="./config.js?v=auth2"></script>
+  <script src="./date-display.js?v=auth5" data-iz-date-display></script><script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
   <script src="./i18n.js?v=auth3"></script>
   <script>
@@ -104,7 +117,7 @@ function seatLabel(v){ var s=String(v==null?'':v).trim(),en=(window.I18n&&I18n.l
       // when resolving the base label; otherwise 「Pizza (Extra cheese)」 became 「Pizza」.
       var suffix=nm.slice(base.length),ja=MENU_JA[base],en=MENU_EN[base];
       if(suffix){var match=suffix.match(/^\s*[（(]([^（）()]*)[)）]\s*$/),choices=(typeof MENU_CHOICES==='undefined'?{}:MENU_CHOICES[base])||{};
-        if(match)suffix=' ('+match[1].split(',').map(function(raw){var alias=raw.trim(),choice=choices[alias];return choice?(enMode?(choice.en||choice.ja||alias):(choice.ja||choice.en||alias)):alias;}).join(', ')+')';
+        if(match)suffix=' ('+match[1].split(',').map(function(raw){var alias=raw.trim(),choice=choices[alias];return choice?(enMode?(choice.en||choice.ja||alias):(choice.ja||choice.en||alias)):((alias==='コミッション'||alias==='Commission')?(enMode?'Commission':'コミッション'):alias);}).join(', ')+')';
       }
       if(enMode){
         var large=/^\s*[（(]\s*(?:大盛り|大盛|大)\s*[）)]\s*$/.test(nm.slice(base.length))||/[（(]\s*(?:大盛り|大盛|大)\s*[）)]\s*$/.test(String(it&&it.nameJa||''));
@@ -145,7 +158,7 @@ function seatLabel(v){ var s=String(v==null?'':v).trim(),en=(window.I18n&&I18n.l
       var cls = mins >= 12 ? 'e-late' : (mins >= 6 ? 'e-warn' : 'e-ok');
       return { mins:mins, cls:cls };
     }
-    function fmtTime(dateStr){ try { return toUtcDate(dateStr).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); } catch(e){ return ''; } }
+    function fmtTime(dateStr){ try { var utc=toUtcDate(dateStr); if(!isFinite(utc.getTime()))return ''; return window.DateDisplay?DateDisplay.formatDateTime(utc.toISOString()).split(' ').pop().slice(0,5):utc.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); } catch(e){ return ''; } }
 
     var lastData = [];
     var statusPending = Object.create(null), statusErrors = Object.create(null);
@@ -211,7 +224,7 @@ function seatLabel(v){ var s=String(v==null?'':v).trim(),en=(window.I18n&&I18n.l
       if (!firstPaint && soundOn) { for (var id in curNew){ if(!lastNewIds[id]){ beep(); break; } } }
       lastNewIds = curNew; firstPaint = false;
 
-      document.getElementById('kcount').innerText = active.length;
+      document.getElementById('kcount').textContent = active.length;
       // [GPTレビュー(2026-08-22実機確認)対応/G24-5] 従来は「未対応/調理中」から滞留(stale)分を除いた件数だけを
       // 見て0件なら「✅未提供のオーダーはありません」と表示していたため、実際には滞留注文が残っているのに
       // 「対応不要」であるかのような矛盾した表示になっていた。滞留注文が存在する場合は、通常チケットが0件でも
@@ -340,7 +353,7 @@ function seatLabel(v){ var s=String(v==null?'':v).trim(),en=(window.I18n&&I18n.l
         o.start(); o.stop(_actx.currentTime+0.36);
       } catch(e){}
     }
-    function updateSoundBtn(){ var b = document.getElementById('soundBtn'); b.className = 'kbtn' + (soundOn?' on':''); b.innerText = soundOn ? I18n.t('soundOn') : I18n.t('soundOff'); }
+    function updateSoundBtn(){ var b = document.getElementById('soundBtn'); var label=soundOn?I18n.t('soundOn'):I18n.t('soundOff'); b.className = 'kbtn' + (soundOn?' on':' sound-off'); b.textContent = '🔊'; b.setAttribute('aria-label',label); b.title=label; }
     window.toggleSound = function(){ soundOn = !soundOn; updateSoundBtn(); if (soundOn) beep(); };
 
     window.reloadAll = function(){ loadMenu(); load(true); };
@@ -366,8 +379,8 @@ function seatLabel(v){ var s=String(v==null?'':v).trim(),en=(window.I18n&&I18n.l
     }
     var __booted = false;
     I18n.init({
-      ja:{ title:'キッチン', sub:'未提供オーダー', back:'← 管理', loading:'読み込み中…', empty:'✅ 未提供のオーダーはありません', emptyWithStale:'✅ 新規の未対応オーダーはありません（下の滞留注文を除く）', new:'新規', cook:'調理中', min:'分', prepaid:'前払い済', startCook:'🔥 調理開始', done:'✓ 提供完了', backNew:'新規に戻す', soundOn:'🔔 音 ON', soundOff:'🔕 音 OFF', connErr:'接続できません（自動再試行します）', staleNote:'件、長時間未処理の滞留注文があります（通常一覧には含まれていません。注文管理で確認してください）' },
-      en:{ title:'Kitchen', sub:'Pending orders', back:'← Manage', loading:'Loading…', empty:'✅ No pending orders', emptyWithStale:'✅ No new pending orders (excluding stale ones below)', new:'New', cook:'Cooking', min:'m', prepaid:'Prepaid', startCook:'🔥 Start', done:'✓ Served', backNew:'Back to new', soundOn:'🔔 Sound ON', soundOff:'🔕 Sound OFF', connErr:'Cannot connect (auto-retrying)', staleNote:'stale order(s) pending too long — not included in the list above; please check in Orders' }
+      ja:{ title:'キッチン', sub:'未提供オーダー', back:'← 管理', loading:'読み込み中…', empty:'✅ 未提供のオーダーはありません', emptyWithStale:'✅ 新規の未対応オーダーはありません（下の滞留注文を除く）', new:'新規', cook:'調理中', min:'分', prepaid:'前払い済', startCook:'🔥 調理開始', done:'✓ 提供完了', backNew:'新規に戻す', soundOn:'🔊 音 ON', soundOff:'🔇 音 OFF', connErr:'接続できません（自動再試行します）', staleNote:'件、長時間未処理の滞留注文があります（通常一覧には含まれていません。注文管理で確認してください）' },
+      en:{ title:'Kitchen', sub:'Pending orders', back:'← Manage', loading:'Loading…', empty:'✅ No pending orders', emptyWithStale:'✅ No new pending orders (excluding stale ones below)', new:'New', cook:'Cooking', min:'m', prepaid:'Prepaid', startCook:'🔥 Start', done:'✓ Served', backNew:'Back to new', soundOn:'🔊 Sound ON', soundOff:'🔇 Sound OFF', connErr:'Cannot connect (auto-retrying)', staleNote:'stale order(s) pending too long — not included in the list above; please check in Orders' }
     }, function(){ updateSoundBtn(); if(__booted) render(lastData); });
     document.addEventListener('DOMContentLoaded', boot);
   </script>
@@ -380,7 +393,7 @@ function seatLabel(v){ var s=String(v==null?'':v).trim(),en=(window.I18n&&I18n.l
         { ja: '① 未提供の注文がチケットとして自動で並びます。赤枠（点滅）は新規未対応、黄枠は調理中を表します。', en: '① Pending orders appear automatically as tickets. A pulsing red border is a new unstarted order; amber means it is being cooked.' },
         { ja: '② 経過時間バッジは緑（問題なし）→黄（6分以上）→赤（12分以上）の順で色が変わり、遅延に気づきやすくなっています。', en: '② The elapsed-time badge changes from green to amber (6+ min) to red (12+ min) so delays stand out.' },
         { ja: '③ 「🔥調理開始」ボタンで調理中に、「✓提供完了」ボタンで提供済みにします。↩ボタンで新規に戻せます。', en: '③ Tap "🔥 Start" to mark cooking, "✓ Served" when done, and ↩ to move a ticket back to new.' },
-        { ja: '④ 🔔音ONボタンで新規注文が入った時のアラーム音のON/OFFを切り替えられます。', en: '④ Toggle the 🔔 sound button to turn the new-order alert chime on or off.' },
+        { ja: '④ 🔊ボタンで新規注文の通知音を切り替えます。緑のスピーカーはON、灰色のスピーカー＋斜線はOFFです。', en: '④ Toggle the 🔊 button for new-order sounds. A green speaker means on; a gray crossed speaker means off.' },
         { ja: '⑤ ↻ボタンでメニュー設定・注文一覧を手動で最新の状態に更新できます（通常は自動更新されます）。', en: '⑤ Tap ↻ to manually refresh the menu and order list (it also refreshes automatically).' },
         { ja: '⑥ 画面上部にEN切替ボタンがあり、表示言語を切り替えられます。長時間放置された注文は上部に別枠（滞留注文）で警告表示されます。', en: '⑥ Use the EN button to switch display language. Orders left too long appear as a stale-order warning banner at the top.' },
         { ja: '⑦ 「← 管理」ボタンで管理画面（admin.html等）に戻れます。', en: '⑦ Tap "← Manage" to return to the management screens.' }

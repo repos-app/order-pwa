@@ -77,9 +77,10 @@
     <div class="card">
       <div class="card-title" data-t="shopTitle">🏪 店舗設定</div>
       <div class="fg"><label class="form-label" data-t="shopName">店舗名</label><input id="shopName" class="fc"></div>
+      <div class="fg"><label class="form-label" for="shopAddress" data-t="shopAddress">住所（レシート・発注共通）</label><input id="shopAddress" class="fc" maxlength="500" autocomplete="street-address"></div>
       <div class="grid2">
-        <div class="fg"><label class="form-label" id="tableCountLabel" data-t="tableCount">テーブル数</label><input id="tableCount" type="number" min="0" class="fc"></div>
-        <div class="fg"><label class="form-label" id="counterCountLabel" data-t="counterCount">カウンター数</label><input id="counterCount" type="number" min="0" class="fc"></div>
+        <div class="fg"><label class="form-label" id="tableCountLabel" data-t="tableCount">テーブル数</label><input id="tableCount" type="number" min="0" class="fc" oninput="syncSeatCountLabels()"></div>
+        <div class="fg"><label class="form-label" id="counterCountLabel" data-t="counterCount">カウンター数</label><input id="counterCount" type="number" min="0" class="fc" oninput="syncSeatCountLabels()"></div>
       </div>
       <div class="fg"><label class="form-label" data-t="businessProfileLbl">業態プロファイル</label><select id="businessProfile" class="fc"><option value="restaurant" data-t="profileRestaurant">レストラン</option><option value="bar" data-t="profileBar">バー・居酒屋</option><option value="cafe" data-t="profileCafe">カフェ</option><option value="counter_service" data-t="profileCounterService">カウンターサービス</option><option value="service" data-t="profileService">サービス・施設</option></select></div>
       <button class="btn sec" type="button" onclick="applyBusinessProfile()" data-t="applyBusinessProfile" style="margin-bottom:10px;">業態の呼称初期値を適用</button>
@@ -92,8 +93,24 @@
         <div class="fg" id="fieldSeatGroupLabelEn"><label class="form-label" data-t="seatGroupLabelEnLbl">席全体の呼称（英語）</label><input id="seatGroupLabelEn" class="fc" maxlength="30" placeholder="Seating"></div>
       </div>
       <div class="hint" data-t="seatHint">注文画面で「テーブル1〜」「カウンター1〜」から席を選べます。0にするとその種別は非表示。</div>
+      <div class="hint" id="seatPreview" role="status" aria-live="polite" style="white-space:pre-line;margin-bottom:12px;"></div>
       <button class="btn" onclick="saveShop()" data-t="save">💾 保存</button>
       <div class="st" id="st-shop"></div>
+    </div>
+
+    <div class="card" id="vipSeatCard">
+      <div class="card-title" data-t="vipSeatTitle">⭐ 席別VIPチャージ</div>
+      <p class="hint" data-t="vipSeatHint">対象席で最初の注文が確定した時刻から最終会計まで自動計算します。料金は1席あたりで、人数には掛けません。</p>
+      <div class="fg"><label class="form-label" data-t="vipSeatPick">設定する席</label><select id="vipSeatSelect" class="fc" onchange="selectVipSeat()"></select></div>
+      <label class="chk" style="margin:12px 0;"><input id="vipSeatEnabled" type="checkbox" onchange="syncVipSeatControls()"><span data-t="vipSeatEnabled">この席にVIPチャージを適用</span></label>
+      <div class="grid2">
+        <div class="fg"><label class="form-label" data-t="vipBaseCharge">基本チャージ</label><input id="vipBaseCharge" class="fc" type="number" min="0" step="0.01"></div>
+        <div class="fg"><label class="form-label" data-t="vipBaseMinutes">基本時間（分）</label><input id="vipBaseMinutes" class="fc" type="number" min="1" step="1"></div>
+        <div class="fg"><label class="form-label" data-t="vipExtCharge">延長料金（1回あたり）</label><input id="vipExtCharge" class="fc" type="number" min="0" step="0.01"></div>
+        <div class="fg"><label class="form-label" data-t="vipExtMinutes">延長単位（分）</label><input id="vipExtMinutes" class="fc" type="number" min="1" step="1"></div>
+      </div>
+      <button class="btn" type="button" onclick="saveVipSeat()" data-t="vipSeatSave">💾 この席のVIP設定を保存</button>
+      <div class="st" id="st-vip-seat"></div>
     </div>
 
     <div class="card" id="guide-seat-qr" data-guide-anchor>
@@ -392,7 +409,6 @@
     function rpc(fn,args){ return API.post('rpc',{fn:fn,args:args||[],token:TOKEN}).then(function(r){ return r.data; }); }
     function $(id){ return document.getElementById(id); }
     function st(id, text, ok){ var e=$(id); e.style.display='block'; e.style.background=ok?'#dcfce7':'#fee2e2'; e.style.color=ok?'#15803d':'#b91c1c'; e.innerText=text; }
-
     // ---- テーブルQRコード ----
     function _publicOrderUrl(tableNum, tableToken){
       var base=String((window.APP_CONFIG&&window.APP_CONFIG.PUBLIC_ORDER_URL)||'').trim();
@@ -540,7 +556,20 @@
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
     function _seatTerm(ja,enValue,jaDefault,enDefault){var en=window.I18n&&I18n.lang&&I18n.lang()==='en';ja=String(ja||'').trim();enValue=String(enValue||'').trim();return en?(enValue||ja||enDefault||jaDefault):(ja||enValue||jaDefault||enDefault);}
 function _seatLabel(v){var s=String(v==null?'':v).trim();var tableTerm=_seatTerm($('tableLabelJa').value,$('tableLabelEn').value,'テーブル','Table');var counterTerm=_seatTerm($('counterLabelJa').value,$('counterLabelEn').value,'カウンター','Counter');var m=s.match(/^(?:テーブル|Table)\s*(\d+)$/i)||s.match(/^(\d+)$/);if(m)return tableTerm+' '+m[1];var c=s.match(/^(?:カウンター|Counter)\s*(\d+)$/i);if(c)return counterTerm+' '+c[1];return s;}
-    window.syncSeatCountLabels=function(){var en=window.I18n&&I18n.lang&&I18n.lang()==='en';var tableTerm=_seatTerm($('tableLabelJa').value,$('tableLabelEn').value,'テーブル','Table');var counterTerm=_seatTerm($('counterLabelJa').value,$('counterLabelEn').value,'カウンター','Counter');$('tableCountLabel').textContent=en?(tableTerm+' count'):(tableTerm+'数');$('counterCountLabel').textContent=en?(counterTerm+' count'):(counterTerm+'数');};
+    window.syncSeatCountLabels=function(){var en=window.I18n&&I18n.lang&&I18n.lang()==='en';var tableTerm=_seatTerm($('tableLabelJa').value,$('tableLabelEn').value,'テーブル','Table');var counterTerm=_seatTerm($('counterLabelJa').value,$('counterLabelEn').value,'カウンター','Counter');$('tableCountLabel').textContent=en?(tableTerm+' count'):(tableTerm+'数');$('counterCountLabel').textContent=en?(counterTerm+' count'):(counterTerm+'数');renderSeatPreview();};
+    // Both language fields name the same physical seat group; preview without ID changes.
+    function renderSeatPreview(){
+      var cfg=function(id){return String($(id).value||'').trim();};
+      var jaTable=cfg('tableLabelJa')||cfg('tableLabelEn')||'テーブル',enTable=cfg('tableLabelEn')||cfg('tableLabelJa')||'Table';
+      var jaCounter=cfg('counterLabelJa')||cfg('counterLabelEn')||'カウンター',enCounter=cfg('counterLabelEn')||cfg('counterLabelJa')||'Counter';
+      var table=Number(cfg('tableCount')),counter=Number(cfg('counterCount'));
+      var span=function(term,count){return Number.isSafeInteger(count)&&count>0?term+' 1'+(count>1?'〜'+count:''):'';};
+      var line=function(primary,other){return [span(primary,table),span(other,counter)].filter(Boolean).join(' / ')||'—';};
+      var en=window.I18n&&I18n.lang&&I18n.lang()==='en';
+      $('seatPreview').textContent=(en?'Seat preview (Japanese and English name the same seat types):':'席の表示例（日本語と英語は同じ席種の名前です）：')+'\n日本語: '+line(jaTable,jaCounter)+'\nEnglish: '+line(enTable,enCounter);
+      if(table>0&&counter>0&&(jaTable.toLowerCase()===enCounter.toLowerCase()||enTable.toLowerCase()===jaCounter.toLowerCase()))
+        $('seatPreview').textContent+='\n⚠️ '+(en?'The same name refers to different seat groups in Japanese and English. Check the mapping before saving.':'同じ呼称が日本語と英語で異なる席種を指しています。保存前に組み合わせを確認してください。');
+    }
     function syncSeatLanguageOrder(){var en=window.I18n&&I18n.lang&&I18n.lang()==='en';var pairs=[['fieldTableLabelJa','fieldTableLabelEn'],['fieldCounterLabelJa','fieldCounterLabelEn'],['fieldSeatGroupLabelJa','fieldSeatGroupLabelEn']];pairs.forEach(function(pair,i){var ja=$(pair[0]),e=$(pair[1]);if(ja&&e){ja.style.order=String(i*2+(en?2:1));e.style.order=String(i*2+(en?1:2));}});}
     function syncReceiptTitleOrder(){var en=window.I18n&&I18n.lang&&I18n.lang()==='en';var ja=$('fieldReceiptTitleJa'),e=$('fieldReceiptTitleEn');if(ja&&e){ja.style.order=en?'2':'1';e.style.order=en?'1':'2';}}
 
@@ -557,6 +586,48 @@ function _seatLabel(v){var s=String(v==null?'':v).trim();var tableTerm=_seatTerm
     };
 
     var BUSINESS_PROFILES={restaurant:{tableLabelJa:'テーブル',tableLabelEn:'Table',counterLabelJa:'カウンター',counterLabelEn:'Counter',seatGroupLabelJa:'席',seatGroupLabelEn:'Seating'},bar:{tableLabelJa:'卓',tableLabelEn:'Table',counterLabelJa:'カウンター',counterLabelEn:'Bar seat',seatGroupLabelJa:'席',seatGroupLabelEn:'Seating'},cafe:{tableLabelJa:'テーブル',tableLabelEn:'Table',counterLabelJa:'カウンター',counterLabelEn:'Counter',seatGroupLabelJa:'席',seatGroupLabelEn:'Seating'},counter_service:{tableLabelJa:'受取番号',tableLabelEn:'Order no.',counterLabelJa:'受取口',counterLabelEn:'Pickup',seatGroupLabelJa:'注文',seatGroupLabelEn:'Order'},service:{tableLabelJa:'受付',tableLabelEn:'Station',counterLabelJa:'ブース',counterLabelEn:'Booth',seatGroupLabelJa:'利用枠',seatGroupLabelEn:'Station'}};
+    var vipSeatRows=[];
+    function loadVipSeatSettings(){
+      return rpc('getVipSeatSettings',[]).then(function(rows){
+        vipSeatRows=Array.isArray(rows)?rows:[];
+        var sel=$('vipSeatSelect'),previous=sel.value;
+        sel.innerHTML='';
+        vipSeatRows.forEach(function(row){
+          var opt=document.createElement('option');opt.value=row.tableLabel;
+          opt.textContent=_seatLabel(row.tableLabel)+(Number(row.enabled)===1?' ★':'');sel.appendChild(opt);
+        });
+        if(vipSeatRows.some(function(row){return row.tableLabel===previous;}))sel.value=previous;
+        selectVipSeat();
+      }).catch(function(err){st('st-vip-seat',I18n.t('errPrefix')+API.userErrorText(err),false);});
+    }
+    window.selectVipSeat=function(){
+      var row=vipSeatRows.find(function(item){return item.tableLabel===$('vipSeatSelect').value;});
+      $('vipSeatEnabled').checked=!!(row&&Number(row.enabled)===1);
+      $('vipBaseCharge').value=row?row.baseCharge:0;
+      $('vipBaseMinutes').value=row?row.baseMinutes:60;
+      $('vipExtCharge').value=row?row.extensionCharge:0;
+      $('vipExtMinutes').value=row?row.extensionMinutes:30;
+      $('vipSeatEnabled').disabled=!row;
+      syncVipSeatControls();
+    };
+    window.syncVipSeatControls=function(){
+      var enabled=!!$('vipSeatSelect').value&&$('vipSeatEnabled').checked;
+      ['vipBaseCharge','vipBaseMinutes','vipExtCharge','vipExtMinutes'].forEach(function(k){$(k).disabled=!enabled;});
+    };
+    window.saveVipSeat=function(){
+      var label=$('vipSeatSelect').value,enabled=$('vipSeatEnabled').checked;
+      if(!label)return;
+      var payload={tableLabel:label,enabled:enabled,baseCharge:Number($('vipBaseCharge').value),
+        baseMinutes:Number($('vipBaseMinutes').value),extensionCharge:Number($('vipExtCharge').value),
+        extensionMinutes:Number($('vipExtMinutes').value)};
+      if(enabled&&(!(payload.baseCharge>0)||!(payload.baseMinutes>=1)||!(payload.extensionMinutes>=1)||
+          !Number.isInteger(payload.baseMinutes)||!Number.isInteger(payload.extensionMinutes)||payload.extensionCharge<0)){
+        st('st-vip-seat',I18n.lang()==='en'?'Enter a positive base charge and valid time units.':'基本チャージと時間・延長単位を正しく入力してください。',false);return;
+      }
+      rpc('saveVipSeatSettings',[payload]).then(function(result){
+        requireRpcSuccess(result);st('st-vip-seat',I18n.t('saved'),true);return loadVipSeatSettings();
+      }).catch(function(err){st('st-vip-seat',I18n.t('errPrefix')+API.userErrorText(err),false);});
+    };
     window.applyBusinessProfile=function(){var code=$('businessProfile').value,p=BUSINESS_PROFILES[code];if(!p)return;Object.keys(p).forEach(function(k){$(k).value=p[k];});syncSeatCountLabels();st('st-shop',I18n.t('businessProfileApplied'),true);};
     // Seat count changes rebuild the physical seat master. A name-only save must
     // never perform that destructive operation or race it with saveSettings.
@@ -570,7 +641,7 @@ function _seatLabel(v){var s=String(v==null?'':v).trim();var tableTerm=_seatTerm
       if(!rawTable||!rawCounter||!Number.isSafeInteger(table)||table<0||!Number.isSafeInteger(counter)||counter<0){
         st('st-shop',I18n.t('errPrefix')+(english?'Invalid seat count.':'席数には0以上の整数を入力してください。'),false);return;
       }
-      var profile={shopName:$('shopName').value,businessProfile:$('businessProfile').value,tableLabelJa:$('tableLabelJa').value,tableLabelEn:$('tableLabelEn').value,counterLabelJa:$('counterLabelJa').value,counterLabelEn:$('counterLabelEn').value,seatGroupLabelJa:$('seatGroupLabelJa').value,seatGroupLabelEn:$('seatGroupLabelEn').value};
+      var profile={shopName:$('shopName').value,shopAddress:$('shopAddress').value,businessProfile:$('businessProfile').value,tableLabelJa:$('tableLabelJa').value,tableLabelEn:$('tableLabelEn').value,counterLabelJa:$('counterLabelJa').value,counterLabelEn:$('counterLabelEn').value,seatGroupLabelJa:$('seatGroupLabelJa').value,seatGroupLabelEn:$('seatGroupLabelEn').value};
       var countsChanged=table!==savedShopCounts.table||counter!==savedShopCounts.counter;
       saveShopInFlight=true;
       // When counts really change, finish the protected seat-master operation
@@ -580,8 +651,19 @@ function _seatLabel(v){var s=String(v==null?'':v).trim();var tableTerm=_seatTerm
         requireRpcSuccess(result);
         if(countsChanged)savedShopCounts={table:table,counter:counter};
         return rpc('saveSettings',[profile]);
-      }).then(function(result){requireRpcSuccess(result);st('st-shop',I18n.t('saved'),true);})
-        .catch(function(e){st('st-shop',I18n.t('errPrefix')+API.userErrorText(e),false);})
+      }).then(function(result){requireRpcSuccess(result);st('st-shop',I18n.t('saved'),true);if(countsChanged)loadVipSeatSettings();})
+        .catch(function(e){
+          var detail=API.userErrorText(e);
+          if(String(e&&e.message||e||'').toLowerCase()==='table_in_use'&&savedShopCounts){
+            var shrinking=[];
+            if(table<savedShopCounts.table)shrinking.push((english?'Tables ':'テーブル ')+savedShopCounts.table+' → '+table);
+            if(counter<savedShopCounts.counter)shrinking.push((english?'Counter seats ':'カウンター ')+savedShopCounts.counter+' → '+counter);
+            if(shrinking.length)detail=english
+              ?'Cannot reduce occupied seats ('+shrinking.join(' / ')+'). Check the seat counts. If intentional, complete checkout and clear the seats first.'
+              :'使用中の席を削減する変更です（'+shrinking.join(' / ')+'）。席数を確認してください。意図的な削減の場合は会計・退席を完了してから保存してください。';
+          }
+          st('st-shop',I18n.t('errPrefix')+detail,false);
+        })
         .finally(function(){saveShopInFlight=false;});
     };
     // "HH:MM" 形式のtime inputから[時,分]を取り出す（未入力なら[0,0]）。
@@ -946,6 +1028,7 @@ function _seatLabel(v){var s=String(v==null?'':v).trim();var tableTerm=_seatTerm
       if(d.gcashQr){ $('gcashQrPrev').src=d.gcashQr; $('gcashQrPrev').style.display='inline-block'; }
       if(bundle.email){ setBadge('emailKeyBadge', !!bundle.email.configured); if(d.emailFromAddress) $('emailFromAddress').value = d.emailFromAddress; }
       $('shopName').value = d.shopName || '';
+      $('shopAddress').value = d.shopAddress || '';
       $('tableCount').value = (d.tableCount!==undefined && d.tableCount!=='') ? d.tableCount : 20;
       $('counterCount').value = (d.counterCount!==undefined && d.counterCount!=='') ? d.counterCount : 0;
       savedShopCounts={table:Number($('tableCount').value),counter:Number($('counterCount').value)};
@@ -955,6 +1038,7 @@ function _seatLabel(v){var s=String(v==null?'':v).trim();var tableTerm=_seatTerm
       var groupJa=d.seatGroupLabelJa!==undefined?d.seatGroupLabelJa:'',groupEn=d.seatGroupLabelEn!==undefined?d.seatGroupLabelEn:'';if(!groupJa&&!groupEn){groupJa='席';groupEn='Seating';}
       $('tableLabelJa').value=tableJa;$('tableLabelEn').value=tableEn;$('counterLabelJa').value=counterJa;$('counterLabelEn').value=counterEn;$('seatGroupLabelJa').value=groupJa;$('seatGroupLabelEn').value=groupEn;
       syncSeatLanguageOrder();syncSeatCountLabels();
+      loadVipSeatSettings();
       if (d.menuTopImageId){ var e1=$('prevOrder'); e1.src=API.imageUrl(d.menuTopImageId); e1.style.display='block'; }
       if (d.systemTopImageId){ var e2=$('prevLogin'); e2.src=API.imageUrl(d.systemTopImageId); e2.style.display='block'; }
       _setSelectValue('countryCode',d.countryCode,d.currencyCode==='JPY'?'JP':d.currencyCode==='SGD'?'SG':'PH');
@@ -1010,10 +1094,12 @@ function _seatLabel(v){var s=String(v==null?'':v).trim();var tableTerm=_seatTerm
 
     I18n.init({
       ja:{ title:'⚙️ 設定', back:'← 管理へ', save:'💾 保存', status:'状態:', unset:'未設定', set:'設定済', phPaste:'貼り付けて保存', close:'閉じる',
+        vipSeatTitle:'⭐ 席別VIPチャージ',vipSeatHint:'対象席で最初の注文が確定した時刻から最終会計まで自動計算します。基本料金は1席あたり1回、延長料金は時間単位で加算されます。',vipSeatPick:'設定する席',vipSeatEnabled:'この席にVIPチャージを適用',vipBaseCharge:'基本チャージ',vipBaseMinutes:'基本時間（分）',vipExtCharge:'延長料金（1回あたり）',vipExtMinutes:'延長単位（分）',vipSeatSave:'💾 この席のVIP設定を保存',
+
         qrCardTitle:'📱 席QRコード', qrCardDesc:'各席のQRコードを印刷して設置してください。お客様がスキャンするとその席専用の注文画面が開きます。表示名は保存した業態・呼称設定に従います。', qrShowBtn:'📱 QRコードを表示', qrModalTitle:'席 QRコード', qrModalSub:'スキャンで注文画面を開く', qrPrintBtn:'🖨️ 印刷', qrNoTables:'席が設定されていません。先に席数を保存してください。',
         qrBridgeLabel:'🖶 プリンタへ送信', qrEnqueueAllBtn:'全卓をキューへ', qrEnqueueOneBtn:'🖶 印刷キューへ', qrNoPrinters:'有効なプリンタがありません（プリンタ設定を確認してください）', qrQueued:'✅ {n}件を印刷キューへ送信しました', qrPublicUrlUnavailable:'公開注文URLまたは店舗IDを取得できません。ログインし直してから再度お試しください。', publicUrlOpen:'🌐 ブラウザで開く', publicUrlOpened:'✅ ブラウザで開きました', publicUrlOpenFailed:'ブラウザで開けませんでした。URLをコピーしてブラウザへ貼り付けてください。',
         takeoutShareTitle:'🥡 テイクアウト共有URL', takeoutShareDesc:'お客様へ共有するこの店舗専用のテイクアウト注文URLです。SNS・Webサイト・メッセージ等で共有できます。', takeoutShareCopy:'📋 URLをコピー', takeoutShareOpen:'🌐 ブラウザで開く', takeoutShareUnavailable:'公開テイクアウトURLまたは店舗IDを取得できません。ログインし直してから再度お試しください。',
-        shopTitle:'🏪 店舗設定', shopName:'店舗名', shopAddress:'住所（レシート表示）', shopTin:'税務登録番号（レシート表示）', shopLogo:'レシートのロゴ（先頭に中央印字）', logoClear:'クリア', logoSize:'印字サイズ（%）', logoHint:'白黒の感熱印刷用に自動で縮小・変換します。58mm幅を100%として、下の値で印字サイズを調整できます。', tableCount:'テーブル数', counterCount:'カウンター数', businessProfileLbl:'業態プロファイル', profileRestaurant:'レストラン', profileBar:'バー・居酒屋', profileCafe:'カフェ', profileCounterService:'カウンターサービス', profileService:'サービス・施設', applyBusinessProfile:'業態の呼称初期値を適用', businessProfileApplied:'業態の呼称初期値を入力しました。内容を確認して保存してください。', tableLabelJaLbl:'主な席の呼称（日本語）', tableLabelEnLbl:'主な席の呼称（英語）', counterLabelJaLbl:'もう一つの席の呼称（日本語）', counterLabelEnLbl:'もう一つの席の呼称（英語）', seatGroupLabelJaLbl:'席全体の呼称（日本語）', seatGroupLabelEnLbl:'席全体の呼称（英語）', seatHint:'業態プロファイルは呼称の初期値を入力します。保存後、注文・注文管理・厨房・会計履歴・レシートで共通表示されます。0にした席種は非表示です。', tableHint:'注文画面に表示する主な席の最大数。',
+        shopTitle:'🏪 店舗設定', shopName:'店舗名', shopAddress:'住所（レシート・発注共通）', shopTin:'税務登録番号（レシート表示）', shopLogo:'レシートのロゴ（先頭に中央印字）', logoClear:'クリア', logoSize:'印字サイズ（%）', logoHint:'白黒の感熱印刷用に自動で縮小・変換します。58mm幅を100%として、下の値で印字サイズを調整できます。', tableCount:'テーブル数', counterCount:'カウンター数', businessProfileLbl:'業態プロファイル', profileRestaurant:'レストラン', profileBar:'バー・居酒屋', profileCafe:'カフェ', profileCounterService:'カウンターサービス', profileService:'サービス・施設', applyBusinessProfile:'業態の呼称初期値を適用', businessProfileApplied:'業態の呼称初期値を入力しました。内容を確認して保存してください。', tableLabelJaLbl:'主な席の呼称（日本語）', tableLabelEnLbl:'主な席の呼称（英語）', counterLabelJaLbl:'もう一つの席の呼称（日本語）', counterLabelEnLbl:'もう一つの席の呼称（英語）', seatGroupLabelJaLbl:'席全体の呼称（日本語）', seatGroupLabelEnLbl:'席全体の呼称（英語）', seatHint:'業態プロファイルは呼称の初期値を入力します。保存後、注文・注文管理・厨房・会計履歴・レシートで共通表示されます。0にした席種は非表示です。', tableHint:'注文画面に表示する主な席の最大数。',
         imgTitle:'🖼️ トップ画像', orderImg:'オーダートップ画像（注文画面）', loginImg:'ログイン画面の画像（管理ログイン画面に表示）', upload:'⬆️ アップロード',
         localeTitle:'🌐 表示・地域', countryCode:'国・地域コード', localeCode:'地域形式（ロケール）', dateFormat:'日付表示形式', curCode:'通貨コード', curSym:'通貨記号', curDigits:'通貨の小数桁', svcRate:'サービス料 (%)', taxRate:'税率 (%)', taxName:'税の表示名', taxIdName:'税務登録番号の表示名', receiptPrefix:'レシート番号の接頭辞', receiptTitleJa:'帳票名（日本語）', receiptTitleEn:'帳票名（英語）', taxRound:'税・料金の端数処理', roundNearest:'四捨五入', roundFloor:'切り捨て', roundCeil:'切り上げ', applyCountry:'国別初期値を適用', countryHint:'国別初期値は通貨・標準時間・税名称・帳票名を選択・入力欄へ反映します。保存するまでは確定されません。法定帳票名は店舗所在地の専門家へ確認してください。', unknownCountry:'この国のプリセットはありません。現在の設定値を保持します。', countryApplied:'国別初期値を反映しました。内容を確認して保存してください。', timezoneLbl:'標準時間（タイムゾーン）', timezoneHint:'店舗所在地のIANAタイムゾーンを選択してください。営業日、売上集計、勤怠、提供時間、定期レポートの時刻へ共通反映されます。', invalidTimezone:'有効なタイムゾーンを選択してください（例：Asia/Manila）。', currentSetting:'現在の設定', defLang:'既定言語', accent:'アクセント色',
         svcInclLabel:'内税（価格に含む）', taxInclLabel:'内税（価格に含む）', chargesHint:'チェックなし＝外税（表示価格に加算）。チェックあり＝内税（表示価格に含む）。一般的には税＝内税、サービス料＝外税です。',
@@ -1036,10 +1122,12 @@ function _seatLabel(v){var s=String(v==null?'':v).trim();var tableTerm=_seatTerm
         ereceiptSaveBtn:'💾 保存', ereceiptEmailsLbl:'送付先メール（固定・複数可・カンマか改行区切り）', ereceiptHint:'ここに登録したメールアドレスには、お会計完了ごとに毎回eレシートのコピーが自動送信されます（会計画面でお客様が任意入力するeレシート送信先とは別に、常に送られます）。経理・オーナー控え等にご利用ください。空欄なら送信しません。上の「eレシートを有効にする」がオフの間は、ここに登録しても送信されません。',
         saved:'✅ 保存しました', savedSched:'✅ 保存＆スケジュール設定しました', uploaded:'✅ アップロードしました', pickImg:'画像を選択してください', needKey:'キーを入力してください', noGeoDev:'この端末は位置情報に対応していません', gotLoc:'現在地を取得しました。「保存」を押してください。', noLoc:'位置情報を取得できませんでした。手動入力してください。', sending:'送信中…', testSent:'✅ テスト送信しました。受信箱をご確認ください', sendFail:'送信できませんでした', scopeReauth:'認証(スコープ)の再承認が必要かもしれません', errPrefix:'エラー: ' },
       en:{ title:'⚙️ Settings', back:'← Manage', save:'💾 Save', status:'Status:', unset:'Not set', set:'Set', phPaste:'Paste and save', close:'Close',
+        vipSeatTitle:'⭐ VIP charges by seat',vipSeatHint:'Automatically charge from the first confirmed order at this seat until final checkout. One base charge per seat; extension fees are time-based, not per guest.',vipSeatPick:'Seat to configure',vipSeatEnabled:'Apply VIP charge to this seat',vipBaseCharge:'Base charge',vipBaseMinutes:'Included minutes',vipExtCharge:'Extension charge (per unit)',vipExtMinutes:'Extension unit (minutes)',vipSeatSave:'💾 Save VIP settings for this seat',
+
         qrCardTitle:'📱 Location QR Codes', qrCardDesc:'Print and place a QR code at each configured location. Scanning opens the order screen locked to that location. Display names follow the saved business terminology.', qrShowBtn:'📱 Show QR Codes', qrModalTitle:'Location QR Codes', qrModalSub:'Scan to open the order screen', qrPrintBtn:'🖨️ Print', qrNoTables:'No locations are set up yet. Save the location counts first.',
         qrBridgeLabel:'🖶 Send to printer', qrEnqueueAllBtn:'Queue all tables', qrEnqueueOneBtn:'🖶 Queue print', qrNoPrinters:'No enabled printer found (check printer settings)', qrQueued:'✅ Sent {n} to the print queue', qrPublicUrlUnavailable:'The public order URL or store ID is unavailable. Sign in again and retry.', publicUrlOpen:'🌐 Open in browser', publicUrlOpened:'✅ Opened in browser', publicUrlOpenFailed:'Could not open the browser. Copy the URL and paste it into your browser.',
         takeoutShareTitle:'🥡 Takeout share URL', takeoutShareDesc:'This is the public takeout-order URL for this store. Share it on social media, your website, or messages.', takeoutShareCopy:'📋 Copy URL', takeoutShareOpen:'🌐 Open in browser', takeoutShareUnavailable:'The public takeout URL or store ID is unavailable. Sign in again and retry.',
-        shopTitle:'🏪 Store settings', shopName:'Store name', shopAddress:'Address (on receipt)', shopTin:'Tax registration number (on receipt)', shopLogo:'Receipt logo (centered on top)', logoClear:'Clear', logoSize:'Print size (%)', logoHint:'Auto-resized & converted for B/W thermal printing. 58mm width = 100%; adjust the print size below.', tableCount:'Table count', counterCount:'Counter count', businessProfileLbl:'Business profile', profileRestaurant:'Restaurant', profileBar:'Bar / izakaya', profileCafe:'Cafe', profileCounterService:'Counter service', profileService:'Service / facility', applyBusinessProfile:'Apply profile terminology', businessProfileApplied:'Profile terminology filled in. Review it, then save.', tableLabelJaLbl:'Main seating label (Japanese)', tableLabelEnLbl:'Main seating label (English)', counterLabelJaLbl:'Other seating label (Japanese)', counterLabelEnLbl:'Other seating label (English)', seatGroupLabelJaLbl:'Group label (Japanese)', seatGroupLabelEnLbl:'Group label (English)', seatHint:'A business profile fills terminology defaults. After saving, the same terms appear in ordering, operations, kitchen, receipt history and receipts. Set a location count to 0 to hide it.', tableHint:'Maximum number of main seating locations shown on the order screen.',
+        shopTitle:'🏪 Store settings', shopName:'Store name', shopAddress:'Address (receipts and purchase orders)', shopTin:'Tax registration number (on receipt)', shopLogo:'Receipt logo (centered on top)', logoClear:'Clear', logoSize:'Print size (%)', logoHint:'Auto-resized & converted for B/W thermal printing. 58mm width = 100%; adjust the print size below.', tableCount:'Table count', counterCount:'Counter count', businessProfileLbl:'Business profile', profileRestaurant:'Restaurant', profileBar:'Bar / izakaya', profileCafe:'Cafe', profileCounterService:'Counter service', profileService:'Service / facility', applyBusinessProfile:'Apply profile terminology', businessProfileApplied:'Profile terminology filled in. Review it, then save.', tableLabelJaLbl:'Main seating label (Japanese)', tableLabelEnLbl:'Main seating label (English)', counterLabelJaLbl:'Other seating label (Japanese)', counterLabelEnLbl:'Other seating label (English)', seatGroupLabelJaLbl:'Group label (Japanese)', seatGroupLabelEnLbl:'Group label (English)', seatHint:'A business profile fills terminology defaults. After saving, the same terms appear in ordering, operations, kitchen, receipt history and receipts. Set a location count to 0 to hide it.', tableHint:'Maximum number of main seating locations shown on the order screen.',
         imgTitle:'🖼️ Top images', orderImg:'Order top image (order screen)', loginImg:'Login screen image (shown on admin login)', upload:'⬆️ Upload',
         localeTitle:'🌐 Display & region', countryCode:'Country/region code', localeCode:'Number/date locale', dateFormat:'Date format', curCode:'Currency code', curSym:'Currency symbol', curDigits:'Currency decimal digits', svcRate:'Service charge (%)', taxRate:'Tax (%)', taxName:'Tax display name', taxIdName:'Tax registration label', receiptPrefix:'Receipt number prefix', receiptTitleJa:'Document title (Japanese)', receiptTitleEn:'Document title (English)', taxRound:'Tax/charge rounding', roundNearest:'Round to nearest', roundFloor:'Round down', roundCeil:'Round up', applyCountry:'Apply country defaults', countryHint:'Country defaults fill the available selections plus tax labels and receipt titles. Nothing is final until you save. Confirm legally required document wording with a local professional.', unknownCountry:'No preset is available for that country. The current saved values are kept.', countryApplied:'Country defaults applied. Review them, then save.', timezoneLbl:'Standard time (time zone)', timezoneHint:'Choose the store location’s IANA time zone. It is applied consistently to business dates, sales totals, attendance, service hours, and scheduled reports.', invalidTimezone:'Choose a valid time zone (for example, Asia/Manila).', currentSetting:'Current setting', defLang:'Default language', accent:'Accent color',
         svcInclLabel:'Tax-inclusive (included in price)', taxInclLabel:'Tax-inclusive (included in price)', chargesHint:'Unchecked = exclusive (added on top of the listed price). Checked = inclusive (already included in the listed price). Typically tax is inclusive and the service charge is exclusive.',
@@ -1076,9 +1164,10 @@ function _seatLabel(v){var s=String(v==null?'':v).trim();var tableTerm=_seatTerm
         { ja: '③ 「🌐 表示・地域」で店舗所在地の標準時間（IANAタイムゾーン）、通貨、税・サービス料、言語、色、営業日切替時刻を設定できます。標準時間は売上集計・勤怠・提供時間・定期レポートへ共通反映されます。', en: '③ "Display & region" sets the store’s standard time (IANA time zone), currency, tax/service charge, language, color, and business-day cutoff. The time zone is shared by sales totals, attendance, service hours, and scheduled reports.' },
         { ja: '④ 「🏷️ 割引マスタ」では、割引名・率または固定額・税免除・ID提示・マネージャー以上の承認要否を割引ごとに登録できます。この誘惑店Webではフィリピン向けSenior/PWDプリセットと旧端末互換設定も残しています。', en: '④ "Discount rules" lets you configure each discount name, percentage or fixed amount, tax exemption, ID requirement, and Manager-or-above approval. This Yuwaku-specific Web app also retains Philippines Senior/PWD presets and its legacy-client compatibility switch.' },
         { ja: '⑤ AI在庫スキャンや自動翻訳はシステム側AIを利用するため、店舗側でAIサービスのAPIキーを取得・設定する必要はありません。', en: '⑤ Inventory AI scanning and automatic translation use the system AI service, so stores do not need to obtain or configure an AI-provider API key.' },
-        { ja: '⑥ 「📧 定期レポート」では送信先メール・日次/週次/月次の送信タイミングと出力言語を設定し、「保存＆スケジュール」で反映、「日次/週次/月次テスト」ボタンで実際にテストメールを送信して確認できます（メール送信設定でAPIキー・送信元アドレスの登録が必要）。', en: '⑥ "Scheduled reports" sets recipient emails, daily/weekly/monthly send times, and output language; "Save & schedule" applies it, and the "Daily/Weekly/Monthly test" buttons send an actual test email to verify (requires the API key and from-address to be configured above).' },
+        { ja: '⑥ 「📧 定期レポート」で送信先・日次/週次/月次の送信タイミング・言語を設定し、「保存＆スケジュール」で反映します。テストボタンで実際の送信を確認できます。送信にはシステム共通のメールサービスを使うため店舗側APIキー・送信元の登録は不要です。', en: '⑥ In Scheduled reports, set recipients, daily/weekly/monthly schedule and language, then Save & schedule. Use the test buttons to verify delivery. The platform email service is used; no per-store API key or sender setup is required.' },
         { ja: '⑦ PT-210のBluetooth接続は「プリンタ設定」画面から行います。内部用のブリッジ設定は通常画面には表示しません。', en: '⑦ Connect the PT-210 from Printer Settings. Internal bridge settings are not shown in the normal settings screen.' },
-        { ja: '⑧ 「🎫 入場料・延長料」の「人数選択の最大値」で、注文時の人数ドロップダウン上限（1〜100）を設定できます。未設定時は20人です。', en: '⑧ In "Entry & extension fee", "Maximum party size" controls the order-screen party-size dropdown limit (1–100). The default is 20.' }
+        { ja: '⑧ 「🎫 入場料・延長料」の「人数選択の最大値」で、注文時の人数ドロップダウン上限（1〜100）を設定できます。未設定時は20人です。', en: '⑧ In "Entry & extension fee", "Maximum party size" controls the order-screen party-size dropdown limit (1–100). The default is 20.' },
+        { ja: '⑨ 「⭐ 席別VIPチャージ」で席ごとに基本料金・基本時間・延長料金・延長単位を設定できます。対象席の最初の注文確定時刻から最終会計までを自動計測し、1席につき基本チャージを1回、超過分を延長単位で切り上げて加算します。人数には掛けず、途中の分割会計では徴収しません。', en: '⑨ In "VIP charges by seat", configure the base charge, included minutes, extension fee and time unit for each location. The first confirmed order starts the clock; the final checkout automatically adds one base charge per location plus rounded-up overtime units, independent of guest count. Intermediate partial checkouts do not charge VIP fees.' }
       ]
     });
   </script>

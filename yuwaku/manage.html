@@ -97,10 +97,25 @@
 
   <script>
 (function(){
-  var failure=false,disconnected=navigator.onLine===false,seq=0;
+  var failure=false,disconnected=navigator.onLine===false,serverVerified=false,seq=0;
+  var retryCallback=null,retryTimer=null,retryFailures=0;
+  function cancelRetry(){if(retryTimer!==null){clearTimeout(retryTimer);retryTimer=null;}}
+  function scheduleRetry(immediate){
+    if(!failure||!retryCallback||document.hidden||retryTimer!==null)return;
+    var delay=immediate?0:Math.min(30000,2000*Math.pow(2,Math.min(retryFailures++,4)));
+    retryTimer=setTimeout(function(){
+      retryTimer=null;
+      if(!failure||document.hidden)return;
+      // Read-only session verification. An existing in-flight check is reused
+      // by checkAndShow; we never replay orders, checkout or other writes.
+      try{Promise.resolve(retryCallback()).catch(function(){});}catch(e){}
+    },delay);
+  }
   function render(){
     var box=document.getElementById('hubOfflineBanner');if(!box)return;
-    var offline=disconnected||navigator.onLine===false;
+    // An authenticated server response is stronger evidence than an OS
+    // connectivity hint, which can be stale in an embedded WebView.
+    var offline=!serverVerified&&(disconnected||navigator.onLine===false);
     var en=window.I18n&&typeof window.I18n.lang==='function'&&window.I18n.lang()==='en';
     box.textContent=offline?(en?'Offline: no network connection. Cached menu remains available.':"\u30aa\u30d5\u30e9\u30a4\u30f3\u3067\u3059\u3002\u30cd\u30c3\u30c8\u30ef\u30fc\u30af\u63a5\u7d9a\u304c\u3042\u308a\u307e\u305b\u3093\u3002\u4fdd\u5b58\u6e08\u307f\u306e\u30e1\u30cb\u30e5\u30fc\u306f\u8868\u793a\u3067\u304d\u307e\u3059\u3002")
       :(en?'Could not connect to the server. Cached menu remains available.':"\u30b5\u30fc\u30d0\u30fc\u306b\u63a5\u7d9a\u3067\u304d\u307e\u305b\u3093\u3002\u4fdd\u5b58\u6e08\u307f\u306e\u30e1\u30cb\u30e5\u30fc\u306f\u8868\u793a\u3067\u304d\u307e\u3059\u3002");
@@ -116,16 +131,31 @@
       disconnected=!s.connected;render();
     }).catch(function(){});
   }
-  window.izkManageOfflineStatus={refresh:refresh,markFailure:function(){failure=true;render();},markVerified:function(){failure=false;refresh();}};
-  window.addEventListener('offline',function(){disconnected=true;render();});
-  window.addEventListener('online',function(){disconnected=false;refresh();});
-  window.addEventListener('pageshow',refresh);
-  document.addEventListener('visibilitychange',function(){if(!document.hidden)refresh();});
+  window.izkManageOfflineStatus={
+    refresh:refresh,
+    markFailure:function(){serverVerified=false;failure=true;render();scheduleRetry(false);},
+    markVerified:function(){serverVerified=true;failure=false;retryFailures=0;cancelRetry();refresh();},
+    setRetry:function(callback){retryCallback=typeof callback==='function'?callback:null;if(!retryCallback)cancelRetry();else scheduleRetry(false);},
+    stop:function(){failure=false;retryFailures=0;cancelRetry();render();}
+  };
+  window.addEventListener('offline',function(){
+    serverVerified=false;disconnected=true;failure=true;render();
+    // The OS can report connectivity loss without an API request failing.
+    // Keep verifying until the service is reachable again, not just until
+    // the next manual refresh or full document navigation.
+    scheduleRetry(false);
+  });
+  window.addEventListener('online',function(){disconnected=false;refresh();if(failure){cancelRetry();scheduleRetry(true);}});
+  window.addEventListener('pageshow',function(){
+    refresh();
+    if(failure){cancelRetry();scheduleRetry(true);}
+  });
+  document.addEventListener('visibilitychange',function(){if(!document.hidden){refresh();if(failure){cancelRetry();scheduleRetry(true);}}else cancelRetry();});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',refresh,{once:true});
   else refresh();
 })();
 </script>
-  <script src="./config.js?v=auth2"></script>
+  <script src="./date-display.js?v=auth4" data-iz-date-display></script><script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
   <script src="./i18n.js?v=auth3"></script>
   <script>
@@ -156,7 +186,7 @@
       { grp:'sales', key:'dashboard', ic:'📊', tt:'ダッシュボード', ds:'今日/今月・目標・粗利', ttEn:'Dashboard', dsEn:'Today · target · profit', url:'./dashboard.html', active:true },
       { grp:'sales', key:'sales', ic:'📈', tt:'売上管理', ds:'集計・分析', ttEn:'Sales', dsEn:'Reports · analytics', url:'./sales.html', active:true },
       { grp:'sales', key:'expenses', ic:'💰', tt:'経費一覧', ds:'固定費・仕入・備品', ttEn:'Expenses', dsEn:'Costs · purchases', url:'./expenses.html', active:true },
-      { grp:'sales', key:'profit', ic:'📉', tt:'月間粗利', ds:'売上−原価', ttEn:'Gross profit', dsEn:'Revenue − costs', url:'./profit.html', active:true },
+      { grp:'sales', key:'profit', ic:'📉', tt:'月間利益', ds:'売上−原価・人件費・経費', ttEn:'Monthly profit', dsEn:'Sales less costs, labor & expenses', url:'./profit.html', active:true },
       { grp:'sales', key:null, ic:'📐', tt:'営業利益シミュレーション', ds:'経費入力・実績読込で試算', ttEn:'Operating profit sim.', dsEn:'Estimate from costs · actuals', url:'./profit_sim.html', active:true },
       { grp:'sales', key:'register', ic:'💵', tt:'レジ締め', ds:'現金過不足・X/Z', ttEn:'Register', dsEn:'Cash close · X/Z', url:'./register.html', active:true },
       { grp:'sales', key:'commission', ic:'💰', tt:'歩合・スタッフ報酬', ds:'SC分配・歩合・支払管理', ttEn:'Commission & rewards', dsEn:'SC sharing · payouts', url:'./commission.html', active:true },
@@ -276,7 +306,7 @@
         // [応答速度改善(2026-08-22)/ログイン再改善] loginレスポンスに権限メニュー(me)が
         // 同封されるようになったため、直後のcheckToken往復を省いて即座に表示する。
         // 念のため未同封（旧サーバー版との混在デプロイ等）の場合のみ従来通りcheckAndShowにフォールバック。
-        if (r.me) { showHub(r.me.allowed || {}, r.me.accountOwner); } else { checkAndShow(); }
+        if (r.me) { window.izkManageOfflineStatus.markVerified(); showHub(r.me.allowed || {}, r.me.accountOwner); } else { checkAndShow(); }
       }).catch(function(e){
         if (attempt !== authAttempt) return;
         btn.disabled=false;
@@ -289,6 +319,7 @@
       });
     };
     window.logout = function(){
+      if(window.izkManageOfflineStatus && window.izkManageOfflineStatus.stop)window.izkManageOfflineStatus.stop();
       ++authAttempt; ++authCheckSeq; authCheckPending=null;
       var pending;
       try{pending=API.logoutSession();}catch(e){pending=Promise.reject(e);}
@@ -352,11 +383,12 @@
           showHub(r.me.allowed || {}, r.me.accountOwner);
         }
         else { logout(); }
-      }).catch(function(){
+      }).catch(function(e){
+        if(e && e.__staleLifecycle) return;
         if (attempt !== authAttempt || checkSeq !== authCheckSeq) return;
-        window.izkManageOfflineStatus.markFailure();
         var current = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
-        if (!current) { showLogin(); return; }
+        if (!current) { window.izkManageOfflineStatus.stop(); showLogin(); return; }
+        window.izkManageOfflineStatus.markFailure();
         if ((lastAllowed && Object.keys(lastAllowed).length) || ROLE) {
           showHub(lastAllowed, ACCOUNT_OWNER);
           return;
@@ -372,6 +404,7 @@
       authCheckPending=tracked;
       return tracked;
     }
+    window.izkManageOfflineStatus.setRetry(function(){return checkAndShow();});
     // ログイン画面の画像（設定で登録した画像を表示。getSettingsはログイン前でも公開）
     API.post('getSettings', {}).then(function(r){ var d=(r&&r.data)||{}; if(d.systemTopImageId){ var im=document.getElementById('loginPic'); if(im){ im.src=API.imageUrl(d.systemTopImageId); im.style.display='block'; } } }).catch(function(){});
     I18n.init({
@@ -395,7 +428,7 @@
       titleEn: 'Management console',
       items: [
         { ja: '① ログインIDとパスワードを入力して「🔓 ログイン」を押すと管理メニューに入れます。', en: '① Enter your login ID and password, then tap "🔓 Login" to enter the management menu.' },
-        { ja: '② パスワードを忘れた場合は「🔑 パスワードを変更」からログインIDと現在のパスワードで変更できます。', en: '② If you forget your password, use "🔑 Change password" with your login ID and current password.' },
+        { ja: '② 現在のパスワードが分かる場合は「🔑 パスワードを変更」で変更できます。忘れた場合は別の「パスワードを忘れた方」から再設定手続きを行ってください。', en: '② If you know your current password, use Change password. If you forgot it, use the separate Forgot password? link to start recovery.' },
         { ja: '③ ログイン後は上部のタブ（接客・注文／売上・経営／在庫・仕入／スタッフ・勤怠／顧客・予約／システム・設定）で機能グループを切り替えられます。', en: '③ After logging in, switch feature groups using the tabs at the top (Service & Orders / Sales & Mgmt / Inventory / Staff / Customers / System).' },
         { ja: '④ 各タイルをタップすると、その機能の画面（ダッシュボードや売上管理など）に移動します。表示されるタイルはアカウントの権限によって異なります。', en: '④ Tap a tile to open that feature\'s screen (Dashboard, Sales, etc.). Visible tiles depend on your account\'s permissions.' },
         { ja: '⑤ 右上のEN/JAボタンで画面の言語を切り替えられます。', en: '⑤ Use the EN/JA button at top right to switch the display language.' },

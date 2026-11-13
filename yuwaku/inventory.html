@@ -146,8 +146,9 @@
 
   <script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
+  <script src="./pending-write-replay.js?v=s6-1"></script>
   <script src="./i18n.js?v=auth3"></script>
-  <script src="./ai-credit-ui.js?v=auth1"></script>
+  <script src="./ai-credit-ui.js?v=auth2"></script>
   <script src="./ai-image-quality.js?v=auth1"></script>
   <script>
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
@@ -159,12 +160,17 @@
     function isEN(){ return !!(window.I18n && I18n.lang && I18n.lang()==='en'); }
     function loc(ja, en){ ja=(ja||'').trim(); en=(en||'').trim(); return isEN() ? (en || ja) : (ja || en); }
     window.rows = [];
+    var CATEGORY_MENU_OPTIONS=null;
     function categoryOptions(){
       var out=[],seen=Object.create(null);
-      function add(ja,en){ja=String(ja||'').trim();en=String(en||'').trim();if(!ja&&!en)return;var key=ja+'\u001f'+en;if(seen[key])return;seen[key]=true;out.push({ja:ja,en:en,label:loc(ja,en)});}
-      window.rows.forEach(function(r){add(r.categoryJa!==undefined?r.categoryJa:r.category,r.categoryEn);});
-      MENU_ALL.forEach(function(m){add(m['カテゴリ_JA']!==undefined?m['カテゴリ_JA']:m['カテゴリ'],m['カテゴリ_EN']);});
-      return out.sort(function(a,b){return a.label.localeCompare(b.label,isEN()?'en':'ja');});
+      function add(ja,en,canonical){ja=String(ja||'').trim();en=String(en||'').trim();if(!ja&&!en)return;var key=String(canonical||ja||en).trim();if(seen[key])return;seen[key]=true;out.push({ja:ja,en:en,label:loc(ja,en)});}
+      if(Array.isArray(CATEGORY_MENU_OPTIONS)){
+        CATEGORY_MENU_OPTIONS.forEach(function(c){add(c.nameJa,c.nameEn,c.name);});
+      }else{
+        MENU_ALL.forEach(function(m){add(m['カテゴリ_JA']!==undefined?m['カテゴリ_JA']:m['カテゴリ'],m['カテゴリ_EN'],m['カテゴリ']);});
+      }
+      window.rows.forEach(function(r){add(r.categoryJa!==undefined?r.categoryJa:r.category,r.categoryEn,r.category);});
+      return out;
     }
     var CATEGORY_OPTIONS=[];
     window.setCategoryInput=function(i,value){var r=window.rows[i];if(!r)return;value=String(value||'');var raw=value.trim();var opt=CATEGORY_OPTIONS.find(function(c){return raw===String(c.label||'').trim()||raw===String(c.ja||'').trim()||raw===String(c.en||'').trim();});if(opt){r.categoryJa=opt.ja;r.categoryEn=opt.en;return;}if(isEN()){if(String(r.categoryEn||'')!==value)r.categoryJa='';r.categoryEn=value;}else{if(String(r.categoryJa!==undefined?r.categoryJa:r.category||'')!==value)r.categoryEn='';r.categoryJa=value;}};
@@ -185,9 +191,10 @@
         var supObj = SUPPLIER_OPTIONS.find(function(s){return s.key===String(r.supplier||'');});
         var supVal = supObj ? loc(supObj.ja,supObj.en) : (r.supplier||'');
         var catChoices='<option value="">'+esc(I18n.t('categoryPick'))+'</option>'+CATEGORY_OPTIONS.map(function(c,ci){return '<option value="'+ci+'">'+esc(c.label)+'</option>';}).join('');
+        var catLoading=CATEGORY_MENU_OPTIONS===null&&!MENU_ALL.length?' disabled':'';
         html += '<tr'+(low?' class="low"':'')+'>'+
           '<td><input value="'+esc(nmVal)+'" placeholder="'+esc(nmPh)+'" oninput="window.rows['+i+'].'+nmT+'=this.value"></td>'+
-          '<td><div class="cat-combo"><input id="catInput-'+i+'" value="'+esc(catVal)+'" placeholder="'+esc(I18n.t('categoryInput'))+'" oninput="setCategoryInput('+i+',this.value)"><select aria-label="'+esc(I18n.t('categoryPick'))+'" title="'+esc(I18n.t('categoryPick'))+'" onchange="pickCategoryCombo('+i+',this.value,this)">'+catChoices+'</select></div></td>'+
+          '<td><div class="cat-combo"><input id="catInput-'+i+'" value="'+esc(catVal)+'" placeholder="'+esc(I18n.t('categoryInput'))+'" oninput="setCategoryInput('+i+',this.value)"><select aria-label="'+esc(I18n.t('categoryPick'))+'" title="'+esc(I18n.t('categoryPick'))+'" onchange="pickCategoryCombo('+i+',this.value,this)"'+catLoading+'>'+catChoices+'</select></div></td>'+
           '<td><input value="'+esc(supVal)+'" oninput="setSupplierInput('+i+',this.value)" list="supList"></td>'+
           '<td><input value="'+esc(r.unit||'本')+'" oninput="window.rows['+i+'].unit=this.value"></td>'+
           '<td><input type="number" step="any" value="'+(r.stock||0)+'" oninput="window.rows['+i+'].stock=Number(this.value)||0"></td>'+
@@ -230,11 +237,17 @@
     // ── 在庫変動（入荷・廃棄・棚卸） ──
     var mvIdx = -1, mvKind = 'in', mvRequestId = '', mvRequestSignature = '';
     function nextMoveRequestId(){ return 'move-' + Date.now() + '-' + Math.random().toString(36).slice(2,10); }
-    function resetMoveRequestId(){ mvRequestId=''; mvRequestSignature=''; }
+    async function resetMoveRequestId(){
+      if(mvRequestId)await IZPendingWrite.clear('stock_movement',mvRequestId);
+      mvRequestId='';mvRequestSignature='';
+    }
     window.openMove = function(i){
       var r = window.rows[i]; if(!r) return;
       if(!(r.name||r.nameJa||r.nameEn||'').trim()){ msg(I18n.t('mvNeedSave'), false); return; }
-      resetMoveRequestId();
+      // Keep an ambiguous request ID across close/reopen. A lost HTTP reply
+      // may mean the stock movement was committed; doMove compares the full
+      // item/kind/quantity/cost/reason signature before deciding to reuse it.
+      // Confirmed success and deterministic server errors already reset it.
       mvIdx = i;
       document.getElementById('mvItem').innerText = loc(r.nameJa!==undefined?r.nameJa:r.name, r.nameEn);
       document.getElementById('mvStockNow').innerText = I18n.t('mvStockNow')+': '+(Number(r.stock)||0)+' '+(r.unit||'');
@@ -259,7 +272,7 @@
     };
     window.closeMove = function(){ document.getElementById('moveOv').style.display='none'; mvIdx=-1; };
     function mvErr(m){ var a=document.getElementById('mvAlert'); a.style.display='block'; a.style.background='#fee2e2'; a.style.color='#b91c1c'; a.innerText=m; }
-    window.doMove = function(){
+    window.doMove = async function(){
       var r = window.rows[mvIdx]; if(!r) return;
       var qtyInput = document.getElementById('mvQty');
       // A malformed Android number edit may have badInput=true and value=''.
@@ -280,15 +293,18 @@
       var go = document.getElementById('mvGo'); go.disabled=true;
       var p, reason=document.getElementById('mvReason').value;
       var sig=JSON.stringify([mvKind,r.name,qty,cost,reason]);
-      if(!mvRequestId || mvRequestSignature!==sig){ mvRequestId=nextMoveRequestId(); mvRequestSignature=sig; }
+      try{
+        var journal=await IZPendingWrite.begin('stock_movement',sig,nextMoveRequestId);
+        mvRequestId=journal.id;mvRequestSignature=sig;
+      }catch(e){go.disabled=false;mvErr(I18n.t('errPrefix')+API.userErrorText(e));return;}
       if(mvKind==='in'){ p = rpc('receiveStock',[r.name, qty, cost, mvRequestId]); }
       else if(mvKind==='waste'){ p = rpc('logWaste',[r.name, qty, reason, mvRequestId]); }
       else { p = rpc('stocktake',[r.name, qty, mvRequestId]); }
-      p.then(function(d){
+      p.then(async function(d){
         go.disabled=false; d=d||{};
-        if(d.error==='not_found'){ resetMoveRequestId(); mvErr(I18n.t('mvNeedSave')); return; }
-        if(d.error){ resetMoveRequestId(); mvErr(I18n.t('errPrefix')+API.userErrorText(d.error)); return; }
-        resetMoveRequestId();
+        if(d.error==='not_found'){ await resetMoveRequestId(); mvErr(I18n.t('mvNeedSave')); return; }
+        if(d.error){ await resetMoveRequestId(); mvErr(I18n.t('errPrefix')+API.userErrorText(d.error)); return; }
+        await resetMoveRequestId();
         closeMove(); msg(I18n.t('mvDone'), true);
         rpc('getDrinkInventory',[]).then(function(list){ window.rows=(list||[]).slice(); render(); })
           .catch(function(e){ document.getElementById('rows').innerHTML='<tr><td colspan="9" style="color:#b91c1c;padding:16px;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</td></tr>'; });
@@ -344,10 +360,10 @@
     })();
 
     // ── AIスキャン（写真から複数商品の在庫数をまとめてAI判定・一括反映） ──
-    var aiFile=null, aiCounts=null, aiKeys=null, aiRequestId='', aiGeneration=0,aiSelectionApproved=null;
+    var aiFile=null, aiCounts=null, aiKeys=null, aiRequestId='', aiGeneration=0;
     function nextAiRequestId(){ try{return crypto.randomUUID();}catch(e){return Date.now()+'-'+Math.random().toString(16).slice(2);} }
     function resetAiScanState(){
-      aiFile=null; aiCounts=null; aiKeys=null; aiRequestId=''; aiGeneration++;aiSelectionApproved=null;
+      aiFile=null; aiCounts=null; aiKeys=null; aiRequestId=''; aiGeneration++;
       var input=document.getElementById('aiInput'); if(input)input.value='';
       var library=document.getElementById('aiLibraryInput');if(library)library.value='';
       var preview=document.getElementById('aiPreview'); preview.onload=null;preview.onerror=null;preview.style.display='none'; preview.src='';
@@ -392,7 +408,6 @@
       aiGeneration++;
       aiFile = file;
       aiRequestId = nextAiRequestId();
-      aiSelectionApproved=null;
       e.target.value='';
       var generation=aiGeneration, preview=document.getElementById('aiPreview'), url=URL.createObjectURL(file);
       preview.onload=function(){
@@ -409,26 +424,9 @@
               :'この画像で続ける場合はOK、撮り直す・選び直す場合はキャンセルを押してください。')))return false;
           }
           if(generation!==aiGeneration||aiFile!==file)return false;
-          const enabled=inventoryCreditEnabled();
-          let wallet=null;
-          try{wallet=await rpc('getAiInventoryContext',[],{__silent:true});}
-          catch(error){if(enabled)throw error;}
-          if(generation!==aiGeneration||aiFile!==file)return false;
-          let message,unitCost=0,balance=null;
-          if(enabled){
-            const q=AICreditUI.quote(wallet,'inventory_image',1);
-            if(!q.sufficient)throw new Error('ai_credit_insufficient');
-            unitCost=q.unitCost;balance=q.balance;
-            message=AICreditUI.confirmation(wallet,'inventory_image',1,creditLang());
-          }else{
-            balance=wallet?.balances?.total??null;
-            message=AICreditUI.noChargeConfirmation(wallet,creditLang());
-          }
-          if(!await AICreditUI.confirm(message))return false;
-          if(generation!==aiGeneration||aiFile!==file)return false;
-          aiSelectionApproved={requestId:aiRequestId,enabled:enabled,cost:unitCost,
-            balance:balance,token:API.currentToken()};
-          return true;
+          // Photo selection only validates quality. Charge confirmation belongs
+          // to the explicit Analyze button, as for other AI actions.
+          return generation===aiGeneration&&aiFile===file;
         })().then(function(ok){
           if(generation!==aiGeneration||aiFile!==file)return;
           if(!ok){
@@ -491,14 +489,8 @@
           if(!q.sufficient)throw new Error('ai_credit_insufficient');
           message=AICreditUI.confirmation(wallet,'inventory_image',1,creditLang());
         }else message=AICreditUI.noChargeConfirmation(wallet,creditLang());
-        const approved=aiSelectionApproved;
-        if(!approved||approved.requestId!==requestId||approved.token!==API.currentToken()||
-          approved.enabled!==enabled||approved.balance!==(wallet?.balances?.total??null)||
-          (enabled&&approved.cost!==wallet?.costs?.inventory_image)){
-          if(!await AICreditUI.confirm(message))return null;
-        }
+        if(!await AICreditUI.confirm(message))return null;
         if(generation!==aiGeneration||selectedFile!==aiFile)return null;
-        aiSelectionApproved=null;
         return enabled?'ai-credit-v1':'';
       })().then(function(creditConsent){
         if(creditConsent===null){btn.disabled=false;btn.innerText=I18n.t('aiAnalyzeBtn');return;}
@@ -637,10 +629,16 @@
         }).catch(function(e){ linkErr(I18n.t('errPrefix')+API.userErrorText(e)); });
       }
     };
-    function reloadMenuLinks(){ return rpc('getAllMenuForAdmin',[]).then(function(l){ MENU_ALL=l||[]; render(); }).catch(function(){}); }
+    function reloadMenuLinks(){
+      return rpc('getMenuInventoryLinkOptions',[]).then(function(l){ MENU_ALL=Array.isArray(l)?l:[]; render(); })
+        .catch(function(e){ msg((isEN()?'Could not refresh menu links: ':'メニュー紐づけ情報を再取得できませんでした: ')+API.userErrorText(e),false); });
+    }
 
     rpc('getSuppliers',[]).then(function(l){ SUPPLIER_OPTIONS=(l||[]).map(function(s){return {key:s.name,ja:(s.nameJa!==undefined?s.nameJa:s.name),en:s.nameEn};}); render(); }).catch(function(){});
-    rpc('getAllMenuForAdmin',[]).then(function(l){ MENU_ALL=l||[]; render(); }).catch(function(){});
+    rpc('getMenuInventoryLinkOptions',[]).then(function(l){ MENU_ALL=Array.isArray(l)?l:[]; render(); })
+      .catch(function(e){ msg((isEN()?'Could not load menu link choices: ':'メニューの選択候補を取得できませんでした: ')+API.userErrorText(e),false); });
+    rpc('getMenuCategoryOptions',[]).then(function(l){CATEGORY_MENU_OPTIONS=Array.isArray(l)?l:[];render();})
+      .catch(function(e){if(!MENU_ALL.length)msg((isEN()?'Could not load category list: ':'カテゴリ一覧を取得できませんでした: ')+API.userErrorText(e),false);});
     var __loaded=false;
     rpc('getDrinkInventory',[]).then(function(list){ window.rows=(list||[]).slice(); __loaded=true; render(); })
       .catch(function(e){ if(String(e.message||e).indexOf('unauthorized')>=0){ location.href='./manage.html'; return; } document.getElementById('rows').innerHTML='<tr><td colspan="8" style="color:#b91c1c;padding:16px;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</td></tr>'; });
@@ -669,10 +667,10 @@
       titleEn: 'Inventory',
       items: [
         { ja: '① ドリンク・食材・備品などをまとめて一覧で数量管理します。「＋ 行を追加」で新しい商品を追加し、商品名・カテゴリ・仕入先・単位・在庫数・最小在庫・原価を入力後「💾 保存」で確定します。', en: '① Track drinks, ingredients, and supplies together in one list. Press "＋ Add row" to add a new item, fill in name/category/supplier/unit/stock/min stock/cost, then press "💾 Save" to confirm.' },
-        { ja: '② 在庫数が「最小在庫」を下回った行は赤く表示され、日報・レポートにも低在庫として通知されます。', en: '② Any row whose stock falls at or below its minimum turns red and is flagged as low stock in daily reports.' },
+        { ja: '② 最小在庫が0より大きく、現在庫が最小在庫以下になった行は赤く表示され、低在庫として扱われます。', en: '② When the minimum stock is greater than zero and stock is at or below that minimum, the row turns red and is treated as low stock.' },
         { ja: '③ 各行の「変動」ボタンから、入荷（＋）・廃棄（−）・棚卸（実数入力）を記録できます。📷ボタンでカメラを使い、商品を1つずつタップして数えることもできます。記録内容は「📋 変動履歴」から確認できます。', en: '③ Use the "Move" button on a row to log receiving (＋), waste (−), or a stocktake (enter the counted amount). The 📷 button lets you use the camera and tap each item to count it. All entries appear under "📋 History".' },
-        { ja: '④ 「🤖 AIスキャン」で棚の写真を撮影すると、AIが写っている商品名と本数を自動検出し、確認・修正してから一括で在庫数に反映できます。', en: '④ "🤖 AI Scan" lets you photograph a shelf — AI detects item names and quantities automatically, which you can review, edit, and apply to stock in bulk.' },
-        { ja: '⑤ 「🔗 メニューから追加」または各行の🔗ボタンで、在庫アイテムをメニューの商品と紐づけると、注文が入った際にレシピに応じて在庫が自動で減算されます。', en: '⑤ Use "🔗 Add from menu" or the 🔗 button on a row to link an inventory item to a menu item, so stock is automatically deducted based on the recipe whenever it is ordered.' }
+        { ja: '④ 「🤖 AIスキャン」で棚の写真から品名と数量の候補を取得し、確認・修正して表へ反映できます。実際の在庫数は、その後「💾 保存」を押して確定してください。', en: '④ AI Scan suggests names and counts from a shelf photo. Review/edit the results and apply them to the form, then press Save to commit the stock counts.' },
+        { ja: '⑤ 「🔗 メニューから追加」または各行の🔗で在庫アイテムをメニューに紐づけると、注文を「提供済」にした時点で該当するレシピ量が在庫から減算されます。', en: '⑤ Link stock items to the menu using Add from menu or a row’s 🔗 button. The recipe quantities are deducted when an order is marked Served.' }
       ]
     });
   </script>

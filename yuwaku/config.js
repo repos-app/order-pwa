@@ -17,7 +17,6 @@ window.APP_CONFIG = {
   PUBLIC_RESERVATION_URL: 'https://izakanpai.com/reserve.html',
   PUBLIC_TAKEOUT_URL: 'https://izakanpai.com/takeout/',
   STORE_ID: 'yuwaku',
-  VERSION: 'v1.0.0',
   AUTH_STORAGE_PREFIX: 'izakanpai:production:',
   STORAGE_PREFIX: 'izakanpai:production:',
   OFFLINE_DB_NAME: 'izakanpai-pos-production'
@@ -27,7 +26,7 @@ window.APP_CONFIG = {
 (function () {
   if (typeof document === 'undefined' || document.querySelector('script[data-iz-common-header]')) return;
   var script = document.createElement('script');
-script.src = './header.js?v=auth20';
+script.src = './header.js?v=auth26';
   script.async = false;
   script.setAttribute('data-iz-common-header', '');
   document.head.appendChild(script);

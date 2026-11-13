@@ -1,0 +1,109 @@
+{
+  "schema": "izakanpai.s1.inventory.v1",
+  "referenceDate": "2026-11-07",
+  "status": "INVENTORY_AUDIT_ONLY_NO_TEST_EXECUTION",
+  "manifestSha256": "a4ab7208a9a9e09931b4da9475f1b8591d7945aca800398601236cdc735d8b51",
+  "pipelineSteps": 213,
+  "autoDiscoveredFiles": [
+    "test/auto-ci/ai-credit-wallet-display.test.mjs",
+    "test/auto-ci/auto-discovery-contract.test.mjs",
+    "test/auto-ci/auto-ui-i18n.test.mjs",
+    "test/auto-ci/purchasing-language-actions.test.mjs",
+    "test/auto-ci/verified-ui-i18n-judgment.test.mjs"
+  ],
+  "workflowFiles": [
+    "android-build.yml",
+    "auto-ui-coverage.yml",
+    "google-play-ai-credits.yml",
+    "ios-ai-credit-localizations.yml",
+    "ios-ai-credit-prices.yml",
+    "ios-ai-credit-products.yml",
+    "ios-build.yml",
+    "ios-testflight-verify.yml",
+    "ios-upload-existing-testflight.yml",
+    "izakanpai-ios-simulator-smoke.yml",
+    "mobile-standard-audit.yml",
+    "revenuecat-ai-credit-offering.yml",
+    "revenuecat-google-play-app.yml",
+    "store-release-readiness.yml"
+  ],
+  "officialApplicableRows": 1659,
+  "pairSourceCounts": {
+    "registered": 307,
+    "fixture": 307,
+    "driver": 147,
+    "db": 130,
+    "png": 171,
+    "expected": 307,
+    "oracle": 177,
+    "cleanup": 172,
+    "contract": 102
+  },
+  "explicitCaseToTestLinkedRows": 71,
+  "unverifiedCaseToTestRows": 1588,
+  "pairDuplicateCaseIds": [
+    "QA2-KEEP-OPR-BILL-033",
+    "QA2-KEEP-OPR-KDS-008",
+    "QA2-KEEP-OPR-BCP-007",
+    "QA2-KEEP-OPR-BCP-008",
+    "QA2-KEEP-PT-AGGREGATE-069",
+    "QA2-KEEP-OPR-RACE-029",
+    "QA2-KEEP-OPR-RACE-030",
+    "QA2-KEEP-OPR-BILL-049",
+    "QA2-KEEP-OPR-RACE-043",
+    "QA2-KEEP-OPR-RACE-044",
+    "QA2-KEEP-OPR-BILL-029",
+    "QA2-KEEP-OPR-BILL-030",
+    "QA2-KEEP-OPR-BILL-031",
+    "QA2-KEEP-OPR-BILL-032",
+    "QA2-NEW-ONB-009"
+  ],
+  "lanes": {
+    "android": {
+      "updatedAt": "2026-10-25T08:31:26.176Z",
+      "statuses": {
+        "PASS": 383,
+        "FAIL": 62,
+        "BLOCKED": 5,
+        "SKIP": 5,
+        "NOT_RUN": 374,
+        "RUNNING": 0
+      },
+      "final": 388,
+      "pending": 441,
+      "proof": {
+        "historicalPass": 206,
+        "currentPass": 177,
+        "checkedProofs": 1934,
+        "casesWithProofGaps": 0,
+        "missingOrEmpty": 0,
+        "hashMismatch": 0,
+        "unavailableProofRefs": 0,
+        "mutableSourceDriftNonblocking": 2
+      }
+    },
+    "ios": {
+      "updatedAt": "2026-10-17T15:31:04.410Z",
+      "statuses": {
+        "PASS": 12,
+        "FAIL": 0,
+        "BLOCKED": 2,
+        "SKIP": 5,
+        "NOT_RUN": 811,
+        "RUNNING": 0
+      },
+      "final": 17,
+      "pending": 813,
+      "proof": {
+        "historicalPass": 0,
+        "currentPass": 12,
+        "checkedProofs": 61,
+        "casesWithProofGaps": 0,
+        "missingOrEmpty": 0,
+        "hashMismatch": 0,
+        "unavailableProofRefs": 0,
+        "mutableSourceDriftNonblocking": 0
+      }
+    }
+  }
+}

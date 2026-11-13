@@ -22,14 +22,18 @@
     .cnt{ background:#dc2626; border-radius:999px; padding:2px 10px; font-weight:900; font-size:13px; }
     .wrap{ padding:14px; max-width:900px; margin:0 auto; }
     .tg{ background:var(--surface); border:1px solid var(--border); border-radius:14px; margin-bottom:14px; overflow:hidden; }
-    .tg-h{ display:flex; justify-content:space-between; align-items:center; padding:12px 14px; background:#0b1220; color:#fff; }
-    .tg-h .ti{ font-size:17px; font-weight:900; }
-    .tg-h .to{ font-size:16px; font-weight:900; color:#fbbf24; }
+    .tg-h{ display:flex; justify-content:space-between; align-items:center; gap:8px; padding:12px 14px; background:#0b1220; color:#fff; }
+    .tg-h .ti{ font-size:17px; font-weight:900; display:flex; flex:1 1 auto; min-width:0; align-items:center; flex-wrap:wrap; gap:5px; }
+    .tg-h .to{ font-size:16px; font-weight:900; color:#fbbf24; white-space:nowrap; flex:0 0 auto; }
     .row{ display:flex; justify-content:space-between; align-items:flex-start; gap:8px; padding:10px 14px; border-bottom:1px solid var(--border); }
     .row.served{ opacity:.55; }
     .row .m{ flex:1; min-width:0; }
     .row .tm{ font-size:11px; color:var(--text-3); }
-    .row .it{ font-size:14px; font-weight:600; margin-top:2px; overflow-wrap:normal; word-break:normal; max-width:100%; overflow-x:auto; }
+    .row .it{ display:flex;align-items:center;gap:4px;min-width:0;font-size:14px; font-weight:600; margin-top:2px; max-width:100%; overflow:hidden; }
+    .row .it .prepaid{flex:0 0 auto;white-space:nowrap}
+    /* Allow one row per product while preserving ellipsis on ordinary controls. */
+    .row .it [data-iz-ellipsis="item"]{white-space:pre-line;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;font-size:13px;line-height:1.45;}
+    #vdItem{white-space:pre-line;overflow-wrap:anywhere;}
     .row .rt{ display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:5px; flex:0 1 auto; max-width:50%; min-width:0; }
     .row .pr{ font-weight:900; max-width:100%; white-space:nowrap; overflow-x:auto; text-align:right; }
     /* Keep long item names and order actions in separate rows on narrow devices. */
@@ -59,8 +63,13 @@
     .calls-box{ background:#fffbeb; border:1px solid #fcd34d; border-radius:12px; padding:10px 12px; }
     .calls-h{ font-weight:900; font-size:13px; color:#92400e; margin-bottom:6px; }
     .call-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:5px 0; font-size:14px; font-weight:700; border-top:1px solid #fde68a; }
+    .call-row > span{ min-width:0; overflow-wrap:anywhere; }
+    .call-row > .b-xs{ flex:0 0 auto; white-space:nowrap; }
     .call-row:first-of-type{ border-top:0; }
     .dwell{ font-size:11px; font-weight:800; color:#0f766e; background:#ccfbf1; border-radius:6px; padding:1px 6px; }
+    .entry-edit-btn{ flex:0 0 auto; min-width:34px; min-height:34px; border:1px solid #64748b; border-radius:8px; background:#243247; color:#fff; font:inherit; font-size:15px; cursor:pointer; }
+    .entry-edit-btn:disabled{opacity:.45;cursor:not-allowed;}
+    .entry-input{width:100%;min-height:44px;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:9px;font:inherit;font-size:15px;}
     .ctlbar{ display:flex; align-items:center; gap:10px; padding:10px 16px; flex-wrap:wrap; position:sticky; top:0; z-index:15; background:var(--bg,#f6f7f9); border-bottom:1px solid #e5e7eb; }
     .auto-toggle{ border:0; border-radius:12px; padding:12px 20px; font-size:16px; font-weight:900; cursor:pointer; font-family:inherit; min-width:150px; }
     .auto-toggle.on{ background:#16a34a; color:#fff; } .auto-toggle.off{ background:#e2e8f0; color:#64748b; }
@@ -76,6 +85,7 @@
   /* Formal Android PT-CTL touch target: independent of common header injection. */
   #autoBtn{min-height:44px;min-width:44px;box-sizing:border-box}
   </style>
+  <link rel="stylesheet" href="./ui-ellipsis.css?v=1">
 </head>
 <body>
   <div class="head">
@@ -105,6 +115,7 @@
       <div id="ps1">
         <div style="font-size:17px;font-weight:900;margin-bottom:12px;" id="ps1t">お会計</div>
         <div class="sum" id="paySum"></div>
+        <div id="payScWarning" hidden role="alert" aria-live="polite" style="border:1px solid #fed7aa;background:#fff7ed;color:#9a3412;border-radius:10px;padding:9px 10px;margin-bottom:10px;font-size:12px;font-weight:700;"></div>
         <div id="payDisc" style="border:1px solid #e5e7eb;border-radius:10px;padding:10px;margin-bottom:10px;font-size:13px;">
           <label style="display:flex;gap:8px;align-items:center;font-weight:800;cursor:pointer;"><input type="checkbox" id="dcOn" onchange="recompPay()"><span id="dcLbl">割引</span></label>
           <div id="dcBody" style="display:none;margin-top:8px;">
@@ -153,6 +164,20 @@
     </div>
   </div>
 
+  <!-- Editable entry clock: checkout completion remains automatic. -->
+  <div class="ov" id="entryTimeModal" role="dialog" aria-modal="true" aria-labelledby="entryTimeTitle">
+    <div class="card">
+      <div id="entryTimeTitle" style="font-size:17px;font-weight:900;margin-bottom:12px;">入場時刻を修正</div>
+      <div id="entryTimeSeat" style="font-weight:800;margin-bottom:10px;"></div>
+      <label id="entryTimeLabel" for="entryTimeInput" style="display:block;font-size:13px;font-weight:800;margin-bottom:5px;">入場日時</label>
+      <input id="entryTimeInput" class="entry-input" type="datetime-local" step="60">
+      <div id="entryTimeHint" style="font-size:12px;color:#64748b;line-height:1.5;margin:9px 0 12px;"></div>
+      <div id="entryTimeError" role="alert" style="font-size:12px;color:#b91c1c;font-weight:700;margin-bottom:8px;" aria-live="polite"></div>
+      <button id="entryTimeSave" class="pbtn" style="background:#0f766e;" type="button" onclick="saveEntryTime()">保存</button>
+      <button id="entryTimeCancel" class="cancel" type="button" onclick="closeEntryTime()">キャンセル</button>
+    </div>
+  </div>
+
   <!-- Partial checkout modal -->
   <div class="ov" id="partModal">
     <div class="card">
@@ -190,7 +215,9 @@
     // [P0-2] 会計・注文操作はスタッフ操作のため、事前ログイン（1回のみ）を必須にする。
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
     if (!TOKEN) location.href = './manage.html';
-    var SETTINGS = {}, PAYMONGO = false, orders = [], calls = [], voidId = '', MENU_MAP = {}, PARTY_SIZES = {}, BASE_DISCOUNT_RULES = [], DISCOUNT_RULES = [];
+    var SETTINGS = {}, PAYMONGO = false, orders = [], calls = [], voidId = '', MENU_MAP = {}, PARTY_SIZES = {}, VIP_STATES = {}, BASE_DISCOUNT_RULES = [], DISCOUNT_RULES = [];
+    // Do not render checkout amounts until the store's currency, tax and service settings are loaded.
+    var _pricingReady = false, _pricingInitPromise = null, _pricingFromCache = false;
     var autoOn = (function(){ try{ var v=localStorage.getItem('adminAuto'); return v===null?true:(v==='1'); }catch(e){ return true; } })();
     var refreshSec = (function(){ try{ var v=parseInt(localStorage.getItem('adminRefreshSec'),10); return (v===10||v===30||v===60)?v:30; }catch(e){ return 30; } })();
     var refreshTimer = null;
@@ -203,8 +230,14 @@
     // Partial checkout logic stays in source but is not available in the Orders UI.
     var PARTIAL_CHECKOUT_UI_ENABLED = false;
     var payTable = '', payTotal = 0, payCheckoutId = null, payMethod = 'cash', paySub = 0, payBase = null, payOrderIds = null, partTable = '';
+    // Immutable snapshot from the last server-verified checkout preflight.
+    // Unknown HTTP result must be resolved by a read-only server lookup,
+    // NEVER by blindly sending finalizeBill a second time.
+    var payRecoveryOrderIds = [], checkoutOutcomeUnknown = false;
+    var checkoutFinalizeBusy = false, checkoutOutcomeChecking = false;
     var offlineCashRows = [], offlineCashBusy = false, offlineSnapshotRestore = null;
-    var payEntryFee = 0, payExtensionFee = 0, payPartySize = 0; // [要望対応] 入場料・延長料のプレビュー
+    var payEntryFee = 0, payExtensionFee = 0, payPartySize = 0, payVipCharge = 0, payVipExtensionFee = 0;
+    var entryTimeEditing = null, entryTimeSaving = false;
 
     var i18n = {
       ja: { title:'注文管理', served:'✓ 提供済', servedBtn:'提供済にする', pay:'💳 会計する', noOrder:'未会計の注文はありません',
@@ -213,8 +246,8 @@
             noKey:'オンライン決済は未設定です。', cashRecv:'現金を受け取りましたか？', cardRecv:'💳 決済端末でクレジットカード決済をしてください。決済を確認したら、下のボタンを押して会計を完了してください。', gcashHint:'お客様にQRコードをスキャンして送金していただき、入金を確認したら下のボタンを押してください。', gcashConfirm:'入金を確認した', confirmed:'支払い完了', done:'完了（会計済にする）', processing:'処理中…', lang:'EN',
             disc:'割引', senior:'シニア', idPh:'ID番号', eligPh:'対象額', discLine:'割引', vatNote:'うちVAT', orLbl:'レシート番号', printBtn:'🖨️ レシート印刷', close:'閉じる', tableW:'卓', totalW:'合計',
             partial:'🧾 一部会計', partTitle:'一部会計 — 明細を選択', selected:'選択', selPay:'選択分を会計',
-            callHdr:'🔔 呼び出し', callLbl:'スタッフ呼出', billLbl:'お会計希望', resolve:'対応済', agoMin:'分前', stay:'滞在', voidBtn:'取消', voidT:'注文の取消', reason:'取消理由', approver:'承認者（マネージャー以上のログイン）', loginPh:'ログインID', passPh:'パスワード', voidGo:'取消を承認', voidGoNoApproval:'取消を実行', needReason:'取消理由を入力してください', needApprover:'マネージャー以上の承認者ID・パスワードを入力してください', authFail:'マネージャー以上の承認者IDまたはパスワードを確認してください', voided:'取消しました', alreadySettled:'会計済のため取消できません', eReceipt:'eレシート送信先メール（任意）',
-            entryFeeLbl:'入場料', extFeeLbl:'延長料',
+            callHdr:'🔔 呼び出し', callLbl:'スタッフ呼出', billLbl:'お会計希望', resolve:'対応済', agoMin:'分前', stay:'滞在', entryEdit:'入場時刻を修正', entryTime:'入場日時', entryTimeSave:'保存して料金を再計算', entryTimeHint:'入力した入場時刻から滞在時間・通常延長料・VIP延長料金を計算します。退場時刻は会計時に自動確定します。', entryTimeInvalid:'有効な入場時刻（過去30日以内・現在より前）を入力してください。', entryTimeFailed:'入場時刻を変更できませんでした。更新してから再度お試しください。', entryTimeSaved:'入場時刻を修正しました。', voidBtn:'取消', voidT:'注文の取消', reason:'取消理由', approver:'承認者（マネージャー以上のログイン）', loginPh:'ログインID', passPh:'パスワード', voidGo:'取消を承認', voidGoNoApproval:'取消を実行', needReason:'取消理由を入力してください', needApprover:'マネージャー以上の承認者ID・パスワードを入力してください', authFail:'マネージャー以上の承認者IDまたはパスワードを確認してください', voided:'取消しました', alreadySettled:'会計済のため取消できません', eReceipt:'eレシート送信先メール（任意）',
+            entryFeeLbl:'入場料', extFeeLbl:'延長料', vipChargeLbl:'VIP基本チャージ',vipExtFeeLbl:'VIP延長料金',
             discApprover:'承認者（マネージャー以上のログイン）', discNeedAppr:'マネージャー以上の承認者ログインID・パスワードを入力してください', discNotManager:'マネージャー以上の権限が必要です', discDisabled:'シニア/PWD割引は現在無効化されています', discVerifying:'承認確認中…', unservedBill:'未提供の注文が含まれています。先に対象明細を「提供済」にしてから会計してください。', demoTag:'🧪 デモ', demoDone:'デモ会計が完了しました。売上・レシート・ポイント・在庫には計上されません。' },
       en: { title:'Orders', served:'✓ Served', servedBtn:'Mark served', pay:'💳 Checkout', noOrder:'No open orders',
             cash:'Cash', card:'Card', qrPayment:'QR Payment', cancel:'Cancel', pTitle:'Payment', sub:'Subtotal', svc:'Service', tax:'Tax',
@@ -222,8 +255,8 @@
             noKey:'Online payment is not set up.', cashRecv:'Cash received?', cardRecv:'💳 Please process the credit card payment on the card terminal. Once confirmed, press the button below to complete checkout.', gcashHint:'Ask the customer to scan the QR code and pay, then press the button below once you\'ve confirmed the payment.', gcashConfirm:'Payment confirmed', confirmed:'Paid', done:'Done (settle)', processing:'Processing…', lang:'JP',
             disc:'Discount', senior:'Senior', idPh:'ID no.', eligPh:'Eligible amt', discLine:'Discount', vatNote:'incl. VAT', orLbl:'Receipt no.', printBtn:'🖨️ Print receipt', close:'Close', tableW:'Table', totalW:'TOTAL',
             partial:'🧾 Partial', partTitle:'Partial checkout — select items', selected:'Selected', selPay:'Checkout selected',
-            callHdr:'🔔 Requests', callLbl:'Call staff', billLbl:'Bill please', resolve:'Done', agoMin:'m ago', stay:'Seated', voidBtn:'Void', voidT:'Void order', reason:'Reason', approver:'Approver (Manager or above login)', loginPh:'Login ID', passPh:'Password', voidGo:'Approve void', voidGoNoApproval:'Void order', needReason:'Please enter a reason', needApprover:'Enter a Manager-or-above approver login ID and password', authFail:'Check the Manager-or-above approver login ID and password', voided:'Order voided', alreadySettled:'Cannot void a settled order', eReceipt:'e-receipt email (optional)',
-            entryFeeLbl:'Entry fee', extFeeLbl:'Extension fee',
+            callHdr:'🔔 Requests', callLbl:'Call staff', billLbl:'Bill please', resolve:'Done', agoMin:'m ago', stay:'Seated', entryEdit:'Edit entry time', entryTime:'Entry date & time', entryTimeSave:'Save and recalculate charges', entryTimeHint:'Stay duration, standard extension fees and VIP overtime will use this entry time. Exit time is automatic at checkout.', entryTimeInvalid:'Enter a valid entry time within the last 30 days, not in the future.', entryTimeFailed:'Could not update entry time. Refresh and try again.', entryTimeSaved:'Entry time updated.', voidBtn:'Void', voidT:'Void order', reason:'Reason', approver:'Approver (Manager or above login)', loginPh:'Login ID', passPh:'Password', voidGo:'Approve void', voidGoNoApproval:'Void order', needReason:'Please enter a reason', needApprover:'Enter a Manager-or-above approver login ID and password', authFail:'Check the Manager-or-above approver login ID and password', voided:'Order voided', alreadySettled:'Cannot void a settled order', eReceipt:'e-receipt email (optional)',
+            entryFeeLbl:'Entry fee', extFeeLbl:'Extension fee',vipChargeLbl:'VIP base charge',vipExtFeeLbl:'VIP extension',
             discApprover:'Approver (Manager-or-above login)', discNeedAppr:'Please enter a Manager-or-above approver login ID and password', discNotManager:'Manager-or-above role required', discDisabled:'Senior/PWD discount is currently disabled', discVerifying:'Verifying approval…', unservedBill:'This checkout includes unserved orders. Mark every selected order as served before checkout.', demoTag:'🧪 DEMO', demoDone:'Demo checkout completed. It was not recorded in sales, receipts, points, or inventory.' }
     };
     function t(){ return I18n.d(); }
@@ -232,6 +265,8 @@
     function sym(){ return SETTINGS.currencySymbol || '₱'; }
     function money(v){ var d=Object.prototype.hasOwnProperty.call(SETTINGS,'currencyDecimalDigits')?Math.max(0,Math.min(3,Number(SETTINGS.currencyDecimalDigits)||0)):0; return sym() + (Number(v)||0).toLocaleString(SETTINGS.locale||undefined,{minimumFractionDigits:d,maximumFractionDigits:d}); }
     function taxName(){ return String(SETTINGS.taxDisplayName||'VAT'); }
+    function taxSummaryLabel(){ return taxName() + (String(SETTINGS.taxInclusive)==='true' ? (lang==='en'?' (incl.)':'(内税)') : ''); }
+    function taxSummaryAmount(value){ var amount=money(value); return String(SETTINGS.taxInclusive)==='true' ? '('+amount+')' : amount; }
     function roundCharge(v){ var d=Object.prototype.hasOwnProperty.call(SETTINGS,'currencyDecimalDigits')?Math.max(0,Math.min(3,Number(SETTINGS.currencyDecimalDigits)||0)):0,f=Math.pow(10,d),n=(Number(v)||0)*f,m=SETTINGS.taxRoundingMode||'nearest'; return (m==='floor'?Math.floor(n+Number.EPSILON):m==='ceil'?Math.ceil(n-Number.EPSILON):Math.round(n+Number.EPSILON))/f; }
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
     // 2026-08-24修正: バックエンドが返す注文日時はSQLiteのdatetime('now')によるUTC時刻
@@ -242,7 +277,7 @@
       if(s && s.indexOf('Z')===-1 && s.indexOf('+')===-1){ s = s.replace(' ','T')+'Z'; }
       return new Date(s);
     }
-    function fmtTime(d){ try{ return toUtcDate(d).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } }
+    function fmtTime(d){ try{ var utc=toUtcDate(d); if(!isFinite(utc.getTime()))return ''; return window.DateDisplay?DateDisplay.formatDateTime(utc.toISOString()).split(' ').pop().slice(0,5):utc.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } }
     // 席ラベルをEN/JP表示（保存値は変更しない・表示のみ）
     function seatLabel(v){ var s=String(v==null?'':v).trim(),en=lang==='en'; var tableTerm=(en?(SETTINGS.tableLabelEn||SETTINGS.tableLabelJa):(SETTINGS.tableLabelJa||SETTINGS.tableLabelEn))||(en?'Table':'テーブル'); var counterTerm=(en?(SETTINGS.counterLabelEn||SETTINGS.counterLabelJa):(SETTINGS.counterLabelJa||SETTINGS.counterLabelEn))||(en?'Counter':'カウンター'); var m=s.match(/^(?:テーブル|Table)\s*(\d+)$/i)||s.match(/^(\d+)$/); if(m) return tableTerm+' '+m[1]; var c=s.match(/^(?:カウンター|Counter)\s*(\d+)$/i); if(c) return counterTerm+' '+c[1]; return s; }
     function breakdown(subtotal){
@@ -312,6 +347,86 @@
       var h = Math.floor(m/60), mm = m%60;
       return (h>0 ? h+'h'+('0'+mm).slice(-2) : m+'m');
     }
+    // datetime-local must represent the STORE's wall clock, not the device's
+    // time zone (staff may be abroad). Convert back with round-trip validation
+    // so nonexistent DST wall times are rejected instead of silently shifted.
+    function entryStoreWallTime(ms){
+      var tz=String(SETTINGS.timezone||'').trim()||Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC';
+      var parts=new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(ms));
+      var fields={};parts.forEach(function(p){if(p.type!=='literal')fields[p.type]=p.value;});
+      return fields.year+'-'+fields.month+'-'+fields.day+'T'+fields.hour+':'+fields.minute;
+    }
+    function entryWallTimeToMs(wall){
+      if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(String(wall||'')))return NaN;
+      var desired=Date.parse(wall+':00Z');if(!isFinite(desired))return NaN;
+      var result=desired;
+      try{
+        for(var n=0;n<4;n++){
+          var seen=Date.parse(entryStoreWallTime(result)+':00Z');
+          if(seen===desired)break;
+          result+=desired-seen;
+        }
+        return entryStoreWallTime(result)===wall?result:NaN;
+      }catch(e){return NaN;}
+    }
+    window.openEntryTime=function(table){
+      if(entryTimeSaving||!_ordersSnapshotLoaded||typeof navigator!=='undefined'&&navigator.onLine===false)return;
+      if(offlineCashRows.some(function(r){return String(r.table)===String(table)&&r.status!=='rejected';})){
+        UIAlert(lang==='en'?'Entry time cannot be changed while a local cash payment is pending.':'未同期の現金会計がある席の入場時刻は変更できません。');return;
+      }
+      var rows=orders.filter(function(o){return String(o.table)===String(table)&&o.status!=='会計済'&&o.status!=='取消';});
+      if(!rows.length)return;
+      rows.sort(function(a,b){return toUtcDate(a.date).getTime()-toUtcDate(b.date).getTime()||String(a.id).localeCompare(String(b.id));});
+      var occupancy=PARTY_SIZES[table],vip=VIP_STATES[table];
+      var partyMs=Number(occupancy&&occupancy.enteredAt)||0,vipMs=Number(vip&&vip.startedAt)||0;
+      var firstOrderMs=toUtcDate(rows[0].date).getTime();
+      var displayedMs=partyMs||vipMs||firstOrderMs;
+      if(!isFinite(displayedMs))return;
+      entryTimeEditing={table:table,anchorOrderId:String(rows[0].id),
+        expectedEnteredAtMs:partyMs||null,expectedVipStartedAtMs:vipMs||null};
+      document.getElementById('entryTimeTitle').textContent=t().entryEdit;
+      document.getElementById('entryTimeSeat').textContent='🪑 '+seatLabel(table);
+      document.getElementById('entryTimeLabel').textContent=t().entryTime;
+      document.getElementById('entryTimeHint').textContent=t().entryTimeHint+' ('+(SETTINGS.timezone||Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC')+')';
+      document.getElementById('entryTimeSave').textContent=t().entryTimeSave;
+      document.getElementById('entryTimeCancel').textContent=t().cancel;
+      document.getElementById('entryTimeError').textContent='';
+      var input=document.getElementById('entryTimeInput');
+      input.value=entryStoreWallTime(displayedMs);
+      input.min=entryStoreWallTime(Date.now()-30*86400000);
+      input.max=entryStoreWallTime(Date.now());
+      document.getElementById('entryTimeModal').classList.add('on');
+    };
+    window.closeEntryTime=function(){
+      if(entryTimeSaving)return;
+      entryTimeEditing=null;
+      document.getElementById('entryTimeModal').classList.remove('on');
+    };
+    window.saveEntryTime=function(){
+      if(entryTimeSaving||!entryTimeEditing)return;
+      var ms=entryWallTimeToMs(document.getElementById('entryTimeInput').value);
+      if(!Number.isSafeInteger(ms)||ms>Date.now()||ms<Date.now()-30*86400000){
+        document.getElementById('entryTimeError').textContent=t().entryTimeInvalid;return;
+      }
+      var edit=entryTimeEditing,button=document.getElementById('entryTimeSave');
+      entryTimeSaving=true;button.disabled=true;button.textContent=t().processing;
+      document.getElementById('entryTimeError').textContent='';
+      API.post('setTableEntryTime',{token:TOKEN,table:edit.table,anchorOrderId:edit.anchorOrderId,
+        enteredAtMs:ms,expectedEnteredAtMs:edit.expectedEnteredAtMs,
+        expectedVipStartedAtMs:edit.expectedVipStartedAtMs,__noInternalRetry:true}).then(function(response){
+        var d=response&&response.data;
+        if(!response||response.ok===false||!d||d.ok!==true)throw new Error(d&&d.error||response&&response.error||'entry_time_update_failed');
+        if(!PARTY_SIZES[edit.table])PARTY_SIZES[edit.table]={count:0};
+        PARTY_SIZES[edit.table].enteredAt=ms;
+        if(VIP_STATES[edit.table]&&Number(VIP_STATES[edit.table].startedAt)>0)VIP_STATES[edit.table].startedAt=ms;
+        entryTimeEditing=null;
+        document.getElementById('entryTimeModal').classList.remove('on');
+        noteStatusMutation();render();load(true);
+      }).catch(function(err){
+        document.getElementById('entryTimeError').textContent=t().entryTimeFailed+' ('+API.userErrorText(err)+')';
+        load(true);
+      }).finally(function(){entryTimeSaving=false;button.disabled=false;button.textContent=t().entryTimeSave;});
+    };
     var servedPending = Object.create(null), servedErrors = Object.create(null);
     var _statusMutationSeq = 0, _forceLoadQueued = false;
     function noteStatusMutation(){
@@ -366,6 +481,12 @@
       // A failed/unfinished first fetch is not proof that the store has zero orders.
       document.getElementById('cnt').innerText = (!_ordersSnapshotLoaded && !orders.length) ? '—' : active.length;
       var el = document.getElementById('list');
+      if (!_pricingReady){
+        el.innerHTML = '<div class="empty">'+(_opsLastError
+          ? '⚠️ '+esc(opsReadErrorText(_opsLastError))
+          : (lang==='en'?'⏳ Loading store settings…':'⏳ 店舗設定を読み込み中…'))+'</div>';
+        return;
+      }
       if (!active.length){
         if (!_ordersSnapshotLoaded && !orders.length){
           el.innerHTML = '<div class="empty">'+(_opsLastError
@@ -386,17 +507,25 @@
         // 食い違って見えないよう、computeGroupTotal()で同じ計算式を使って表示用の合計を出す。
         var subtotal = rows.reduce(function(s,o){ return s + (Number(o.price)||0); }, 0);
         var total = computeGroupTotal(subtotal, tn);
-        // 滞在タイマー：この卓の最古の注文時刻から経過
-        var minT = Infinity; rows.forEach(function(o){ var d=new Date(o.date).getTime(); if(!isNaN(d)&&d<minT) minT=d; });
-        var dwell = (minT!==Infinity) ? dwellStr(now-minT) : '';
+        // Keep the header clock aligned with the authoritative charging clock.
+        // Fall back to the first order only for visits without an occupancy/VIP session.
+        var minT = Infinity; rows.forEach(function(o){ var d=toUtcDate(o.date).getTime(); if(!isNaN(d)&&d<minT) minT=d; });
+        var partyClock=Number(PARTY_SIZES[tn]&&PARTY_SIZES[tn].enteredAt)||0;
+        var vipClock=Number(VIP_STATES[tn]&&VIP_STATES[tn].startedAt)||0;
+        var effectiveEntry=partyClock||vipClock||(minT!==Infinity?minT:0);
+        var dwell = effectiveEntry>0 ? dwellStr(now-effectiveEntry) : '';
         var dwellTag = dwell ? ' <span class="dwell">⏱ '+t().stay+' '+dwell+'</span>' : '';
-        html += '<div class="tg"><div class="tg-h"><div class="ti">🪑 '+esc(seatLabel(tn))+dwellTag+'</div><div class="to">'+money(total)+'</div></div>';
-        rows.forEach(function(o){
+        var editClock = '<button type="button" class="entry-edit-btn" title="'+esc(t().entryEdit)+'" aria-label="'+esc(t().entryEdit)+'" '+(typeof navigator!=='undefined'&&navigator.onLine===false?'disabled ':'')+'onclick="openEntryTime('+esc(JSON.stringify(tn))+')">✎</button>';
+        html += '<div class="tg"><div class="tg-h"><div class="ti"><span>🪑 '+esc(seatLabel(tn))+'</span>'+dwellTag+editClock+'</div><div class="to">'+money(total)+'</div></div>';
+        // Each order row shows the same charge-inclusive amount as the checkout total.
+        // Allocate the rounding remainder across rows so their sum equals breakdown(subtotal).total.
+        var displayedAmounts = computeOrderDisplayTotals(rows);
+        rows.forEach(function(o, rowIndex){
           var served = o.status === '提供済';
           var servedBusy=!!servedPending[o.id],servedErr=servedErrors[o.id]?'<div style="margin-top:5px;color:#b91c1c;font-size:12px;font-weight:700;white-space:normal;">'+esc(servedErrors[o.id])+'</div>':'';
           html += '<div class="row'+(served?' served':'')+'"><div class="m"><div class="tm">🕐 '+fmtTime(o.date)+'</div>'+
-            '<div class="it">'+esc(orderDetailsText(o))+(o.demo?' <span class="prepaid" style="background:#dbeafe;color:#1d4ed8;">'+t().demoTag+'</span>':'')+(o.paid?' <span class="prepaid">💳前払い</span>':'')+'</div>'+servedErr+'</div>'+
-            '<div class="rt"><span class="pr">'+money(o.price||0)+'</span>'+
+            '<div class="it"><span data-iz-ellipsis="item" title="'+esc(orderDetailsText(o))+'">'+esc(orderDetailsText(o))+'</span>'+(o.demo?' <span class="prepaid" style="background:#dbeafe;color:#1d4ed8;">'+t().demoTag+'</span>':'')+(o.paid?' <span class="prepaid">💳前払い</span>':'')+'</div>'+servedErr+'</div>'+
+            '<div class="rt"><span class="pr">'+money(displayedAmounts[rowIndex])+'</span>'+
             (served?('<span class="served-lbl">'+t().served+'</span>'):('<button class="b-xs b-warn" '+(servedBusy?'disabled ':'')+'onclick="setServed(\''+o.id+'\')">'+(servedBusy?t().processing:t().servedBtn)+'</button>'))+
             '<button class="b-xs" style="background:#fee2e2;color:#b91c1c;margin-left:4px;" onclick="askVoid(\''+o.id+'\')">'+t().voidBtn+'</button>'+
             '</div></div>';
@@ -413,6 +542,11 @@
       if(!panel)return;
       var relevant=offlineCashRows.filter(function(r){return r.status!=='confirmed'||Date.now()-r.confirmedAt<86400000;});
       if(!relevant.length){panel.style.display='none';panel.innerHTML='';return;}
+      if(!_pricingReady){
+        panel.style.display='block';
+        panel.textContent=lang==='en'?'Legacy cash records exist; loading currency settings. Do not collect another payment.':'旧版の現金受領記録があります。通貨設定を確認中です。追加の徴収をしないでください。';
+        return;
+      }
       panel.style.display='block';
       var en=lang==='en';
       var heading=en?'Legacy cash records — automatic sync is disabled':'旧版の現金受領記録（自動同期停止・要手動確認）';
@@ -462,6 +596,13 @@
         if(cached && !_opsVersion && !orders.length){
           orders=cached.orders||[];PARTY_SIZES=cached.partySizes||{};
           SETTINGS=Object.assign({},cached.settings||{},SETTINGS);
+          // Read-only offline order viewing uses the authenticated cached pricing snapshot.
+          // Checkout remains blocked by the existing navigator.onLine preflight.
+          if(typeof navigator!=='undefined'&&navigator.onLine===false&&cached.settings&&cached.settings.currencySymbol){
+            _pricingReady=true;_pricingFromCache=true;
+            displayOpsReadError('offline');
+            renderOfflineCashStatus();
+          }
           render();renderCalls();
         }
         if(!cached && typeof navigator!=='undefined'&&navigator.onLine===false && !orders.length){
@@ -487,7 +628,8 @@
       var html = '<div class="calls-box"><div class="calls-h">'+t().callHdr+'</div>';
       calls.forEach(function(c){
         var lbl = c.type==='bill' ? ('🧾 '+t().billLbl) : ('🔔 '+t().callLbl);
-        var age = c.ageMin>0 ? (' · '+c.ageMin+t().agoMin) : '';
+        var ageMin = Number(c.ageMin);
+        var age = c.ageMin!=null && Number.isFinite(ageMin) ? (' · '+Math.max(0,Math.floor(ageMin))+t().agoMin) : '';
         html += '<div class="call-row"><span>🪑 '+esc(seatLabel(c.table))+' — '+lbl+age+'</span>'+
           '<button class="b-xs" style="background:#0f766e;color:#fff;" onclick="resolveCall(\''+esc(c.id).replace(/'/g,"\\'")+'\')">'+t().resolve+'</button></div>';
       });
@@ -560,7 +702,9 @@
         if(code)throw new Error(code);
         noteStatusMutation();
         var current=orders.find(function(o){return String(o.id)===String(id);});if(current)current.status='提供済';delete servedErrors[id];render();
-        return load(true);
+        // Refresh in the background: the confirmed write, not a slow list read,
+        // determines when the served mutation stops blocking checkout.
+        load(true);
       }).catch(function(e){
         var code=String(e&&e.message||e||'request_failed');
         if(!servedNeedsReconcile(code)){servedErrors[id]=servedErrorText(code);render();return;}
@@ -578,6 +722,8 @@
     var _loadInFlight = false, _loadPromise = null, _loadEpoch = 0, _loadStartedAt = 0;
     function opsReadErrorText(error){
       var code=String(error&&error.message||error||'').toLowerCase();
+      if(/settings_unavailable/.test(code))
+        return lang==='en'?'Store pricing settings are unavailable. Order amounts and checkout are hidden until they load.':'店舗の金額設定を取得できません。読み込みが完了するまで注文金額と会計操作を表示しません。';
       if(/(?:offline|no.network.connection)/.test(code))
         return lang==='en'?'Offline: order information may be out of date. Stored orders remain visible until connection returns.':'オフラインです。注文情報は最新でない可能性があります。接続が戻るまで保存済みの注文を表示します。';
       if(/(?:http[_ ]?429|rate_limited|too.many.requests|quota|rows.read|daily.limit|limit.exceeded)/.test(code))
@@ -595,6 +741,10 @@
     }
     function clearOpsReadError(){_opsLastError='';var el=document.getElementById('opsReadError');if(el){el.textContent='';el.classList.remove('on');}}
     window.load = function(force){
+      // Order snapshots can arrive before bootstrap; never display a charge without pricing config.
+      if (!_pricingReady) return ensurePricingReady().then(function(ready){
+        return ready ? load(force) : {ok:false,error:'settings_unavailable'};
+      });
       if(typeof navigator!=='undefined'&&navigator.onLine===false){
         displayOpsReadError('offline');
         if(!_ordersSnapshotLoaded&&!orders.length)render();
@@ -630,6 +780,7 @@
         _opsVersion = d.version != null ? d.version : _opsVersion;
         orders = d.orders; calls = d.calls; _ordersSnapshotLoaded = true;
         if (d.partySizes) PARTY_SIZES = d.partySizes;
+        if (d.vipStates) VIP_STATES = d.vipStates;
         render(); renderCalls(); saveOfflineOrders();
         return {ok:true};
       }).catch(function(err){
@@ -660,6 +811,7 @@
     window.addEventListener('pageshow', function(e){ if(e.persisted) recoverOpsAfterPageRestore(); });
     window.addEventListener('offline',function(){displayOpsReadError('offline');});
     window.addEventListener('online',function(){
+      if(_pricingFromCache){_pricingReady=false;_pricingFromCache=false;render();}
       // Old local cash records are read-only; never auto-finalize legacy payments.
       refreshOfflineCashStatus().finally(function(){load(true);});
     });
@@ -687,15 +839,15 @@
       if(!entry)return nm;
       var name=lang==='en'?(entry.en||entry.ja||base):(entry.ja||entry.en||base);
       if(!m||!m[2].trim())return name;
-      return name+' ('+m[2].split(',').map(function(raw){var alias=raw.trim(),c=entry.choices[alias];return c?(lang==='en'?(c.en||c.ja||alias):(c.ja||c.en||alias)):alias;}).join(', ')+')';
+      return name+' ('+m[2].split(',').map(function(raw){var alias=raw.trim(),c=entry.choices[alias];return c?(lang==='en'?(c.en||c.ja||alias):(c.ja||c.en||alias)):((alias==='コミッション'||alias==='Commission')?(lang==='en'?'Commission':'コミッション'):alias);}).join(', ')+')';
     }
     function transDetails(details){
       return String(details||'').split(/,\s*(?![^（）()]*[)）])/).map(function(tok){
         var m=tok.trim().match(/^(.+?)x(\d+)$/);return m?localizedItem(m[1])+'x'+m[2]:tok;
-      }).join(', ');
+      }).join('\n');
     }
     function orderDetailsText(o){
-      if(Array.isArray(o&&o.items)&&o.items.length){return o.items.map(function(it){var n=lang==='en'?(it.nameEn||it.nameJa):(it.nameJa||it.nameEn),raw=String(it.item_name||it.name||'');return (/[（(][^（）()]*[)）]\s*$/.test(raw)?localizedItem(raw):(n||localizedItem(raw)))+'x'+it.qty;}).join(', ');}
+      if(Array.isArray(o&&o.items)&&o.items.length){return o.items.map(function(it){var n=lang==='en'?(it.nameEn||it.nameJa):(it.nameJa||it.nameEn),raw=String(it.item_name||it.name||'');return (/[（(][^（）()]*[)）]\s*$/.test(raw)?(n&&/[（(][^（）()]*[)）]\s*$/.test(n)&&n!==raw&&!(lang==='en'&&n.indexOf('コミッション')>=0)?n:localizedItem(raw)):(n||localizedItem(raw)))+'x'+it.qty;}).join('\n');}
       return transDetails(o&&o.details||'');
     }
     // ── 自動更新（間隔設定・ON/OFF・会計中は停止） ──
@@ -756,10 +908,37 @@
     // サービス料・入場料を含んでおらず、実際の会計金額と食い違って見える不具合の修正。
     // breakdown()（サービス料・税）とcomputeEntryFeesPreview()（入場料・延長料）を使い、
     // openPay/recompPayと同じ計算式で「実際に請求される合計」を一覧側でも表示する。
+    function computeVipFeesPreview(table,skipForSplit){
+      var v=VIP_STATES[table],startedAt=Number(v&&v.startedAt)||0;
+      if(skipForSplit||!v||startedAt<=0)return {vipCharge:0,vipExtensionFee:0};
+      var baseMin=Number(v.baseMinutes)||0,unitMin=Number(v.extensionMinutes)||0;
+      if(baseMin<1||unitMin<1)return {vipCharge:0,vipExtensionFee:0};
+      var extra=Math.max(0,(Date.now()-startedAt)/60000-baseMin);
+      var units=Math.max(0,Math.ceil(extra/unitMin));
+      return {vipCharge:roundCharge(Number(v.baseCharge)||0),
+        vipExtensionFee:roundCharge((Number(v.extensionCharge)||0)*units)};
+    }
+
     function computeGroupTotal(subtotal, table){
       var b = breakdown(subtotal);
       var f = computeEntryFeesPreview(PARTY_SIZES[table], false);
-      return b.total + f.entryFee + f.extensionFee;
+      var vip = computeVipFeesPreview(table,false);
+      return b.total + f.entryFee + f.extensionFee + vip.vipCharge + vip.vipExtensionFee;
+    }
+    // Display-only allocation. The underlying order.price is always the pre-charge
+    // subtotal used by openPay/finalizeBill; never save these allocated amounts.
+    // Using running totals (rather than rounding each order independently) makes
+    // the displayed row amounts add up exactly to the checkout charge, excluding
+    // per-table entry/extension fees that are shown only in the table total.
+    function computeOrderDisplayTotals(rows){
+      var subtotal = 0, previouslyBilled = 0;
+      return rows.map(function(o){
+        subtotal += Number(o.price)||0;
+        var billed = breakdown(subtotal).total;
+        var rowAmount = roundCharge(billed - previouslyBilled);
+        previouslyBilled = billed;
+        return rowAmount;
+      });
     }
     function partialCoversAllActive(table, ids, freshOrders){
       if (!ids || !ids.length) return false;
@@ -797,7 +976,11 @@
       // this does not enable the disabled split-checkout interface.
       var recordedOnSeat=orders.some(function(o){return String(o.table)===String(tn)&&o.status!=='会計済'&&o.status!=='取消'&&cashRecordBlocks(tn,[String(o.id)]);});
       var effectiveIds=orderIds||(recordedOnSeat?local.map(function(o){return String(o.id);}):null);
-      var unserved=local.filter(function(o){return o.status!=='提供済'||!!servedPending[o.id];});
+      if(local.some(function(o){return !!servedPending[o.id];})){
+        UIAlert(lang==='en'?'The served update is still in progress. Please try checkout after it finishes.':'提供済への更新処理中です。完了後に会計してください。');
+        return Promise.resolve(false);
+      }
+      var unserved=local.filter(function(o){return o.status!=='提供済';});
       if(unserved.length){UIAlert(checkoutBlockedMessage(unserved));return Promise.resolve(false);}
       var partialAtStart=!!(orderIds&&document.getElementById('partModal').classList.contains('on'));
       // Payments are online-only. Cached orders may be viewed offline, never settled.
@@ -836,10 +1019,11 @@
           }
         }
         if(d.partySizes)PARTY_SIZES=d.partySizes;
+        if(d.vipStates)VIP_STATES=d.vipStates;
         var latestSubtotal=latest.reduce(function(sum,o){return sum+(Number(o.price)||0);},0);
         var latestRecorded=d.orders.some(function(o){return String(o.table)===String(tn)&&o.status!=='会計済'&&o.status!=='取消'&&cashRecordBlocks(tn,[String(o.id)]);});
         var finalIds=orderIds||(latestRecorded?latest.map(function(o){return String(o.id);}):null);
-        closePart();openPayReady(tn,latestSubtotal,finalIds,d.orders);return true;
+        closePart();openPayReady(tn,latestSubtotal,finalIds,d.orders,d.partySizes);return true;
       }).catch(function(){
         UIAlert(lang==='en'?'Could not verify the latest order status. Please check your connection and try again.':'最新の注文状態を確認できませんでした。通信状態を確認し、再度お試しください。');
         return false;
@@ -848,14 +1032,35 @@
         buttons.forEach(function(b,i){if(b.isConnected){b.disabled=false;b.textContent=labels[i];}});
       });
     };
-    function openPayReady(tn, subtotal, orderIds, freshOrders){
+    var scCheckoutCheckSerial=0;
+    function checkScCheckoutWarning(){
+      var notice=document.getElementById('payScWarning'),current=++scCheckoutCheckSerial;
+      notice.hidden=true;notice.textContent='';
+      if(!(payBase&&Number(payBase.service)>0))return;
+      API.post('rpc',{fn:'getScDistributionStatus',args:[],token:TOKEN,
+        __silent:true,__noInternalRetry:true,__timeoutMs:API.TIMEOUT_MS.read}).then(function(response){
+        if(current!==scCheckoutCheckSerial||!document.getElementById('payModal').classList.contains('on'))return;
+        var d=response&&response.data||{};
+        if(!d.willRemainUnallocated)return;
+        notice.textContent=lang==='en'?
+          'No staff are eligible for SC sharing. Checkout can continue, but the staff share will be recorded as unallocated. Set eligible staff in Staff Commission → SC sharing.':
+          'SC分配対象スタッフが0人です。会計は継続できますが、SCのスタッフ分配分は未分配として記録されます。「歩合・スタッフ報酬 → SC分配」で対象者を設定してください。';
+        notice.hidden=false;
+      }).catch(function(){/* A warning probe must never block checkout or imply an unverified state. */});
+    }
+    function openPayReady(tn, subtotal, orderIds, freshOrders, freshPartySizes){
       if(typeof navigator!=='undefined'&&navigator.onLine===false){UIAlert(offlineCheckoutWarning());return;}
       resetPs3();
       payMethod = 'cash';
       payTable = tn; payCheckoutId = null; payOrderIds = (orderIds && orderIds.length) ? orderIds : null; paySub = Number(subtotal)||0; payBase = breakdown(paySub);
+      payRecoveryOrderIds = checkoutTargets(freshOrders||orders, tn, payOrderIds)
+        .map(function(o){return String(o.id);});
+      checkoutOutcomeUnknown = false;
       var shouldPreviewFees = !payOrderIds || partialCoversAllActive(tn, payOrderIds, freshOrders);
       var initialFees = shouldPreviewFees ? computeEntryFeesPreview(PARTY_SIZES[tn], false) : { entryFee:0, extensionFee:0, partySize:0 };
       payEntryFee = initialFees.entryFee; payExtensionFee = initialFees.extensionFee; payPartySize = initialFees.partySize;
+      var initialVip=computeVipFeesPreview(tn,!shouldPreviewFees);
+      payVipCharge=initialVip.vipCharge;payVipExtensionFee=initialVip.vipExtensionFee;
       document.getElementById('dcOn').checked = false; document.getElementById('dcId').value=''; document.getElementById('dcElig').value=''; document.getElementById('dcName').value='';
       document.getElementById('dcApprLogin').value=''; document.getElementById('dcApprPass').value='';
       var _da=document.getElementById('dcApprAlert'); _da.style.display='none';
@@ -888,8 +1093,11 @@
       recompPay();
       step(1);
       document.getElementById('payModal').classList.add('on');
-      if (shouldPreviewFees){
-        API.post('getTablePartySize', { table: tn }).then(function(r){
+      checkScCheckoutWarning();
+      // Checkout preflight already fetched the authoritative party-size snapshot.
+      // Avoid a second RPC (previously even sent without the staff token).
+      if (shouldPreviewFees && !freshPartySizes){
+        API.post('getTablePartySize', { table: tn, token: TOKEN, __silent:true, __noInternalRetry:true }).then(function(r){
           if (payTable !== tn) return; // その間にモーダルが閉じ/別卓が開かれていたら無視
           var f = computeEntryFeesPreview(r && r.data, false);
           if (r && r.data) PARTY_SIZES[tn] = r.data;
@@ -912,7 +1120,9 @@
       var spc = on ? genericDiscountCalc(sub, eligible, b, rule) : null;
       if (on) { disc = spc.discountAmount; vat = spc.vat; }
       else { vat = b.tax; }
-      var total = (on ? spc.total : Math.max(0, (b.total||0))) + payEntryFee + payExtensionFee;
+      var vipNow=computeVipFeesPreview(payTable,!!(payOrderIds&&!partialCoversAllActive(payTable,payOrderIds,orders)));
+      payVipCharge=vipNow.vipCharge;payVipExtensionFee=vipNow.vipExtensionFee;
+      var total = (on ? spc.total : Math.max(0, (b.total||0))) + payEntryFee + payExtensionFee + payVipCharge + payVipExtensionFee;
       payTotal = total;
       // 表示用のプレビュー計算（実際の会計金額はサーバー側finalizeBillが対象注文の登録価格・卓の人数/入店時刻
       // から再計算する。クライアントのこの値は画面表示のみに使い、送信するのは種別・対象額・氏名・ID番号のみ）。
@@ -920,14 +1130,16 @@
       document.getElementById('dcApprBox').style.display=on&&rule&&rule.managerApprovalRequired&&!currentUserCanApprove()?'':'none';
       window._bill = { subtotal: sub, vat: vat, service: b.service, discountType: on?(rule.legacyType||''):'', discountRuleId:on&&!rule.legacyType?rule.id:'', discountId: on?document.getElementById('dcId').value:'',
         discountName: on?document.getElementById('dcName').value:'', discountEligible: on?eligible:0, discountAmount: disc, total: total,
-        entryFee: payEntryFee, extensionFee: payExtensionFee };
+        entryFee: payEntryFee, extensionFee: payExtensionFee, vipCharge: payVipCharge, vipExtensionFee:payVipExtensionFee };
       var html = '<div style="font-weight:900;font-size:15px;margin-bottom:8px;">🪑 '+esc(seatLabel(payTable))+'</div>';
       html += '<div class="sr"><span>'+t().sub+'</span><span>'+money(sub)+'</span></div>';
       if (b.service>0) html += '<div class="sr"><span>'+t().svc+'</span><span>'+money(b.service)+'</span></div>';
-      if (b.tax>0) html += '<div class="sr"><span>'+esc(taxName())+'</span><span>'+money(b.tax)+'</span></div>';
+      if (vat>0) html += '<div class="sr"><span>'+esc(taxSummaryLabel())+'</span><span>'+taxSummaryAmount(vat)+'</span></div>';
       if (disc>0) html += '<div class="sr" style="color:#b91c1c;"><span>'+t().discLine+' ('+esc(lang==='en'?(rule.nameEn||rule.nameJa||rule.name):(rule.nameJa||rule.nameEn||rule.name))+')</span><span>− '+money(disc)+'</span></div>';
       if (payEntryFee>0) html += '<div class="sr"><span>'+t().entryFeeLbl+' × '+payPartySize+'</span><span>'+money(payEntryFee)+'</span></div>';
       if (payExtensionFee>0) html += '<div class="sr"><span>'+t().extFeeLbl+'</span><span>'+money(payExtensionFee)+'</span></div>';
+      if (payVipCharge>0) html += '<div class="sr"><span>'+t().vipChargeLbl+'</span><span>'+money(payVipCharge)+'</span></div>';
+      if (payVipExtensionFee>0) html += '<div class="sr"><span>'+t().vipExtFeeLbl+'</span><span>'+money(payVipExtensionFee)+'</span></div>';
       html += '<div class="big">'+money(total)+'</div>';
       document.getElementById('paySum').innerHTML = html;
       document.getElementById('dcNote').innerText = on ? ((lang==='en'?'incl. ':'うち')+taxName()+' '+money(vat)) : '';
@@ -939,7 +1151,7 @@
       document.getElementById('partList').innerHTML = rows.map(function(o){
         return '<label style="display:flex;gap:8px;align-items:center;padding:9px 2px;border-bottom:1px solid #eee;cursor:pointer;">'
           + '<input type="checkbox" class="pchk" data-id="'+esc(o.id)+'" data-price="'+(Number(o.price)||0)+'" onchange="updPart()">'
-          + '<span style="flex:1;">'+esc(orderDetailsText(o))+'</span><span style="font-weight:800;">'+money(o.price||0)+'</span></label>';
+          + '<span style="flex:1;min-width:0;white-space:pre-line;overflow-wrap:anywhere;">'+esc(orderDetailsText(o))+'</span><span style="font-weight:800;">'+money(o.price||0)+'</span></label>';
       }).join('') || '<div style="color:#aaa;padding:14px;">-</div>';
       document.getElementById('partT').innerText = t().partTitle;
       document.getElementById('partSelLbl').innerText = t().selected;
@@ -960,6 +1172,8 @@
       html += '<div style="font-weight:800;margin:6px 0;">'+t().orLbl+': <b>'+esc(orNo)+'</b></div>';
       html += '<div style="font-size:20px;font-weight:900;color:var(--green);margin-bottom:6px;">'+money(bill.total)+' — '+esc(seatLabel(bill.table))+'</div>';
       if (bill.discountAmount>0) html += '<div style="font-size:13px;color:#64748b;">'+t().discLine+' '+money(bill.discountAmount)+(bill.discountId?(' / ID '+esc(bill.discountId)):'')+'</div>';
+      if(Number(bill.scUnallocated)>0) html += '<div role="status" style="margin-top:10px;padding:9px;border-radius:9px;background:#fff7ed;color:#9a3412;font-size:12px;">'+
+        (lang==='en'?'Unallocated staff share of SC: ':'SCスタッフ分配分が未分配になりました：')+money(bill.scUnallocated)+'</div>';
       html += '<div style="display:flex;gap:8px;margin-top:14px;"><button class="pbtn" style="background:var(--green);flex:1;margin:0;" onclick="closePay();load();">'+t().close+'</button></div>';
       document.getElementById('ps3').innerHTML = html;
       window._lastBill = { orNo: orNo, bill: bill };
@@ -984,7 +1198,12 @@
         + '<scr'+'ipt>window.print();<\/scr'+'ipt></body></html>');
       w.document.close();
     };
-    window.closePay = function(){ document.getElementById('payModal').classList.remove('on'); payCheckoutId=null; resetPs3(); };
+    window.closePay = function(){
+      scCheckoutCheckSerial++;
+      document.getElementById('payModal').classList.remove('on');
+      payCheckoutId=null;payRecoveryOrderIds=[];checkoutOutcomeUnknown=false;
+      resetPs3();
+    };
     function step(n){ [1,2,3].forEach(function(i){ document.getElementById('ps'+i).style.display = (i===n)?'block':'none'; }); }
     // レシート表示でps3の中身を差し替えるため、会計開始時に標準スケルトンへ復元（#doneBtn等の消失防止）
     function resetPs3(){
@@ -1081,8 +1300,49 @@
       document.getElementById('doneBtn').innerText = t().done;
       step(3);
     };
+    function checkoutUnconfirmedMessage(){
+      return lang==='en'
+        ?'Checkout result is not confirmed. Do not charge again. Check the receipt history or tap Check status after reconnecting.'
+        :'会計結果を確認できません。再会計せず、領収書履歴を確認するか、通信復旧後に「会計状況を確認」を押してください。';
+    }
+    function checkCheckoutOutcome(){
+      if(checkoutOutcomeChecking)return Promise.resolve();
+      if(!payRecoveryOrderIds.length){UIAlert(checkoutUnconfirmedMessage());return Promise.resolve();}
+      if(typeof navigator!=='undefined'&&navigator.onLine===false){
+        UIAlert(checkoutUnconfirmedMessage());return Promise.resolve();
+      }
+      var ids=payRecoveryOrderIds.slice(),table=payTable,btn=document.getElementById('doneBtn');
+      checkoutOutcomeChecking=true;
+      if(btn){btn.disabled=true;btn.innerText=t().checking;}
+      return API.post('getCheckoutOutcome',{token:TOKEN,table:table,orderIds:ids,
+        __silent:true,__noInternalRetry:true,__timeoutMs:API.TIMEOUT_MS.read})
+        .then(function(r){
+          var d=r&&r.data||{};
+          if(payTable!==table||JSON.stringify(payRecoveryOrderIds)!==JSON.stringify(ids))return;
+          if(d.status==='settled'&&d.recovered===true&&d.orNo&&
+            d.table===table&&Number.isFinite(Number(d.total))){
+            checkoutOutcomeUnknown=false;
+            showReceipt(d.orNo,{table:table,method:d.method,subtotal:d.subtotal,
+              vat:d.vat,service:d.service,discountAmount:d.discountAmount,
+              discountType:d.discountType,total:d.total});
+            // Readback must never enqueue or automatically print a second receipt.
+            UIAlert(lang==='en'?'Checkout was already completed. The saved receipt has been recovered.'
+              :'会計はすでに完了しています。保存済みの領収書を復元しました。');
+            return;
+          }
+          checkoutOutcomeUnknown=true;
+          UIAlert(checkoutUnconfirmedMessage());
+        }).catch(function(){checkoutOutcomeUnknown=true;UIAlert(checkoutUnconfirmedMessage());})
+        .finally(function(){
+          checkoutOutcomeChecking=false;
+          var current=document.getElementById('doneBtn');
+          if(current){current.disabled=false;current.innerText=checkoutOutcomeUnknown?
+            (lang==='en'?'🔎 Check checkout status':'🔎 会計状況を確認'):t().done;}
+        });
+    }
     window.finalize = function(){
-      if(offlineCashBusy)return;
+      if(offlineCashBusy||checkoutFinalizeBusy||checkoutOutcomeChecking)return;
+      if(checkoutOutcomeUnknown)return checkCheckoutOutcome();
       if(typeof navigator!=='undefined'&&navigator.onLine===false){
         UIAlert(offlineCheckoutWarning());return;
       }
@@ -1099,21 +1359,42 @@
         discountType: pv.discountType||'', discountRuleId:pv.discountRuleId||'', discountId: pv.discountId||'', discountName: pv.discountName||'', discountEligible: pv.discountEligible||0,
         discountApproverLogin: discOn&&!currentUserCanApprove()?document.getElementById('dcApprLogin').value.trim():'', discountApproverPass: discOn&&!currentUserCanApprove()?document.getElementById('dcApprPass').value:'',
         __timeoutMs: API.TIMEOUT_MS.write }; // [タイムアウト共通化] 会計確定は複数注文まとめての場合もあり時間がかかり得るため専用枠を使う
+      checkoutFinalizeBusy=true;
+      req.__noInternalRetry=true;
       API.post('finalizeBill', req).then(function(r){
-        btn.disabled=false; btn.innerText=t().done; var d=r.data||{};
+        btn.disabled=false; btn.innerText=t().done; var d=(r&&r.data)||{};
+        // Some HTTP adapters resolve {ok:false} instead of rejecting. Neither
+        // a transport error nor an incomplete success envelope proves that
+        // payment failed/succeeded; reconcile instead of showing a fake receipt.
+        if(!r||r.ok===false||(!d.error&&!d.demo&&
+          (!d.orNo||!Number.isFinite(Number(d.total))))){
+          checkoutOutcomeUnknown=true;
+          return checkCheckoutOutcome();
+        }
         if (d.error==='discount_auth'){ UIAlert(t().authFail); return; }
         if (d.error==='discount_not_manager'){ UIAlert(t().discNotManager); return; }
         if (d.error==='senior_discount_disabled'){ UIAlert(t().discDisabled); return; }
         if (d.error==='discount_rule_not_found'){ UIAlert(lang==='en'?'The discount is disabled or no longer exists.':'割引が無効化または削除されています。'); return; }
         if (d.error==='discount_id_required'){ UIAlert(lang==='en'?'ID is required.':'ID番号を入力してください。'); return; }
         if (d.error==='unserved_orders'){ closePay(); UIAlert(t().unservedBill); load(true); return; }
+        // Concurrent cashier: nothing_to_bill may mean another terminal
+        // settled first. Read back the exact saved orders, never resubmit.
+        if (d.error==='already_settled'||d.error==='nothing_to_bill'){
+          checkoutOutcomeUnknown=true;
+          return checkCheckoutOutcome();
+        }
         if (d.error){ UIAlert('Error: '+API.userErrorText(d.error)); return; }
         if (d.demo){ closePay(); load(true); UIAlert(t().demoDone); return; }
         // 表示・印刷・eレシートは全てサーバーが再計算した金額を正とする。
         var bill = { table: payTable, method: payMethod, paymentLabel:d.paymentLabel||'', paymentLabelJa:d.paymentLabelJa||'', paymentLabelEn:d.paymentLabelEn||'', receiptPaymentLabel:d.receiptPaymentLabel||'', receiptPaymentLabelJa:d.receiptPaymentLabelJa||'', receiptPaymentLabelEn:d.receiptPaymentLabelEn||'', subtotal: d.subtotal, vat: d.vat, service: d.service,
+          scUnallocated:Number(d.commission&&d.commission.serviceChargeUnallocated)||0,
           discountType: d.discountType||pv.discountType||'', discountId: pv.discountId||'', discountAmount: d.discountAmount, total: d.total };
         showReceipt(d.orNo||'', bill);
-      }).catch(function(e){ btn.disabled=false; btn.innerText=t().done; UIAlert('Error: '+API.userErrorText(e)); });
+      }).catch(function(){
+        // The server may have committed the receipt before the response was lost.
+        checkoutOutcomeUnknown=true;
+        return checkCheckoutOutcome();
+      }).finally(function(){checkoutFinalizeBusy=false;});
     };
 
     // ヘッダの現在日時表示
@@ -1124,6 +1405,57 @@
       el.textContent = window.DateDisplay ? DateDisplay.formatDateTime(d.toISOString()).slice(0,16) : d.getFullYear()+'-'+_pad2(d.getMonth()+1)+'-'+_pad2(d.getDate())+' '+_pad2(d.getHours())+':'+_pad2(d.getMinutes());
     }
 
+    function settingsSnapshot(response){
+      var latest=(response&&response.settings)||(response&&response.data&&response.data.settings)||(response&&response.data)||response;
+      if(!latest||typeof latest!=='object'||Array.isArray(latest)||latest.error||!Object.keys(latest).length)throw new Error('settings_unavailable');
+      // An incomplete successful payload must never silently zero out the store's charges.
+      if(!String(latest.currencySymbol||'').trim()||!Object.prototype.hasOwnProperty.call(latest,'serviceRate')
+        ||!Object.prototype.hasOwnProperty.call(latest,'taxRate')
+        ||!isFinite(Number(latest.serviceRate))||!isFinite(Number(latest.taxRate)))throw new Error('settings_unavailable');
+      return latest;
+    }
+    function ensurePricingReady(){
+      if(_pricingReady)return Promise.resolve(true);
+      if(_pricingInitPromise)return _pricingInitPromise;
+      // Bootstrap and the authoritative settings refresh are independent reads.
+      // Start both together instead of serial round trips through Control/D1.
+      // Do not render charges until BOTH have settled; settings wins on conflict.
+      var bootstrapRequest=API.post('bootstrap',{token:TOKEN}).then(function(r){
+        SETTINGS=settingsSnapshot(r.settings);
+        PAYMONGO=!!r.paymongo;BASE_DISCOUNT_RULES=r.discountRules||[];
+        MENU_MAP=Object.create(null);
+        (r.menu||[]).forEach(function(m){
+          var key=String(m['商品名']||'').trim();if(!key)return;
+          var entry={ja:String(m['商品名_JA']||'').trim(),en:String(m['商品名_EN']||'').trim(),choices:Object.create(null)};
+          try{var groups=typeof m['オプション']==='string'?JSON.parse(m['オプション']||'[]'):m['オプション'];(Array.isArray(groups)?groups:[]).forEach(function(g){(g.choices||[]).forEach(function(c){[c.label,c.labelJa,c.labelEn].forEach(function(a){a=String(a||'').trim();if(a&&!entry.choices[a])entry.choices[a]={ja:String(c.labelJa||'').trim(),en:String(c.labelEn||'').trim()};});});});}catch(e){}
+          MENU_MAP[key]=entry;
+        });
+        return true;
+      }).catch(function(){return false;});
+      var settingsRequest=API.post('getSettings',{token:TOKEN}).then(function(sr){
+        return settingsSnapshot(sr);
+      }).catch(function(){return null;});
+      _pricingInitPromise=Promise.all([bootstrapRequest,settingsRequest]).then(function(results){
+        if(results[1])SETTINGS=Object.assign({},SETTINGS,results[1]);
+        // Either independent authoritative read can keep pricing available;
+        // neither an incomplete bootstrap nor partial settings can unlock it.
+        if(!results[0]&&!results[1])throw new Error('settings_unavailable');
+      }).then(function(){
+        _pricingReady=true;
+        _pricingFromCache=false;
+        clearOpsReadError();
+        renderOfflineCashStatus();
+        render(); // Also repaint a cached snapshot if a later delta replies unchanged:true.
+        saveOfflineOrders();
+        return true;
+      }).catch(function(){
+        if(_pricingFromCache && typeof navigator!=='undefined' && navigator.onLine===false) return true;
+        displayOpsReadError('settings_unavailable');
+        render(); // Keep amounts and checkout unavailable rather than show raw prices.
+        return false;
+      }).finally(function(){_pricingInitPromise=null;});
+      return _pricingInitPromise;
+    }
     function boot(){
       // 言語の初期化・切替・永続化は共通部品I18nに一本化（他のスタッフ向け画面と同じ仕組み）。
       I18n.init(i18n, onLangChange);
@@ -1136,22 +1468,7 @@
       }).catch(function(){});
       updateHeadClock();
       setInterval(updateHeadClock, 15000);
-      API.post('bootstrap', {token:TOKEN}).then(function(r){
-        SETTINGS = r.settings || {}; PAYMONGO = !!r.paymongo; BASE_DISCOUNT_RULES = r.discountRules || [];
-        MENU_MAP=Object.create(null);
-        (r.menu||[]).forEach(function(m){
-          var key=String(m['商品名']||'').trim();if(!key)return;
-          var entry={ja:String(m['商品名_JA']||'').trim(),en:String(m['商品名_EN']||'').trim(),choices:Object.create(null)};
-          try{var groups=typeof m['オプション']==='string'?JSON.parse(m['オプション']||'[]'):m['オプション'];(Array.isArray(groups)?groups:[]).forEach(function(g){(g.choices||[]).forEach(function(c){[c.label,c.labelJa,c.labelEn].forEach(function(a){a=String(a||'').trim();if(a&&!entry.choices[a])entry.choices[a]={ja:String(c.labelJa||'').trim(),en:String(c.labelEn||'').trim()};});});});}catch(e){}
-          MENU_MAP[key]=entry;
-        });
-        return API.post('getSettings', {token:TOKEN}).then(function(sr){
-          var latest=(sr&&sr.settings)||(sr&&sr.data&&sr.data.settings)||(sr&&sr.data)||sr||{};
-          if(latest.error) throw new Error(latest.error);
-          SETTINGS=Object.assign({},SETTINGS,latest);
-        }).catch(function(){ /* bootstrap settings remain available if refresh fails */ }).then(function(){ saveOfflineOrders();load(); });
-      }).catch(function(){ load(); });
-      loadCalls();
+      ensurePricingReady().then(function(ready){if(ready)load(true);});
       resetTimer();
       // [P0][慎重レビューH5対応] タブが非表示の間はポーリング間隔を落とし、再表示時に即最新化する。
       // 固定8秒の別タイマーは廃止し、resetTimer（_pollIntervalMs）へ一本化した。
@@ -1171,12 +1488,13 @@
       title: '注文管理画面の使い方',
       titleEn: 'How to use Orders',
       items: [
-        { ja: '① 未会計の注文が卓ごとにグループ表示されます。各明細の「提供済にする」ボタンで提供済みに、「取消」ボタンで注文取消できます。取消理由は常に必須で、設定がONの場合はマネージャー以上の承認も必要です。', en: '① Unpaid orders are grouped by table. Use "Mark served" on each line, or "Void" to cancel an order. A reason is always required, and Manager-or-above approval is also required when enabled in Settings.' },
+        { ja: '① 未会計の注文が卓ごとにグループ表示されます。各注文の表示金額は設定されたサービス料・税を反映した会計見込み額です（入場料・延長料は卓合計のみ）。「提供済にする」で提供済み、「取消」で注文取消できます。取消理由は常に必須で、設定がONの場合はマネージャー以上の承認も必要です。', en: '① Unpaid orders are grouped by table. Each order amount estimates the checkout charge including configured service charge and tax (entry/extension fees appear only in the table total). Use "Mark served" or "Void" on each order. Voiding requires a reason and, when enabled, Manager-or-above approval.' },
         { ja: '② 「💳会計する」ボタンで会計を開始し、設定画面で有効にした決済方法と割引から選べます。割引ごとに、ID提示・マネージャー以上の承認・税免除の条件が自動適用されます。カード・QR決済は外部端末または決済サービスで入金を確認してから完了してください。', en: '② Tap "💳 Checkout" and choose an enabled payment method and discount. Each discount automatically applies its configured ID, Manager-or-above approval, and tax-exemption rules. Confirm card or QR payment externally before completing checkout.' },
         { ja: '③ 会計完了後は「🖨️レシート印刷」ボタンで領収書を印刷できます。会計時にeレシート送付先メールも入力できます。', en: '③ After checkout, tap "🖨️ Print receipt" to print a receipt. You can also enter an e-receipt email during checkout.' },
-        { ja: '④ 画面上部の🔔呼び出し欄に、お客様の「スタッフ呼出」「お会計希望」がリアルタイムで表示され、「対応済」ボタンで消せます。', en: '④ Customer "Call staff" and "Bill please" requests appear at the top in real time — tap "Done" to clear them.' },
+        { ja: '④ 画面上部の🔔呼び出し欄では、お客様のスタッフ呼出・会計希望が自動更新（10/30/60秒）または手動更新時に反映されます。「対応済」で処理できます。自動更新OFF時は手動更新してください。', en: '④ Customer staff-call and bill requests appear at the top after auto-refresh (10/30/60 seconds) or manual refresh. Tap Done to resolve them. When auto-refresh is off, refresh manually.' },
         { ja: '⑤ 「自動更新: ON/OFF」ボタンと10s/30s/60sの間隔ボタンで、画面の自動更新頻度を調整できます。↻ボタンで手動更新もできます。', en: '⑤ Use the Auto ON/OFF toggle and the 10s/30s/60s interval buttons to control how often the screen refreshes. Tap ↻ to refresh manually.' },
-        { ja: '⑥ 「🧾履歴」リンクで過去の会計履歴（receipts.html）に、「← 管理」でメニュー画面に戻れます。EN/JPボタンで表示言語を切り替えられます。', en: '⑥ Use the "🧾 History" link for past receipts, "← Manage" to return to the menu, and EN/JP to switch language.' }
+        { ja: '⑥ 「🧾履歴」リンクで過去の会計履歴（receipts.html）に、「← 管理」でメニュー画面に戻れます。EN/JPボタンで表示言語を切り替えられます。', en: '⑥ Use the "🧾 History" link for past receipts, "← Manage" to return to the menu, and EN/JP to switch language.' },
+        { ja: '⑦ 卓名・滞在時間の横の「✎」で入場時刻を修正できます。保存すると滞在時間と通常/ VIP延長料金の計算時刻が更新されます。注文の記録日時は変更しません。退場時刻の入力は不要です。', en: '⑦ Tap the pencil beside a table’s stay duration to correct its entry date/time. The stay timer and ordinary/VIP overtime fees use the corrected time; order timestamps remain unchanged. No exit-time input is required.' }
       ]
     });
   </script>

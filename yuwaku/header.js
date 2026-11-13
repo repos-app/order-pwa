@@ -14,14 +14,24 @@
     var session = readSession();
     if (!session.loggedIn) { applyAccent(''); return Promise.resolve(); }
     if (!window.API || typeof window.API.post !== 'function') return Promise.resolve();
-    var token = session.token;
+    var token = session.token, identity = sessionIdentity(token);
     return window.API.post('getSettings', { token:token, __silent:true, __noInternalRetry:true }).then(function (result) {
-      if (readSession().token !== token) return;
+      var current = readSession();
+      if (!current.loggedIn || sessionIdentity(current.token) !== identity) return;
       var data = result && (result.data || result) || {};
       applyAccent((data.settings || data).accentColor);
     }).catch(function () {});
   }
   var state = { timezone: '', timer: null, clock: null, user: null, lang: null, titleSource: null };
+  var currentHeaderIdentity = '';
+  function sessionIdentity(token) {
+    var raw = String(token || ''), dot = raw.lastIndexOf('.');
+    if (dot < 0) return '';
+    var parts = raw.slice(0, dot).split('~');
+    if (!((parts.length === 6 && parts[0] === 'v2') ||
+          (parts.length === 7 && parts[0] === 'v3' && parts[6]))) return '';
+    return [parts[0],parts[2],parts[3],parts[4],parts[5],parts[6] || ''].join('~');
+  }
 
   // Three ASCII dots count towards the byte ceiling. Avoid cutting UTF-8
   // Japanese characters or four-byte emoji between code points.
@@ -86,8 +96,10 @@
     if (typeof token !== 'string') return false;
     var dot = token.lastIndexOf('.'), parts = token.slice(0, dot).split('~');
     var audience = CFG.TEST_ENV ? 'test' : 'production';
-    return dot > 0 && /^[a-f0-9]{64}$/.test(token.slice(dot + 1)) && parts.length === 6 &&
-      parts[0] === 'v2' && Number(parts[1]) > Number(now == null ? Date.now() : now) &&
+    var versionOk = (parts.length === 6 && parts[0] === 'v2') ||
+      (parts.length === 7 && parts[0] === 'v3' && !!parts[6]);
+    return dot > 0 && /^[a-f0-9]{64}$/.test(token.slice(dot + 1)) && versionOk &&
+      Number(parts[1]) > Number(now == null ? Date.now() : now) &&
       !!parts[2] && !!parts[3] && !!parts[4] && parts[5] === audience;
   }
 
@@ -297,6 +309,7 @@
     if (back) { var target = resolveBackTarget(location.search) || (/(?:^|[?&])from=overview(?:&|$)/i.test(String(location.search || '')) ? './overview.html' : ''); back.textContent = compact ? '←' : text(isJa, '← 戻る', '← Back'); back.title = target ? text(isJa, '前の画面へ戻る', 'Back to previous screen') : text(isJa, '前の画面に戻る', 'Go back'); back.setAttribute('aria-label', back.title); }
     renderTitle();
     if (window.IZAICreditHub) window.IZAICreditHub.translate();
+    if (window.IZAnnouncements) window.IZAnnouncements.translate();
   }
 
   // The header stays mounted while manage.html signs out in this Document.
@@ -306,8 +319,12 @@
     var meta=document.getElementById('izHeaderMeta');
     if(!meta)return;
     var session=readSession(),policy=pagePolicy(location.pathname,session.loggedIn,location.search);
-    if(state.user){state.user.remove();state.user=null;}
-    if(policy.showUser&&session.name){
+    if(state.user && (!policy.showUser || !session.name ||
+        state.user.getAttribute('data-iz-user-name') !== session.name ||
+        state.user.getAttribute('data-iz-user-role') !== (session.role || ''))){
+      state.user.remove();state.user=null;
+    }
+    if(!state.user && policy.showUser&&session.name){
       var user=document.createElement('span');user.id='izHeaderUser';user.className='iz-header-user';
       user.setAttribute('data-iz-user-name',session.name);
       user.setAttribute('data-iz-user-role',session.role||'');
@@ -319,6 +336,7 @@
     });
     renderLanguage();
     ensureAiCreditHub(policy);
+    ensureAnnouncements(policy);
   }
 
   function switchLanguage() {
@@ -527,7 +545,7 @@
       'body{overflow-wrap:normal;word-break:normal}' +
       'body input,body textarea,body select{max-width:100%;box-sizing:border-box}' +
       'body img,body video{max-width:100%}' +
-      '#izHeaderTitle{font-size:12px;font-weight:800;line-height:1.2;flex:1 1 auto;min-width:0;white-space:normal;overflow-wrap:anywhere;text-align:left}' +
+      '#izHeaderTitle{font-size:12px;font-weight:800;line-height:1.2;flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}' +
       '#izHeaderMeta{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex:0 0 auto;min-width:max-content;flex-wrap:nowrap;overflow:visible;margin-left:auto}' +
       '#izHeaderActions{display:flex;align-items:center;gap:6px;flex:0 0 auto;flex-wrap:nowrap;margin-left:auto}' +
       '.iz-header-clock,.iz-header-user{font-size:12px;font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums;background:rgba(255,255,255,.1);padding:7px 9px;border-radius:8px}' +
@@ -542,9 +560,11 @@
       '#izHeaderExtra[hidden]{display:none}' +
       '#izHeaderExtra a,#izHeaderExtra button{margin:0!important}' +
       '@media(max-width:720px){#izCommonHeader .iz-header-main{gap:4px;padding:6px 8px;min-height:44px}#izHeaderTitle{min-width:0;font-size:12px}#izHeaderExtra{gap:4px}.iz-header-clock{font-size:12px;padding:6px}.iz-header-user{max-width:none;min-width:max-content;padding:3px 6px}.iz-header-btn{width:32px;min-height:32px;padding:6px;font-size:13px}#izHeaderLang{width:auto;min-width:38px}}' +
+      '@media(max-width:720px){#izCommonHeader #izHeaderActions>.iz-header-btn:not(#izAiCreditBadge){width:40px!important;min-width:40px!important;max-width:40px!important;padding-left:3px!important;padding-right:3px!important;box-sizing:border-box!important}}' +
+      '@media(max-width:430px){#izHeaderMeta{gap:4px}}' +
       '@media(max-width:480px){.iz-header-clock{display:none}}' +
-      '@media(max-width:430px){#izHeaderActions{gap:4px}}' +
-      '@media(max-width:430px){#izCommonHeader .iz-header-main{flex-wrap:nowrap}#izHeaderTitle{white-space:normal;overflow-wrap:anywhere;line-height:1.2;min-width:0}#izHeaderMeta{flex-wrap:nowrap;overflow:visible}#izHeaderActions{gap:4px}#izHeaderExtra{flex-wrap:nowrap}#izHeaderExtra[hidden],#izHeaderMeta:empty{display:none}}' +
+      '@media(max-width:430px){#izHeaderActions{gap:3px}}' +
+      '@media(max-width:430px){#izCommonHeader .iz-header-main{flex-wrap:nowrap}#izHeaderTitle{line-height:1.2;min-width:0}#izHeaderMeta{flex-wrap:nowrap;overflow:visible}#izHeaderActions{gap:3px}#izHeaderExtra{flex-wrap:nowrap}#izHeaderExtra[hidden],#izHeaderMeta:empty{display:none}}' +
       // WKWebView zooms the viewport when focused text is below 16px; scope
       // this rule to touch iPhone/iPad without changing Android or date pickers.
       '@supports (-webkit-touch-callout:none){@media (max-width:920px) and (pointer:coarse){' +
@@ -556,6 +576,7 @@
       '#izCommonHeader .iz-header-btn,#izHeaderExtra button,#izHeaderExtra a{min-width:44px!important;min-height:44px!important}' +
       '#soundBtn,#kprintBtn{min-width:44px!important;min-height:44px!important}' +
       '}' +
+      '@media (pointer:coarse) and (max-width:720px){#izCommonHeader #izHeaderActions>.iz-header-btn:not(#izAiCreditBadge){min-width:40px!important;min-height:44px!important}}' +
       // On compact landscape Android, a floating IME covers the right side
       // without shrinking visualViewport. Keep the active input on the left.
       '@media (orientation:landscape) and (max-height:480px) and (pointer:coarse){' +
@@ -586,6 +607,10 @@
         .finally(function () { clearTimeout(timeout); });
     } else return;
     request.then(function (r) {
+      // An old tenant response must never replace the current store clock.
+      var current = readSession();
+      if ((session.loggedIn ? sessionIdentity(session.token) : '') !==
+          (current.loggedIn ? sessionIdentity(current.token) : '')) return;
       // GAS互換bootstrap/getSettingsはフラット、ネイティブ経路はdata配下で返るため両方を扱う。
       var d = (r && r.data) || r || {};
       var settings = d.settings || d;
@@ -598,6 +623,7 @@
     addStyles();
     installFocusedFieldVisibility();
     var session = readSession(), policy = pagePolicy(location.pathname, session.loggedIn, location.search);
+    currentHeaderIdentity = session.loggedIn ? sessionIdentity(session.token) : '';
     installBackPropagation(session.loggedIn);
     var legacy = findLegacyHeader(policy.page);
     var header = document.createElement('header'); header.id = 'izCommonHeader';
@@ -629,6 +655,7 @@
     main.appendChild(top); main.appendChild(toolbar); header.appendChild(main);
     document.body.insertBefore(header, document.body.firstChild);
     ensureAiCreditHub(policy);
+    ensureAnnouncements(policy);
     takeLegacyExtras(legacy, extra);
     requestAnimationFrame(scrollGuideHashTarget);
     setTimeout(scrollGuideHashTarget, 80);
@@ -645,15 +672,83 @@
     fetchTimezone(session, policy);
     refreshAccent();
     window.addEventListener('pageshow', refreshAccent);
+    installAiCreditSessionRecovery();
   }
 
+  // Auth may become usable after the header's first render (native secure
+  // storage restore, background resume, or a late API initialization). Pages
+  // such as menu_editor.html do not issue an explicit header auth notification.
+  // Use lifecycle events plus two bounded bootstrap checks, not a polling loop.
+  function installAiCreditSessionRecovery() {
+    function resync() {
+      if (!document.getElementById('izCommonHeader')) return;
+      var session = readSession();
+      var identity = session.loggedIn ? sessionIdentity(session.token) : '';
+      var identityChanged = currentHeaderIdentity !== identity;
+      currentHeaderIdentity = identity;
+      syncAuthDisplay();
+      if (identityChanged) {
+        refreshAccent();
+        // The authenticated store may also have changed its clock timezone.
+        state.timezone = validTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone) || 'UTC';
+        renderClock();
+        fetchTimezone(session, pagePolicy(location.pathname, session.loggedIn, location.search));
+      }
+    }
+    // The storage event does not fire in the same tab that rotates its v3
+    // token. The Web API explicitly notifies this document after a change.
+    window.addEventListener('iz-auth-session-changed', resync);
+    window.addEventListener('pageshow', resync);
+    window.addEventListener('focus', resync);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) resync(); });
+    window.addEventListener('storage', resync);
+    setTimeout(resync, 1000);
+    setTimeout(resync, 4500);
+  }
+
+  var aiHubLoadRetried = false;
   function ensureAiCreditHub(policy) {
     if (window.IZAICreditHub) { window.IZAICreditHub.sync(); return; }
     if (!policy || !policy.showAiCredit || document.querySelector('[data-iz-ai-hub]')) return;
     var creditScript = document.createElement('script');
     creditScript.src = './ai-credit-hub.js?v=auth7';
     creditScript.setAttribute('data-iz-ai-hub','');
+    // A failed network fetch must not leave a permanent script marker that
+    // prevents every later attempt to display the AI balance.
+    function failed() {
+      creditScript.remove();
+      if (aiHubLoadRetried) return;
+      aiHubLoadRetried = true;
+      setTimeout(function () {
+        ensureAiCreditHub(pagePolicy(location.pathname, readSession().loggedIn, location.search));
+      }, 1200);
+    }
+    creditScript.onerror = failed;
+    creditScript.onload = function () {
+      if (!window.IZAICreditHub) { failed(); return; }
+      window.IZAICreditHub.sync();
+    };
     document.head.appendChild(creditScript);
+  }
+
+  // Shared announcement center is lazy-loaded on authenticated management pages.
+  var announcementLoadRetried = false;
+  function ensureAnnouncements(policy) {
+    if (window.IZAnnouncements) { window.IZAnnouncements.sync(); return; }
+    if (!policy || !policy.showAiCredit || document.querySelector('[data-iz-announcements]')) return;
+    var script = document.createElement('script');
+    script.src = './announcement-center.js?v=7';
+    script.setAttribute('data-iz-announcements', '');
+    script.onload = function () { if (window.IZAnnouncements) window.IZAnnouncements.sync(); };
+    script.onerror = function () {
+      script.remove();
+      if (announcementLoadRetried) return;
+      announcementLoadRetried = true;
+      setTimeout(function () {
+        ensureAnnouncements(pagePolicy(location.pathname, readSession().loggedIn, location.search));
+      }, 1200);
+    };
+    document.head.appendChild(script);
   }
 
   window.IZHeader = { init: init, refreshAccent: refreshAccent, syncAuthDisplay: syncAuthDisplay, confirm: requestConfirmation, validSession: validSession, pagePolicy: pagePolicy, wallClockParts: wallClockParts, saveTimezone: saveTimezone, withBackHref: withBackHref, resolveBackTarget: resolveBackTarget, scrollGuideHashTarget: scrollGuideHashTarget };

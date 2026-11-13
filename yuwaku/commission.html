@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Commission &amp; Staff Rewards</title>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./date-controls.css?v=3">
+  <style>
+    body{background:#f4f7fb;color:#0f172a}.cm-header-source{display:none}.cm-wrap{max-width:1080px;margin:0 auto;padding:12px 14px 90px}.cm-lead{color:#64748b;margin:0 0 14px}.cm-tabs{display:flex;gap:6px;overflow:auto;margin-bottom:14px}.cm-tabs button{white-space:nowrap;border:1px solid #cbd5e1;background:#fff;border-radius:999px;padding:9px 15px;font-weight:800;color:#475569}.cm-tabs button.on{background:#0f172a;color:#fff;border-color:#0f172a}.cm-pane{display:none}.cm-pane.on{display:block}.cm-card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 3px 12px rgba(15,23,42,.04)}.cm-card h2{font-size:18px;margin:0 0 12px}.cm-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.cm-field{display:flex;flex-direction:column;gap:5px;min-width:0;overflow:visible}.cm-field.full{grid-column:1/-1}.cm-field label{font-size:12px;font-weight:800;color:#475569}.cm-field input,.cm-field select{box-sizing:border-box;width:100%;min-width:0;max-width:100%;border:1px solid #cbd5e1;border-radius:10px;padding:10px;background:#fff;font:inherit}.cm-field input[type=date]{padding-right:14px;overflow:visible}.cm-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.cm-btn{min-height:44px;border:0;border-radius:10px;padding:10px 15px;background:#0f172a;color:#fff;font-weight:800;cursor:pointer}.cm-btn.sec{background:#e2e8f0;color:#334155}.cm-btn.danger{background:#fee2e2;color:#b91c1c}.cm-btn:disabled{opacity:.5}.cm-list{display:grid;gap:9px}.cm-row{border:1px solid #e2e8f0;border-radius:12px;padding:12px}.cm-rowtop{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.cm-name{font-weight:900}.cm-meta{font-size:12px;color:#64748b;margin-top:3px}.cm-badge{font-size:12px;font-weight:800;background:#e0f2fe;color:#0369a1;padding:4px 8px;border-radius:999px}.cm-staff{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.cm-check{display:flex;align-items:center;gap:5px;background:#f1f5f9;padding:7px 9px;border-radius:9px;font-size:13px}.cm-check input{width:18px;height:18px}.cm-msg{display:none;margin:0 0 12px;padding:10px 12px;border-radius:10px;font-weight:700}.cm-msg.ok{display:block;background:#dcfce7;color:#166534}.cm-msg.err{display:block;background:#fee2e2;color:#b91c1c}.cm-empty{color:#64748b;padding:14px 0}.cm-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.cm-kpi{background:#f8fafc;border-radius:11px;padding:11px}.cm-kpi span{display:block;font-size:11px;color:#64748b}.cm-kpi strong{font-size:18px}.cm-note{font-size:12px;color:#64748b;line-height:1.6}.cm-warn{background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;padding:10px;border-radius:10px;margin-bottom:12px}.cm-month{max-width:180px}@media(max-width:640px){.cm-grid{grid-template-columns:1fr}.cm-field.full{grid-column:auto}.cm-summary{grid-template-columns:1fr}.cm-rowtop{flex-direction:column}}
+    /* Match the compact month filter used by sales, profit and attendance.
+       The shared date input is 100% wide, so constrain its parent, not the input. */
+    .cm-report-month{width:var(--temporal-field-w-compact);max-width:var(--temporal-field-w-compact);flex-basis:var(--temporal-field-w-compact);padding-right:8px;box-sizing:border-box}
+    @media(max-width:640px){.cm-report-month{flex:none}}
+    @media (orientation:landscape) and (max-height:480px) and (pointer:coarse){
+      .cm-grid{grid-template-columns:minmax(0,1fr)}
+      .cm-field.full{grid-column:1/-1}
+      .cm-field input:focus,.cm-field select:focus{width:min(46vw,370px);max-width:100%}
+      .cm-field:focus-within{scroll-margin-top:110px;scroll-margin-bottom:56px}
+    }
+    @supports (-webkit-touch-callout:none){@media (max-width:600px) and (orientation:portrait){.cm-wrap input:not([type=checkbox]):not([type=radio]),.cm-wrap textarea,.cm-wrap select{font-size:16px!important;scroll-margin-top:80px;scroll-margin-bottom:24px}}}
+  /* Formal Android PT-CTL touch target: independent of common header injection. */
+  #cmSaveRule,#cmClearRule,#cmSaveSc{min-height:44px;min-width:44px;box-sizing:border-box}
+  .cm-tabs button{min-height:44px;box-sizing:border-box}
+  /* Content-sized horizontal chips, matching menu categories.
+     Never squeeze five captions into equal phone-width columns. */
+  .cm-tabs{display:flex;min-width:0;max-width:100%;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+  .cm-tabs button{flex:0 0 auto;width:max-content;min-width:max-content;max-width:none;white-space:nowrap;overflow:visible;text-overflow:clip;text-align:center;padding:9px 15px}
+  /* Two-line order assignment tab stays at the same 44px touch-target height. */
+  .cm-tabs button[data-pane="assign"]{height:44px;min-height:44px;padding:0 15px;white-space:pre-line;line-height:1.15}
+  /* IZK-UT-073: commission names/targets are user-controlled and may be
+     longer than the flex item's intrinsic width. Ellipsis is view-only. */
+  .cm-row,.cm-rowtop,.cm-summary,.cm-kpi{min-width:0;max-width:100%}
+  .cm-rowtop>div:first-child{flex:1 1 auto;min-width:0}
+  .cm-name,.cm-meta{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cm-badge{flex:0 1 auto;max-width:40%;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cm-check{min-width:0;max-width:100%;overflow-wrap:normal;word-break:normal;overflow-x:auto}
+  .cm-kpi strong,.cm-kpi span{display:block;max-width:100%;overflow-wrap:normal;word-break:normal;overflow-x:auto}
+  /* Receipt assignments follow checkout's one-item-per-row structure.
+     Long labels use the shared single-line ellipsis contract, not wrapping. */
+  #pane-assign,#pane-assign .cm-card,#cmOrders,#cmOrders .cm-row{min-width:0;max-width:100%}
+  #cmOrders{grid-template-columns:minmax(0,1fr)}
+  #cmOrders .cm-name,#cmOrders .cm-meta{min-width:0;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #cmOrders .cm-check{max-width:100%;min-width:0;overflow:hidden;white-space:nowrap;line-height:1.4}
+  #cmOrders .cm-check input{flex:0 0 18px}
+  .cm-receipt-items{min-width:0;max-width:100%;margin-top:8px;border-top:1px solid #e2e8f0}
+  .cm-receipt-item{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:8px;padding:7px 0;border-bottom:1px solid #edf2f7;font-size:13px;color:#475569}
+  .cm-receipt-item-name{min-width:0;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cm-receipt-item-qty{white-space:nowrap;font-variant-numeric:tabular-nums;font-weight:800}
+  @media(max-width:640px){#cmOrders .cm-rowtop{align-items:stretch}#cmOrders .cm-badge{align-self:flex-start;max-width:100%}}
+  .cm-switch{display:flex;align-items:center;gap:10px;min-height:44px;font-weight:700}.cm-switch input{width:20px;height:20px;flex-shrink:0}
+  .cm-drink-categories{display:flex;gap:6px;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;padding:12px 0 7px}
+  .cm-drink-cat-tab{flex:0 0 auto;min-height:44px;padding:8px 13px;border:1px solid #cbd5e1;border-radius:999px;background:#f1f5f9;color:#475569;font:inherit;font-size:13px;font-weight:800;white-space:nowrap;cursor:pointer}
+  .cm-drink-categories > .cm-drink-cat-tab{min-width:max-content;max-width:none;overflow:visible;text-overflow:clip}
+  .cm-drink-cat-tab.on{background:#0f172a;color:#fff;border-color:#0f172a}
+  /* Match the menu editor: all filtered products stay in the page scroll, not a four-row inner scroller. */
+  .cm-drink-list{max-height:none;overflow:visible}.cm-drink-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(100px,140px);gap:12px;align-items:center;border-bottom:1px solid #e2e8f0;padding:10px 2px}
+  .cm-drink-name{min-width:0;overflow-wrap:anywhere;display:flex;align-items:center;gap:8px}.cm-drink-name>input{flex:0 0 20px}
+  .cm-drink-thumb{width:52px;height:52px;flex:0 0 52px;border-radius:9px;object-fit:cover;background:#e5e7eb}
+  .cm-drink-thumb-empty{display:flex;align-items:center;justify-content:center;color:#64748b;font-size:23px}
+  .cm-drink-pick{display:flex;align-items:center;justify-content:center;flex:0 0 22px;min-height:44px;cursor:pointer}
+  .cm-drink-pick input{width:20px;height:20px;margin:0;accent-color:#2563eb}
+  .cm-drink-row .cm-field select{font-size:13px;padding:7px 4px;min-height:36px}
+  .cm-drink-info{min-width:0;display:flex;flex-direction:column;gap:3px}
+  .cm-drink-eligibility{font-size:12px;font-weight:800;color:#475569}
+  .cm-drink-category-label{font-size:12px;font-weight:600;color:#64748b;overflow-wrap:anywhere}
+  .cm-drink-row .cm-field input{font-size:16px}.cm-drink-summary{font-size:13px;color:#64748b;margin:9px 0}
+  .cm-sc-user{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 2px;border-bottom:1px solid #e2e8f0;min-height:48px}
+  .cm-sc-user:last-child{border-bottom:0}.cm-sc-user .cm-check{flex:0 0 auto;min-height:44px}
+  #cmReport{min-width:0;grid-template-columns:minmax(0,1fr)}
+  .cm-report-details{min-width:0;margin-top:14px;padding-top:12px;border-top:1px solid #e2e8f0}
+  .cm-report-details[hidden]{display:none}
+  .cm-report-receipt{min-width:0;padding:12px 0;border-bottom:1px solid #e2e8f0}
+  .cm-report-receipt-head,.cm-report-component,.cm-report-reconcile{display:flex;justify-content:space-between;align-items:baseline;gap:8px;min-width:0}
+  /* Right-align all payouts on one shared right edge, including mobile cards. */
+  #cmReport .cm-kpi strong{display:block;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  #cmReport .cm-report-staff-head{flex-direction:row;align-items:center}
+  #cmReport .cm-report-staff-head .cm-name{flex:1 1 auto;min-width:0}
+  #cmReport .cm-report-staff-head .cm-badge{flex:0 0 auto;max-width:70%;text-align:right;font-variant-numeric:tabular-nums}
+  .cm-report-receipt-head,.cm-report-component,.cm-report-reconcile{display:grid;grid-template-columns:minmax(0,1fr) max-content;text-align:left}
+  /* The full OR and checkout timestamp must never be ellipsized by the total. */
+  .cm-report-receipt-summary{display:grid;grid-template-columns:minmax(0,1fr) max-content;align-items:start;gap:8px;margin-bottom:8px;min-width:0}
+  .cm-report-receipt-identity{min-width:0;display:grid;gap:4px}
+  .cm-report-or{display:block;min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere;line-height:1.35;font-weight:800}
+  .cm-report-date{display:block;min-width:0;white-space:normal;overflow-wrap:anywhere;color:#64748b;font-size:12px;line-height:1.35;font-variant-numeric:tabular-nums}
+  .cm-report-receipt-head{margin-bottom:8px;font-size:13px}
+  .cm-report-receipt-total{display:flex;flex-direction:column;align-items:flex-end;gap:3px;min-width:0;text-align:right;font-size:13px}
+  .cm-report-receipt-total>span{min-width:0;white-space:normal;overflow-wrap:anywhere}
+  .cm-report-receipt-total>strong{white-space:nowrap;font-variant-numeric:tabular-nums}
+  .cm-report-receipt-head strong,.cm-report-component strong,.cm-report-reconcile strong{white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
+  .cm-report-components{display:grid;gap:5px}
+  .cm-report-component{font-size:12px;color:#475569}
+  .cm-report-component span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cm-report-reconcile{margin-top:10px;font-weight:800}
+  .cm-muted{color:#64748b}
+  @media(max-width:360px){#cmReport .cm-report-staff-head{flex-direction:column;align-items:stretch}#cmReport .cm-report-staff-head .cm-badge{align-self:flex-end;max-width:100%}}
+  .cm-sc-user .cm-check input:disabled{opacity:.5}.cm-sc-user .cm-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #cmScReallocReceipts{grid-template-columns:minmax(0,1fr)}
+  /* Receipt ID and amount share the first row; the date has its own full-width
+     second row. Inline spans previously put all three fields on top of one another. */
+  #cmScReallocReceipts .cm-row{display:grid;grid-template-columns:20px minmax(0,1fr) max-content;gap:4px 10px;align-items:center}
+  #cmScReallocReceipts .cm-row input{grid-column:1;grid-row:1 / span 2;width:20px;height:20px;margin:0}
+  #cmScReallocReceipts .cm-sc-realloc-id{grid-column:2;grid-row:1;display:block;min-width:0;font-size:13px;white-space:normal;overflow-wrap:anywhere}
+  #cmScReallocReceipts .cm-sc-realloc-amount{grid-column:3;grid-row:1;justify-self:end;white-space:nowrap;font-variant-numeric:tabular-nums}
+  #cmScReallocReceipts .cm-sc-realloc-date{grid-column:2 / 4;grid-row:2;display:block;min-width:0;white-space:normal;overflow-wrap:anywhere;margin:0}
+  #cmScReallocPreview{display:grid;gap:5px;font-size:13px;margin-top:10px}
+  #cmScReallocPreview .cm-rowtop{flex-direction:row;align-items:baseline}
+  #cmScReallocPreview strong{white-space:nowrap;font-variant-numeric:tabular-nums}
+  @media(max-width:420px){.cm-drink-row{grid-template-columns:minmax(0,1fr) 110px;gap:7px}.cm-drink-thumb{width:44px;height:44px;flex-basis:44px}.cm-drink-name{gap:6px}}
+  </style>
+  <link rel="stylesheet" href="./ui-ellipsis.css?v=1">
+</head>
+<body>
+  <div class="head cm-header-source"><h1 data-t="title">💰 歩合・スタッフ報酬</h1></div>
+  <main class="cm-wrap">
+    <p class="cm-lead" data-t="lead">会計伝票ごとの担当割当、歩合・サービス料分配・支払状況を管理します。</p>
+    <div id="cmMsg" class="cm-msg" role="status"></div>
+    <nav class="cm-tabs" data-tab-layout="content-scroll" aria-label="Commission sections">
+      <button data-pane="config" data-t="tabConfig">コミッション設定</button>
+      <button class="on" data-pane="assign" data-t="tabAssign" data-tab-lines="2">オーダー&#10;割当</button>
+      <button data-pane="sc" data-t="tabSc">SC分配</button>
+      <button data-pane="report" data-t="tabReport">報酬レポート</button>
+    </nav>
+
+    <section id="pane-config" class="cm-pane">
+      <div class="cm-card">
+        <h2 data-t="configTitle">コミッション機能の有効・無効</h2>
+        <p class="cm-note" data-t="configNote">使う機能だけ有効にします。すべてOFFでも過去の報酬・未払履歴は参照できます。</p>
+        <div class="cm-grid">
+          <label class="cm-switch"><input id="cmFeatureSc" type="checkbox"><span data-t="featureSc">SC分配</span></label>
+          <label class="cm-switch"><input id="cmFeatureOrder" type="checkbox"><span data-t="featureOrder">オーダー別コミッション</span></label>
+          <div class="cm-field" id="cmOrderRateWrap"><label for="cmFeatureOrderRate" data-t="featureOrderRate">VAT・サービス料控除後の売上に対するコミッション率（%）</label><input id="cmFeatureOrderRate" type="number" min="0" max="100" step="0.01" inputmode="decimal" value="0"></div>
+        </div>
+        <div class="cm-actions"><button id="cmSaveFeatures" class="cm-btn" data-t="saveFeatures">設定を保存</button></div>
+      </div>
+      <div class="cm-card">
+        <h2 data-t="commissionStaffTitle">コミッション対象従業員</h2>
+        <p class="cm-note" data-t="commissionStaffHint">対象者だけが注文時のスタッフ選択と会計伝票の担当割当に表示されます。SC分配対象は別に設定します。</p>
+        <p id="cmCommissionStaffCount" class="cm-note" role="status"></p>
+        <div id="cmCommissionStaffMsg" class="cm-msg" role="status" aria-live="polite"></div>
+        <div id="cmCommissionStaffList" class="cm-list"></div>
+        <div class="cm-actions"><button id="cmSaveCommissionStaff" class="cm-btn" data-t="saveCommissionStaff">対象従業員を保存</button></div>
+      </div>
+      <div class="cm-card">
+        <h2 data-t="drinkTitle">コミッション対象メニュー</h2>
+        <p class="cm-note" data-t="drinkNote">商品画像の左のチェックは一括操作の選択です。コミッションON/OFFは別に設定します。追加料金は固定額または商品価格に対する割合（%）を選べます。変更後は保存してください。</p>
+        <div id="cmDrinkMsg" class="cm-msg" role="status" aria-live="polite"></div>
+        <div class="cm-grid">
+          <div class="cm-field"><label for="cmDrinkSearch" data-t="drinkSearch">商品名で絞り込み</label><input id="cmDrinkSearch" type="search" autocomplete="off"></div>
+          <div class="cm-field"><label for="cmDrinkBulkMode" data-t="drinkBulkMode">一括設定方式</label><select id="cmDrinkBulkMode"><option value="fixed" data-t="drinkModeFixed">固定額（₱）</option><option value="percent" data-t="drinkModePercent">商品価格の割合（%）</option></select></div>
+          <div class="cm-field"><label for="cmDrinkBulkPrice" data-t="drinkBulk">選択商品に設定する追加料金・割合</label><input id="cmDrinkBulkPrice" type="number" min="0" max="1000000000" step="0.01" inputmode="decimal" placeholder="200"></div>
+        </div>
+        <div id="cmDrinkCategories" class="cm-drink-categories" data-tab-layout="content-scroll" role="group" aria-label="商品カテゴリ"></div>
+        <div class="cm-actions">
+          <button id="cmDrinkSelectShown" class="cm-btn sec" data-t="drinkSelectShown">表示中を全選択</button>
+          <button id="cmDrinkClearShown" class="cm-btn sec" data-t="drinkClearShown">表示中の選択解除</button>
+          <button id="cmDrinkEnableSelected" class="cm-btn sec" data-t="drinkEnableSelected">選択商品をコミッションON</button>
+          <button id="cmDrinkDisableSelected" class="cm-btn sec" data-t="drinkDisableSelected">選択商品をコミッションOFF</button>
+          <button id="cmDrinkApplyBulk" class="cm-btn sec" data-t="drinkApply">選択商品に金額・割合を適用</button>
+        </div>
+        <div class="cm-actions"><button id="cmSaveDrinks" class="cm-btn" data-t="drinkSave">対象商品と追加料金を保存</button></div>
+        <p id="cmDrinkSummary" class="cm-drink-summary" role="status"></p>
+        <div id="cmDrinkList" class="cm-drink-list"></div>
+      </div>
+    </section>
+
+    <section id="pane-assign" class="cm-pane on">
+      <div class="cm-note" data-t="assignWarn">会計後に担当スタッフを紐付けると、会計時のVAT・サービス料・割引・入場／延長料金を除いた売上×設定率でオーダー別コミッションを配分します。SC分配は別設定です。</div>
+      <div class="cm-card">
+        <h2 data-t="openOrders">会計済み伝票の担当割当</h2>
+        <div class="cm-field" style="max-width:240px;margin-bottom:12px">
+          <label for="cmAssignmentFilter" data-t="assignmentFilter">表示対象</label>
+          <select id="cmAssignmentFilter"><option value="unassigned" data-t="onlyUnassigned">未割当のみ</option><option value="all" data-t="allAssignments">すべて</option><option value="assigned" data-t="onlyAssigned">割当済みのみ</option></select>
+        </div>
+        <div id="cmOrders" class="cm-list"></div>
+      </div>
+    </section>
+
+    <section id="pane-sc" class="cm-pane">
+      <div class="cm-card">
+        <h2 data-t="scTitle">Service Chargeのスタッフ分配</h2>
+        <div class="cm-grid">
+          <div class="cm-field"><label data-t="staffShare">徴収したSCのうちスタッフへ分配する割合（%）</label><input id="cmScRate" type="number" min="0" max="100" step="0.01"></div>
+          <div class="cm-field"><label data-t="allocationMethod">分配方法</label><select id="cmScMethod"><option value="equal" data-t="equal">対象の在籍スタッフ全員で均等</option></select></div>
+        </div>
+        <div class="cm-actions"><button id="cmSaveSc" class="cm-btn" data-t="save">保存</button></div>
+        <p class="cm-note" data-t="scNote">この画面でSC分配対象にした在籍スタッフ全員で均等分配します。注文担当や出勤状況は問いません。対象者が0人でも会計は継続し、未分配額を記録します。</p>
+      </div>
+      <div class="cm-card">
+        <h2 data-t="scStaffTitle">SC分配対象ユーザー</h2>
+        <p class="cm-note" data-t="scStaffHint">ユーザー一覧から対象者を選択します。退職者は分配されません。変更内容は保存ボタンで確定します。</p>
+        <p id="cmScEligibleCount" class="cm-note" role="status"></p>
+        <div id="cmScStaffList" class="cm-list"></div>
+        <div class="cm-actions"><button id="cmSaveScStaff" class="cm-btn" data-t="saveScStaff">対象者を保存</button></div>
+      </div>
+      <div class="cm-card">
+        <h2 data-t="scReallocTitle">過去の未分配SCを再配分</h2>
+        <p class="cm-note" data-t="scReallocHint">伝票別の未分配記録から選び、対象スタッフへ均等に割り当てます。元の伝票と監査履歴は残り、二重配分はできません。</p>
+        <div class="cm-field" style="max-width:200px;margin-bottom:10px">
+          <label for="cmScReallocMonth" data-t="scReallocMonth">対象月</label>
+          <input id="cmScReallocMonth" type="month">
+        </div>
+        <p id="cmScReallocTotal" role="status"></p>
+        <div id="cmScNoEligibleWarn" class="cm-warn" role="status" hidden></div>
+        <h3 data-t="scReallocReceiptsTitle">再配分する伝票</h3>
+        <div id="cmScReallocReceipts" class="cm-list"></div>
+        <h3 data-t="scReallocStaffTitle">配分先スタッフ</h3>
+        <div id="cmScReallocStaff" class="cm-staff"></div>
+        <div id="cmScReallocPreview" aria-live="polite"></div>
+        <div id="cmScReallocResult" class="cm-msg" role="status" aria-live="polite"></div>
+        <div class="cm-actions"><button id="cmScReallocate" class="cm-btn" type="button" data-t="scReallocExecute" disabled>選択したSCを再配分</button></div>
+        <h3 data-t="scReallocHistoryTitle">再配分履歴</h3>
+        <div id="cmScReallocHistory" class="cm-list"></div>
+      </div>
+    </section>
+
+    <section id="pane-report" class="cm-pane">
+      <div class="cm-card">
+        <div class="cm-rowtop"><h2 data-t="reportTitle">月別スタッフ報酬</h2><div class="temporal-field cm-report-month"><input id="cmMonth" class="cm-month" type="month"></div></div>
+        <div id="cmReport" class="cm-list"></div>
+      </div>
+    </section>
+  </main>
+  <script src="./date-display.js?v=auth4" data-iz-date-display></script><script src="./config.js?v=auth2"></script><script src="./api.js?v=auth2"></script><script src="./i18n.js?v=auth3"></script><script src="./confirm.js?v=auth2"></script><script src="./help.js?v=auth2"></script><script src="./commission-app.js?v=auth20261112-commission-bulk-rate"></script>
+<script>
+  (function(){
+    var active=null;
+    function adjust(){
+      if(!active||!active.isConnected||!matchMedia('(orientation:landscape) and (max-height:480px) and (pointer:coarse)').matches)return;
+      var r=active.getBoundingClientRect(),top=112,bottom=innerHeight-40;
+      if(r.top<top||r.bottom>bottom)window.scrollBy({top:r.top<top?r.top-top:r.bottom-bottom,behavior:'instant'});
+    }
+    document.addEventListener('focusin',function(e){
+      if(!e.target.matches('input,textarea,select')||!e.target.closest('.form-grid,.expense-grid,.cm-grid'))return;
+      active=e.target;setTimeout(adjust,60);
+    });
+    document.addEventListener('focusout',function(e){if(e.target===active)active=null});
+    window.addEventListener('resize',function(){setTimeout(adjust,60)});
+    window.addEventListener('orientationchange',function(){setTimeout(adjust,250)});
+  })();
+  </script>
+</body></html>

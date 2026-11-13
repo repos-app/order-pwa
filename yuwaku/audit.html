@@ -21,13 +21,29 @@
     .card{ background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; }
     /* [iPhone表示対応] min-widthで表全体の最小幅を確保し、外側のoverflow:autoラッパーで横スクロールさせる
        （狭い画面に全列を無理に収めようとして文字が縮小・ズレるのを防ぐ）。 */
-    table{ width:100%; min-width:760px; border-collapse:collapse; font-size:13px; }
+    html{ -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+    table{ width:100%; min-width:760px; border-collapse:collapse; font-size:12px; }
     th,td{ padding:8px 6px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top; white-space:nowrap; }
     th{ font-size:11px; color:var(--text-3); white-space:nowrap; }
     td.num,th.num{ text-align:right; font-variant-numeric:tabular-nums; }
     .muted{ color:var(--text-3); }
     .badge{ display:inline-block; background:#fee2e2; color:#b91c1c; border-radius:6px; padding:1px 7px; font-size:11px; font-weight:800; }
     .appr{ font-weight:800; }
+    .filters{display:flex;flex-wrap:wrap;align-items:end;gap:8px;margin:12px 0 8px;}
+    .filters label{display:flex;flex-direction:column;gap:3px;font-size:11px;font-weight:700;color:var(--text-3);min-width:0;}
+    .filters input,.filters select{font:inherit;font-size:13px;color:var(--navy);height:36px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;padding:5px 7px;max-width:100%;}
+    .filters input[type=date]{width:140px;}
+    .filters input[type=search]{width:180px;}
+    .filter-btn{height:36px;padding:5px 12px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;font-weight:800;cursor:pointer;}
+    .filter-btn.primary{background:var(--navy);color:#fff;border-color:var(--navy);}
+    .filter-count{font-size:11px;margin:0 0 8px;min-height:15px;}
+    .detail-cell{font-size:12px;max-width:250px;}
+    .detail-cell details{width:240px;max-width:100%;font-size:12px;}
+    .detail-cell summary{display:block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;list-style:none;}
+    .detail-cell summary::-webkit-details-marker{display:none;}
+    .detail-cell summary::after{content:' ⌄';color:#64748b;}
+    .detail-cell details[open] summary{white-space:normal;overflow-wrap:anywhere;}
+    .detail-cell .detail-full{white-space:pre-line;overflow-wrap:anywhere;font-size:12px;line-height:1.5;color:var(--text-3);margin-top:5px;}
       @media(max-width:430px){.card table{min-width:760px}.card th:nth-child(3),.card td:nth-child(3){min-width:72px;white-space:normal;overflow-wrap:normal}}
     @media (max-width:430px){ .head{flex-wrap:wrap;gap:8px} .head h1{flex:1 1 100%;min-width:0;overflow-wrap:anywhere} .head>div{min-width:0;flex-wrap:wrap} }
   </style>
@@ -38,6 +54,15 @@
     <div class="card">
       <div style="font-weight:900;font-size:15px;margin-bottom:4px;" data-t="auditTitle">🧾 会計確定・取消ログ</div>
       <div class="muted" data-t="auditHint" style="font-size:12px;margin-bottom:8px;">会計確定・取消・割引承認など、金額が動く操作の記録です。</div>
+      <form class="filters" id="auditFilters" onsubmit="return applyFilter(event,'audit')">
+        <label><span data-t="filterFrom">開始日</span><input type="date" id="auditFrom"></label>
+        <label><span data-t="filterTo">終了日</span><input type="date" id="auditTo"></label>
+        <label><span data-t="filterAction">操作</span><select id="auditAction"><option value="" data-t="filterAll">すべて</option></select></label>
+        <label><span data-t="filterKeyword">キーワード</span><input type="search" id="auditKeyword" data-tph="filterKeywordHint" placeholder="明細・卓・理由など"></label>
+        <button class="filter-btn primary" type="submit" data-t="filterSearch">検索</button>
+        <button class="filter-btn" type="button" onclick="clearFilter('audit')" data-t="filterClear">クリア</button>
+      </form>
+      <div id="auditCount" class="muted filter-count" aria-live="polite"></div>
       <div style="overflow:auto;">
         <table><thead><tr>
           <th data-t="thTime">日時</th><th data-t="thAction">操作</th><th data-t="thTable">卓</th>
@@ -50,6 +75,15 @@
     <div class="card" style="margin-top:14px;">
       <div style="font-weight:900;font-size:15px;margin-bottom:8px;" data-t="opTitle">🛡️ 操作ログ</div>
       <div class="muted" data-t="opHint" style="font-size:12px;margin-bottom:8px;">誰が・いつ・どの変更操作を行ったかの記録です。</div>
+      <form class="filters" id="opFilters" onsubmit="return applyFilter(event,'op')">
+        <label><span data-t="filterFrom">開始日</span><input type="date" id="opFrom"></label>
+        <label><span data-t="filterTo">終了日</span><input type="date" id="opTo"></label>
+        <label><span data-t="filterAction">操作</span><select id="opAction"><option value="" data-t="filterAll">すべて</option></select></label>
+        <label><span data-t="filterKeyword">キーワード</span><input type="search" id="opKeyword" data-tph="opKeywordHint" placeholder="実行者・操作・概要など"></label>
+        <button class="filter-btn primary" type="submit" data-t="filterSearch">検索</button>
+        <button class="filter-btn" type="button" onclick="clearFilter('op')" data-t="filterClear">クリア</button>
+      </form>
+      <div id="opCount" class="muted filter-count" aria-live="polite"></div>
       <div style="overflow:auto;">
         <table><thead><tr>
           <th data-t="thTime">日時</th><th data-t="opWho">実行者</th><th data-t="opRole">ロール</th><th data-t="opAct">操作</th><th data-t="opSum">概要</th>
@@ -67,7 +101,13 @@
     if (!TOKEN) location.href = './manage.html';
     function rpc(fn,args){ return API.post('rpc',{fn:fn,args:args||[],token:TOKEN}).then(function(r){ return r.data; }); }
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-    var ROWS = [], SYM='₱', __loaded=false;
+    // The audit RPC keeps legacy comma-separated data for search/API parity.
+    // Split only the presentation, preserving commas inside option suffixes.
+    function auditDetailLines(details,detailLines){
+      if(Array.isArray(detailLines))return detailLines.map(function(s){return String(s==null?'':s).trim();}).filter(Boolean).join('\n');
+      return String(details==null?'':details).split(/,\s*(?![^（）()]*[)）])/).map(function(s){return s.trim();}).filter(Boolean).join('\n');
+    }
+    var ROWS = [], SYM='₱', SETTINGS={}, __loaded=false;
 
     // 2026-08-24修正: バックエンドはSQLiteのdatetime('now')でUTC時刻を'YYYY-MM-DD HH:MM:SS'形式
     // （末尾にZ無し）のまま保存・返却している。この形式のままnew Date()に渡すとブラウザによっては
@@ -83,10 +123,12 @@
     function render(){
       if(!ROWS.length){ document.getElementById('rows').innerHTML='<tr><td colspan="7" style="color:#aaa;padding:16px;text-align:center;">'+I18n.t('empty')+'</td></tr>'; return; }
       document.getElementById('rows').innerHTML = ROWS.map(function(r){
+        var lineText=auditDetailLines(r.details,r.detailLines),parts=lineText?lineText.split('\n'):[];
+        var preview=(parts[0]||'—')+(parts.length>1?' (+'+(parts.length-1)+')':'');
         return '<tr><td class="muted" style="white-space:nowrap;">'+esc(fmt(r.ts))+'</td>'+
           '<td><span class="badge">'+esc(I18n.systemText(r.action))+'</span></td>'+
           '<td>'+esc(I18n.systemText(r.table))+'</td>'+
-          '<td>'+esc(r.details)+'</td>'+
+          '<td class="detail-cell"><details><summary title="'+esc(lineText||'—')+'">'+esc(preview)+'</summary><div class="detail-full">'+esc(lineText||'—')+'</div></details></td>'+
           '<td class="num">'+SYM+(Number(r.price)||0).toLocaleString()+'</td>'+
           '<td>'+esc(r.reason)+'</td>'+
           '<td class="appr">'+esc(r.approver)+(r.role?(' <span class="muted">('+esc(I18n.systemText(r.role))+')</span>'):'')+'</td></tr>';
@@ -114,18 +156,92 @@
       }).join('');
     }
     function loadError(target, colspan, e){ document.getElementById(target).innerHTML='<tr><td colspan="'+colspan+'" style="color:#b91c1c;padding:16px;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</td></tr>'; }
-    function loadOps(){ rpc('getOpLog',[300]).then(function(l){ OPS=l||[]; renderOps(); }).catch(function(e){ loadError('opRows',5,e); }); }
-    window.reload = function(){ rpc('getAuditLog',[200]).then(function(l){ ROWS=l||[]; __loaded=true; render(); }).catch(function(e){ loadError('rows',7,e); }); loadOps(); };
+    var logSeq={audit:0,op:0}, knownActions={audit:new Set(),op:new Set()};
+    function dateUtc(dateString, nextDay){
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(dateString||'')) return '';
+      var p=dateString.split('-').map(Number);
+      var d=new Date(p[0],p[1]-1,p[2]+(nextDay?1:0));
+      if(Number.isNaN(d.getTime())) return '';
+      // The table uses the store's timezone via DateDisplay, not the handset's.
+      // Convert midnight in that zone into SQLite's stored UTC timestamps.
+      var tz=String(SETTINGS.timezone||'').trim();
+      if(tz){
+        try{
+          var target=Date.UTC(p[0],p[1]-1,p[2]+(nextDay?1:0));
+          var fmtZone=new Intl.DateTimeFormat('en-US',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
+          var utc=target;
+          for(var i=0;i<3;i++){
+            var parts={};fmtZone.formatToParts(new Date(utc)).forEach(function(v){parts[v.type]=v.value;});
+            var offset=target-Date.UTC(+parts.year,+parts.month-1,+parts.day,+parts.hour,+parts.minute,+parts.second);
+            utc+=offset;if(!offset)break;
+          }
+          return new Date(utc).toISOString().slice(0,19).replace('T',' ');
+        }catch(e){ /* invalid timezone: use device-local midnight instead */ }
+      }
+      return d.toISOString().slice(0,19).replace('T',' ');
+    }
+    function queryFilters(kind){
+      var prefix=kind==='audit'?'audit':'op';
+      var from=document.getElementById(prefix+'From').value;
+      var to=document.getElementById(prefix+'To').value;
+      if(from && to && from>to){
+        document.getElementById(prefix+'Count').textContent=I18n.t('filterDateError');
+        return null;
+      }
+      return {since:dateUtc(from,false),before:dateUtc(to,true),
+        action:document.getElementById(prefix+'Action').value,
+        keyword:document.getElementById(prefix+'Keyword').value.trim()};
+    }
+    function choices(kind,rows){
+      var id=kind==='audit'?'auditAction':'opAction', key=kind==='audit'?'action':'fn';
+      var el=document.getElementById(id), selected=el.value;
+      rows.forEach(function(r){ if(r[key]) knownActions[kind].add(String(r[key])); });
+      if(selected) knownActions[kind].add(selected);
+      el.innerHTML='<option value="">'+esc(I18n.t('filterAll'))+'</option>'+
+        Array.from(knownActions[kind]).sort().map(function(a){
+          return '<option value="'+esc(a)+'">'+esc(I18n.systemText(a))+'</option>';
+        }).join('');
+      el.value=selected;
+    }
+    function count(kind,n,limit){
+      document.getElementById(kind+'Count').textContent=I18n.t('filterShown')+n+
+        I18n.t('filterItems')+(n===limit?I18n.t('filterLimit'):'');
+    }
+    function loadLog(kind){
+      var seq=++logSeq[kind];
+      var filters=queryFilters(kind);
+      if(!filters) return;
+      var auditLog=kind==='audit', limit=auditLog?200:300;
+      var target=auditLog?'rows':'opRows', columns=auditLog?7:5;
+      document.getElementById(kind+'Count').textContent=I18n.t('filterLoading');
+      rpc(auditLog?'getAuditLog':'getOpLog',[limit,filters]).then(function(rows){
+        if(seq!==logSeq[kind]) return; // Ignore slower responses to older searches.
+        rows=Array.isArray(rows)?rows:[];
+        if(auditLog){ ROWS=rows; __loaded=true; render(); } else { OPS=rows; renderOps(); }
+        choices(kind,rows);
+        count(kind,rows.length,limit);
+      }).catch(function(e){
+        if(seq!==logSeq[kind]) return;
+        document.getElementById(kind+'Count').textContent='';
+        if(String(e.message||e).indexOf('unauthorized')>=0){location.href='./manage.html';return;}
+        loadError(target,columns,e);
+      });
+    }
+    window.applyFilter=function(event,kind){ if(event) event.preventDefault(); loadLog(kind); return false; };
+    window.clearFilter=function(kind){
+      ['From','To','Keyword'].forEach(function(s){document.getElementById(kind+s).value='';});
+      document.getElementById(kind+'Action').value='';
+      loadLog(kind);
+    };
+    window.reload=function(){ loadLog('audit');loadLog('op'); };
 
-    API.post('getSettings', {}).then(function(r){ if(r.data && r.data.currencySymbol) SYM=r.data.currencySymbol; render(); }).catch(function(){});
-    rpc('getAuditLog',[200]).then(function(l){ ROWS=l||[]; __loaded=true; render(); })
-      .catch(function(e){ if(String(e.message||e).indexOf('unauthorized')>=0){ location.href='./manage.html'; return; } document.getElementById('rows').innerHTML='<tr><td colspan="7" style="color:#b91c1c;padding:16px;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</td></tr>'; });
-    loadOps();
+    API.post('getSettings', {}).then(function(r){ SETTINGS=r.data||{}; if(SETTINGS.currencySymbol) SYM=SETTINGS.currencySymbol; render(); }).catch(function(){});
+    reload();
 
     I18n.init({
-      ja:{ title:'🧾 監査ログ', back:'← 管理へ', reload:'↻ 更新', auditTitle:'🧾 会計確定・取消ログ', auditHint:'会計確定・取消・割引承認など、金額が動く操作の記録です。', thTime:'日時', thAction:'操作', thTable:'卓', thDetails:'明細', thAmount:'金額', thReason:'理由', thApprover:'承認者', loading:'読み込み中…', empty:'記録はありません', loadErr:'読み込みエラー: ', opTitle:'🛡️ 操作ログ', opHint:'誰が・いつ・どの変更操作を行ったかの記録です。', opWho:'実行者', opRole:'ロール', opAct:'操作', opSum:'概要' },
-      en:{ title:'🧾 Audit log', back:'← Manage', reload:'↻ Reload', auditTitle:'🧾 Billing (finalize/void) log', auditHint:'Record of money-affecting actions: finalizing bills, voids, discount approvals, etc.', thTime:'Time', thAction:'Action', thTable:'Table', thDetails:'Details', thAmount:'Amount', thReason:'Reason', thApprover:'Approver', loading:'Loading…', empty:'No records', loadErr:'Load error: ', opTitle:'🛡️ Operation log', opHint:'Record of who changed what and when.', opWho:'User', opRole:'Role', opAct:'Action', opSum:'Summary' }
-    }, function(){ if(__loaded){ render(); renderOps(); } });
+      ja:{ title:'🧾 監査ログ', back:'← 管理へ', reload:'↻ 更新', auditTitle:'🧾 会計確定・取消ログ', auditHint:'会計確定・取消・割引承認など、金額が動く操作の記録です。', thTime:'日時', thAction:'操作', thTable:'卓', thDetails:'明細', thAmount:'金額', thReason:'理由', thApprover:'承認者', loading:'読み込み中…', empty:'記録はありません', loadErr:'読み込みエラー: ', opTitle:'🛡️ 操作ログ', opHint:'誰が・いつ・どの変更操作を行ったかの記録です。', opWho:'実行者', opRole:'ロール', opAct:'操作', opSum:'概要', filterFrom:'開始日',filterTo:'終了日',filterAction:'操作',filterKeyword:'キーワード',filterKeywordHint:'明細・卓・理由など',opKeywordHint:'実行者・操作・概要など',filterSearch:'検索',filterClear:'クリア',filterAll:'すべて',filterShown:'表示 ',filterItems:' 件',filterLimit:'（上限に達しました。期間などで絞り込んでください）',filterLoading:'検索中…',filterDateError:'開始日は終了日以前にしてください' },
+      en:{ title:'🧾 Audit log', back:'← Manage', reload:'↻ Reload', auditTitle:'🧾 Billing (finalize/void) log', auditHint:'Record of money-affecting actions: finalizing bills, voids, discount approvals, etc.', thTime:'Time', thAction:'Action', thTable:'Table', thDetails:'Details', thAmount:'Amount', thReason:'Reason', thApprover:'Approver', loading:'Loading…', empty:'No records', loadErr:'Load error: ', opTitle:'🛡️ Operation log', opHint:'Record of who changed what and when.', opWho:'User', opRole:'Role', opAct:'Action', opSum:'Summary', filterFrom:'From',filterTo:'To',filterAction:'Action',filterKeyword:'Keyword',filterKeywordHint:'Details, table, reason…',opKeywordHint:'User, action, summary…',filterSearch:'Search',filterClear:'Clear',filterAll:'All',filterShown:'Showing ',filterItems:' records',filterLimit:' (limit reached; narrow the date range)',filterLoading:'Searching…',filterDateError:'Start date must not be after end date' }
+    }, function(){ choices('audit',[]); choices('op',[]); if(__loaded){ render(); renderOps(); count('audit',ROWS.length,200); count('op',OPS.length,300); } });
   </script>
 
   <script src="./help.js?v=auth2"></script>
@@ -135,10 +251,11 @@
       titleEn: 'Audit log & operation log',
       items: [
         { ja: '① 上の表「会計確定・取消ログ」では、会計確定・取消・割引承認など、金額が動く操作の履歴を日時・卓・明細・金額・理由・承認者つきで確認できます。', en: '① The top table (billing log) shows a history of money-affecting actions — bill finalize, void, discount approval — with time, table, details, amount, reason and approver.' },
-        { ja: '② 下の表「操作ログ」では、誰が・いつ・どの機能を使ったか（実行者・ロール・操作名・概要）を確認できます。', en: '② The bottom table (operation log) shows who did what and when — user, role, action name and a short summary.' },
+        { ja: '② 下の表「操作ログ」では、誰が・いつ・どの変更操作を行ったか（実行者・ロール・操作名・概要）を確認できます。画面閲覧などすべての操作を記録する一覧ではありません。', en: '② The bottom operation log shows who performed recorded changes and when, including user, role, action, and summary. It does not log every screen view.' },
         { ja: '③ 右上の「↻ 更新」ボタンで両方の表を最新の状態に読み込み直せます。', en: '③ The "↻ Reload" button at top right refreshes both tables with the latest records.' },
         { ja: '④ 右上の「EN」ボタンで画面表示を日本語⇔英語に切り替えられます。', en: '④ The "EN" button at top right switches the screen language between Japanese and English.' },
-        { ja: '⑤ 「← 管理へ」で管理メニューに戻ります。', en: '⑤ "← Manage" returns you to the management menu.' }
+        { ja: '⑤ 「← 管理へ」で管理メニューに戻ります。', en: '⑤ "← Manage" returns you to the management menu.' },
+        { ja: '⑥ 2つのログはそれぞれ開始日・終了日・操作・キーワードで検索でき、条件をクリアできます。表示には会計ログ200件・操作ログ300件の上限があるため、必要に応じて期間を絞り込んでください。', en: '⑥ Filter either log by start/end date, action, and keyword, or clear the filters. Results are capped at 200 billing and 300 operation records; narrow the date range to see other records.' }
       ]
     });
   </script>

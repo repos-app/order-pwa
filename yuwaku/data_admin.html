@@ -80,6 +80,19 @@
     </div>
 
     <div class="card danger">
+      <div class="card-title" data-t="txnTitle">🗑️ 取引データのみ一括リセット</div>
+      <div class="muted" data-t="txnHint">注文・会計・コミッション・発注と連動する実績を削除し、商品・席・スタッフ・ルール等のマスタは残します。勤怠・経費・在庫履歴・監査ログも保持します。新規テーブルの分類やロックが不完全なら削除しません。</div>
+      <div class="rowCount" id="txnPreview" aria-live="polite"></div>
+      <button class="btn-sm" id="txnRefresh" onclick="loadTxnPreview()" data-t="txnRefresh">対象件数を再確認</button>
+      <label class="lbl" data-t="txnPhraseLabel">確認のため「RESET TRANSACTIONS」と入力</label>
+      <input id="txnPhrase" class="fc" autocomplete="off" oninput="updateTxnButton()">
+      <label class="lbl" data-t="pwLbl">ご自身のログインパスワード</label>
+      <input id="txnPass" class="fc" type="password" autocomplete="current-password" oninput="updateTxnButton()">
+      <button class="btn danger" id="txnBtn" disabled onclick="doWipeTransactions()" data-t="txnBtn">取引データを一括リセット</button>
+      <div class="alert" id="txnMsg" aria-live="polite"></div>
+    </div>
+
+    <div class="card danger">
       <div class="card-title" data-t="delTitle">🗑️ テーブルの全件削除</div>
       <label class="lbl" data-t="tblLbl">対象テーブル</label>
       <select id="delTable" class="fc" onchange="onDelTableChange()"></select>
@@ -151,7 +164,7 @@
     var ALL_TABLES_VALUE = '__all__';
     var ALL_TABLES_CONFIRM = 'DELETE ALL TABLES';
 
-    function csvCell(v){ var s=(v==null)?'':String(v); if(/[",\n]/.test(s)) s='"'+s.replace(/"/g,'""')+'"'; return s; }
+    function csvCell(v){ return API.csvSafeCell(v); }
     function toCsv(rows){ return (rows||[]).map(function(row){ return row.map(csvCell).join(','); }).join('\r\n'); }
     function pad2(n){ return (n<10?'0':'')+n; }
     function loadExportTables(){
@@ -167,13 +180,15 @@
       btn.disabled = true;
       btn.textContent = I18n.t('exportWorking');
       rpc('getSheetNames', []).then(function(names){
+        if (!Array.isArray(names) || !names.length) throw new Error('backup_no_tables');
         var zip = new JSZip();
         var chain = Promise.resolve();
         (names||[]).forEach(function(name){
           chain = chain.then(function(){
             return rpc('exportSheetData', [name]).then(function(data){
               data = data || {};
-              zip.file(name+'.csv', data.error ? '# error: '+API.userErrorText(data.error) : '﻿'+toCsv(data.rows));
+              if (data.error || !Array.isArray(data.rows)) throw new Error('backup_table_failed: '+name);
+              zip.file(name+'.csv', '﻿'+toCsv(data.rows));
             });
           });
         });
@@ -202,32 +217,85 @@
     // backup.htmlのtoCsv()が生成する形式と対で使う想定。
     function parseCsv(text){
       text = String(text||'').replace(/^﻿/, '');
-      var rows = [], row = [], field = '', inQuotes = false;
+      var rows = [], row = [], field = '', inQuotes = false, afterQuote = false;
       for (var i = 0; i < text.length; i++) {
         var c = text[i];
         if (inQuotes) {
           if (c === '"') {
-            if (text[i+1] === '"') { field += '"'; i++; } else { inQuotes = false; }
+            if (text[i+1] === '"') { field += '"'; i++; } else { inQuotes = false; afterQuote = true; }
           } else { field += c; }
         } else if (c === '"') {
+          if (field !== '' || afterQuote) throw new Error('bad_csv_quotes');
           inQuotes = true;
         } else if (c === ',') {
-          row.push(field); field = '';
+          row.push(field); field = ''; afterQuote = false;
         } else if (c === '\r') {
           // no-op（\r\nの\rはここで無視。単独\rは次のcで処理継続）
         } else if (c === '\n') {
-          row.push(field); field = ''; rows.push(row); row = [];
+          row.push(field); field = ''; rows.push(row); row = []; afterQuote = false;
         } else {
+          if (afterQuote) throw new Error('bad_csv_quotes');
           field += c;
         }
       }
+      if (inQuotes) throw new Error('bad_csv_quotes');
       if (field !== '' || row.length) { row.push(field); rows.push(row); }
       // 末尾の空行を除去
       while (rows.length && rows[rows.length-1].length === 1 && rows[rows.length-1][0] === '') rows.pop();
-      return rows;
+      // Undo the spreadsheet-only apostrophe quoting used by our own CSV
+      // export. Preserve the original business text through export/import.
+      return rows.map(function(r){ return r.map(API.csvRestoreCell); });
     }
 
+    var TXN_PREVIEW = null;
+    var TXN_RUNNING = false;
+    function updateTxnButton(){
+      document.getElementById('txnBtn').disabled = TXN_RUNNING || !TXN_PREVIEW ||
+        document.getElementById('txnPhrase').value !== 'RESET TRANSACTIONS' ||
+        !document.getElementById('txnPass').value;
+    };
+    function loadTxnPreview(){
+      TXN_PREVIEW = null;
+      updateTxnButton();
+      document.getElementById('txnPreview').innerText = I18n.t('txnLoading');
+      rpc('getTransactionResetPreview', []).then(function(d){
+        if (!d || d.error || !d.success) throw new Error(d && d.error || 'transaction_reset_schema_unavailable');
+        TXN_PREVIEW = d;
+        document.getElementById('txnPreview').innerText = I18n.t('txnCount')
+          .replace('{n}', Number(d.total)).replace('{tables}', Number(d.tables.length))
+          .replace('{protected}', Number(d.protectedTables));
+        updateTxnButton();
+      }).catch(function(e){
+        document.getElementById('txnPreview').innerText = I18n.t('txnUnavailable') + ' ' + API.userErrorText(e);
+      });
+    };
+    function doWipeTransactions(){
+      if (TXN_RUNNING || !TXN_PREVIEW || document.getElementById('txnBtn').disabled) return;
+      var pass = document.getElementById('txnPass').value;
+      UIConfirm(I18n.t('txnConfirm').replace('{n}', Number(TXN_PREVIEW.total)), {
+        danger:true, okLabel:I18n.t('delConfirmOk')
+      }).then(function(ok){
+        if (!ok) return;
+        TXN_RUNNING = true;
+        updateTxnButton();
+        rpc('wipeTransactionData', [pass]).then(function(d){
+          if (!d || d.error || d.success !== true)
+            throw new Error(d && d.error || 'transaction_reset_incomplete');
+          alertBox('txnMsg', I18n.t('txnDone').replace('{n}', d.deletedCount), true);
+          document.getElementById('txnPass').value = '';
+          document.getElementById('txnPhrase').value = '';
+          window.loadBackups();
+        }).catch(function(e){
+          alertBox('txnMsg', I18n.t('errPrefix') + API.userErrorText(e), false);
+        }).finally(function(){
+          TXN_RUNNING = false;
+          loadTxnPreview();
+        });
+      });
+    };
+
     function init(){
+      loadTxnPreview();
       rpc('getDestructiveTableNames', []).then(function(d){
         if (d && d.error) { alertBox('delMsg', I18n.t('errPrefix')+API.userErrorText(d.error), false); return; }
         var names = (d && d.names) || [];
@@ -344,7 +412,7 @@
     var RESTORE_TARGET = null;
     var BACKUP_ROWS = null;
     function actionLabel(a){
-      var m = { delete: I18n.t('actDelete'), delete_all: I18n.t('actDeleteAll'), import_replace: I18n.t('actImport'), pre_restore: I18n.t('actPreRestore') };
+      var m = { delete: I18n.t('actDelete'), delete_all: I18n.t('actDeleteAll'), delete_transactions: I18n.t('actDeleteTxn'), import_replace: I18n.t('actImport'), pre_restore: I18n.t('actPreRestore') };
       return m[a] || a;
     }
     function renderBackupRows(){
@@ -392,6 +460,7 @@
         csvExportTitle:'📄 テーブルをCSVで書き出し', csvExportHint:'テーブルを選んでCSVをダウンロードできます（Excel等で開けます）。', csvExportBtn:'⬇ CSVを書き出し', csvExportDone:'✅ 書き出しました:',
         adminOnlyTitle:'🔒 削除・復元', adminOnlyBody:'テーブルの削除、CSV全置換、バックアップからの復元はシステム管理者だけが実施できます。',
         warnTitle:'⚠️ ご注意', warnBody:'この画面の操作（テーブルの全件削除・CSVインポートによる全置換・バックアップからの復元）は取り返しがつきません。実行するとご本人のログインパスワードの再入力を求めます。実行の直前に自動でバックアップが作られ、下部の「バックアップ履歴」から復元できます。',
+        txnTitle:'🗑️ 取引データのみ一括リセット', txnHint:'注文・会計・コミッション・発注と連動する実績を削除し、商品・席・スタッフ・ルール等のマスタは残します。勤怠・経費・在庫履歴・監査ログも保持します。新規テーブルの分類やロックが不完全なら削除しません。', txnRefresh:'対象件数を再確認', txnPhraseLabel:'確認のため「RESET TRANSACTIONS」と入力', txnBtn:'取引データを一括リセット', txnLoading:'DBスキーマと削除件数を確認中…', txnUnavailable:'リセットは実行できません。', txnCount:'削除予定: {n}件 / {tables}テーブル。保持対象: {protected}テーブル。', txnConfirm:'取引データ{n}件を削除します。マスタは残し、実行直前に復元用バックアップを作成します。続けますか？', txnDone:'取引データ{n}件を削除しました（バックアップ済み）。',
         delTitle:'🗑️ テーブルの全件削除', tblLbl:'対象テーブル', allTablesOpt:'⚠️ 全テーブル一括（従業員を除く）', confirmPhraseLbl:'確認のため、対象テーブル名を入力してください', allConfirmPhraseLbl:'確認のため「DELETE ALL TABLES」と入力してください', pwLbl:'ご自身のログインパスワード', delBtn:'🗑️ このテーブルを全件削除する', delAllBtn:'🗑️ 全テーブルを一括削除する',
         curRows:'現在の件数: ', needPass:'パスワードを入力してください', errPrefix:'エラー: ',
         delConfirmMsg:'「{table}」の全{n}件を削除します。よろしいですか？（削除前に自動でバックアップされます）', delConfirmOk:'削除する', delDone:'✅ {n}件を削除しました（自動バックアップ済み）',
@@ -401,7 +470,7 @@
         impConfirmMsg:'「{table}」を、読み込んだCSVの{n}行で全置換します。現在の内容は自動バックアップされます。よろしいですか？', impConfirmOk:'置換する', impDone:'✅ {n}行をインポートしました（置換前は自動バックアップ済み）',
         bkTitle:'🕘 バックアップ履歴', bkHint:'削除・インポート・復元の直前に自動で作られたバックアップです。「復元」を押すと、そのテーブルを当時の内容へ丸ごと戻します（実行前の現状も新しいバックアップとして残ります）。',
         bkReload:'🔄 更新', bkColTable:'テーブル', bkColAction:'操作', bkColRows:'件数', bkColActor:'実行者', bkColTime:'日時', bkRestore:'↩️ 復元', bkEmpty:'バックアップはまだありません',
-        actDelete:'削除', actDeleteAll:'全テーブル削除', actImport:'インポート', actPreRestore:'復元前退避',
+        actDelete:'削除', actDeleteAll:'全テーブル削除', actDeleteTxn:'取引データ削除', actImport:'インポート', actPreRestore:'復元前退避',
         restoreTitle:'「{table}」を復元', restoreHint:'当時の{n}件の内容へ丸ごと戻します。現在の内容は新しいバックアップとして残ります。', restoreGo:'↩️ 復元する', restoreCancel:'キャンセル', restoreDone:'✅ {n}件へ復元しました'
       },
       en:{
@@ -410,6 +479,7 @@
         csvExportTitle:'📄 Export a table to CSV', csvExportHint:'Select a table and download it as CSV (opens in Excel, etc.).', csvExportBtn:'⬇ Export CSV', csvExportDone:'✅ Exported:',
         adminOnlyTitle:'🔒 Delete & restore', adminOnlyBody:'Deleting tables, replacing data via CSV, and restoring backups are restricted to the System role.',
         warnTitle:'⚠️ Warning', warnBody:'Actions on this page (wiping a table, replacing it via CSV import, or restoring a backup) cannot be undone. Each one requires re-entering your own login password. A backup is taken automatically right before the action runs, and can be restored from "Backup history" below.',
+        txnTitle:'🗑️ Reset transaction data only', txnHint:'Wipes order, checkout, commission and purchase-order histories while retaining menus, seats, staff, rules and other master data. Attendance, expenses, inventory moves and audit logs remain. Unknown or unlocked new tables block the reset.', txnRefresh:'Refresh affected counts', txnPhraseLabel:'Type “RESET TRANSACTIONS” to confirm', txnBtn:'Reset transaction history', txnLoading:'Checking database schema and record counts…', txnUnavailable:'Transaction reset unavailable.', txnCount:'Will delete {n} rows in {tables} tables. Preserved: {protected} tables.', txnConfirm:'Delete {n} transaction rows? Master data stays and a restorable backup is created first.', txnDone:'Deleted {n} transaction rows (backed up).',
         delTitle:'🗑️ Wipe table data', tblLbl:'Target table', allTablesOpt:'⚠️ All tables (except employees)', confirmPhraseLbl:'Type the table name to confirm', allConfirmPhraseLbl:'Type “DELETE ALL TABLES” to confirm', pwLbl:'Your login password', delBtn:'🗑️ Wipe this table', delAllBtn:'🗑️ Wipe all tables',
         curRows:'Current rows: ', needPass:'Please enter your password', errPrefix:'Error: ',
         delConfirmMsg:'This will delete all {n} rows in "{table}". Continue? (A backup will be taken automatically first.)', delConfirmOk:'Delete', delDone:'✅ Deleted {n} rows (backed up automatically)',
@@ -419,7 +489,7 @@
         impConfirmMsg:'This will fully replace "{table}" with the {n} rows from the CSV. The current content will be backed up automatically. Continue?', impConfirmOk:'Replace', impDone:'✅ Imported {n} rows (previous content backed up automatically)',
         bkTitle:'🕘 Backup history', bkHint:'Automatic backups taken right before a delete, import, or restore. "Restore" puts that table back to its content at that time (the current content is also saved as a new backup first).',
         bkReload:'🔄 Refresh', bkColTable:'Table', bkColAction:'Action', bkColRows:'Rows', bkColActor:'By', bkColTime:'When', bkRestore:'↩️ Restore', bkEmpty:'No backups yet',
-        actDelete:'Delete', actDeleteAll:'Delete all tables', actImport:'Import', actPreRestore:'Pre-restore snapshot',
+        actDelete:'Delete', actDeleteAll:'Delete all tables', actDeleteTxn:'Transaction reset', actImport:'Import', actPreRestore:'Pre-restore snapshot',
         restoreTitle:'Restore "{table}"', restoreHint:'This will put the table back to its {n}-row content at that time. The current content is saved as a new backup first.', restoreGo:'↩️ Restore', restoreCancel:'Cancel', restoreDone:'✅ Restored {n} rows'
       }
     }, function(){ renderBackupRows(); });
@@ -443,10 +513,12 @@
       title: 'データバックアップ・管理',
       titleEn: 'Data Backup & Management',
       items: [
-        { ja: '① ZIP一括バックアップとテーブル単位のCSV書き出しは、この画面を利用できる全ユーザーが実行できます。', en: '① ZIP backup and per-table CSV export are available to every user who can access this page.' },
+        { ja: '① この画面の利用権限があるユーザーは、許可された主要業務テーブルをZIP／CSVで書き出せます。設定・権限などの全DB情報を含む完全復元バックアップではありません。個人情報を含むため厳重に保管してください。', en: '① Authorized users may export the supported business tables as ZIP/CSV. This is not a complete restorable database backup; settings and permission tables are excluded. Exports contain personal data and must be stored securely.' },
         { ja: '② 1テーブルまたは全テーブルの一括削除、CSVによる全置換、バックアップからの復元はシステム管理者だけが実行できます。全テーブル削除でも従業員とバックアップ管理データは保護されます。', en: '② Single-table or all-table deletion, CSV replacement, and backup restoration are restricted to the System role. Employees and backup-management data remain protected during an all-table wipe.' },
         { ja: '③ 削除・全置換・復元ではご自身のパスワードを再入力し、実行前の内容が自動バックアップされます。', en: '③ Delete, replace, and restore require your password and automatically back up the current data first.' },
-        { ja: '④ バックアップ履歴の「復元」で、対象テーブルと関連明細を当時の状態へ戻せます。', en: '④ Use "Restore" in backup history to return a table and its related detail rows to that state.' }
+        { ja: '④ バックアップ履歴の「復元」で対象データを復元できます。ただし旧形式のバックアップでは、記録時点の関連明細を完全には復元できない場合があります。', en: '④ Use Restore in backup history to recover backed-up data. Legacy backup formats may lack historical related-detail rows and may not fully reproduce the former state.' },
+        { ja: '⑤ CSVではパスワード・認証トークンなどの機密列を除外し、表計算ソフトで数式になり得る文字列を保護します。この画面で再取込する際は元の値に戻ります。列名の誤り・列数不足のCSVは全置換できません。', en: '⑤ CSV exports omit passwords and operational tokens and protect formula-like text for spreadsheet viewing. Importing here restores the original text. Files with unknown headers or mismatched column counts cannot replace table data.' },
+        { ja: '⑥ 「取引データのみ一括リセット」は注文・会計・コミッション・発注履歴を対象店舗だけ初期化し、商品・席・スタッフ等のマスタを保持します。「対象件数を再確認」で削除前の件数を確認し、RESET TRANSACTIONSと本人パスワードを入力して実行します。利用履歴の削除では、会員ポイントやクーポン利用回数などのマスタ側累積値は戻りません。未知の新規テーブルやDB更新漏れがあれば安全のため停止します。', en: '⑥ Reset transaction data only deletes order, checkout, commission and purchase histories in this store and preserves menu, seat and staff masters. Review the affected row counts, then enter RESET TRANSACTIONS and your own password. Member points and coupon usage counters stored in master records are not recalculated. Unclassified new tables or missing database migrations block the reset.' }
       ]
     });
   </script>

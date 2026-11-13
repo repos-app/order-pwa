@@ -87,7 +87,7 @@
 
   </div>
 
-  <script src="./date-display.js?v=auth4" data-iz-date-display></script><script src="./config.js?v=auth2"></script>
+  <script src="./date-display.js?v=auth5" data-iz-date-display></script><script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
   <script src="./i18n.js?v=auth3"></script>
   <script src="./confirm.js?v=auth2"></script>
@@ -100,6 +100,10 @@
 
     var ROWS = [], EMPLOYEES = [], __loaded = false;
     var TODO_CLIENT_REQUEST_ID = '';
+    var PENDING_TODO_IDS = new Set();
+    var PENDING_TODO_CREATION = false;
+    var PENDING_TODO_DELETIONS = new Set();
+    var TODO_READ_SEQ = 0;
     function nextTodoClientRequestId(){ return 'todo-' + Date.now() + '-' + Math.random().toString(36).slice(2,10); }
     var STORE_TODAY = API.dateKeysInTimeZone('UTC').date;
     function todayStr(){ return STORE_TODAY; }
@@ -111,15 +115,15 @@
       $('list').innerHTML = ROWS.map(function(r){
         var overdue = (r.due && !r.done && r.due < today);
         return '<div class="item'+(r.done?' done':'')+'">' +
-          '<input type="checkbox" '+(r.done?'checked':'')+' onchange="toggleDone(\''+r.id+'\',this.checked)">' +
+          '<input type="checkbox" '+(r.done?'checked':'')+(PENDING_TODO_IDS.has(r.id)?' disabled':'')+' onchange="toggleDone(\''+r.id+'\',this.checked)">' +
           '<div class="body">' +
             '<div class="ttl">'+esc(r.title)+'</div>' +
             '<div class="meta">' +
               (r.assignee ? '<span class="badge">👤 '+esc(r.assignee)+'</span>' : '<span class="badge">'+esc(I18n.t('unassigned'))+'</span>') +
               (r.due ? '<span class="badge'+(overdue?' overdue':'')+'">📅 '+esc(I18n.t('dueLbl'))+esc(window.DateDisplay?DateDisplay.format(r.due):r.due)+(overdue?(' '+esc(I18n.t('overdue'))):'')+'</span>' : '') +
             '</div>' +
-            '<div class="meta created-line">🕒 '+esc(I18n.t('createdBy'))+esc(r.creator||'-')+' · '+esc(window.DateDisplay?DateDisplay.formatDateTime(r.created):r.created) +
-              (r.done && r.doneAt ? ' · '+esc(I18n.t('doneAt'))+esc(r.doneAt) : '') +
+            '<div class="meta created-line">🕒 '+esc(I18n.t('createdBy'))+esc(r.creator||'-')+' · '+esc(window.DateDisplay?DateDisplay.formatUtcDateTime(r.created):r.created) +
+              (r.done && r.doneAt ? ' · '+esc(I18n.t('doneAt'))+esc(window.DateDisplay?DateDisplay.formatUtcDateTime(r.doneAt):r.doneAt) : '') +
             '</div>' +
           '</div>' +
           '<button class="delbtn" onclick="removeTodo(\''+r.id+'\')" title="'+esc(I18n.t('delete'))+'">🗑️</button>' +
@@ -141,57 +145,87 @@
     // saveTodoが保存済み行をそのまま返すようになったので、その行だけをROWSに追加/更新し、
     // 削除・完了切替はローカル配列を直接書き換えることで、追加のAPI往復を無くす。
     window.addTodo = function(){
+      if (PENDING_TODO_CREATION) return;
       var title = ($('newTitle').value||'').trim();
       var errEl = $('addErr'); errEl.style.display='none';
       if (!title){ errEl.textContent = I18n.t('needTitle'); errEl.style.display='block'; return; }
       var assignee = $('newAssignee').value||'';
       var due = $('newDue').value||'';
+      PENDING_TODO_CREATION = true;
+      ++TODO_READ_SEQ;
       var btn = $('addBtn'); if (btn) btn.disabled = true;
       var clientRequestId = TODO_CLIENT_REQUEST_ID || (TODO_CLIENT_REQUEST_ID = nextTodoClientRequestId());
-      rpc('saveTodo',[{ title: title, assignee: assignee, due: due, clientRequestId: clientRequestId }]).then(function(r){
+      return rpc('saveTodo',[{ title: title, assignee: assignee, due: due, clientRequestId: clientRequestId }]).then(function(r){
         if (btn) btn.disabled = false;
-        if (r && r.row) { ROWS.unshift(r.row); render(); TODO_CLIENT_REQUEST_ID=''; }
-        else { return reload(); } // 想定外形状のフォールバックのみ再取得
+        if (r && r.row) {
+          var existingIdx=ROWS.findIndex(function(current){return current.id===r.row.id;});
+          if(existingIdx>=0) ROWS.splice(existingIdx,1,r.row);
+          else ROWS.unshift(r.row);
+          render(); TODO_CLIENT_REQUEST_ID='';
+        }
+        else { throw new Error((r&&r.error)||'save_failed'); }
         $('newTitle').value=''; $('newAssignee').value=''; $('newDue').value=''; syncTodoAssigneeLabel();
         if(window.DateDisplay)DateDisplay.refresh();
-      }).catch(function(e){ if (btn) btn.disabled = false; errEl.textContent = I18n.t('errPrefix')+API.userErrorText(e); errEl.style.display='block'; });
+      }).catch(function(e){ if (btn) btn.disabled = false; errEl.textContent = I18n.t('errPrefix')+API.userErrorText(e); errEl.style.display='block'; })
+        .finally(function(){++TODO_READ_SEQ;PENDING_TODO_CREATION=false;if(btn)btn.disabled=false;});
     };
     window.toggleDone = function(id, done){
+      if (PENDING_TODO_IDS.has(id)) return;
       var row = ROWS.filter(function(r){ return r.id===id; })[0];
       var prevDone = row ? row.done : null, prevDoneAt = row ? row.doneAt : null;
-      if (row) { row.done = done; row.doneAt = done ? todayStr() : ''; render(); } // 楽観的更新
+      PENDING_TODO_IDS.add(id);
+      ++TODO_READ_SEQ;
+      if (row) { row.done = done; row.doneAt = ''; render(); } // 状態のみ先行、完了日時はサーバー確定値を使用
       // [負荷試験レビュー対応/優先#6] toggleTodoDoneは失敗時も例外を投げず{success:false}を返す実装のため、
       // .catch()だけでは検知できず「保存できたつもり」のまま放置されていた。成功判定を明示的に行う。
       rpc('toggleTodoDone',[id, done]).then(function(r){
         if (!(r && r.success)) {
           if (row) { row.done = prevDone; row.doneAt = prevDoneAt; render(); }
           var e = $('addErr'); if (e) { e.textContent = I18n.t('errPrefix')+API.userErrorText((r&&r.error)||'save_failed'); e.style.display='block'; }
+        } else if (row) {
+          row.doneAt = r.doneAt || '';
+          render();
         }
       }).catch(function(err){
         if (row) { row.done = prevDone; row.doneAt = prevDoneAt; render(); } // 失敗時はロールバック
         var e = $('addErr'); if (e) { e.textContent = I18n.t('errPrefix')+API.userErrorText(err); e.style.display='block'; }
-      });
+      }).finally(function(){ ++TODO_READ_SEQ; PENDING_TODO_IDS.delete(id); render(); });
     };
     window.removeTodo = function(id){
+      if (PENDING_TODO_DELETIONS.has(id)) return;
       // [負荷試験レビュー対応/優先#6] deleteTodoも失敗時は例外を投げず{success:false}を返すため、
       // 結果を見ずに一覧から消していた（削除に失敗しても画面上は消えたように見えてしまう）のを修正。
-      UIConfirm(I18n.t('confirmDelete')).then(function(ok){
+      return UIConfirm(I18n.t('confirmDelete')).then(function(ok){
         if (!ok) return;
-        rpc('deleteTodo',[id]).then(function(r){
+        if(PENDING_TODO_DELETIONS.has(id))return;
+        PENDING_TODO_DELETIONS.add(id);
+        ++TODO_READ_SEQ;
+        return rpc('deleteTodo',[id]).then(function(r){
           if (r && r.success) { ROWS = ROWS.filter(function(r2){ return r2.id!==id; }); render(); }
           else { var e = $('addErr'); if (e) { e.textContent = I18n.t('errPrefix')+API.userErrorText((r&&r.error)||'delete_failed'); e.style.display='block'; } }
-        }).catch(function(err){ var e = $('addErr'); if (e) { e.textContent = I18n.t('errPrefix')+API.userErrorText(err); e.style.display='block'; } });
+        }).catch(function(err){ var e = $('addErr'); if (e) { e.textContent = I18n.t('errPrefix')+API.userErrorText(err); e.style.display='block'; } })
+          .finally(function(){++TODO_READ_SEQ;PENDING_TODO_DELETIONS.delete(id);render();});
       });
     };
     window.reload = function(){
-      return rpc('getTodos',[]).then(function(l){ ROWS=l||[]; render(); });
+      var seq=++TODO_READ_SEQ;
+      return rpc('getTodos',[]).then(function(l){
+        if(seq!==TODO_READ_SEQ||PENDING_TODO_IDS.size||PENDING_TODO_CREATION||PENDING_TODO_DELETIONS.size)return;
+        ROWS=l||[]; render();
+      }).catch(function(e){
+        if(seq!==TODO_READ_SEQ)return;
+        if(String(e&&e.message||e).indexOf('unauthorized')>=0){location.href='./manage.html';return;}
+        var el=$('addErr');
+        if(el){el.textContent=I18n.t('loadErr')+API.userErrorText(e);el.style.display='block';}
+      });
     };
 
+    var initialReadSeq=++TODO_READ_SEQ;
     Promise.all([
-      rpc('getTodos',[]).catch(function(){ return []; }),
+      rpc('getTodos',[]),
       rpc('getAllEmployees',[]).catch(function(){ return []; })
     ]).then(function(res){
-      ROWS = res[0]||[];
+      if(initialReadSeq===TODO_READ_SEQ&&!PENDING_TODO_IDS.size&&!PENDING_TODO_CREATION&&!PENDING_TODO_DELETIONS.size) ROWS = res[0]||[];
       EMPLOYEES = (res[1]||[]).filter(function(e){ return e.status !== '退職'; });
       __loaded = true;
       renderAssigneeOptions();

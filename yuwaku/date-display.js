@@ -46,7 +46,9 @@
   function formatDateTime(v,opts){
     var raw=String(v||'').trim(); if(!raw)return raw;
     if(parts(raw))return format(raw,(opts&&opts.dateFormat)||state.dateFormat);
-    var local=/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})(?::(\d{2}))?$/.exec(raw);
+    // An already-local SQL wall clock may also contain fractional seconds.
+    // Do not accidentally parse it as device-local and re-shift it.
+    var local=/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})(?::(\d{2}))?(?:\.\d{1,9})?$/.exec(raw);
     if(local)return format(local[1],(opts&&opts.dateFormat)||state.dateFormat)+' '+local[2]+(local[3]?':'+local[3]:'');
     var d=new Date(raw); if(!isFinite(d.getTime()))return raw;
     try{
@@ -64,7 +66,10 @@
   // reservation/local wall-time timestamps keep formatDateTime semantics.
   function formatUtcDateTime(v,opts){
     var raw=String(v||'').trim(); if(!raw)return raw;
-    var sqlUtc=/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})(?::(\d{2}))?$/.exec(raw);
+    // D1 strftime(..., '%f') returns UTC SQL timestamps with fractional
+    // seconds (e.g. 2026-11-13 02:38:52.655). Without this suffix match,
+    // Date.parse treats that timezone-less value as device-local time.
+    var sqlUtc=/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})(?::(\d{2}))?(?:\.\d{1,9})?$/.exec(raw);
     var iso=sqlUtc ? sqlUtc[1]+'T'+sqlUtc[2]+':'+(sqlUtc[3]||'00')+'Z' : raw;
     return formatDateTime(iso,opts);
   }
@@ -103,7 +108,7 @@
     save(); refresh(document);
   }
   load(); state.dateFormat=validFormat(state.dateFormat)||inferFormat(state);
-  window.DateDisplay={format:format,formatMonth:formatMonth,formatDateTime:formatDateTime,formatUtcDateTime:formatUtcDateTime,refresh:function(){refresh(document);},setSettings:setSettings,getFormat:function(){return state.dateFormat;}};
+  window.DateDisplay={format:format,formatMonth:formatMonth,formatDateTime:formatDateTime,formatUtcDateTime:formatUtcDateTime,refresh:function(){refresh(document);},setSettings:setSettings,getFormat:function(){return state.dateFormat;},getTimeZone:function(){return state.timezone;}};
   window.addEventListener('iz:regional-settings',function(e){setSettings(e&&e.detail||{});});
   function start(){
     refresh(document);

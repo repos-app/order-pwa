@@ -38,10 +38,39 @@
     // Never leave the bearer token in browser navigation history/referrers.
     history.replaceState(null, '', location.pathname + '?lang=' + lang);
     var button = document.getElementById('confirmBtn');
-    function show(ja, en, good) {
+    var lastMessage = null;
+    function currentLanguage() {
+      return document.documentElement.dataset.lang === 'en' ? 'en' : 'ja';
+    }
+    function renderMessage() {
+      if (!lastMessage) return;
       var message = document.getElementById('message');
-      message.textContent = document.documentElement.dataset.lang === 'en' ? en : ja;
-      message.className = 'msg ' + (good ? 'ok' : 'err');
+      message.textContent = currentLanguage() === 'en' ? lastMessage.en : lastMessage.ja;
+      message.className = 'msg ' + (lastMessage.good ? 'ok' : 'err');
+    }
+    function show(ja, en, good) {
+      lastMessage = { ja: ja, en: en, good: good };
+      renderMessage();
+    }
+    // The public language toggle also changes after errors. Do not leave the
+    // previous language's one-time message visible under the other language.
+    document.addEventListener('DOMContentLoaded', function () {
+      document.getElementById('langBtn').addEventListener('click', renderMessage);
+    });
+    function failure(code, traceId) {
+      var retryJa = '確定できませんでした。リンクの期限内に再試行してください。';
+      var retryEn = 'The change could not be completed. Retry with the same link before it expires.';
+      var messages = {
+        invalid_token: ['リンクが無効です。アカウント管理画面から再申請してください。', 'Invalid link. Request a new email change.'],
+        invalid_or_expired_token: ['リンクが無効または期限切れです。アカウント管理画面から再申請してください。', 'The link is invalid or expired. Request a new email change.'],
+        email_taken: ['このメールアドレスは既に登録されています。別のアドレスで再申請してください。', 'This email address is already registered. Request another address.'],
+        email_taken_or_pending: ['このメールアドレスは別の店舗で使用中または変更処理中です。', 'This address is in use or has another pending change.'],
+        owner_identity_conflict: ['登録情報を確認できません。アカウント管理画面から状態を確認してください。', 'Account identity verification failed. Check account management.']
+      };
+      var pair = messages[code] || [retryJa, retryEn];
+      // Public request trace is opaque and contains no email address or token.
+      var suffix = /^[a-f0-9]{32}$/i.test(traceId || '') ? ' (ID: ' + traceId + ')' : '';
+      show(pair[0] + suffix, pair[1] + suffix, false);
     }
     if (!match) {
       button.disabled = true;
@@ -56,19 +85,22 @@
           method: 'POST',
           headers: { 'content-type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({ action: 'confirmOwnerEmailChange', storeId: match[1], token: token,
-            lang: document.documentElement.dataset.lang === 'en' ? 'en' : 'ja' }),
+            lang: currentLanguage() }),
           cache: 'no-store'
         });
         var payload = await response.json();
-        if (!response.ok || payload.ok !== true || payload.data?.success !== true)
-          throw new Error(payload.data?.error || 'confirmation_failed');
+        if (!response.ok || payload.ok !== true || payload.data?.success !== true) {
+          failure(payload.data?.error || payload.error || 'confirmation_failed',
+            response.headers.get('x-izakanpai-trace-id'));
+          return;
+        }
         token = '';
         show('メールアドレスの変更が完了しました。次回から新しいアドレスへ通知が届きます。',
           'Your owner email address has been changed successfully.', true);
       } catch (_) {
-        show('確定できませんでした。リンクの期限内に再試行してください。',
-          'The change could not be completed. Retry with the same link before it expires.', false);
-        this.disabled = false;
+        failure('network_error');
+      } finally {
+        if (token) this.disabled = false;
       }
     });
   })();

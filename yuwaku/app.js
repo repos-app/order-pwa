@@ -22,7 +22,7 @@
       bdayLbl:'🎂 Register your birthday for a treat', bdaySave:'Save', bdaySaved:'Request received. Ask staff to change an existing account.', bdayBad:'Enter as MM-DD (e.g. 08-15)',
       stTitle:'My orders', stSubLbl:'Subtotal', stSvcInclLbl:'Service charge (included)', stSvcExclLbl:'Service charge', stTaxInclLbl:'{tax} (included)', stTaxExclLbl:'{tax}', stTotalLbl:'Unpaid total', stRefresh:'Refresh', stEmpty:'No orders yet for this table.', stPending:'Preparing', stServed:'Served',
       taxInclText:'Prices include {tax} {v}%.', taxExclText:'{tax} {v}% will be added at checkout.',
-      svcInclText:'Prices include a {v}% service charge.', svcExclText:'A {v}% service charge applies separately.',
+      svcInclText:'Prices include a {v}% service charge.', svcExclText:'A {v}% service charge applies separately.', checkoutEstimateLbl:'Estimated total at checkout',
       btnMember:'Rewards', btnCoupon:'Coupon', btnCall:'Call', btnBill:'Bill', btnStatus:'Orders', btnFeedback:'Rate',
       doneTitle:'Thank you!', doneMsg:'Your bill has been settled. To order again, please scan the location QR code once more.',
       mgmtBack:'← Manage' },
@@ -45,7 +45,7 @@
       bdayLbl:'🎂 お誕生日を登録すると特典があります', bdaySave:'登録', bdaySaved:'受付しました。既存会員の変更はスタッフへお申し付けください。', bdayBad:'MM-DD 形式で入力（例: 08-15）',
       stTitle:'注文状況', stSubLbl:'小計', stSvcInclLbl:'うちサービス料（内税）', stSvcExclLbl:'サービス料', stTaxInclLbl:'うち{tax}（内税）', stTaxExclLbl:'{tax}', stTotalLbl:'未会計 合計', stRefresh:'更新', stEmpty:'この卓の注文はまだありません。', stPending:'準備中', stServed:'提供済み',
       taxInclText:'表示価格は{tax}{v}%込みです。', taxExclText:'お会計時に別途{tax}{v}%を頂戴いたします。',
-      svcInclText:'表示価格はサービス料{v}%込みです。', svcExclText:'別途サービス料{v}%を頂戴いたします。',
+      svcInclText:'表示価格はサービス料{v}%込みです。', svcExclText:'別途サービス料{v}%を頂戴いたします。', checkoutEstimateLbl:'会計時の見込み合計',
       btnMember:'特典', btnCoupon:'クーポン', btnCall:'呼出', btnBill:'会計', btnStatus:'状況', btnFeedback:'評価',
       doneTitle:'ご利用ありがとうございました', doneMsg:'お会計が完了しました。追加でご注文の際は、席のQRコードを再度読み取ってください。',
       mgmtBack:'← 管理' }
@@ -54,6 +54,7 @@
   var state = {
     lang: 'en', settings: {}, menu: [], cats: [], currentCat: 'all', ranking: [],
     cart: {}, optLines: [], table: '', member: null, usePoints: false, coupon: null,
+    commissionOrderEnabled: false,
     tableLocked: false,      // true = 卓番号はURLのQRで固定済み（客はタップで変更不可）
     checkoutStamp: 0,        // このセッション開始時点の「最終会計時刻」基準値
     sessionEnded: false,     // 基準値より新しい会計を検知＝このセッションは終了
@@ -109,6 +110,10 @@
     try { var a = JSON.parse(it['オプション'] || '[]'); return Array.isArray(a) ? a : []; }
     catch (e) { return []; }
   }
+  function orderOptionVisible(group) {
+    return group && group.enabled !== false && group.commissionType !== 'recipient_charge' && group.kind !== 'recipient_charge';
+  }
+  function hasOrderOptions(it) { return itemOpts(it).some(orderOptionVisible); }
   // Pre-2026 AI importer saved bilingual serving amounts as EXTRA prices.
   // Only the exact old AI schema is displayed as a full amount; payloads and
   // charge calculations retain the saved deltas for older iPhone clients.
@@ -138,7 +143,7 @@
   }
   function optionLoc(ja,en,legacy){ja=String(ja||'').trim();en=String(en||'').trim();legacy=String(legacy||'').trim();return state.lang==='en'?(en||ja||legacy):(ja||en||legacy);}
   function optionLineLabel(line){var it=menuItem(line.base),groups=itemOpts(it),out=[];if(Array.isArray(line.optionSelections))line.optionSelections.forEach(function(sel){var g=groups[Number(sel.groupIndex)]||{};(sel.choiceIndexes||[]).forEach(function(ci){var c=(g.choices||[])[Number(ci)]||{},s=optionLoc(c.labelJa,c.labelEn,c.label);if(s)out.push(s);});});return out.length?out.join(', '):(line.label||'');}
-  function localizedOrderName(raw){var s=String(raw||''),exact=menuItem(s);if(exact)return optionLoc(exact['商品名_JA'],exact['商品名_EN'],s);var m=s.match(/^(.+?)\s*[（(]([^（）()]*)[)）]\s*$/),base=(m?m[1]:s).trim(),it=menuItem(base);if(!it)return s;var baseDisp=optionLoc(it['商品名_JA'],it['商品名_EN'],base);if(!m||!m[2].trim())return baseDisp;var groups=itemOpts(it),map=Object.create(null);groups.forEach(function(g){(g.choices||[]).forEach(function(c){[c.label,c.labelJa,c.labelEn].forEach(function(alias){var k=String(alias||'').trim();if(k&&!map[k])map[k]=c;});});});var labels=m[2].split(',').map(function(x){var k=x.trim(),c=map[k];return c?optionLoc(c.labelJa,c.labelEn,c.label):k;});return baseDisp+' ('+labels.join(', ')+')';}
+  function localizedOrderName(raw){var s=String(raw||''),exact=menuItem(s);if(exact)return optionLoc(exact['商品名_JA'],exact['商品名_EN'],s);var m=s.match(/^(.+?)\s*[（(]([^（）()]*)[)）]\s*$/),base=(m?m[1]:s).trim(),it=menuItem(base);if(!it)return s;var baseDisp=optionLoc(it['商品名_JA'],it['商品名_EN'],base);if(!m||!m[2].trim())return baseDisp;var groups=itemOpts(it),map=Object.create(null);groups.forEach(function(g){(g.choices||[]).forEach(function(c){[c.label,c.labelJa,c.labelEn].forEach(function(alias){var k=String(alias||'').trim();if(k&&!map[k])map[k]=c;});});});var labels=m[2].split(',').map(function(x){var k=x.trim(),c=map[k];return c?optionLoc(c.labelJa,c.labelEn,c.label):((k==='コミッション'||k==='Commission')?(state.lang==='en'?'Commission':'コミッション'):k);});return baseDisp+' ('+labels.join(', ')+')';}
   function isSampleMenuItem(it) { return !!(it && (it.sample || it.isSample || Number(it['サンプル'] || it.is_sample || 0))); }
   // ある基本商品のオプション明細合計数量（カード上のバッジ用）
   function optQty(base) {
@@ -201,6 +206,15 @@
   }
 
   // ---- 描画 ----
+
+  // 注文登録にはサービス料を含めず、会計見込み額だけ既存の会計計算で表示する。
+  // クーポン適用後の小計がサービス料/VATの計算基準。ポイント割引は会計時に別途減算。
+  function orderCheckoutEstimate(b) {
+    var taxableSubtotal = Math.max(0, b.sub - (b.couponDiscount || 0));
+    var pay = payBreakdown(taxableSubtotal);
+    return { service: pay.service, tax: pay.tax, total: roundCharge(Math.max(0, pay.total - (b.discount || 0))) };
+  }
+
   function applyAccent() {
     var hex = state.settings.accentColor || '';
     if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
@@ -291,11 +305,15 @@
       html += '<div class="cat' + (state.currentCat === 'ranking' ? ' active' : '') + '" data-cat="ranking">' + x.ranking + '</div>';
     }
     state.cats.forEach(function (c) {
-      html += '<div class="cat' + (state.currentCat === c ? ' active' : '') + '" data-cat="' + escAttr(c) + '">' + escHtml(lab(c)) + '</div>';
+      html += '<div class="cat' + (state.currentCat === 'category:'+c ? ' active' : '') + '" data-cat-kind="category" data-cat="' + escAttr(c) + '">' + escHtml(lab(c)) + '</div>';
     });
     $('cats').innerHTML = html;
     Array.prototype.forEach.call($('cats').querySelectorAll('.cat'), function (el) {
-      el.addEventListener('click', function () { state.currentCat = el.getAttribute('data-cat'); renderCats(); renderMenu(); });
+      el.addEventListener('click', function () {
+        var category=el.getAttribute('data-cat');
+        state.currentCat=el.getAttribute('data-cat-kind')==='category'?'category:'+category:category;
+        renderCats(); renderMenu();
+      });
     });
   }
 
@@ -314,11 +332,22 @@
     } else {
       items = state.currentCat === 'all'
         ? state.menu
-        : state.menu.filter(function (it) { return it['カテゴリ'] === state.currentCat; });
+        : state.menu.filter(function (it) { return it['カテゴリ'] === state.currentCat.slice('category:'.length); });
     }
     if (!items.length) { $('menuArea').innerHTML = '<div class="loading">—</div>'; return; }
     var html = '<div class="grid">';
+    var previousCategory = null;
     items.forEach(function (it) {
+      if (state.currentCat === 'all') {
+        var category = String(it['カテゴリ'] || '');
+        if (category !== previousCategory) {
+          var pair = (state.catLabels || {})[category] || {};
+          var label = state.lang === 'en' ? (pair.en || pair.ja || category) : (pair.ja || pair.en || category);
+          html += '<div class="menu-cat-heading" role="heading" aria-level="2">' +
+            escHtml(label || (state.lang === 'en' ? 'Other' : 'その他')) + '</div>';
+          previousCategory = category;
+        }
+      }
       var key = it['商品名'];
       var name = optionLoc(it['商品名_JA'],it['商品名_EN'],key);
       var thumb = it.displayUrl
@@ -337,7 +366,7 @@
       if (unavail) {
         var badge = it.soldOut ? t().soldOut : t().notNow;
         ctrl = '<div class="qty"><span class="unavail-tag">' + escHtml(badge) + '</span></div>';
-      } else if (itemOpts(it).length) {
+      } else if (hasOrderOptions(it)) {
         // オプション付き：選択ボタン＋合計数量バッジ
         var oq = optQty(key);
         ctrl = '<div class="qty">' +
@@ -397,6 +426,7 @@
     }
     // グループ
     groups.forEach(function (g, gi) {
+      if (!orderOptionVisible(g)) return;
       var variant = g.kind === 'price_variant';
       var projectedDelta = g.kind === 'legacy_sale_unit_delta';
       var legacyServing = isLegacyAiServingGroup(groups, g, Number(it['価格']) || 0);
@@ -513,10 +543,10 @@
     return String(details || '').split(/,\s*(?![^（）()]*[)）])/).map(function (tok) {
       var m = tok.trim().match(/^(.+?)x(\d+)$/); if (!m) return tok;
       return localizedOrderName(m[1].trim()) + 'x' + m[2];
-    }).join(', ');
+    }).join('\n');
   }
   function legacyLargeName(en,ja,enMode){return enMode&&/[（(]\s*(?:大盛り|大盛|大)\s*[）)]\s*$/.test(String(ja||''))?String(en||'').replace(/\(\s*greatly\s*\)\s*$/i,'(large)'):en;}
-  function orderDetailsText(order){if(Array.isArray(order&&order.items)&&order.items.length){return order.items.map(function(i){var n=state.lang==='en'?(i.nameEn||i.nameJa):(i.nameJa||i.nameEn),raw=String(i.item_name||i.name||'');return legacyLargeName(/[（(][^（）()]*[)）]\s*$/.test(raw)?localizedOrderName(raw):(n||localizedOrderName(raw)),i.nameJa||raw,state.lang==='en')+'x'+i.qty;}).join(', ');}return transOrderDetails(order&&order.details||'');}
+  function orderDetailsText(order){if(Array.isArray(order&&order.items)&&order.items.length){return order.items.map(function(i){var n=state.lang==='en'?(i.nameEn||i.nameJa):(i.nameJa||i.nameEn),raw=String(i.item_name||i.name||'');return legacyLargeName(/[（(][^（）()]*[)）]\s*$/.test(raw)?(n&&/[（(][^（）()]*[)）]\s*$/.test(n)&&n!==raw&&!(state.lang==='en'&&n.indexOf('コミッション')>=0)?n:localizedOrderName(raw)):(n||localizedOrderName(raw)),i.nameJa||raw,state.lang==='en')+'x'+i.qty;}).join('\n');}return transOrderDetails(order&&order.details||'');}
   function openStatus() {
     var x = t();
     $('stTitle').textContent = x.stTitle;
@@ -554,7 +584,7 @@
         var badge = served ? ('<span style="background:#dcfce7;color:#15803d;border-radius:8px;padding:2px 8px;font-size:12px;font-weight:800;">✓ ' + escHtml(current.stServed) + '</span>')
                            : ('<span style="background:#fef3c7;color:#92400e;border-radius:8px;padding:2px 8px;font-size:12px;font-weight:800;">🍳 ' + escHtml(current.stPending) + '</span>');
         html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);">' +
-          '<div style="flex:1;"><div style="font-size:11px;color:var(--text-2);">🕐 ' + escHtml(o.time || '') + '</div><div>' + escHtml(orderDetailsText(o)) + '</div></div>' +
+          '<div style="flex:1;min-width:0;"><div style="font-size:11px;color:var(--text-2);">🕐 ' + escHtml(o.time || '') + '</div><div style="white-space:pre-line;overflow-wrap:anywhere;font-size:13px;line-height:1.5;">' + escHtml(orderDetailsText(o)) + '</div></div>' +
           '<div style="text-align:right;white-space:nowrap;"><div>' + money(o.price || 0) + '</div>' + badge + '</div></div>';
       });
       $('stBody').innerHTML = html;
@@ -653,15 +683,21 @@
     var b = breakdown();
     var order = { tableNumber: state.table, items: items, totalPrice: b.total, phone: (!hasSample && state.member ? state.member.phone : ''), pointsUsed: (!hasSample && state.usePoints ? b.pointsUsed : 0),
       coupon: (!hasSample && state.coupon ? state.coupon.code : ''), couponDiscount: (!hasSample ? (b.couponDiscount || 0) : 0) };
+    var checkoutPreview = orderCheckoutEstimate(b);
+    var serviceEnabled = Number(state.settings.serviceRate) > 0;
     var confirmLines = [x.confirm, ''];
     items.forEach(function (it) { confirmLines.push('• ' + localizedOrderName(it.name) + ' ×' + it.count); });
     confirmLines.push('');
     confirmLines.push(x.stSubLbl + ': ' + money(b.sub));
-    if (b.service > 0) confirmLines.push((String(state.settings.serviceInclusive) === 'true' ? x.stSvcInclLbl : x.stSvcExclLbl) + ': ' + money(b.service));
-    if (b.tax > 0) confirmLines.push((String(state.settings.taxInclusive) === 'true' ? x.stTaxInclLbl : x.stTaxExclLbl).replace('{tax}', taxName()) + ': ' + money(b.tax));
+    if (serviceEnabled && checkoutPreview.service > 0) {
+      var serviceLabel = String(state.settings.serviceInclusive) === 'true' ? x.stSvcInclLbl : x.stSvcExclLbl;
+      serviceLabel += state.lang === 'ja' ? '（' + Number(state.settings.serviceRate) + '%）' : ' (' + Number(state.settings.serviceRate) + '%)';
+      confirmLines.push(serviceLabel + ': ' + money(checkoutPreview.service));
+    }
+    if ((serviceEnabled ? checkoutPreview.tax : b.tax) > 0) confirmLines.push((String(state.settings.taxInclusive) === 'true' ? x.stTaxInclLbl : x.stTaxExclLbl).replace('{tax}', taxName()) + ': ' + money(serviceEnabled ? checkoutPreview.tax : b.tax));
     if (b.couponDiscount > 0) confirmLines.push(x.couponLbl + ': -' + money(b.couponDiscount));
     if (b.discount > 0) confirmLines.push(x.discountLbl + ': -' + money(b.discount));
-    confirmLines.push(x.total + ': ' + money(b.total));
+    confirmLines.push((serviceEnabled ? x.checkoutEstimateLbl : x.total) + ': ' + money(serviceEnabled ? checkoutPreview.total : b.total));
     UIConfirm(confirmLines.join('\n')).then(function (ok) {
       if (!ok) return;
       doSubmit(order, false);
@@ -779,10 +815,10 @@
   }
   function seatSortKey(v) {
     var s = String(v == null ? '' : v);
-    var c = s.match(/^カウンター(\d+)$/);
-    if (c) return { group:0, num:Number(c[1]) || 0, text:s };
     var t1 = s.match(/^テーブル(\d+)$/), t2 = s.match(/^(\d+)$/), t = t1 || t2;
-    if (t) return { group:1, num:Number(t[1]) || 0, text:s };
+    if (t) return { group:0, num:Number(t[1]) || 0, text:s };
+    var c = s.match(/^カウンター(\d+)$/);
+    if (c) return { group:1, num:Number(c[1]) || 0, text:s };
     return { group:2, num:0, text:s };
   }
   function sortSeats(list) {
@@ -1008,11 +1044,21 @@
   // ブートストラップ結果（サーバ or キャッシュ）を画面に反映
   function applyBootstrap(r, fromCache) {
     state.settings = r.settings || {};
+    state.commissionOrderEnabled = r.commissionOrderEnabled === true;
     state.menu = (r.menu || []);
+    state.optLines = (state.optLines || []).filter(function(line) {
+      var groups=itemOpts(menuItem(line.base)||{});
+      return !(line.optionSelections||[]).some(function(sel){
+        var group=groups[Number(sel.groupIndex)];
+        return group && (group.commissionType==='recipient_charge'||group.kind==='recipient_charge');
+      });
+    });
     if (state.settings.loyaltyEnabled === 'on' || state.settings.loyaltyEnabled === true || state.settings.loyaltyEnabled === 'true') $('memberBtn').style.display = '';
     var cats = [], catLabels = {};
     state.menu.forEach(function (it) { var c = it['カテゴリ']; if (c && cats.indexOf(c) === -1) cats.push(c); if(c){ var pair=catLabels[c]||(catLabels[c]={ja:'',en:''});if(!pair.ja)pair.ja=String(it['カテゴリ_JA']||'').trim();if(!pair.en)pair.en=String(it['カテゴリ_EN']||'').trim();} });
     state.cats = cats; state.catLabels = catLabels;
+    if(state.currentCat.indexOf('category:')===0 &&
+      cats.indexOf(state.currentCat.slice('category:'.length))===-1) state.currentCat='all';
     applyAccent();
     var _bid = state.settings.menuTopImageId;
     if (_bid) { var _b = $('shopBanner'); _b.src = API.imageUrl(_bid); _b.style.display = 'block'; }
@@ -1103,7 +1149,7 @@
         : { __timeoutMs:8000, __noInternalRetry:true, __silent:true };
       return API.post('bootstrap', bootPayload).then(function (r) {
         if (seq !== bootstrapLoadSeq) return;
-        try { localStorage.setItem((window.APP_CONFIG.STORAGE_PREFIX || '') + 'bootCache', JSON.stringify({ settings: r.settings, menu: r.menu, tables: r.tables })); } catch (e) {}
+        try { localStorage.setItem((window.APP_CONFIG.STORAGE_PREFIX || '') + 'bootCache', JSON.stringify({ settings: r.settings, menu: r.menu, tables: r.tables, commissionOrderEnabled:r.commissionOrderEnabled===true })); } catch (e) {}
         applyBootstrap(r, false);
         syncQueuedOrders(); // オンライン起動時に保留分を流す
       }).catch(function (err) {

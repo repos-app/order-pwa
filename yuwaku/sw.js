@@ -126,7 +126,14 @@ const CACHE_PREFIX = 'yuwaku-production-';
 // precache the exact versioned URLs so first-launch offline works after update.
 // v296: refresh cached checkout without the obsolete split-bill reference widget.
 // v298: reload vertically stacked AI credit badge without increasing common header height.
-const CACHE = CACHE_PREFIX + 'v302';
+// v301: invalidate old AI header and credit confirmation assets.
+// v303: inventory write-replay journal is pinned and precached for offline use.
+// v305: explicit target flags may be ON even with zero added drink charge.
+// v306: refresh Orders initial currency/service preview from store settings.
+// v315: commission-menu bulk selection and fixed/percentage extra charges.
+// v316: seating picker and settings preview follow configured seat-type order.
+// v317: refresh shared API error messages and account deletion diagnostics.
+const CACHE = CACHE_PREFIX + 'v318';
 const SHELL = [
   './',
   './index.html',
@@ -142,10 +149,12 @@ const SHELL = [
   './attendance.html',
   './users.html',
   './menu_editor.html',
-  './menu-ai-review-reasons.js',
+  './menu-ai-review-reasons.js?v=auth1',
   './ai-credit-hub.js?v=auth7',
-  './ai-credit-ui.js?v=auth1',
+  './announcement-center.js?v=7',
+  './ai-credit-ui.js?v=auth2',
   './ai-image-quality.js?v=auth1',
+  './pending-write-replay.js?v=s6-1',
   './inventory.html',
   './settings.html',
   './clock.html',
@@ -176,18 +185,22 @@ const SHELL = [
   './system-overview.svg',
   './system-overview-en.svg',
   './styles.css',
+  './ui-ellipsis.css?v=1',
   './date-controls.css?v=3',
   './date-display.js?v=auth4',
   './config.js?v=auth2',
-'./header.js?v=auth20',
+'./header.js?v=auth26',
   './api.js?v=auth2',
   './i18n.js?v=auth3',
+  './commission-drink-settings.js?v=cd2',
   './external-browser.js?v=external1',
   './native-file-export.js?v=native-export1',
   './confirm.js?v=auth2',
   './print-renderer.js?v=print2',
   './app.js?v=auth5',
   './help.js?v=auth2',
+  './commission.html',
+  './commission-app.js?v=auth20261112-commission-bulk-rate',
   './manifest.webmanifest',
   './admin.webmanifest',
   './attendance.webmanifest',

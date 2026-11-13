@@ -44,7 +44,7 @@
   <link rel="stylesheet" href="./date-controls.css?v=3">
 </head>
 <body>
-  <div class="head"><h1 data-t="title">📈 月間粗利</h1><div style="display:flex;gap:8px;"><button class="hbtn" data-tlang onclick="I18n.toggle()">EN</button><a class="hbtn" href="./manage.html" data-t="back">← 管理へ</a></div></div>
+  <div class="head"><h1 data-t="title">📈 月間利益</h1><div style="display:flex;gap:8px;"><button class="hbtn" data-tlang onclick="I18n.toggle()">EN</button><a class="hbtn" href="./manage.html" data-t="back">← 管理へ</a></div></div>
   <div class="wrap">
     <div class="card">
       <div class="bar">
@@ -103,8 +103,19 @@
       });
     }
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-    var SYM='₱', DATA=null, cogsMode='auto';
-    function money(v){ return SYM+(Math.round(Number(v)||0)).toLocaleString(); }
+    var SYM='', SETTINGS={}, DATA=null, cogsMode='auto';
+    function money(v){
+      var raw=SETTINGS.currencyDecimalDigits, n=Number(raw);
+      var digits=raw!=null && raw!=='' && Number.isInteger(n) && n>=0 && n<=3 ? n : 0;
+      var opts={minimumFractionDigits:digits,maximumFractionDigits:digits};
+      // For legacy zero-decimal stores retain the original Math.round
+      // semantics, including negative/refund subtotals; decimal currencies
+      // instead retain centavos from getMonthlyProfit.
+      var amount=Number(v)||0, locale=SETTINGS.locale||undefined;
+      if(digits===0) amount=Math.round(amount);
+      try{ return SYM+amount.toLocaleString(locale,opts); }
+      catch(e){ return SYM+amount.toLocaleString('en-US',opts); }
+    }
 
     window.setCogs = function(mode){ cogsMode=mode; render(); };
 
@@ -112,6 +123,7 @@
       if(!DATA){ return; }
       var d = DATA, e = d.exp||{};
       var cogs = (cogsMode==='purchase') ? (e['商品仕入']||0) : (d.cogsAuto||0);
+      var provisional = (cogsMode==='auto' && d.cogsIncomplete) || d.wagesIncomplete;
       var fixed = (e['賃料']||0)+(e['電気代']||0)+(e['水道代']||0);
       var totalCost = cogs + (d.wages||0) + fixed + (e['備品購入']||0) + (e['その他']||0);
       var profit = (d.revenue||0) - totalCost;
@@ -131,7 +143,9 @@
       html += '<div class="row sub"><span class="lb">'+I18n.t('water')+'</span><span class="amt">'+money(e['水道代']||0)+'</span></div>';
       html += '<div class="row cost"><span class="lb">'+I18n.t('supply')+'</span><span class="amt">− '+money(e['備品購入']||0)+'</span></div>';
       html += '<div class="row cost"><span class="lb">'+I18n.t('other')+'</span><span class="amt">− '+money(e['その他']||0)+'</span></div>';
-      html += '<div class="profit"><span class="lb">'+I18n.t('profit')+'<span class="rate">'+I18n.t('rate')+' '+rate+'%</span></span><span class="amt">'+money(profit)+'</span></div>';
+      html += '<div class="profit"><span class="lb">'+I18n.t('profit')+(provisional?(isEN()?' (estimate)':'（暫定）'):'')+'<span class="rate">'+I18n.t('rate')+' '+rate+'%</span></span><span class="amt">'+money(profit)+'</span></div>';
+      if (cogsMode==='auto' && d.cogsIncomplete) html += '<p class="hint" role="status">⚠ '+(isEN()?'Recipe cost is unknown for '+(Number(d.cogsUnknownItemCount)||0)+' item(s). Profit may be overstated.':'原価不明の品目が'+(Number(d.cogsUnknownItemCount)||0)+'件あります。利益が過大になっている可能性があります。')+'</p>';
+      if (d.wagesIncomplete) html += '<p class="hint" role="status">⚠ '+(isEN()?'Payroll totals could not be loaded. Profit is provisional.':'給与の集計に失敗したため、この利益は暫定値です。')+'</p>';
       html += '<div class="hint" style="margin-top:10px;" data-t="note2">※ 固定費・備品・その他・仕入は「経費一覧」で当月に登録した金額の合計です。</div>';
       document.getElementById('result').innerHTML = html;
       I18n && I18n.lang && applyNote();
@@ -152,15 +166,15 @@
         });
     };
 
-    API.post('getSettings', {}).then(function(r){ if(r.data && r.data.currencySymbol) SYM=r.data.currencySymbol; if(DATA) render(); }).catch(function(){});
+    API.post('getSettings', {}).then(function(r){ SETTINGS=r.data||{}; if(SETTINGS.currencySymbol) SYM=SETTINGS.currencySymbol; if(DATA) render(); }).catch(function(){});
     // 2026-08-24修正: toISOString()はUTC基準のため、フィリピン時間で月初の午前0〜8時頃に開くと
     // 前月が選択されてしまう不具合があった（profit_sim.htmlで先に見つけて修正済みだった同じ問題を
     // 横展開）。ローカル時間（店舗のタイムゾーン）で当月を決める。
     API.initStoreDateInputs([{id:'month',kind:'month'}], load);
 
     I18n.init({
-      ja:{ title:'📈 月間粗利', back:'← 管理へ', month:'対象月', calc:'🔄 計算', hint:'売上・商品原価(レシピ自動)・従業員給与(勤怠)はシステムから自動取得。固定費・備品・その他は「経費一覧」の登録額を集計します。', loading:'読み込み中…', revenue:'売上', ordersU:'件', cogs:'商品原価', cogsAuto:'自動(レシピ)', cogsBuy:'仕入実績', wages:'従業員給与', rent:'賃料', elec:'電気代', water:'水道代', supply:'備品購入', other:'その他', profit:'粗利', rate:'粗利率', note2:'※ 固定費・備品・その他・仕入は「経費一覧」で当月に登録した金額の合計です。', errPrefix:'エラー: ', loadErr:'読み込みエラー: ' },
-      en:{ title:'📈 Monthly Gross Profit', back:'← Manage', month:'Target month', calc:'🔄 Calculate', hint:'Revenue, product cost (auto via recipes) and wages (attendance) are pulled from the system. Fixed costs / supplies / other are summed from the Expenses list.', loading:'Loading…', revenue:'Revenue', ordersU:' orders', cogs:'Product cost', cogsAuto:'Auto (recipe)', cogsBuy:'Purchases', wages:'Wages', rent:'Rent', elec:'Electricity', water:'Water', supply:'Supplies', other:'Other', profit:'Gross profit', rate:'Margin', note2:'* Fixed costs / supplies / other / purchases are totals registered for the month in the Expenses list.', errPrefix:'Error: ', loadErr:'Load error: ' }
+      ja:{ title:'📈 月間利益（経費控除後）', back:'← 管理へ', month:'対象月', calc:'🔄 計算', hint:'売上・商品原価(レシピ自動)・従業員給与(勤怠)はシステムから自動取得。固定費・備品・その他は「経費一覧」の登録額を集計します。', loading:'読み込み中…', revenue:'売上', ordersU:'件', cogs:'商品原価', cogsAuto:'自動(レシピ)', cogsBuy:'仕入実績', wages:'従業員給与', rent:'賃料', elec:'電気代', water:'水道代', supply:'備品購入', other:'その他', profit:'経費控除後利益', rate:'利益率', note2:'※ 固定費・備品・その他・仕入は「経費一覧」で当月に登録した金額の合計です。', errPrefix:'エラー: ', loadErr:'読み込みエラー: ' },
+      en:{ title:'📈 Monthly Profit', back:'← Manage', month:'Target month', calc:'🔄 Calculate', hint:'Revenue, product cost (auto via recipes) and wages (attendance) are pulled from the system. Fixed costs / supplies / other are summed from the Expenses list.', loading:'Loading…', revenue:'Revenue', ordersU:' orders', cogs:'Product cost', cogsAuto:'Auto (recipe)', cogsBuy:'Purchases', wages:'Wages', rent:'Rent', elec:'Electricity', water:'Water', supply:'Supplies', other:'Other', profit:'Profit after expenses', rate:'Margin', note2:'* Fixed costs / supplies / other / purchases are totals registered for the month in the Expenses list.', errPrefix:'Error: ', loadErr:'Load error: ' }
     }, function(){ if(DATA) render(); });
 
     load();
@@ -168,14 +182,15 @@
   <script src="./help.js?v=auth2"></script>
   <script>
     HelpUI.register({
-      title: '月間粗利',
-      titleEn: 'Monthly gross profit',
+      title: '月間利益（経費控除後）',
+      titleEn: 'Monthly profit after expenses',
       items: [
-        { ja: '① 「対象月」を選んで「🔄 計算」を押すと、その月の売上から粗利（売上−原価）を計算して表示します。', en: '① Pick a "Target month" and tap "🔄 Calculate" to compute that month\'s gross profit (revenue − costs).' },
-        { ja: '② 売上・商品原価（レシピから自動算出）・従業員給与（勤怠から自動算出）はシステムから自動取得されます。', en: '② Revenue, product cost (auto from recipes), and wages (auto from attendance) are pulled automatically from the system.' },
+        { ja: '① 「対象月」を選び「🔄 計算」を押すと、売上から商品原価・給与・販売報酬・登録経費を差し引いた月間利益を表示します（粗利だけの数値ではありません）。', en: '① Choose a month and Calculate to show profit after product costs, wages, sales commissions, and recorded expenses. This is not gross profit alone.' },
+        { ja: '② 売上・商品原価・給与・販売報酬を取得します。レシピ原価は現在のレシピ・材料単価に基づき再計算されるため、過去月の利益が後から変動することがあります。', en: '② Revenue, product cost, wages and sales commissions are loaded. Recipe costs use current recipe quantities and ingredient prices, so historical monthly profits may change after cost edits.' },
         { ja: '③ 商品原価は「自動(レシピ)」と「仕入実績」のどちらかをラジオボタンで選んで比較できます。', en: '③ Choose between "Auto (recipe)" and "Purchases" for product cost using the radio buttons to compare.' },
         { ja: '④ 賃料・電気代・水道代・備品購入・その他の経費は「経費一覧」で当月に登録した金額が集計されます。', en: '④ Rent, electricity, water, supplies, and other costs are totals registered for the month in the Expenses list.' },
-        { ja: '⑤ 画面下部に粗利額と粗利率がまとめて表示され、経営状況を一目で把握できます。', en: '⑤ The bottom shows the gross profit amount and margin together for a quick view of financial health.' }
+        { ja: '⑤ 画面下部に販売報酬や登録経費を控除した利益と利益率が表示されます。返金伝票の売上・原価・販売報酬は自動で相殺されます。', en: '⑤ The bottom shows profit and margin after commissions and recorded expenses. Refund receipts automatically reverse revenue, product costs and commissions.' },
+        { ja: '⑥ 原価未設定・旧形式の伝票や給与集計の失敗がある場合、利益は暫定値で警告を表示します。必要なレシピ・在庫単価や勤怠データを確認してください。', en: '⑥ Profit is marked provisional when recipes/costs are missing, legacy receipts lack item details, or payroll cannot be loaded. Check recipe, inventory cost and attendance records.' }
       ]
     });
   </script>

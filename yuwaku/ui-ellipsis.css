@@ -1,0 +1,14 @@
+/* One-line, non-destructive labels shared by receipt, menu and checkout UI.
+   All matching elements participate in the dynamic layout regression audit. */
+[data-iz-ellipsis]{
+  display:block;
+  flex-shrink:1;
+  min-width:0;
+  max-width:100%;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  overflow-wrap:normal;
+  word-break:normal;
+}
+.cm-check>[data-iz-ellipsis]{flex:1 1 auto}

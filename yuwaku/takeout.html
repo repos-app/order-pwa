@@ -17,13 +17,15 @@
     body{ margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif; background:var(--bg); color:var(--navy); padding-bottom:120px; -webkit-tap-highlight-color:transparent; }
     .lang-btn{ background:rgba(15,23,42,.7); color:#fff; border:0; border-radius:999px; padding:6px 12px; font-size:12px; font-weight:800; cursor:pointer; }
     .lang-fab{ position:fixed; top:12px; right:12px; z-index:32; }
-    .to-banner{ width:100%; max-height:160px; object-fit:contain; background:var(--bg,#f6f7f9); display:none; }
+    /* Match the normal order banner (.shop-banner in styles.css).
+       Never crop a store logo; keep hidden until a banner is configured. */
+    .to-banner{ width:100%; max-height:190px; object-fit:contain; background:var(--bg, #f6f7f9); display:none; }
     .to-head{ position:sticky; top:0; z-index:20; min-height:58px; display:flex; align-items:center; gap:10px; padding:10px 16px; background:#fff7ed; border-bottom:2px solid #fb923c; box-shadow:0 2px 8px rgba(15,23,42,.08); }
     .to-shop{ font-size:16px; font-weight:900; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .to-tag{ order:-1; flex:0 0 auto; display:inline-block; background:#ea580c; color:#fff; font-size:16px; font-weight:900; padding:8px 12px; border-radius:10px; margin-left:0; vertical-align:middle; }
     .cats{ display:flex; gap:8px; overflow-x:auto; padding:8px 16px; position:sticky; top:58px; background:var(--bg); z-index:19; scrollbar-width:none; }
     .cats::-webkit-scrollbar{ display:none; }
-    @media(max-width:480px){ .to-banner{max-height:120px}.to-head{padding:9px 10px;min-height:56px}.cats{padding:7px 10px;top:56px} }
+    @media(max-width:480px){ .to-head{padding:9px 10px;min-height:56px}.cats{padding:7px 10px;top:56px} }
     .cat{ flex:0 0 auto; border:1px solid var(--border); background:var(--surface); border-radius:999px; padding:7px 14px; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap; }
     .cat.on{ background:var(--navy); color:#fff; border-color:var(--navy); }
     .menu{ padding:6px 16px; }
@@ -81,7 +83,6 @@
     .takeout-mark{ display:block; font-size:19px; font-weight:950; letter-spacing:.02em; }
     .takeout-shop{ display:block; margin-top:3px; font-size:12px; font-weight:700; opacity:.92; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .appbar .lang-btn{ position:static; flex:0 0 auto; background:rgba(255,255,255,.18); color:#fff; border:1px solid rgba(255,255,255,.38); border-radius:10px; padding:7px 10px; font-weight:900; text-decoration:none; }
-    .to-banner{ max-height:140px; width:100%; object-fit:cover; display:none; }
     .cats{ position:sticky; top:62px; z-index:20; display:flex; gap:8px; overflow-x:auto; padding:10px 14px; background:var(--bg); -webkit-overflow-scrolling:touch; scrollbar-width:none; }
     .cats::-webkit-scrollbar{ display:none; }
     .cat{ flex:0 0 auto; border:1px solid var(--border); background:var(--surface); color:var(--text-2); border-radius:999px; padding:8px 14px; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap; }
@@ -209,7 +210,7 @@
     };
     function tt(){ return I18n.d(); }
     function sym(){ return SETTINGS.currencySymbol || '₱'; }
-    function money(n){ return sym() + (Number(n)||0).toLocaleString(); }
+    function money(n){ var raw=SETTINGS.currencyDecimalDigits, val=Number(raw); var digits=SETTINGS.currencyCode==='PHP'?2:SETTINGS.currencyCode==='JPY'?0:(raw!==''&&raw!=null&&Number.isInteger(val)&&val>=0&&val<=3?val:0); return sym()+(Number(n)||0).toLocaleString(SETTINGS.locale||undefined,{minimumFractionDigits:digits,maximumFractionDigits:digits}); }
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
     function isTakeoutEnabled(it){ var v=it&&(it['テイクアウト可']!==undefined?it['テイクアウト可']:(it.takeoutEnabled!==undefined?it.takeoutEnabled:it.takeout_enabled)); return v===true||Number(v)===1; }
     function takeoutErrorText(err,fallback){ var code=String(err&&(err.code||err.message)||err||'').trim().toLowerCase(); if(code==='takeout_item_unavailable')return lang==='ja'?'選択した商品は現在テイクアウト対象外です。メニューを更新して注文内容を確認してください。':'A selected item is no longer available for takeout. Refresh the menu and review your order.'; return API.userErrorText(err,fallback); }
@@ -304,16 +305,20 @@
         var ctrl;
         if(unavail){ctrl='<div class="qty"><span class="unavail-tag">'+(it.soldOut?(lang==='ja'?'本日売切':'Sold out'):(lang==='ja'?'時間外':'Not now'))+'</span></div>';}
         else if(hasOpts){ctrl='<div class="qty"><button type="button" class="opt-btn" onclick="openOpt(\''+safeNm+'\')">'+esc(optWords('choose'))+(q>0?' <span class="opt-badge">'+q+'</span>':'')+'</button></div>';}
-        else{ctrl='<div class="qty"><button class="minus" onclick="chg(\''+safeNm+'\',-1)">−</button><span class="n'+(q>0?' has':'')+'">'+q+'</span><button class="plus" onclick="chg(\''+safeNm+'\',1)">＋</button></div>';}
+        else{ctrl='<div class="qty"><button class="minus" onclick="chg(\''+safeNm+'\',-1,this)">−</button><span class="n'+(q>0?' has':'')+'">'+q+'</span><button class="plus" onclick="chg(\''+safeNm+'\',1,this)">＋</button></div>';}
         html+='<div class="card'+(unavail?' unavail':'')+'">'+thumb+'<div class="body"><div class="name">'+esc(dispNm)+'</div>'+(tags?'<div class="tags">'+tags+'</div>':'')+(it['説明']?'<div class="desc">'+esc(it['説明'])+'</div>':'')+'<div class="price">'+money(it['価格'])+'</div>'+ctrl+'</div></div>';
       });
       document.getElementById('menu').innerHTML=html+'</div>';
     }
-    window.chg = function(nm, d){
+    window.chg = function(nm, d, button){
       if(itemOpts(menuItem(nm)).length){openOpt(nm);return;}
       cart[nm] = Math.max(0,(cart[nm]||0)+d);
       if(!cart[nm]) delete cart[nm];
-      renderMenu(); updateCart();
+      // Match the regular order screen: retain card/image nodes on qty changes.
+      var countNode=button&&button.parentNode&&button.parentNode.querySelector('.n');
+      if(countNode){countNode.textContent=String(cart[nm]||0);countNode.classList.toggle('has',(cart[nm]||0)>0);}
+      else renderMenu();
+      updateCart();
     };
 
     function priceOf(nm){ for(var i=0;i<MENU.length;i++){ if(String(MENU[i]['商品名'])===String(nm)) return Number(MENU[i]['価格'])||0; } return 0; }
@@ -600,10 +605,10 @@
       titleEn: 'How to order takeout',
       items: [
         { ja: '① カテゴリで商品を絞り込みます。通常商品は＋／−で数量を調整します。選択肢がある商品は⚙（選択）を押し、必須・任意のオプションと数量を選んで「カートに追加」を押してください。選択内容ごとに別々のカート明細となり、追加料金も反映されます。', en: '① Filter by category. Use +/− for standard items. For items with choices, tap ⚙ (Options), choose required/optional options and quantity, then Add to cart. Each option combination has its own cart line and any extra charges are included.' },
-        { ja: '② 画面下の「カート」ボタンで受取情報の入力画面に進みます。', en: '② Tap the Cart button at the bottom to go to the pickup details screen.' },
+        { ja: '② 画面下の「注文へ進む」で受取情報の入力画面に進みます。', en: '② Tap Checkout at the bottom to enter pickup details.' },
         { ja: '③ お名前（必須）・電話番号・受取時刻・備考を入力します。クーポンコードがあれば入力して「適用」を押します。', en: '③ Enter your name (required), phone, pickup time, and notes. Enter a coupon code and tap Apply if you have one.' },
         { ja: '④ お支払いは商品受け取り時に店舗スタッフへお願いします。', en: '④ Please pay a staff member when you collect your order.' },
-        { ja: '⑤ 内容を確認し「注文へ進む」ボタンで注文を確定します。完了後は受取番号が表示されるので、店頭でお伝えください。', en: '⑤ Review your order and tap the checkout button to confirm. A pickup code will be shown afterward — tell it to staff at pickup.' }
+        { ja: '⑤ 内容を確認して「店頭で支払う（注文確定）」を押すと注文が送信されます。完了後に表示される受取番号を店頭でお伝えください。', en: '⑤ Review the order, then tap Pay at counter (confirm) to submit. Show the pickup code displayed afterward to staff.' }
       ]
     });
   </script>

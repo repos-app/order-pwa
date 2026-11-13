@@ -30,6 +30,11 @@
     td.num,th.num{ text-align:right; font-variant-numeric:tabular-nums; }
     .btn-sm{ background:#eef2f7; color:var(--navy); border:0; border-radius:8px; padding:6px 10px; font-weight:800; cursor:pointer; }
     .btn-danger{ background:#fee2e2; color:#991b1b; margin-left:5px; }
+    .btn-correct{ background:#dbeafe; color:#1e40af; }
+    .receipt-actions{ display:inline-flex; gap:6px; flex-wrap:nowrap; align-items:center; white-space:nowrap; }
+    .receipt-actions .btn-sm{ white-space:nowrap; flex-shrink:0; }
+    .receipt-correction-history{ padding:4px 0 8px; font-size:12px; line-height:1.6; white-space:normal; }
+    .receipt-correction-history .correction-entry{ white-space:normal; overflow-wrap:break-word; }
     .badge{ display:inline-block; border-radius:999px; padding:3px 7px; font-size:11px; font-weight:900; margin-left:5px; }
     .badge-refund{ background:#fee2e2; color:#991b1b; }
     .badge-refunded{ background:#e2e8f0; color:#475569; }
@@ -38,6 +43,9 @@
     #rows td:nth-child(2),#rows td:nth-child(3),#rows td:nth-child(5),#rows td:nth-child(6){white-space:normal;overflow-wrap:normal;word-break:normal;}
     #rows td:last-child{white-space:nowrap;}
     #rows td[colspan]{white-space:normal;overflow-wrap:normal;}
+    /* Receipt item text follows the compact checkout menu scale on iOS too. */
+    .receipt-detail-content{display:flex;gap:6px;align-items:flex-start;}
+    .receipt-detail-lines{min-width:0;white-space:pre-line;font-size:12px;line-height:1.5;-webkit-text-size-adjust:100%;text-size-adjust:100%;}
     #refundTarget{max-width:100%;white-space:normal;overflow-wrap:normal;}
     .modal-bg{ display:none; position:fixed; inset:0; z-index:100; background:rgba(15,23,42,.62); padding:20px; align-items:center; justify-content:center; }
     .modal-bg.open{ display:flex; }
@@ -45,6 +53,11 @@
     .modal h2{ margin:0 0 8px; font-size:20px; }
     .modal label{ display:block; margin-top:12px; font-size:12px; font-weight:800; }
     .modal input,.modal textarea{ width:100%; margin-top:5px; padding:10px; border:1px solid var(--border); border-radius:9px; font:inherit; }
+    .modal select{ width:100%; min-width:0; margin-top:5px; padding:10px; border:1px solid var(--border); border-radius:9px; background:#fff; font:inherit; }
+    #paymentCorrectionModal .modal{ max-height:calc(100dvh - 32px); overflow-y:auto; }
+    #paymentCorrectionTarget{ white-space:normal; overflow-wrap:break-word; }
+    #paymentCorrectionError{ color:#b91c1c; margin-top:10px; white-space:normal; overflow-wrap:break-word; }
+    @media (max-width:520px){ #paymentCorrectionModal .modal{ padding:16px; } #paymentCorrectionModal textarea,#paymentCorrectionModal select{ font-size:16px; } #rows td:last-child{ white-space:nowrap; } }
     .modal-actions{ display:flex; gap:8px; justify-content:flex-end; margin-top:16px; }
     .modal-actions .btn-sm{ flex:1 1 0; min-width:0; min-height:44px; padding:11px 14px; border-radius:10px; font-size:14px; font-family:inherit; line-height:1.25; }
     .modal-actions .btn-danger{ margin-left:0; }
@@ -87,6 +100,28 @@
     </div>
   </div>
 
+  <div id="paymentCorrectionModal" class="modal-bg" role="dialog" aria-modal="true" aria-labelledby="paymentCorrectionTitle">
+    <div class="modal">
+      <h2 id="paymentCorrectionTitle" data-payment-t="title">支払方法の訂正</h2>
+      <div id="paymentCorrectionTarget" class="muted"></div>
+      <label for="paymentCorrectionCurrent" data-payment-t="current">現在の支払方法</label>
+      <input id="paymentCorrectionCurrent" readonly>
+      <label for="paymentCorrectionNew" data-payment-t="newMethod">訂正後の支払方法</label>
+      <select id="paymentCorrectionNew">
+        <option value="cash" data-payment-t="cash">現金</option>
+        <option value="card" data-payment-t="card">カード</option>
+        <option value="gcash" data-payment-t="gcash">GCash</option>
+      </select>
+      <label for="paymentCorrectionReason" data-payment-t="reason">訂正理由（必須）</label>
+      <textarea id="paymentCorrectionReason" rows="3" maxlength="300" required></textarea>
+      <div id="paymentCorrectionError" role="alert" style="display:none;"></div>
+      <div class="modal-actions">
+        <button id="paymentCorrectionCancel" class="btn-sm" type="button" onclick="closePaymentCorrection()" data-payment-t="cancel">閉じる</button>
+        <button id="paymentCorrectionSubmit" class="btn-sm btn-correct" type="button" onclick="submitPaymentCorrection()" data-payment-t="save">訂正を保存</button>
+      </div>
+    </div>
+  </div>
+
   <script src="./date-display.js?v=auth4" data-iz-date-display></script><script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
   <script src="./i18n.js?v=auth3"></script>
@@ -105,12 +140,126 @@
     var PAGE=1, PAGE_SIZE=100, HAS_MORE=false, SUM_TOTAL=0, CNT_TOTAL=0, REFUND_COUNT=0, REFUND_OR='';
 function seatLabel(v){ var s=String(v==null?'':v).trim(); var en=(window.I18n&&I18n.lang&&I18n.lang()==='en'); var tableTerm=(en?(SETTINGS.tableLabelEn||SETTINGS.tableLabelJa):(SETTINGS.tableLabelJa||SETTINGS.tableLabelEn))||(en?'Table':'テーブル'); var counterTerm=(en?(SETTINGS.counterLabelEn||SETTINGS.counterLabelJa):(SETTINGS.counterLabelJa||SETTINGS.counterLabelEn))||(en?'Counter':'カウンター'); var m=s.match(/^(?:テーブル|Table)\s*(\d+)$/i)||s.match(/^(\d+)$/); if(m) return tableTerm+' '+m[1]; var c=s.match(/^(?:カウンター|Counter)\s*(\d+)$/i); if(c) return counterTerm+' '+c[1]; return s; }
     var MENU_LABELS={};
+    var PAYMENT_CORRECTION_OR='', PAYMENT_CORRECTION_EXPECTED='', PAYMENT_CORRECTION_BUSY=false, PAYMENT_CORRECTION_RETRY=null;
+    var PAYMENT_TEXT={
+      ja:{title:'支払方法の訂正',current:'現在の支払方法',newMethod:'訂正後の支払方法',reason:'訂正理由（必須）',cash:'現金',card:'カード',gcash:'GCash',cancel:'閉じる',save:'訂正を保存',change:'✎ 支払訂正',history:'訂正履歴',by:'担当',afterClose:'締め後訂正',refunded:'返金済みの会計は訂正できません。',offlineCash:'現金照合済みの会計は訂正できません。',required:'訂正先と訂正理由を入力してください。',same:'変更前と同じ支払方法は選べません。',forbidden:'マネージャー以上の権限が必要です。',stale:'支払方法が他で変更されました。再読み込みしてください。',failed:'支払方法を訂正できませんでした。',done:'支払方法を訂正しました。',processing:'処理中…'},
+      en:{title:'Correct payment method',current:'Current payment method',newMethod:'New payment method',reason:'Correction reason (required)',cash:'Cash',card:'Card',gcash:'GCash',cancel:'Close',save:'Save correction',change:'✎ Correct payment',history:'Correction history',by:'By',afterClose:'After shift close',refunded:'Refunded receipts cannot be corrected.',offlineCash:'A cash-reconciled receipt cannot be corrected.',required:'Select the new method and enter a reason.',same:'Select a different payment method.',forbidden:'Manager or higher permission is required.',stale:'The payment method changed elsewhere. Reload before trying again.',failed:'Could not correct the payment method.',done:'Payment method corrected.',processing:'Processing…'}
+    };
+    function paymentText(key){var lang=(window.I18n&&I18n.lang&&I18n.lang()==='en')?'en':'ja';return PAYMENT_TEXT[lang][key]||String(key);}
+    function updatePaymentLabels(){
+      Array.prototype.forEach.call(document.querySelectorAll('[data-payment-t]'),function(el){el.textContent=paymentText(el.getAttribute('data-payment-t'));});
+      if(PAYMENT_CORRECTION_OR){
+        var row=ROWS.find(function(r){return r.orNo===PAYMENT_CORRECTION_OR;});
+        if(row){
+          var en=I18n.lang&&I18n.lang()==='en';
+          document.getElementById('paymentCorrectionCurrent').value=(en?(row.methodLabelEn||row.methodLabelJa):(row.methodLabelJa||row.methodLabelEn))||paymentMethodLabel(PAYMENT_CORRECTION_EXPECTED);
+        }
+      }
+    }
+    function paymentMethodCode(value){var s=String(value==null?'':value).trim().toLowerCase();return ['cash','card','gcash'].indexOf(s)>=0?s:'';}
+    function paymentMethodLabel(value){return paymentText(paymentMethodCode(value)||value);}
+    function paymentCorrectionHistory(row){
+      var history=Array.isArray(row.correctionHistory)?row.correctionHistory:(Array.isArray(row.corrections)?row.corrections:[]);
+      var count=Number(row.paymentCorrectionCount)||history.length;
+      var badge=count>0?'<span class="badge badge-refunded" data-correction-count="'+count+'">'+esc(paymentText('history'))+' '+count+'</span>':'';
+      if(!history.length)return {badge:badge,row:''};
+      var detail=history.map(function(h){
+        var from=h.from||h.old_method||h.oldMethod||'',to=h.to||h.new_method||h.newMethod||'';
+        var when=h.at||h.created_at||h.createdAt||'',actor=h.actor||h.actor_name||h.actorName||'';
+        var close=h.afterClose||h.was_closed;
+        return '<div class="correction-entry">'+esc(when)+' · '+esc(paymentMethodLabel(from))+' → '+esc(paymentMethodLabel(to))+
+          (actor?' · '+esc(paymentText('by'))+': '+esc(actor):'')+(close?' · '+esc(paymentText('afterClose')):'')+
+          (h.reason?' · '+esc(h.reason):'')+'</div>';
+      }).join('');
+      return {badge:badge,row:'<tr class="receipt-correction-row"><td></td><td colspan="6" class="receipt-correction-history"><strong>'+esc(paymentText('history'))+'</strong>'+detail+'</td></tr>'};
+    }
+    function paymentCorrectionError(key,detail){
+      var el=document.getElementById('paymentCorrectionError');
+      el.textContent=paymentText(key)+(detail?' '+detail:'');
+      el.style.display='block';
+    }
+    function paymentCorrectionFailureKey(code){
+      code=String(code||'');
+      if(/receipt_changed|shift_changed|request_conflict|conflict|stale|method_changed/i.test(code))return 'stale';
+      if(/not_authorized|forbidden|permission|unauthorized/i.test(code))return 'forbidden';
+      if(/payment_correction_refunded/i.test(code))return 'refunded';
+      if(/payment_correction_offline_cash/i.test(code))return 'offlineCash';
+      if(/method_unchanged/i.test(code))return 'same';
+      if(/reason_required/i.test(code))return 'required';
+      return 'failed';
+    }
+    function nextPaymentCorrectionRequestId(){
+      try{
+        if(typeof crypto!=='undefined'&&typeof crypto.randomUUID==='function')return crypto.randomUUID();
+        if(typeof crypto!=='undefined'&&typeof crypto.getRandomValues==='function'){
+          var bytes=new Uint8Array(16);crypto.getRandomValues(bytes);
+          bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;
+          var hex=Array.prototype.map.call(bytes,function(n){return n.toString(16).padStart(2,'0');}).join('');
+          return hex.slice(0,8)+'-'+hex.slice(8,12)+'-'+hex.slice(12,16)+'-'+hex.slice(16,20)+'-'+hex.slice(20);
+        }
+      }catch(e){}
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(ch){
+        var value=Math.floor(Math.random()*16);return (ch==='x'?value:(value&3|8)).toString(16);
+      });
+    }
+    window.openPaymentCorrection=function(orNo){
+      if(!currentUserCanApprove()||PAYMENT_CORRECTION_BUSY)return;
+      var row=ROWS.find(function(r){return r.orNo===orNo;});
+      if(!row||row.isRefund||row.refunded||String(row.orNo||'').indexOf('RF-')===0)return;
+      var method=paymentMethodCode(row.method);
+      if(!method)return;
+      PAYMENT_CORRECTION_OR=orNo;PAYMENT_CORRECTION_EXPECTED=method;
+      document.getElementById('paymentCorrectionTarget').textContent=orNo;
+      var en=I18n.lang&&I18n.lang()==='en';
+      document.getElementById('paymentCorrectionCurrent').value=(en?(row.methodLabelEn||row.methodLabelJa):(row.methodLabelJa||row.methodLabelEn))||paymentMethodLabel(method);
+      document.getElementById('paymentCorrectionNew').value=method==='cash'?'card':'cash';
+      document.getElementById('paymentCorrectionReason').value='';
+      document.getElementById('paymentCorrectionError').style.display='none';
+      updatePaymentLabels();
+      document.getElementById('paymentCorrectionModal').classList.add('open');
+      document.getElementById('paymentCorrectionNew').focus();
+    };
+    window.closePaymentCorrection=function(){
+      if(PAYMENT_CORRECTION_BUSY)return;
+      PAYMENT_CORRECTION_OR='';PAYMENT_CORRECTION_EXPECTED='';
+      document.getElementById('paymentCorrectionModal').classList.remove('open');
+    };
+    window.submitPaymentCorrection=function(){
+      if(PAYMENT_CORRECTION_BUSY||!PAYMENT_CORRECTION_OR)return;
+      if(!currentUserCanApprove()){paymentCorrectionError('forbidden');return;}
+      var next=paymentMethodCode(document.getElementById('paymentCorrectionNew').value);
+      var reason=document.getElementById('paymentCorrectionReason').value.trim();
+      document.getElementById('paymentCorrectionError').style.display='none';
+      if(!next||!reason){paymentCorrectionError('required');return;}
+      if(next===PAYMENT_CORRECTION_EXPECTED){paymentCorrectionError('same');return;}
+      var fingerprint=JSON.stringify([PAYMENT_CORRECTION_OR,PAYMENT_CORRECTION_EXPECTED,next,reason]);
+      if(!PAYMENT_CORRECTION_RETRY||PAYMENT_CORRECTION_RETRY.fingerprint!==fingerprint)
+        PAYMENT_CORRECTION_RETRY={fingerprint:fingerprint,id:nextPaymentCorrectionRequestId()};
+      var btn=document.getElementById('paymentCorrectionSubmit'),cancel=document.getElementById('paymentCorrectionCancel');
+      PAYMENT_CORRECTION_BUSY=true;btn.disabled=true;cancel.disabled=true;btn.textContent=paymentText('processing');
+      rpc('correctReceiptPaymentMethod',[PAYMENT_CORRECTION_OR,next,reason,PAYMENT_CORRECTION_EXPECTED,PAYMENT_CORRECTION_RETRY.id]).then(function(result){
+        result=result||{};
+        if(!result.success){
+          var code=String(result.error||result.code||'');
+          paymentCorrectionError(paymentCorrectionFailureKey(code));
+          return;
+        }
+        PAYMENT_CORRECTION_RETRY=null;PAYMENT_CORRECTION_BUSY=false;
+        closePaymentCorrection();load();UIAlert(paymentText('done'));
+      }).catch(function(error){
+        var code=String(error&&error.message||error||'');
+        if(paymentCorrectionFailureKey(code)!=='failed')paymentCorrectionError(paymentCorrectionFailureKey(code));
+        else paymentCorrectionError('failed',API.userErrorText(error));
+      }).finally(function(){
+        PAYMENT_CORRECTION_BUSY=false;btn.disabled=false;cancel.disabled=false;btn.textContent=paymentText('save');
+      });
+    };
     function receiptItemName(nm){
       nm=String(nm||'').trim();var enMode=window.I18n&&I18n.lang&&I18n.lang()==='en';
       var match=nm.match(/^(.+?)\s*[（(]([^（）()]*)[)）]\s*$/),base=(match?match[1]:nm).trim(),entry=MENU_LABELS[base];
       if(!entry)return nm;
       var label=enMode?(entry.en||entry.ja||base):(entry.ja||entry.en||base);
-      if(match&&match[2].trim())label+=' ('+match[2].split(',').map(function(raw){var key=raw.trim(),choice=entry.choices[key];return choice?(enMode?(choice.en||choice.ja||key):(choice.ja||choice.en||key)):key;}).join(', ')+')';
+      if(match&&match[2].trim())label+=' ('+match[2].split(',').map(function(raw){var key=raw.trim(),choice=entry.choices[key];return choice?(enMode?(choice.en||choice.ja||key):(choice.ja||choice.en||key)):((key==='コミッション'||key==='Commission')?(enMode?'Commission':'コミッション'):key);}).join(', ')+')';
       return label;
     }
     function readableDetails(details){
@@ -119,10 +268,10 @@ function seatLabel(v){ var s=String(v==null?'':v).trim(); var en=(window.I18n&&I
       try{var parsed=JSON.parse(raw);if(Array.isArray(parsed))return parsed.map(function(it){
         var enMode=window.I18n&&I18n.lang&&I18n.lang()==='en';
         var n=enMode?((it&&it.nameEn)||(it&&it.nameJa)):((it&&it.nameJa)||(it&&it.nameEn));
-        var rawName=String(it&&((it.item_name)||(it.name))||''),name=String(legacyLargeName((/[（(][^（）()]*[)）]\s*$/.test(rawName)?receiptItemName(rawName):(n||receiptItemName(rawName))),it.nameJa||rawName,enMode)||'').trim(),qty=Number(it&&it.qty)||0;
+        var rawName=String(it&&((it.item_name)||(it.name))||''),name=String(legacyLargeName((/[（(][^（）()]*[)）]\s*$/.test(rawName)?(n&&/[（(][^（）()]*[)）]\s*$/.test(n)&&n!==rawName&&!(enMode&&n.indexOf('コミッション')>=0)?n:receiptItemName(rawName)):(n||receiptItemName(rawName))),it.nameJa||rawName,enMode)||'').trim(),qty=Number(it&&it.qty)||0;
         return name?name+' x'+qty:'';
-      }).filter(Boolean).join(', ');}catch(e){}
-      return raw.split(/,\s*(?![^（）()]*[)）])/).map(function(tok){var m=tok.trim().match(/^(.+?)x(\d+)$/);return m?receiptItemName(m[1])+'x'+m[2]:tok;}).join(', ');
+      }).filter(Boolean).join('\n');}catch(e){}
+      return raw.split(/,\s*(?![^（）()]*[)）])/).map(function(tok){var m=tok.trim().match(/^(.+?)x(\d+)$/);return m?receiptItemName(m[1])+'x'+m[2]:tok;}).join('\n');
     }
 
     function render(){
@@ -136,13 +285,16 @@ function seatLabel(v){ var s=String(v==null?'':v).trim(); var en=(window.I18n&&I
         var state = r.isRefund ? ('<span class="badge badge-refund">'+I18n.t('refundSlip')+'</span>') : (r.refunded ? ('<span class="badge badge-refunded">'+I18n.t('refunded')+'</span>') : '');
         var linkedRefund=(r.refunded && r.refundReceiptNo)?(' <a class="receipt-linked-refund" href="#receipt-'+encodeURIComponent(r.refundReceiptNo)+'" data-linked-refund="'+encodeURIComponent(r.refundReceiptNo)+'">'+esc(r.refundReceiptNo)+'</a>'):'';
         var refundBtn = (!r.isRefund && !r.refunded) ? ('<button class="btn-sm btn-danger" onclick="openRefund(decodeURIComponent(\''+encodeURIComponent(r.orNo)+'\'))">'+I18n.t('refund')+'</button>') : '';
+        var correction=paymentCorrectionHistory(r);
+        state+=correction.badge;
+        var paymentBtn=(currentUserCanApprove()&&!r.isRefund&&!r.refunded&&String(r.orNo||'').indexOf('RF-')!==0&&paymentMethodCode(r.method))?'<button class="btn-sm btn-correct" data-correct-or="'+encodeURIComponent(r.orNo)+'">'+esc(paymentText('change'))+'</button>':'';
         var main = '<tr id="receipt-'+encodeURIComponent(r.orNo)+'"><td class="muted">'+esc(window.DateDisplay?DateDisplay.formatDateTime(r.datetime):r.datetime)+'</td><td style="font-weight:800;">'+esc(r.orNo)+state+linkedRefund+'</td><td>'+esc(seatLabel(r.table))+'</td>'+
           '<td class="num" style="font-weight:800;">'+SYM+(Number(r.total)||0).toLocaleString()+'</td><td>'+esc(en?(r.methodLabelEn||r.methodLabelJa||r.methodLabel||r.method):(r.methodLabelJa||r.methodLabelEn||r.methodLabel||r.method))+'</td><td class="muted">'+disc+'</td>'+
-          '<td><button class="btn-sm" onclick="reprint(\''+esc(r.orNo).replace(/'/g,"\\'")+'\')">'+I18n.t('reprint')+'</button>'+refundBtn+'</td></tr>';
+          '<td><div class="receipt-actions"><button class="btn-sm" onclick="reprint(\''+esc(r.orNo).replace(/'/g,"\\'")+'\')">'+I18n.t('reprint')+'</button>'+refundBtn+paymentBtn+'</div></td></tr>';
         // 明細（あれば2行目に表示）
         var det = readableDetails(r.details);
-        var detRow = det ? ('<tr><td></td><td colspan="6" class="muted" style="white-space:normal;padding-top:0;font-size:12px;">🧾 '+esc(det)+'</td></tr>') : '';
-        return main + detRow;
+        var detRow = det ? ('<tr class="receipt-detail-row"><td></td><td colspan="6" class="muted" style="padding-top:0;"><div class="receipt-detail-content"><span aria-hidden="true">🧾</span><span class="receipt-detail-lines">'+esc(det)+'</span></div></td></tr>') : '';
+        return main + detRow + correction.row;
       }).join('');
     }
     // Link the original receipt to its refund without mutating accounting records.
@@ -171,6 +323,8 @@ function seatLabel(v){ var s=String(v==null?'':v).trim(); var en=(window.I18n&&I
       seek();
     };
     document.getElementById('rows').addEventListener('click',function(event){
+      var correctButton=event.target.closest('button[data-correct-or]');
+      if(correctButton){openPaymentCorrection(decodeURIComponent(correctButton.getAttribute('data-correct-or')));return;}
       var link=event.target.closest('a[data-linked-refund]');
       if(!link)return;
       event.preventDefault();
@@ -235,7 +389,7 @@ function seatLabel(v){ var s=String(v==null?'':v).trim(); var en=(window.I18n&&I
     I18n.init({
       ja:{ title:'🧾 会計履歴', back:'管理へ', toOrders:'← 注文一覧', month:'対象月', monthTotal:'月合計（返金反映後）', bills:'伝票', refunds:'返金', thTime:'日時', thOr:'OR番号', thTable:'卓', thTotal:'合計', thMethod:'支払', thDisc:'割引', reprint:'🖨️ 再印刷', refund:'↩ 全額返金', refundNotLoaded:'????????????????????????????????', refundSlip:'返金伝票', refunded:'返金済', refundTitle:'会計を返金する', refundWarning:'元の会計は変更せず、全額をマイナス伝票で取り消します。クーポン利用と会員ポイント等も戻ります。この操作は元に戻せません。', reason:'返金理由（必須）', approverLogin:'承認者（マネージャー以上）のログインID', approverPassword:'承認者パスワード', cancel:'閉じる', executeRefund:'全額返金を実行', processing:'処理中…', requiredFields:'理由・マネージャー以上の承認者ID・パスワードをすべて入力してください。', refundAuth:'マネージャー以上の権限またはパスワードを確認してください。', alreadyRefunded:'この会計は既に返金済みです。', refundFailed:'返金できませんでした。', refundDone:'返金伝票を作成しました:', sent:'印刷キューに登録しました', loading:'読み込み中…', empty:'この月の会計はありません', errPrefix:'エラー: ', loadErr:'読み込みエラー: ', loadMore:'さらに読み込む' },
       en:{ title:'🧾 Receipts', back:'Manage', toOrders:'← Orders', month:'Target month', monthTotal:'Month total (net of refunds)', bills:'entries', refunds:'refunds', thTime:'Time', thOr:'OR no.', thTable:'Table', thTotal:'Total', thMethod:'Paid', thDisc:'Discount', reprint:'🖨️ Reprint', refund:'↩ Full refund', refundNotLoaded:'Refund receipt is not in the selected month. Select its month.', refundSlip:'Refund', refunded:'Refunded', refundTitle:'Refund receipt', refundWarning:'The original receipt remains unchanged and a negative receipt reverses the full amount. Coupon use and member rewards are also reversed. This cannot be undone.', reason:'Refund reason (required)', approverLogin:'Approver (Manager or above) login ID', approverPassword:'Approver password', cancel:'Close', executeRefund:'Process full refund', processing:'Processing…', requiredFields:'Enter the reason, Manager-or-above approver ID and password.', refundAuth:'Check the Manager-or-above role and password.', alreadyRefunded:'This receipt has already been refunded.', refundFailed:'The refund could not be processed.', refundDone:'Refund receipt created:', sent:'Registered in print queue', loading:'Loading…', empty:'No receipts this month', errPrefix:'Error: ', loadErr:'Load error: ', loadMore:'Load more' }
-    }, function(){ if(__loaded) render(); });
+    }, function(){ if(__loaded) render(); updatePaymentLabels(); });
   </script>
   <script src="./help.js?v=auth2"></script>
   <script>
@@ -248,7 +402,8 @@ function seatLabel(v){ var s=String(v==null?'':v).trim(); var en=(window.I18n&&I
         { ja: '③ 各行に明細（注文した商品と数量）が表示されます。', en: '③ Each row shows the order details (items and quantities).' },
         { ja: '④ 各行の「🖨️ 再印刷」ボタンを押すと、そのレシートを印刷キューに再送信できます。', en: '④ Tap "🖨️ Reprint" on a row to resend that receipt to the print queue.' },
         { ja: '⑤ 「さらに読み込む」ボタンで、100件ずつ追加の会計データを読み込めます。', en: '⑤ Tap "Load more" to fetch additional receipts, 100 at a time.' }
-        ,{ ja: '⑥ 「全額返金」は一般スタッフの場合のみマネージャー以上の承認が必要です。マネージャー以上でログイン中なら追加承認は不要です。元伝票を残したままマイナスの返金伝票を作成し、売上・原価・販売報酬・クーポン利用・会員ポイント等を相殺します。', en: '⑥ "Full refund" requires Manager-or-above approval only for staff without approval authority. A logged-in Manager or above can proceed without re-authentication. The original receipt remains and a negative receipt reverses revenue, cost, sales commission, coupon use, and member rewards.' }
+        ,{ ja: '⑥ 「全額返金」は一般スタッフの場合のみマネージャー以上の承認が必要です。マネージャー以上でログイン中なら追加承認は不要です。元伝票を残したままマイナスの返金伝票を作成し、売上・原価・販売報酬・クーポン利用・会員ポイント等を相殺します。', en: '⑥ "Full refund" requires Manager-or-above approval only for staff without approval authority. A logged-in Manager or above can proceed without re-authentication. The original receipt remains and a negative receipt reverses revenue, cost, sales commission, coupon use, and member rewards.' },
+        { ja: '⑦ 在籍中のマネージャー・管理者・システム権限のユーザーだけが、会計伝票の「訂正」で支払方法を変更できます。返金済・現金照合済の伝票は対象外です。理由と訂正前後の履歴を残し、既に確定したレジ締め（Z）結果は変更しません。', en: '⑦ Only active Manager, Admin, or System users can correct the payment method on a receipt. Refunded or cash-reconciled receipts cannot be corrected. A reason and before/after history are retained; closed Z reports are unchanged.' }
       ]
     });
   </script>

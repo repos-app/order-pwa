@@ -12,6 +12,7 @@
   <title>Menu Edit</title>
   <style>
     :root{ --bg:#f6f7f9; --surface:#fff; --border:#e5e7eb; --navy:#0f172a; --text-3:#64748b; --red:#c62828; }
+    .lang-en{display:none}html[lang="en"] .lang-ja{display:none}html[lang="en"] .lang-en{display:inline}
     *{ box-sizing:border-box; }
     body{ margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans JP',sans-serif; background:var(--bg); color:var(--navy); }
     .head{ position:sticky; top:0; z-index:20; background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:space-between; padding:12px 16px; }
@@ -55,27 +56,63 @@
        Override the common 44px touch minimum only for these controls. */
     .mi{display:grid;grid-template-columns:26px 44px 40px minmax(0,1fr);grid-template-rows:auto auto;column-gap:3px;row-gap:7px;align-items:center;padding:10px 5px;border-bottom:1px solid var(--border)}
     .mi-info{grid-column:4;grid-row:1;min-width:0;overflow-wrap:anywhere}
+    .mi-info .nm{display:flex;align-items:center;gap:4px;min-width:0;overflow:hidden;white-space:nowrap}
+    .mi-info .nm>span:not([data-iz-ellipsis]){flex:0 0 auto;white-space:nowrap}
     .mi-actions{grid-column:3 / 5;grid-row:2;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px;min-width:0}
     .mi .thumb{grid-column:3;grid-row:1;width:40px;height:40px;border-radius:9px;object-fit:cover;background:#e5e7eb}
     .menu-row-check{grid-column:1;grid-row:1 / 3;align-self:center;display:flex;align-items:center;justify-content:center;width:26px;height:32px;cursor:pointer}
     .mv{grid-column:2;grid-row:1 / 3;align-self:center;display:flex;flex-direction:column;align-items:center;gap:4px;width:44px}
     .mv .mvb{box-sizing:border-box;width:28px;min-width:28px!important;height:50px;min-height:44px;padding:0;background:#eef2f7;color:#0f172a;line-height:1.1}
     .cat-tabs{ display:flex; gap:6px; overflow-x:auto; padding-bottom:10px; -webkit-overflow-scrolling:touch; }
-    .cat-tab{ flex:0 0 auto; background:#f1f5f9; border:1px solid var(--border); color:var(--text-3,#64748b); border-radius:999px; padding:7px 13px; font-size:13px; font-weight:800; cursor:pointer; font-family:inherit; white-space:nowrap; }
+    .cat-tab{ flex:0 0 auto; max-width:none; min-width:max-content; width:max-content; overflow:visible; text-overflow:clip; background:#f1f5f9; border:1px solid var(--border); color:var(--text-3,#64748b); border-radius:999px; padding:7px 13px; font-size:13px; font-weight:800; cursor:pointer; font-family:inherit; white-space:nowrap; }
+    .cat-tabs > .cat-tab{min-height:44px;max-width:none;overflow:visible;text-overflow:clip}
     .cat-tab.on{ background:var(--navy,#0f172a); color:#fff; border-color:var(--navy,#0f172a); }
+    .cat-manager-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .cat-manager-head .card-title{margin:0}
+    .menu-section-panel[hidden],.cat-manager-panel[hidden]{display:none}
+    .menu-section-toggle{min-width:74px;min-height:44px;flex:0 0 auto}
+    .cat-manager-hint{color:var(--text-3);font-size:12px;line-height:1.5;margin:10px 0}
+    .cat-manager-row{display:grid;grid-template-columns:26px 44px minmax(0,1fr) auto;grid-template-rows:auto;column-gap:3px;align-items:center;padding:4px 5px;border-bottom:1px solid var(--border)}
+    .cat-manager-row:last-child{border-bottom:0}
+    .cat-manager-check{grid-column:1;grid-row:1;height:44px}
+    .cat-manager-checkbox{width:20px;height:20px;accent-color:#334155;cursor:pointer}
+    .cat-manager-name{grid-column:3;grid-row:1;min-width:0;overflow-wrap:anywhere;font-size:14px;font-weight:800;cursor:pointer}
+    .cat-manager-bulk{padding:10px 12px;margin:10px 0;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0}
+    .cat-manager-bulk-preview{font-size:13px;line-height:1.6;color:#334155;white-space:pre-wrap}
+    .cat-manager-bulk .btn{margin-top:8px}
+    .cat-manager-bulk .btn:disabled{opacity:.45}
+    .cat-manager-count{font-weight:500;color:var(--text-3);font-size:11px;display:block;margin-top:2px}
+    .cat-manager-arrows{grid-column:2;grid-row:1;gap:2px}
+    /* Compact only category ordering; product-row arrows retain their existing hit targets. */
+    .cat-manager-row .cat-manager-arrows .mvb{height:32px!important;min-height:32px!important}
+    .cat-manager-action{grid-column:4;grid-row:1;display:flex;justify-content:flex-end}
+    .cat-manager-action button{min-height:44px}
+    .cat-manager-rename,.cat-manager-merge{margin:8px 0 12px;padding:12px;border:1px solid #bfdbfe;border-radius:11px;background:#eff6ff}
+    .cat-manager-rename .fc,.cat-manager-merge .fc{margin:4px 0 10px;background:white}
+    .cat-manager-buttons{display:flex;gap:8px;flex-wrap:wrap}
+    .cat-manager-buttons .btn{flex:1;min-width:110px;margin:0}
+    .cat-manager-status{font-size:12px;line-height:1.5;margin-top:8px;white-space:pre-wrap}
+    .cat-manager-status:empty{display:none}
+    .cat-manager-status.is-error,.cat-manager-inline-error{padding:10px;border:1px solid #fca5a5;border-radius:8px;background:#fef2f2;color:#b91c1c;font-size:13px;font-weight:700;line-height:1.5;white-space:pre-wrap}
+    .cat-manager-inline-error{margin:8px 0}
+    .cat-manager-inline-error[hidden],.cat-manager-merge-link[hidden]{display:none}
+    .cat-manager-merge-link{margin:0 0 10px;min-height:44px}
+    .cat-manager-row button:disabled{opacity:.4}
     .mv .mvb:disabled{ opacity:.35; cursor:default; }
     .mi .nm{ font-weight:800; } .mi .meta{ font-size:12px; color:var(--text-3); }
     .mi.bulk-selected{outline:2px solid #64748b;outline-offset:-2px;border-radius:10px}
     .menu-row-check input,.bulk-select-visible input{width:20px;height:20px;accent-color:#334155;cursor:pointer}
     .bulk-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0;padding:9px 10px;background:#f8fafc;border:1px solid var(--border);border-radius:10px}
     .bulk-select-visible{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:700;min-height:44px}
-    .bulk-actions{display:flex;align-items:center;flex-wrap:wrap;gap:6px;flex:1 1 100%}
-    .bulk-toolbar .bulk-action{margin:0;min-height:44px;width:auto;flex:1 1 auto;padding:7px 9px;font-size:12px;font-weight:800;line-height:1.2;white-space:nowrap}
+    .bulk-actions{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));align-items:stretch;gap:4px;flex:1 1 100%;min-width:0}
+    .bulk-toolbar .bulk-action{margin:0;min-height:44px;min-width:44px!important;width:100%;padding:7px 2px;font-size:clamp(10px,2.7vw,12px);font-weight:800;line-height:1.2;white-space:normal}
     .bulk-toolbar .bulk-action:disabled{opacity:.4;cursor:not-allowed}
     .bulk-toolbar .bulk-sellout{background:#ffedd5;color:#9a3412}
     .bulk-toolbar .bulk-restore{background:#dbeafe;color:#1d4ed8}
     .bulk-toolbar .bulk-publish{background:#dcfce7;color:#166534}
     .bulk-toolbar .bulk-delete{background:#fee2e2;color:#991b1b}
+    .bulk-toolbar .bulk-kitchen{background:#f3e8ff;color:#7e22ce}
+    .bulk-kitchen span{display:block}
     .bulk-status{font-size:12px;font-weight:700;margin:6px 0;white-space:pre-wrap}
     .bulk-status:empty{display:none}
     .off{ opacity:.5; }
@@ -105,13 +142,20 @@
     .menu-landscape-time-actions button{flex:1;min-height:44px;border:0;border-radius:9px;font-weight:800;background:#e2e8f0;color:#0f172a}
     .menu-landscape-time-actions button:last-child{background:#0f172a;color:#fff}
     .service-time-grid input.menu-landscape-time-trigger{width:100%;max-width:180px;min-height:44px;cursor:pointer;text-align:center}
+    #mImagePrompt::placeholder{color:#9ca3af;opacity:1;white-space:pre-line}
+    #mImagePrompt:focus::placeholder{color:transparent;opacity:0}
 </style>
+  <link rel="stylesheet" href="./ui-ellipsis.css?v=1">
 </head>
 <body>
   <div class="head"><h1 data-t="title">🍽️ メニュー編集</h1><div style="display:flex;gap:8px;"><button class="hbtn" data-tlang onclick="I18n.toggle()">EN</button><a class="hbtn" href="./manage.html" data-t="back">← 管理へ</a></div></div>
   <div class="wrap">
     <div class="card" id="guide-menu-form" data-guide-anchor>
-      <div class="card-title" data-t="formTitle">➕ 商品の追加 / 編集</div>
+      <div class="cat-manager-head">
+        <div class="card-title" data-t="formTitle">➕ 商品の追加 / 編集</div>
+        <button id="menuFormToggle" class="btn-sm menu-section-toggle" type="button" onclick="toggleMenuSection('form')" aria-controls="menuFormPanel" aria-expanded="false"><span class="lang-ja">開く ▼</span><span class="lang-en">Open ▼</span></button>
+      </div>
+      <div class="menu-section-panel" id="menuFormPanel" hidden>
       <input type="hidden" id="oldName">
       <div class="grid2">
         <div class="fg" id="fieldNameJa"><label class="form-label" data-t="lblNameJa">商品名（日本語）</label><input id="mName" class="fc"></div>
@@ -123,13 +167,32 @@
       </div>
       <div class="muted" style="margin:-2px 0 8px;" data-t="langHint">商品名・カテゴリ・オプションは日本語・英語のどちらか一方だけでも登録できます。未入力側は保存時に自動翻訳されます（あとで編集可）。</div>
       <div class="fg"><label class="form-label" data-t="lblImg">画像（任意・変更時のみ選択）</label><input id="mFile" type="file" accept="image/*" class="fc" onchange="onFilePicked()">
-        <div style="display:flex;gap:6px;margin-top:6px;">
-          <input id="mImgQuery" class="fc" style="flex:1;" placeholder="検索キーワード（空欄なら商品名で検索）" data-tph="phImgQuery">
-          <button type="button" class="btn-sm" onclick="searchImgs(event)" data-t="btnImgSearch2">🔍 画像検索</button>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button type="button" id="imageSearchTab" class="btn-sm" aria-pressed="true" onclick="setImageMode('search')" data-t="imgModeSearch">🔍 画像検索</button>
+          <button type="button" id="imageGenerateTab" class="btn-sm" aria-pressed="false" onclick="setImageMode('generate')" data-t="imgModeGenerate">✨ AI画像生成</button>
         </div>
-        <div id="imgSearchMsg" class="muted" style="margin-top:4px;display:none;"></div>
-        <div id="imgResults" style="display:none;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;margin-top:8px;"></div>
-        <div id="pixabayCredit" class="muted" style="margin-top:6px;display:none;"><a href="https://pixabay.com/" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;" data-t="pixabayCredit">Images provided by Pixabay</a></div>
+        <div id="imageSearchPanel">
+        <div style="display:flex;gap:6px;margin-top:6px;">
+          <input id="mImgQuery" class="fc" style="flex:1;min-width:0;" placeholder="検索キーワード" data-tph="phImgQuery">
+          <button type="button" id="imgGoogleSearchPrimary" class="btn-sm" onclick="openImgSearch()" data-t="btnImgGoogleSearch">🔍 Google画像検索</button>
+        </div>
+        <div class="muted" style="margin-top:4px;" data-t="imgGoogleSearchSteps">商品名でGoogle画像検索を開きます。使える画像を確認して端末に保存し、上の「ファイルを選択」から登録してください。検索結果の表示は利用許諾ではありません。</div>
+        <details id="licensedImageSearchDetails" style="margin-top:8px;">
+          <summary class="muted" style="cursor:pointer;" data-t="imgLicensedSearchTitle">権利情報付きの画像候補を探す（任意）</summary>
+          <div style="margin-top:6px;"><button type="button" class="btn-sm" onclick="searchImgs(event)" data-t="btnImgSearch2">🔍 画像検索</button></div>
+          <div id="imgSearchMsg" class="muted" style="margin-top:4px;display:none;"></div>
+          <button type="button" id="imgSearchWebFallback" class="btn-sm" style="display:none;margin-top:6px;" onclick="openImgSearch()" data-t="btnImgWebSearch">🔍 Web画像検索を開く</button>
+          <div id="imgResults" style="display:none;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;margin-top:8px;"></div>
+          <div id="pixabayCredit" class="muted" style="margin-top:6px;display:none;"><a href="https://openverse.org/" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;" data-t="pixabayCredit">Openverse画像（出典・ライセンスを確認）</a></div>
+        </details>
+        </div>
+        <div id="imageGeneratePanel" style="display:none;margin-top:8px;">
+          <label class="form-label" for="mImagePrompt" data-t="imgPromptTitle">作りたい画像を説明してください</label>
+          <textarea id="mImagePrompt" class="fc" rows="4" maxlength="700" placeholder="例：4個入りの唐揚げを白い皿に盛り付けてください&#10;例：枝豆を小鉢に入れて、白背景で生成してください&#10;例：ハイボールをジョッキ1杯、メニュー用の商品写真風で生成してください" data-tph="imgPromptExample"></textarea>
+          <div id="imageCreditStatus" class="muted" style="margin-top:5px;" aria-live="polite" data-t="imgCreditCost">AI画像生成は1回につき1ポイント消費（再生成も1ポイント）</div>
+          <button type="button" id="generateMenuImgBtn" class="btn-sm" style="margin-top:8px;" onclick="generateMenuImageClick(event)" data-t="imgGenerateButton">✨ 1ポイントで画像を生成</button>
+          <div id="imgGenerateMsg" class="muted" aria-live="polite" style="margin-top:6px;display:none;"></div>
+        </div>
         <details style="margin-top:8px;">
           <summary class="muted" style="cursor:pointer;" data-t="urlAltTitle">画像のURLを直接指定する場合はこちら</summary>
           <div style="margin-top:6px;"><button type="button" class="btn-sm" onclick="openImgSearch()" data-t="btnImgWebSearch">🔍 Web画像検索を開く</button></div>
@@ -139,6 +202,10 @@
           </div>
           <div id="imgUrlMsg" class="muted" style="margin-top:4px;display:none;"></div>
         </details>
+        <label id="menuImageRightsRow" style="display:none;align-items:flex-start;gap:8px;margin-top:10px;font-size:13px;line-height:1.5;">
+          <input id="mImageRightsConfirmed" type="checkbox" style="margin-top:3px;flex-shrink:0;">
+          <span data-t="imgRightsConfirm">この画像を店舗メニューに掲載するための利用権限・許可があることを確認しました。</span>
+        </label>
         <img id="imgPreview" style="display:none;max-width:110px;max-height:110px;margin-top:6px;border-radius:8px;border:1px solid var(--border);object-fit:cover;">
       </div>
       <div class="form-label" style="margin-top:6px;" data-t="availTitle">⏰ 提供時間帯・タグ</div>
@@ -154,7 +221,7 @@
       <div class="fg" style="margin-top:6px;">
         <label class="form-label" data-t="lblLinkInv">🔗 在庫紐づけ（任意）</label>
         <select id="mLinkInv" class="fc"></select>
-        <div class="muted" style="margin-top:4px;" data-t="linkInvHint">ドリンク等、注文1点で在庫を1点そのまま自動減算したい商品に設定します（レシピ不要）。複数材料を消費するフード等は「レシピ・原価」ページで設定してください。</div>
+        <div class="muted" style="margin-top:4px;" data-t="linkInvHint">ドリンク等、商品が「提供済」になった時に1点につき在庫を1点減らす場合に設定します（レシピ不要）。複数材料を消費するフード等は「レシピ・原価」ページで設定してください。</div>
       </div>
       <div class="form-label" style="margin-top:6px;" data-t="optTitle">🎛️ オプション（サイズ・トッピング等）</div>
       <div class="muted" style="margin:2px 0 6px;" data-t="optHint">例）サイズ＝単一選択、トッピング＝複数選択。追加料金は差額（+のみ）。</div>
@@ -163,17 +230,46 @@
       <button class="btn btn-pri" id="saveBtn" onclick="save()" data-t="save">💾 保存</button>
       <button class="btn btn-sec" onclick="clearForm()" data-t="clear">クリア</button>
       <div class="alert" id="msg"></div>
+      </div>
     </div>
     <div class="card" id="sampleDataCard" style="display:none;border-color:#bfdbfe;background:#eff6ff;">
-      <div class="card-title" data-t="sampleCardTitle">🧪 サンプルデータ</div>
+      <div class="cat-manager-head">
+        <div class="card-title" data-t="sampleCardTitle">🧪 サンプルデータ</div>
+        <button id="menuSampleToggle" class="btn-sm menu-section-toggle" type="button" onclick="toggleMenuSection('sample')" aria-controls="menuSamplePanel" aria-expanded="false"><span class="lang-ja">開く ▼</span><span class="lang-en">Open ▼</span></button>
+      </div>
+      <div class="menu-section-panel" id="menuSamplePanel" hidden>
       <div class="muted" data-t="sampleCardText">初回体験用のサンプル商品です。お客様QRには表示されず、デモ注文の会計は売上・ポイント・在庫へ反映されません。</div>
       <button class="btn btn-sec" type="button" onclick="deleteAllSampleData()" data-t="sampleDelete">🗑️ サンプルデータを一括削除</button>
       <div class="alert" id="sampleMsg"></div>
+      </div>
     </div>
-    <div class="card">
-      <div class="card-title" data-t="listTitle">🍽️ 商品一覧</div>
-      <div class="muted" style="margin:-4px 0 8px;" data-t="reorderHint">▲▼ で並び替え（客の注文画面の表示順に反映）。カテゴリタブで絞り込めます。</div>
-      <div id="catTabs" class="cat-tabs"></div>
+    <div class="card" id="categoryManagerCard">
+      <div class="cat-manager-head">
+        <div class="card-title"><span class="lang-ja">🗂️ カテゴリ管理</span><span class="lang-en">🗂️ Manage categories</span></div>
+        <button id="categoryManagerToggle" class="btn-sm menu-section-toggle" type="button" onclick="toggleCategoryManager()" aria-controls="categoryManagerPanel" aria-expanded="false"><span class="lang-ja">開く ▼</span><span class="lang-en">Open ▼</span></button>
+      </div>
+      <div class="cat-manager-panel" id="categoryManagerPanel" hidden>
+        <div class="cat-manager-hint"><span class="lang-ja">▲▼で並び替え。カテゴリ名は「編集」で変更。複数カテゴリにチェックして「選択カテゴリを統合」を押すと、選択した中で最も上のカテゴリ名（日・英）が残ります。</span><span class="lang-en">Reorder with ▲▼. Edit changes a category name. To merge, select two or more categories: the topmost selected category keeps its Japanese and English names.</span></div>
+        <div id="categoryManagerStatus" class="cat-manager-status" role="status" aria-live="polite"></div>
+        <div class="cat-manager-bulk">
+          <div id="categoryMergeSelectionPreview" class="cat-manager-bulk-preview" role="status" aria-live="polite"></div>
+          <button id="mergeSelectedCategoriesBtn" class="btn btn-pri" type="button" onclick="commitSelectedCategoryMerge()" disabled><span class="lang-ja">選択カテゴリを統合</span><span class="lang-en">Merge selected categories</span></button>
+        </div>
+        <div id="categoryManagerList"></div>
+        <button id="saveCategoryOrderBtn" class="btn btn-pri" type="button" onclick="saveCategoryOrder()" disabled><span class="lang-ja">この並び順を保存</span><span class="lang-en">Save category order</span></button>
+      </div>
+    </div>
+    <div class="card" id="menuItemsCard">
+      <div class="cat-manager-head">
+        <div class="card-title" data-t="listTitle">🍽️ 商品一覧</div>
+        <span id="menuOrderHeaderStatus" class="cat-manager-status" role="status" aria-live="polite"></span>
+        <button id="menuItemsToggle" class="btn-sm menu-section-toggle" type="button" onclick="toggleMenuSection('items')" aria-controls="menuItemsPanel" aria-expanded="false"><span class="lang-ja">開く ▼</span><span class="lang-en">Open ▼</span></button>
+      </div>
+      <div class="menu-section-panel" id="menuItemsPanel" hidden>
+      <div class="muted" style="margin:-4px 0 8px;"><span class="lang-ja">▲▼で並び替え、最後に「並び順を保存」を押すと客の注文画面に反映します。カテゴリタブで絞り込めます。</span><span class="lang-en">Reorder with ▲▼, then Save order once to update the customer ordering screen. Filter by category tabs.</span></div>
+      <div id="catTabs" class="cat-tabs" data-tab-layout="content-scroll"></div>
+      <div id="menuOrderStatus" class="cat-manager-status" role="status" aria-live="polite"></div>
+      <button id="saveMenuOrderBtn" class="btn btn-pri" type="button" onclick="saveMenuOrder()" disabled><span class="lang-ja">💾 並び順を保存</span><span class="lang-en">💾 Save item order</span></button>
       <div class="bulk-toolbar">
         <label class="bulk-select-visible"><input id="menuBulkSelectVisible" type="checkbox" onchange="selectVisibleMenu(this.checked)"><span data-t="bulkSelectVisible">表示中を全選択</span></label>
         <span id="menuBulkCount" class="muted" aria-live="polite">0件選択中</span>
@@ -182,18 +278,22 @@
           <button id="menuBulkRestore" class="btn bulk-action bulk-restore" type="button" onclick="bulkMenuState('restore')" disabled>売切解除</button>
           <button id="menuBulkPublish" class="btn bulk-action bulk-publish" type="button" onclick="bulkMenuState('publish')" disabled>販売開始</button>
           <button id="menuBulkDelete" class="btn bulk-action bulk-delete" type="button" onclick="bulkDeleteSelected()" disabled>🗑️ 選択削除</button>
+          <button id="menuBulkKitchen" class="btn bulk-action bulk-kitchen" type="button" onclick="bulkKitchenToggle()" disabled>キッチン<span>ON/OFF</span></button>
         </div>
       </div>
       <div id="menuBulkStatus" class="bulk-status" role="status" aria-live="polite"></div>
       <div id="list"><div class="muted" data-t="loading">読み込み中…</div></div>
+      <button id="saveMenuOrderBottomBtn" class="btn btn-pri" type="button" onclick="saveMenuOrder()" disabled><span class="lang-ja">💾 並び順を保存</span><span class="lang-en">💾 Save item order</span></button>
+      </div>
     </div>
   </div>
 
   <script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
+  <script src="./pending-write-replay.js?v=s6-1"></script>
   <script src="./i18n.js?v=auth3"></script>
   <script src="./confirm.js?v=auth2"></script>
-  <script src="./menu-ai-review-reasons.js"></script>
+  <script src="./menu-ai-review-reasons.js?v=auth1"></script>
   <script>
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
     if (!TOKEN) location.href = './manage.html';
@@ -202,29 +302,693 @@
     // 言語切替の一元ヘルパー（新しい選択肢・候補リストを追加する際は必ずこれを通すこと）
     function isEN(){ return !!(window.I18n && I18n.lang && I18n.lang()==='en'); }
     function loc(ja, en){ ja=(ja||'').trim(); en=(en||'').trim(); return isEN() ? (en || ja) : (ja || en); }
+    var sectionToggleIds={
+      form:['menuFormPanel','menuFormToggle'],
+      ai:['menuAiPanel','menuAiToggle'],
+      sample:['menuSamplePanel','menuSampleToggle'],
+      items:['menuItemsPanel','menuItemsToggle']
+    };
+    window.toggleMenuSection=function(section,forceOpen){
+      var ids=sectionToggleIds[section];if(!ids)return;
+      var panel=document.getElementById(ids[0]),button=document.getElementById(ids[1]);
+      if(!panel||!button)return;
+      var open=forceOpen===true?true:forceOpen===false?false:panel.hidden;
+      panel.hidden=!open;
+      button.setAttribute('aria-expanded',String(open));
+      button.innerHTML=open
+        ?'<span class="lang-ja">閉じる ▲</span><span class="lang-en">Close ▲</span>'
+        :'<span class="lang-ja">開く ▼</span><span class="lang-en">Open ▼</span>';
+    };
+    function openLinkedMenuEditorSection(){
+      // Overview/help links to a collapsed form or a field inside it must
+      // still reach the intended editor without requiring an extra tap.
+      var anchor=window.location.hash.slice(1);
+      if(anchor!=='guide-menu-form'&&anchor!=='guide-kitchen-setting')return;
+      toggleMenuSection('form',true);
+      requestAnimationFrame(function(){
+        document.getElementById(anchor)?.scrollIntoView({block:'start'});
+      });
+    }
+    window.addEventListener('hashchange',openLinkedMenuEditorSection);
+    openLinkedMenuEditorSection();
     function syncLanguageFieldOrder(){var en=isEN(),order=en?{fieldNameEn:1,fieldPrice:2,fieldCatEn:3,fieldStatus:4,fieldNameJa:5,fieldCatJa:6}:{fieldNameJa:1,fieldPrice:2,fieldCatJa:3,fieldStatus:4,fieldNameEn:5,fieldCatEn:6};Object.keys(order).forEach(function(id){var el=document.getElementById(id);if(el)el.style.order=String(order[id]);});}
     var MENU = [];
-    var curCat = 'all', VIEW = [];
+    var menuOrderBaseline=null,menuOrderBusy=false,menuOrderNotice='',menuOrderError=false;
+    function menuOrderNames(rows){return rows.map(function(item){return item['商品名'];});}
+    function menuOrderDirty(){
+      return menuOrderBaseline!==null&&JSON.stringify(menuOrderNames(MENU))!==JSON.stringify(menuOrderBaseline);
+    }
+    function adoptMenuRows(rows){
+      var incoming=Array.isArray(rows)?rows.slice():[];
+      // Other menu operations may reread the server. Retain the operator's
+      // unsaved ordering within each category, rather than silently losing it.
+      if(menuOrderDirty()){
+        var oldRank=new Map(menuOrderNames(MENU).map(function(name,index){return [name,index];}));
+        var groupOrder=new Map();
+        incoming.forEach(function(item,index){if(!groupOrder.has(item['カテゴリ']))groupOrder.set(item['カテゴリ'],index);});
+        incoming=incoming.map(function(item,index){return {item:item,index:index};}).sort(function(a,b){
+          var groupDelta=groupOrder.get(a.item['カテゴリ'])-groupOrder.get(b.item['カテゴリ']);
+          if(groupDelta)return groupDelta;
+          var ra=oldRank.has(a.item['商品名'])?oldRank.get(a.item['商品名']):1000000+a.index;
+          var rb=oldRank.has(b.item['商品名'])?oldRank.get(b.item['商品名']):1000000+b.index;
+          return ra-rb;
+        }).map(function(entry){return entry.item;});
+      }
+      // The authoritative snapshot, not the draft, is the saved baseline.
+      menuOrderBaseline=menuOrderNames(rows||[]);
+      MENU=incoming;
+    }
+    function refreshMenuOrderControls(){
+      if(menuOrderBaseline!==null){
+        var existing=new Set(menuOrderNames(MENU));
+        var baselineSet=new Set(menuOrderBaseline);
+        menuOrderBaseline=menuOrderBaseline.filter(function(name){return existing.has(name);});
+        menuOrderNames(MENU).forEach(function(name){
+          if(!baselineSet.has(name))menuOrderBaseline.push(name);
+        });
+      }
+      var dirty=menuOrderDirty();
+      ['saveMenuOrderBtn','saveMenuOrderBottomBtn'].forEach(function(id){
+        document.getElementById(id).disabled=menuOrderBusy||!dirty;
+      });
+      var status=document.getElementById('menuOrderStatus');
+      status.style.color=menuOrderError?'#b91c1c':dirty?'#92400e':'#15803d';
+      status.textContent=menuOrderNotice||(dirty
+        ?(isEN()?'Unsaved order changes. Save once when finished.':'並び順を変更しました。最後に一度保存してください。')
+        :'');
+      var header=document.getElementById('menuOrderHeaderStatus');
+      header.textContent=dirty?(isEN()?'● Unsaved':'● 未保存'):'';
+      header.style.color='#92400e';
+    }
+    window.saveMenuOrder=async function(){
+      if(menuOrderBusy||!menuOrderDirty())return;
+      var desired=menuOrderNames(MENU);
+      menuOrderBusy=true;menuOrderNotice='';menuOrderError=false;refreshMenuOrderControls();
+      function verify(rows){
+        if(!Array.isArray(rows)||JSON.stringify(menuOrderNames(rows))!==JSON.stringify(desired))return false;
+        adoptMenuRows(rows);
+        menuOrderNotice=isEN()?'✅ Item order saved':'✅ 商品の並び順を保存しました';
+        menuOrderError=false;render();return true;
+      }
+      try{
+        var result=await rpc('setMenuOrder',[desired]);
+        if(result!=='Success'&&(!result||result.success!==true))throw new Error(result?.error||'menu_order_save_failed');
+        if(!verify(await rpc('getAllMenuForAdmin',[])))throw new Error('menu_order_readback_mismatch');
+      }catch(error){
+        // A write can succeed even if its HTTP acknowledgement is lost.
+        // Check once; do not send an automatic duplicate write.
+        var confirmed=false;
+        try{confirmed=verify(await rpc('getAllMenuForAdmin',[]));}catch(_){}
+        if(!confirmed){
+          menuOrderError=true;
+          menuOrderNotice=(isEN()?'Order save not confirmed: ':'並び順の保存を確認できません：')+API.userErrorText(error);
+        }
+      }finally{menuOrderBusy=false;refreshMenuOrderControls();}
+    };
+    window.addEventListener('beforeunload',function(event){
+      if(!menuOrderDirty())return;
+      event.preventDefault();event.returnValue='';
+    });
+    // Category management is intentionally based on the same menu snapshot as
+    // the product list. No category can escape rename merely because it is
+    // stopped, provisional, or belongs to a different filter tab.
+    var categoryManagerOpen=false,categoryOrderDraft=null,categoryEditing=null,categoryEditDraft=null,categoryMerging=null,categoryMergeTarget=null,categoryBusy=false;
+    var categorySelected=new Set();
+    var categoryFeedback={message:'',error:false,scope:null,mergeTarget:null};
+    function categoryEntries(){
+      var found=new Map();
+      MENU.forEach(function(m){
+        var key=String(m['カテゴリ']||'').trim();if(!key)return;
+        if(!found.has(key))found.set(key,{
+          name:key,nameJa:String(m['カテゴリ_JA']===undefined?key:m['カテゴリ_JA']),nameEn:String(m['カテゴリ_EN']||''),count:0
+        });
+        found.get(key).count++;
+      });
+      var list=Array.from(found.values());
+      if(categoryOrderDraft){
+        var ranks=new Map(categoryOrderDraft.map(function(x,i){return [x,i];}));
+        list.sort(function(a,b){
+          return (ranks.has(a.name)?ranks.get(a.name):999999)-
+            (ranks.has(b.name)?ranks.get(b.name):999999);
+        });
+      }
+      return list;
+    }
+    function categoryOrderChanged(){
+      if(!categoryOrderDraft)return false;
+      var baseline=[],seen=new Set();
+      MENU.forEach(function(m){var n=m['カテゴリ'];if(n&&!seen.has(n)){seen.add(n);baseline.push(n);}});
+      return JSON.stringify(baseline)!==JSON.stringify(categoryOrderDraft);
+    }
+    function selectedCategoryEntries(){
+      return categoryEntries().filter(function(c){return categorySelected.has(c.name);});
+    }
+    function renderSelectedCategoryMerge(){
+      var selected=selectedCategoryEntries();
+      var button=document.getElementById('mergeSelectedCategoriesBtn');
+      if(!button)return;
+      button.disabled=categoryBusy||selected.length<2;
+      var preview=document.getElementById('categoryMergeSelectionPreview');
+      if(!selected.length){
+        preview.textContent=isEN()?'Select two or more categories to merge. The topmost selected category will keep its name.':'統合したいカテゴリを2つ以上選択してください。選択した中で一番上のカテゴリ名を残します。';
+      }else if(selected.length===1){
+        preview.textContent=isEN()?'1 selected. Select at least one more category.':'1カテゴリ選択中。あと1つ以上選択してください。';
+      }else{
+        var retained=selected[0],total=selected.reduce(function(n,c){return n+c.count;},0);
+        preview.textContent=isEN()
+          ?selected.length+' selected ('+total+' items). Keep "'+loc(retained.nameJa,retained.nameEn)+'" ('+retained.count+' items); merge the other '+(selected.length-1)+' categories into it. Japanese and English names both come from the topmost selected category.'
+          :selected.length+'カテゴリ・合計'+total+'商品を選択中。先頭の「'+loc(retained.nameJa,retained.nameEn)+'」（'+retained.count+'商品）を残し、他'+(selected.length-1)+'カテゴリを統合します。日英のカテゴリ名は先頭のものを採用します。';
+      }
+    }
+    window.toggleCategorySelection=function(index,checked){
+      if(categoryBusy)return;
+      var category=categoryEntries()[index];if(!category)return;
+      if(checked)categorySelected.add(category.name);
+      else categorySelected.delete(category.name);
+      categoryStatus('');
+      renderSelectedCategoryMerge();
+    };
+    function renderCategoryFeedback(){
+      var el=document.getElementById('categoryManagerStatus');
+      el.textContent=categoryFeedback.message;el.style.color=categoryFeedback.error?'#b91c1c':'#15803d';
+      el.classList.toggle('is-error',categoryFeedback.error);
+      el.setAttribute('role',categoryFeedback.error?'alert':'status');
+      [['categoryRenameInlineError','rename'],['categoryMergeInlineError','merge']].forEach(function(entry){
+        var inline=document.getElementById(entry[0]);if(!inline)return;
+        var show=categoryFeedback.error&&categoryFeedback.scope===entry[1];
+        inline.hidden=!show;inline.textContent=show?categoryFeedback.message:'';
+      });
+      var link=document.getElementById('categoryRenameGoMerge');
+      if(link)link.hidden=!(categoryFeedback.error&&categoryFeedback.scope==='rename'&&categoryEntries().length>1);
+    }
+    function categoryStatus(message,error,scope,mergeTarget){
+      categoryFeedback={message:message||'',error:!!error,scope:scope||null,mergeTarget:mergeTarget||null};
+      renderCategoryFeedback();
+    }
+    function categoryNameConflict(nameJa,nameEn){
+      var ja=String(nameJa||'').trim(),en=String(nameEn||'').trim();
+      return categoryEntries().find(function(c){
+        return c.name!==categoryEditing&&
+          ((ja&&(c.name===ja||c.nameJa===ja))||(en&&(c.name===en||c.nameEn===en)));
+      })||null;
+    }
+    function showCategoryNameConflict(existing){
+      categoryStatus(isEN()
+        ?'This name is already used by "'+loc(existing.nameJa,existing.nameEn)+'". Use Merge to combine the categories.'
+        :'この名前は既存カテゴリ「'+loc(existing.nameJa,existing.nameEn)+'」で使用されています。まとめる場合は「統合」を使用してください。',
+        true,'rename',existing.name);
+    }
+    window.toggleCategoryManager=function(){
+      categoryManagerOpen=!categoryManagerOpen;
+      document.getElementById('categoryManagerPanel').hidden=!categoryManagerOpen;
+      document.getElementById('categoryManagerToggle').setAttribute('aria-expanded',String(categoryManagerOpen));
+      document.getElementById('categoryManagerToggle').innerHTML=categoryManagerOpen
+        ?'<span class="lang-ja">閉じる ▲</span><span class="lang-en">Close ▲</span>'
+        :'<span class="lang-ja">開く ▼</span><span class="lang-en">Open ▼</span>';
+      renderCategoryManager();
+    };
+    function renderCategoryManager(){
+      if(!categoryManagerOpen)return;
+      var list=categoryEntries();
+      var existingNames=new Set(list.map(function(c){return c.name;}));
+      categorySelected.forEach(function(name){if(!existingNames.has(name))categorySelected.delete(name);});
+      document.getElementById('saveCategoryOrderBtn').disabled=categoryBusy||!categoryOrderChanged();
+      if(!list.length){
+        document.getElementById('categoryManagerList').innerHTML='<div class="muted">'+
+          (isEN()?'Add menu items to manage their categories.':'商品を登録するとカテゴリが表示されます。')+'</div>';
+        renderCategoryFeedback();
+        renderSelectedCategoryMerge();
+        return;
+      }
+      document.getElementById('categoryManagerList').innerHTML=list.map(function(c,i){
+        var isEditing=categoryEditing===c.name;
+        var arrows='<span class="mv cat-manager-arrows"><button class="btn-sm mvb" type="button" aria-label="'+esc(isEN()?'Move up':'上へ移動')+
+          '" onclick="moveCategory('+i+',-1)"'+(categoryBusy?' disabled':'')+'>▲</button>'+
+          '<button class="btn-sm mvb" type="button" aria-label="'+esc(isEN()?'Move down':'下へ移動')+
+          '" onclick="moveCategory('+i+',1)"'+(categoryBusy?' disabled':'')+'>▼</button></span>';
+        var draft=isEditing&&categoryEditDraft&&categoryEditDraft.name===c.name?categoryEditDraft:c;
+        var editor=isEditing?'<div class="cat-manager-rename"><label class="form-label" for="categoryRenameJa">'+
+          (isEN()?'Name (Japanese)':'カテゴリ名（日本語）')+'</label><input id="categoryRenameJa" class="fc" maxlength="120" oninput="updateCategoryEditDraft()" value="'+esc(draft.nameJa)+'">'+
+          '<label class="form-label" for="categoryRenameEn">'+(isEN()?'Name (English)':'カテゴリ名（English）')+
+          '</label><input id="categoryRenameEn" class="fc" maxlength="120" oninput="updateCategoryEditDraft()" value="'+esc(draft.nameEn)+'">'+
+          '<div class="cat-manager-hint">'+esc(isEN()
+            ?'The change applies to all '+c.count+' items, including provisional and stopped items.'
+            :'仮登録・販売停止を含む所属'+c.count+'商品すべてに反映します。')+'</div>'+
+          '<div id="categoryRenameInlineError" class="cat-manager-inline-error" role="alert" hidden></div>'+
+          '<div class="cat-manager-buttons"><button type="button" class="btn btn-pri" onclick="commitCategoryName()"'+
+          (categoryBusy?' disabled':'')+'>'+ (isEN()?'Update all items':'全商品に反映')+
+          '</button><button type="button" class="btn btn-sec" onclick="cancelCategoryName()">'+
+          (isEN()?'Cancel':'キャンセル')+'</button></div>'+
+          '<button type="button" id="categoryRenameGoMerge" class="btn-sm cat-manager-merge-link" onclick="switchCategoryEditToMerge()" hidden>'+
+          (isEN()?'Switch to Merge':'統合画面に切り替える')+'</button></div>':'';
+        var merging=categoryMerging===c.name;
+        var options=list.filter(function(other){return other.name!==c.name;}).map(function(other){
+          return '<option value="'+esc(other.name)+'"'+(categoryMergeTarget===other.name?' selected':'')+'>'+
+            esc(loc(other.nameJa,other.nameEn))+' ('+other.count+')</option>';
+        }).join('');
+        var mergeEditor=merging?'<div class="cat-manager-merge"><label class="form-label" for="categoryMergeDestination">'+
+          (isEN()?'Merge into category':'統合先カテゴリ')+'</label><select id="categoryMergeDestination" class="fc" onchange="categoryMergeTarget=this.value">'+options+'</select>'+
+          '<div class="cat-manager-hint">'+esc(isEN()
+            ?'All '+c.count+' items, including drafts and stopped items, will move. Item details will be preserved.'
+            :'仮登録・販売停止を含む'+c.count+'件を移動します。商品情報は維持されます。')+'</div>'+
+          '<div id="categoryMergeInlineError" class="cat-manager-inline-error" role="alert" hidden></div>'+
+          '<div class="cat-manager-buttons"><button type="button" class="btn btn-pri" onclick="commitCategoryMerge()"'+(categoryBusy?' disabled':'')+'>'+
+          (isEN()?'Merge category':'このカテゴリを統合')+'</button><button type="button" class="btn btn-sec" onclick="cancelCategoryMerge()">'+
+          (isEN()?'Cancel':'キャンセル')+'</button></div></div>':'';
+        var checkId='category-check-'+i;
+        return '<div class="cat-manager-row" data-cat-row="'+i+'">'+
+          '<label class="menu-row-check cat-manager-check" for="'+checkId+'"><input id="'+checkId+'" class="cat-manager-checkbox" type="checkbox"'+
+          (categorySelected.has(c.name)?' checked':'')+(categoryBusy?' disabled':'')+
+          ' onchange="toggleCategorySelection('+i+',this.checked)" aria-label="'+esc((isEN()?'Select category ':'カテゴリを選択：')+loc(c.nameJa,c.nameEn))+'"></label>'+
+          arrows+'<label class="cat-manager-name" for="'+checkId+'"><span data-iz-ellipsis="category" title="'+esc(loc(c.nameJa,c.nameEn))+'">'+esc(loc(c.nameJa,c.nameEn))+'</span>'+
+          '<span class="cat-manager-count">'+c.count+(isEN()?' items':'件の商品')+'</span></label>'+
+          '<div class="cat-manager-action"><button class="btn-sm" type="button" aria-label="'+esc(isEN()?'Rename category':'カテゴリ名を編集')+
+          '" onclick="editCategoryName('+i+')"'+(categoryBusy?' disabled':'')+'>'+ (isEN()?'Edit':'編集')+'</button></div></div>'+editor+mergeEditor;
+      }).join('');
+      renderCategoryFeedback();
+      renderSelectedCategoryMerge();
+    }
+    window.moveCategory=function(index,offset){
+      if(categoryBusy)return;
+      var list=categoryEntries(),other=index+offset;if(other<0||other>=list.length)return;
+      var names=list.map(function(x){return x.name;});
+      var moved=names.splice(index,1)[0];names.splice(other,0,moved);
+      categoryOrderDraft=names;categoryStatus('');renderCategoryManager();
+    };
+    window.saveCategoryOrder=async function(){
+      if(categoryBusy||!categoryOrderChanged())return;
+      var desired=categoryEntries().map(function(c){return c.name;});
+      var expected=[],expectedSeen=new Set();
+      MENU.forEach(function(item){
+        var name=String(item['カテゴリ']||'').trim();
+        if(name&&!expectedSeen.has(name)){expectedSeen.add(name);expected.push(name);}
+      });
+      function acceptOrderSnapshot(menu){
+        if(!Array.isArray(menu))return false;
+        var found=[],seen=new Set();
+        menu.forEach(function(m){var name=m['カテゴリ'];if(name&&!seen.has(name)){seen.add(name);found.push(name);}});
+        if(JSON.stringify(found)!==JSON.stringify(desired))return false;
+        adoptMenuRows(menu);categoryOrderDraft=null;
+        categoryStatus(isEN()?'✅ Category order saved':'✅ カテゴリ順を保存しました');
+        render();
+        return true;
+      }
+      categoryBusy=true;renderCategoryManager();
+      try{
+        var result=await rpc('saveMenuCategoryOrder',[desired,expected]);
+        if(!result||result.success!==true)throw new Error(result&&result.error||'save_unconfirmed');
+        var menu=await rpc('getAllMenuForAdmin',[]);
+        if(!acceptOrderSnapshot(menu))throw new Error('category_order_readback_mismatch');
+      }catch(e){
+        // A committed reorder may have lost its HTTP acknowledgement. Never
+        // send a blind second write; verify the persisted category order.
+        var confirmed=false;
+        try { confirmed=acceptOrderSnapshot(await rpc('getAllMenuForAdmin',[])); }
+        catch (_) { /* retain the unsaved UI arrangement for manual retry */ }
+        if(!confirmed)categoryStatus((isEN()?'Save not confirmed: ':'保存を確認できません：')+API.userErrorText(e),true);
+      }
+      finally{categoryBusy=false;renderCategoryManager();}
+    };
+    window.editCategoryName=function(index){
+      if(categoryBusy)return;
+      var target=categoryEntries()[index];if(!target)return;
+      categoryStatus('');
+      categoryMerging=null;categoryMergeTarget=null;
+      categoryEditing=categoryEditing===target.name?null:target.name;
+      categoryEditDraft=categoryEditing?{name:target.name,nameJa:target.nameJa,nameEn:target.nameEn}:null;
+      renderCategoryManager();
+      if(categoryEditing)document.getElementById('categoryRenameJa')?.focus();
+    };
+    window.updateCategoryEditDraft=function(){
+      if(!categoryEditing)return;
+      var ja=document.getElementById('categoryRenameJa'),en=document.getElementById('categoryRenameEn');
+      if(ja&&en){
+        categoryEditDraft={name:categoryEditing,nameJa:ja.value,nameEn:en.value};
+        var conflict=categoryNameConflict(ja.value,en.value);
+        if(conflict)showCategoryNameConflict(conflict);
+        else categoryStatus('');
+      }
+    };
+    window.cancelCategoryName=function(){categoryEditing=null;categoryEditDraft=null;categoryStatus('');renderCategoryManager();};
+    window.switchCategoryEditToMerge=function(){
+      if(categoryBusy||!categoryEditing)return;
+      var source=categoryEditing,list=categoryEntries();
+      var destination=list.find(function(c){return c.name===categoryFeedback.mergeTarget&&c.name!==source;})||
+        list.find(function(c){return c.name!==source;});
+      if(!destination)return;
+      categoryEditing=null;categoryEditDraft=null;categoryMerging=null;categoryMergeTarget=null;
+      categorySelected=new Set([source,destination.name]);
+      categoryStatus('');renderCategoryManager();
+      document.getElementById('mergeSelectedCategoriesBtn')?.focus();
+    };
+    window.editCategoryMerge=function(index){
+      if(categoryBusy)return;
+      var list=categoryEntries(),source=list[index];if(!source||list.length<2)return;
+      categoryStatus('');
+      categoryEditing=null;categoryEditDraft=null;
+      categoryMerging=categoryMerging===source.name?null:source.name;
+      categoryMergeTarget=categoryMerging?list.find(function(c){return c.name!==source.name;}).name:null;
+      renderCategoryManager();
+    };
+    window.cancelCategoryMerge=function(){categoryMerging=null;categoryMergeTarget=null;categoryStatus('');renderCategoryManager();};
+    function categoryMergeErrorMessage(reason){
+      if(reason==='category_commission_conflict')
+        return isEN()?'Both categories have commission rules; resolve them before merging.':'両方のカテゴリに歩合ルールがあります。先に歩合設定を整理してください。';
+      if(reason==='category_printer_conflict')
+        return isEN()?'Kitchen printer destinations differ; align them before merging.':'キッチン印刷先が異なります。先にプリンター設定を揃えてください。';
+      if(reason==='category_state_changed')
+        return isEN()?'Category data changed. Reload before retrying.':'カテゴリ情報が変更されています。再読込してから再実行してください。';
+      return API.userErrorText(new Error(reason));
+    }
+    window.commitSelectedCategoryMerge=async function(){
+      if(categoryBusy)return;
+      var selected=selectedCategoryEntries();
+      if(selected.length<2)return;
+      if(categoryOrderChanged()){
+        categoryStatus(isEN()?'Save the reordered categories before merging.':'先に変更中のカテゴリ順を保存してください。',true);
+        return;
+      }
+      var target=selected[0],sources=selected.slice(1);
+      var allCount=selected.reduce(function(sum,c){return sum+c.count;},0);
+      var sourceLabels=sources.map(function(c){return loc(c.nameJa,c.nameEn);});
+      var message=isEN()
+        ?'Merge '+selected.length+' categories ('+allCount+' items)? Keep the topmost "'+loc(target.nameJa,target.nameEn)+'" and merge '+sourceLabels.join(', ')+' into it. The topmost category supplies both Japanese and English names; product details stay unchanged.'
+        :'選択した'+selected.length+'カテゴリ（合計'+allCount+'商品）を統合しますか？「'+sourceLabels.join('」「')+'」を先頭の「'+loc(target.nameJa,target.nameEn)+'」に統合します。日本語・英語名は先頭のカテゴリを採用し、商品情報は維持されます。';
+      if(!await UIConfirm(message))return;
+      categoryBusy=true;categoryStatus('');renderCategoryManager();
+      var moved=0,completed=0,failed=[],unverified='';
+      try{
+        for(var source of sources){
+          // Use the same protected single-category transaction and readback as
+          // the existing merge flow; never blindly resend a lost acknowledgement.
+          var originalNames=MENU.filter(function(m){return m['カテゴリ']===source.name;})
+            .map(function(m){return m['商品名'];});
+          if(originalNames.length!==source.count){
+            failed.push(loc(source.nameJa,source.nameEn)+': '+categoryMergeErrorMessage('category_state_changed'));
+            continue;
+          }
+          var responseError='';
+          try{
+            var result=await rpc('mergeMenuCategory',[{
+              sourceName:source.name,targetName:target.name,expectedCount:source.count
+            }],(API.TIMEOUT_MS&&API.TIMEOUT_MS.ai)||45000);
+            if(!result||result.success!==true)
+              throw new Error(result&&result.error||'category_merge_unconfirmed');
+          }catch(error){
+            responseError=String(error&&error.message||error);
+          }
+          var snapshot;
+          try{snapshot=await rpc('getAllMenuForAdmin',[]);}
+          catch(error){
+            unverified=loc(source.nameJa,source.nameEn)+': '+(isEN()
+              ?'Cannot verify the saved result; remaining merges were not started.'
+              :'保存結果の再取得ができません。未実行のカテゴリは処理していません。');
+            break;
+          }
+          if(!Array.isArray(snapshot)){
+            unverified=isEN()?'Cannot verify the saved result; remaining merges were not started.':'保存結果を検証できません。残りの統合は実行していません。';
+            break;
+          }
+          var byName=new Map(snapshot.map(function(m){return [m['商品名'],m];}));
+          var confirmed=originalNames.length>0&&
+            !snapshot.some(function(m){return m['カテゴリ']===source.name;})&&
+            originalNames.every(function(name){
+              var m=byName.get(name);
+              return m&&m['カテゴリ']===target.name&&
+                m['カテゴリ_JA']===target.nameJa&&m['カテゴリ_EN']===target.nameEn;
+            });
+          adoptMenuRows(snapshot);
+          if(confirmed){
+            categorySelected.delete(source.name);
+            if(curCat===source.name)curCat=target.name;
+            if(selectedCategoryName===source.name)selectedCategoryName=target.name;
+            completed++;moved+=originalNames.length;
+          }else if(responseError){
+            failed.push(loc(source.nameJa,source.nameEn)+': '+categoryMergeErrorMessage(responseError));
+          }else{
+            unverified=loc(source.nameJa,source.nameEn)+': '+(isEN()
+              ?'Server acknowledged the merge but readback did not match. Stop and reload before retrying.'
+              :'サーバーの成功応答と再取得結果が一致しません。再読込してから確認してください。');
+            break;
+          }
+        }
+        if(completed===sources.length){
+          categorySelected.clear();
+          categoryOrderDraft=null;
+          categoryStatus(isEN()?'✅ Merged '+selected.length+' categories ('+moved+' items moved) into "'+loc(target.nameJa,target.nameEn)+'".'
+            :'✅ '+selected.length+'カテゴリを「'+loc(target.nameJa,target.nameEn)+'」に統合しました（'+moved+'商品を移動）。');
+        }else{
+          categorySelected.add(target.name);
+          var summary=(isEN()?'Merged '+completed+'/'+sources.length+' sources ('+moved+' items).':'統合済み '+completed+'/'+sources.length+'カテゴリ（'+moved+'商品）。');
+          categoryStatus(summary+'\n'+failed.join('\n')+(unverified?'\n'+unverified:''),
+            true);
+        }
+        if(completed)render();
+      }finally{categoryBusy=false;renderCategoryManager();}
+    };
+    window.commitCategoryMerge=async function(){
+      if(categoryBusy||!categoryMerging)return;
+      if(categoryOrderChanged()){
+        categoryStatus(isEN()?'Save category order before merging.':'先に変更中のカテゴリ順を保存してください。',true,'merge');return;
+      }
+      var source=categoryEntries().find(function(c){return c.name===categoryMerging;});
+      var target=categoryEntries().find(function(c){return c.name===document.getElementById('categoryMergeDestination')?.value;});
+      if(!source||!target||source.name===target.name)return;
+      categoryMergeTarget=target.name;
+      var message=isEN()
+        ?'Merge '+source.count+' items from "'+loc(source.nameJa,source.nameEn)+'" into "'+loc(target.nameJa,target.nameEn)+'"? The original category disappears.'
+        :'「'+loc(source.nameJa,source.nameEn)+'」の'+source.count+'商品を「'+loc(target.nameJa,target.nameEn)+'」に統合しますか？元のカテゴリは一覧からなくなります。';
+      if(!await UIConfirm(message))return;
+      var memberNames=MENU.filter(function(m){return m['カテゴリ']===source.name;}).map(function(m){return m['商品名'];});
+      function acceptMergeSnapshot(menu){
+        if(!Array.isArray(menu)||!memberNames.length)return false;
+        if(menu.some(function(m){return m['カテゴリ']===source.name;}))return false;
+        var byName=new Map(menu.map(function(m){return [m['商品名'],m];}));
+        if(!memberNames.every(function(name){
+          var m=byName.get(name);
+          return m&&m['カテゴリ']===target.name&&m['カテゴリ_JA']===target.nameJa&&m['カテゴリ_EN']===target.nameEn;
+        }))return false;
+        adoptMenuRows(menu);categoryMerging=null;categoryMergeTarget=null;categoryOrderDraft=null;
+        if(curCat===source.name)curCat=target.name;
+        if(selectedCategoryName===source.name)selectedCategoryName=target.name;
+        categoryStatus(isEN()?'✅ Merged '+memberNames.length+' items':'✅ '+memberNames.length+'商品を統合しました');
+        render();return true;
+      }
+      categoryBusy=true;renderCategoryManager();
+      try{
+        var result=await rpc('mergeMenuCategory',[{sourceName:source.name,targetName:target.name,expectedCount:source.count}],(API.TIMEOUT_MS&&API.TIMEOUT_MS.ai)||45000);
+        if(!result||result.success!==true)throw new Error(result&&result.error||'merge_unconfirmed');
+        if(!acceptMergeSnapshot(await rpc('getAllMenuForAdmin',[])))throw new Error('category_merge_readback_mismatch');
+      }catch(e){
+        var confirmed=false;
+        try{confirmed=acceptMergeSnapshot(await rpc('getAllMenuForAdmin',[]));}catch(_){}
+        if(!confirmed){
+          var reason=String(e&&e.message||e);
+          if(reason==='category_commission_conflict')
+            reason=isEN()?'Both categories have commission rules; resolve them before merging.':'両カテゴリに歩合ルールがあるため統合できません。先に歩合設定を整理してください。';
+          if(reason==='category_printer_conflict')
+            reason=isEN()?'Categories use different kitchen printers; align printer destinations before merging.':'カテゴリのキッチン印刷先が異なります。先にプリンター設定を揃えてください。';
+          categoryStatus((isEN()?'Merge not confirmed: ':'統合を確認できません：')+reason,true,'merge');
+        }
+      }finally{categoryBusy=false;renderCategoryManager();}
+    };
+    window.commitCategoryName=async function(){
+      if(categoryBusy||!categoryEditing)return;
+      var oldName=categoryEditing;
+      var current=categoryEntries().find(function(c){return c.name===oldName;});if(!current)return;
+      var nameJa=document.getElementById('categoryRenameJa').value.trim();
+      var nameEn=document.getElementById('categoryRenameEn').value.trim();
+      if(!nameJa&&!nameEn){categoryStatus(isEN()?'Enter at least one language.':'日本語か英語のいずれかを入力してください。',true,'rename');return;}
+      if(nameJa===current.nameJa&&nameEn===current.nameEn){categoryEditing=null;categoryEditDraft=null;renderCategoryManager();return;}
+      var conflict=categoryNameConflict(nameJa,nameEn);
+      if(conflict){showCategoryNameConflict(conflict);return;}
+      var message=isEN()?'Update the category for all '+current.count+' items?':'所属'+current.count+'商品すべてのカテゴリ名を変更しますか？';
+      if(!await UIConfirm(message))return;
+      var originalMembers=MENU.filter(function(m){return m['カテゴリ']===oldName;})
+        .map(function(m){return m['商品名'];});
+      function acceptRenamedSnapshot(menu){
+        if(!Array.isArray(menu)||!originalMembers.length)return null;
+        var byName=new Map(menu.map(function(m){return [m['商品名'],m];}));
+        var changed=originalMembers.map(function(name){return byName.get(name);});
+        if(changed.some(function(m){return !m||!m['カテゴリ']||
+          (nameJa&&m['カテゴリ_JA']!==nameJa)||(nameEn&&m['カテゴリ_EN']!==nameEn);
+        }))return null;
+        var canonical=changed[0]['カテゴリ'];
+        if(changed.some(function(m){return m['カテゴリ']!==canonical;}))return null;
+        adoptMenuRows(menu);
+        if(categoryOrderDraft)categoryOrderDraft=categoryOrderDraft.map(function(n){return n===oldName?canonical:n;});
+        categoryEditing=null;categoryEditDraft=null;
+        categoryStatus(isEN()?'✅ Updated '+originalMembers.length+' items':'✅ '+originalMembers.length+'商品に反映しました');
+        render();
+        return canonical;
+      }
+      categoryBusy=true;
+      try{
+        var result=await rpc('renameMenuCategory',[{oldName:oldName,nameJa:nameJa,nameEn:nameEn}],(API.TIMEOUT_MS&&API.TIMEOUT_MS.ai)||45000);
+        if(!result||result.success!==true)throw new Error(result&&result.error||'rename_unconfirmed');
+        var menu=await rpc('getAllMenuForAdmin',[]);
+        if(!acceptRenamedSnapshot(menu))throw new Error('category_rename_readback_mismatch');
+      }catch(e){
+        // A lost response may follow a fully committed DB transaction. Never
+        // resend an uncertain category rename; reconcile the existing members.
+        var confirmed=false;
+        try { confirmed=!!acceptRenamedSnapshot(await rpc('getAllMenuForAdmin',[])); }
+        catch (_) { /* explicit reload/retry is needed when readback fails */ }
+        if(!confirmed){
+          var reason=String(e&&e.message||e);
+          if(reason==='category_name_exists'){
+            var existing=categoryNameConflict(nameJa,nameEn);
+            if(existing)showCategoryNameConflict(existing);
+            else categoryStatus(isEN()?'This category name is already in use. Use Merge to combine categories.':'カテゴリ名が既に使われています。まとめる場合は「統合」を使用してください。',true,'rename');
+          }else categoryStatus((isEN()?'Rename not confirmed: ':'名称変更を確認できません：')+API.userErrorText(e),true,'rename');
+        }
+      }
+      finally{categoryBusy=false;renderCategoryManager();}
+    };
+    var curCat = 'all', selectedCategoryName = null, VIEW = [];
     var selectedMenuNames = new Set(), bulkDeleting = false;
     var INVENTORY = [];
-    var URL_IMG_DATA = null; // URLから取得した画像（{data,type,name}）。ファイル選択時はクリアされる。
+    var URL_IMG_DATA = null;
+    var GENERATED_IMAGE_URL = '';
+    var _menuImagePending = null, _menuImageBusy = false; // URLから取得した画像（{data,type,name}）。ファイル選択時はクリアされる。
     // The latest selection wins even when earlier image requests finish later.
     var _imgChoiceSeq = 0, _imgSearchSeq = 0;
     function isSampleItem(m){ return !!(m && (m.sample || m.isSample || Number(m['サンプル']||0))); }
     function refreshSampleCard(){ document.getElementById('sampleDataCard').style.display=MENU.some(isSampleItem)?'block':'none'; }
 
-    window.onFilePicked = function(){ ++_imgChoiceSeq;  URL_IMG_DATA = null; document.getElementById('mImgUrl').value=''; hideMsg('imgUrlMsg'); document.getElementById('imgPreview').style.display='none'; };
+    function updateImageRightsControl(reset){
+      var row=document.getElementById('menuImageRightsRow');
+      var checkbox=document.getElementById('mImageRightsConfirmed');
+      var manual=!!(document.getElementById('mFile').files[0] || URL_IMG_DATA);
+      if(reset || !manual)checkbox.checked=false;
+      row.style.display=manual?'flex':'none';
+    }
+    window.onFilePicked = function(){ ++_imgChoiceSeq;  URL_IMG_DATA = null; GENERATED_IMAGE_URL=''; document.getElementById('mImgUrl').value=''; hideMsg('imgUrlMsg'); document.getElementById('imgPreview').style.display='none'; updateImageRightsControl(true); };
+    function currentMenuImageQuery(){
+      // For an empty keyword prefer the registered English product name:
+      // both providers index English brand/product names more reliably.
+      return document.getElementById('mImgQuery').value.trim() ||
+        document.getElementById('mNameEn').value.trim() ||
+        document.getElementById('mName').value.trim();
+    }
     window.openImgSearch = function(){
-      var q = document.getElementById('mImgQuery').value.trim() || loc(document.getElementById('mName').value,document.getElementById('mNameEn').value);
+      var q = currentMenuImageQuery();
       var url = 'https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(q || (isEN()?'food':'料理'));
-      window.open(url, '_blank');
+      // User navigation only: never scrape Google results or auto-import an image.
+      window.open(url, '_blank', 'noopener,noreferrer');
     };
     function hideMsg(id){ var m=document.getElementById(id); m.style.display='none'; m.innerText=''; }
     function showMsg(id, text, ok){ var m=document.getElementById(id); m.style.display='block'; m.style.color = ok?'#15803d':'#b91c1c'; m.innerText=text; }
+    window.setImageMode=function(mode){
+      var generate=mode==='generate';
+      document.getElementById('imageSearchPanel').style.display=generate?'none':'block';
+      document.getElementById('imageGeneratePanel').style.display=generate?'block':'none';
+      document.getElementById('imageSearchTab').setAttribute('aria-pressed',String(!generate));
+      document.getElementById('imageGenerateTab').setAttribute('aria-pressed',String(generate));
+      if(generate)refreshImageCreditBalance();
+    };
+    var _imageCreditRefreshSeq=0;
+    async function refreshImageCreditBalance(){
+      var el=document.getElementById('imageCreditStatus');
+      var seq=++_imageCreditRefreshSeq;
+      if(el)el.textContent=I18n.t('imgCreditChecking');
+      try{
+        // The same authenticated wallet/quote used by menu AI import.
+        // Never use a stale or guessed balance to authorize a charge.
+        var wallet=await rpc('getAiCreditWallet',[]);
+        var quote=AICreditUI.quote(wallet,'menu_photo',1);
+        if(seq===_imageCreditRefreshSeq&&el)
+          el.textContent=I18n.t('imgCreditBalance')
+            .replace('{balance}',String(quote.balance))
+            .replace('{cost}',String(quote.unitCost));
+        return wallet;
+      }catch(_){
+        if(seq===_imageCreditRefreshSeq&&el)
+          el.textContent=I18n.t('imgCreditUnavailable');
+        return null;
+      }
+    }
+    window.generateMenuImageClick=async function(e){
+      if(_menuImageBusy)return;
+      var prompt=document.getElementById('mImagePrompt').value.trim();
+      if(!prompt||prompt.length>700){showMsg('imgGenerateMsg',I18n.t('imgPromptRequired'),false);return;}
+      var btn=document.getElementById('generateMenuImgBtn');
+      var seq=_imgChoiceSeq;
+      _menuImageBusy=true;btn.disabled=true;
+      try{
+        var wallet=await refreshImageCreditBalance();
+        if(!wallet){showMsg('imgGenerateMsg',I18n.t('imgCreditUnavailable'),false);return;}
+        var quote=AICreditUI.quote(wallet,'menu_photo',1);
+        var pending=_menuImagePending&&_menuImagePending.prompt===prompt?_menuImagePending:null;
+        if(!pending){
+          var existing=await IZPendingWrite.peek('menu_photo',prompt);
+          if(existing)pending={prompt:prompt,requestId:existing.id,replaying:true};
+        }
+        // Lost responses may already have committed the original charge.
+        // Recover with the same id even if that spent the final credit.
+        if(!pending&&!quote.sufficient){
+          showMsg('imgGenerateMsg',I18n.t('imgCreditInsufficient')
+            .replace('{balance}',String(quote.balance))
+            .replace('{cost}',String(quote.amount)),false);
+          return;
+        }
+        if(!pending&&!await AICreditUI.confirm(AICreditUI.confirmation(
+          wallet,'menu_photo',1,isEN()?'en':'ja',undefined,'image')))return;
+        var ticket=await IZPendingWrite.begin('menu_photo',prompt,function(){
+          return 'menu-photo-'+crypto.randomUUID();
+        });
+        if(pending&&pending.requestId!==ticket.id)throw Error('ai_request_id_changed');
+        if(!pending)pending={prompt:prompt,requestId:ticket.id};
+        _menuImagePending=pending;
+        seq=++_imgChoiceSeq;
+        showMsg('imgGenerateMsg',I18n.t(pending.replaying?'imgRecovering':'imgGenerating'),true);
+        pending.replaying=true;
+        var r=await rpc('generateMenuImage',[{
+          prompt:prompt,requestId:pending.requestId,creditConsent:'ai-credit-v1',
+        }],Math.max(115000,(API.TIMEOUT_MS&&API.TIMEOUT_MS.ai)||0));
+        if(!r||r.success!==true||!r.imageUrl){
+          if(r&&r.error!=='ai_request_in_progress'){
+            await IZPendingWrite.clear('menu_photo',pending.requestId);
+            _menuImagePending=null;
+          }
+          throw Error((r&&r.error)||'image_generation_failed');
+        }
+        await IZPendingWrite.clear('menu_photo',pending.requestId);
+        _menuImagePending=null;
+        // Reconcile the server wallet even when another image was selected.
+        refreshImageCreditBalance();
+        if(window.IZAICreditHub)window.IZAICreditHub.refresh(true);
+        if(seq!==_imgChoiceSeq){
+          showMsg('imgGenerateMsg',I18n.t('imgGeneratedStale'),true);
+          return;
+        }
+        GENERATED_IMAGE_URL=r.imageUrl;URL_IMG_DATA=null;
+        document.getElementById('mFile').value='';
+        if(typeof updateFileName==='function')updateFileName();
+        updateImageRightsControl(true);
+        var preview=document.getElementById('imgPreview');
+        preview.src=r.imageUrl;preview.style.display='inline-block';
+        showMsg('imgGenerateMsg',I18n.t('imgGenerated'),true);
+        btn.textContent=I18n.t('imgRegenerateButton');
+      }catch(err){
+        var errorCode=String(err&&err.code||err&&err.message||err||'');
+        if(errorCode==='ai_request_already_refunded'&&_menuImagePending){
+          await IZPendingWrite.clear('menu_photo',_menuImagePending.requestId);
+          _menuImagePending=null;
+        }
+        if(seq===_imgChoiceSeq)showMsg('imgGenerateMsg',
+          I18n.t('imgGenerateError')+
+          (AICreditUI.imageGenerationError(err,isEN()?'en':'ja')||API.userErrorText(err)),false);
+        refreshImageCreditBalance();
+        if(window.IZAICreditHub)window.IZAICreditHub.refresh(true);
+      }finally{_menuImageBusy=false;btn.disabled=false;}
+    };
     function _applyFetchedImage(r, msgId){
       if (!r || !r.success){ showMsg(msgId, I18n.t('imgFetchErr')+API.userErrorText((r&&r.error)||''), false); return; }
+      GENERATED_IMAGE_URL='';
       URL_IMG_DATA = { data:r.data, type:r.type, name:r.name };
       document.getElementById('mFile').value = '';
+      updateImageRightsControl(true);
       var prev = document.getElementById('imgPreview'); prev.src = 'data:'+r.type+';base64,'+r.data; prev.style.display='inline-block';
       showMsg(msgId, I18n.t('imgFetchOk'), true);
     }
@@ -237,33 +1001,79 @@
       rpc('fetchImageFromUrl',[url]).then(function(r){ if (btn) btn.disabled = false; if(seq === _imgChoiceSeq && document.getElementById('mImgUrl').value.trim()===url)_applyFetchedImage(r, 'imgUrlMsg'); })
         .catch(function(e2){ if (btn) btn.disabled=false; if(seq === _imgChoiceSeq && document.getElementById('mImgUrl').value.trim()===url)showMsg('imgUrlMsg', I18n.t('imgFetchErr')+API.userErrorText(e2), false); });
     };
+    var _imgSearchRetryTimer = null;
+    var _imgSearchRetryBtn = null;
+    function _cancelImgSearchRetry(){
+      if (_imgSearchRetryTimer !== null){ clearTimeout(_imgSearchRetryTimer); _imgSearchRetryTimer = null; }
+      if (_imgSearchRetryBtn){ _imgSearchRetryBtn.disabled = false; _imgSearchRetryBtn = null; }
+    }
     window.searchImgs = function(e){
-      var q = document.getElementById('mImgQuery').value.trim() || loc(document.getElementById('mName').value,document.getElementById('mNameEn').value);
+      var q = currentMenuImageQuery();
       var seq = ++_imgSearchSeq;
+      _cancelImgSearchRetry();
       ++_imgChoiceSeq; // A new search cancels outdated image selections.
       var grid = document.getElementById('imgResults'); grid.style.display='none'; grid.innerHTML='';
       document.getElementById('pixabayCredit').style.display='none';
+      document.getElementById('imgSearchWebFallback').style.display='none';
       if (!q){ showMsg('imgSearchMsg', I18n.t('imgNeedQuery'), false); return; }
-      var btn = e && e.target; if (btn) btn.disabled = true;
-      showMsg('imgSearchMsg', I18n.t('imgSearching'), true);
-      rpc('searchMenuImages',[q]).then(function(r){
-        if (btn) btn.disabled = false;
-        if(seq !== _imgSearchSeq || q !== (document.getElementById('mImgQuery').value.trim() || loc(document.getElementById('mName').value,document.getElementById('mNameEn').value)))return;
-        if (!r || !r.success){
-          if (r && r.error==='not_configured') showMsg('imgSearchMsg', I18n.t('imgNotConfigured'), false);
-          else if (r && r.error==='image_search_rate_limited') showMsg('imgSearchMsg', I18n.t('imgRateLimited'), false);
-          else showMsg('imgSearchMsg', I18n.t('imgFetchErr')+API.userErrorText((r&&r.error)||''), false);
-          return;
-        }
-        if (!r.items || !r.items.length){ showMsg('imgSearchMsg', I18n.t('imgNoResults'), false); return; }
-        hideMsg('imgSearchMsg');
-        grid.innerHTML = r.items.map(function(it){ return '<img src="'+esc(it.thumbnail)+'" data-url="'+esc(it.url)+'" title="'+esc(it.title)+'" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;border:2px solid var(--border);cursor:pointer;" onclick="selectSearchImg(this)" alt="">'; }).join('');
-        grid.style.display='grid';
-        document.getElementById('pixabayCredit').style.display='block';
-      }).catch(function(e2){ if (btn) btn.disabled=false; if(seq === _imgSearchSeq)showMsg('imgSearchMsg', I18n.t('imgFetchErr')+API.userErrorText(e2), false); });
+      var btn = e && e.target; _imgSearchRetryBtn = btn || null;
+      var retries = 0;
+      function active(){ return seq === _imgSearchSeq && q === currentMenuImageQuery(); }
+      function finish(){ if (btn) btn.disabled = false; if (_imgSearchRetryBtn === btn) _imgSearchRetryBtn = null; }
+      function scheduleRetry(seconds){
+        if (btn) btn.disabled = false; // User can start another search during cooldown.
+        showMsg('imgSearchMsg', I18n.t('imgRetryIn').replace('{seconds}',String(seconds)), true);
+        _imgSearchRetryTimer = setTimeout(function(){ _imgSearchRetryTimer = null; attempt(); }, seconds * 1000);
+      }
+      function attempt(){
+        if (!active()){ finish(); return; }
+        if (btn) btn.disabled = true;
+        showMsg('imgSearchMsg', I18n.t('imgSearching')+' '+q, true);
+        rpc('searchMenuImagesV2',[q],Math.max(60000,(API.TIMEOUT_MS&&API.TIMEOUT_MS.ai)||0)).then(function(r){
+          if (!active()){ finish(); return; }
+          if (!r || !r.success){
+            if (r && r.error==='image_search_rate_limited' && retries++ === 0){
+              scheduleRetry(Math.min(120,Math.max(1,Math.ceil(Number(r.retryAfterSeconds)||60))));
+              return;
+            }
+            finish();
+            document.getElementById('imgSearchWebFallback').style.display='inline-block';
+            if (r && r.error==='not_configured') showMsg('imgSearchMsg', I18n.t('imgNotConfigured'), false);
+            else if (r && r.error==='image_search_rate_limited') showMsg('imgSearchMsg', I18n.t('imgRateLimited'), false);
+            else showMsg('imgSearchMsg', I18n.t('imgFetchErr')+API.userErrorText((r&&r.error)||''), false);
+            return;
+          }
+          finish();
+          if (!r.items || !r.items.length){
+            showMsg('imgSearchMsg', (r.availableCandidates>0?I18n.t('imgNoVerifiedResults'):I18n.t('imgNoResults'))+' ('+q+')', false);
+            document.getElementById('imgSearchWebFallback').style.display='inline-block';
+            return;
+          }
+          hideMsg('imgSearchMsg');
+          grid.innerHTML = r.items.map(function(it){
+            return '<div style="min-width:0;"><img src="'+esc(it.thumbnail)+'" data-url="'+esc(it.url)+'" title="'+esc(it.title)+'" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;border:2px solid var(--border);cursor:pointer;" onclick="selectSearchImg(this)" alt="">'
+              +'<div class="muted" style="font-size:10px;overflow-wrap:anywhere;">'+esc((it.creator||it.provider||'')+' / '+(it.license||''))+'</div>'
+              +(it.sourcePage?'<a href="'+esc(it.sourcePage)+'" target="_blank" rel="noopener noreferrer" style="font-size:10px;">'+I18n.t('imgSourceLink')+'</a>':'')+'</div>';
+          }).join('');
+          grid.style.display='grid';
+          var sourceAnchor=document.querySelector('#pixabayCredit a');
+          if(sourceAnchor){
+            sourceAnchor.href=r.searchMode==='ai_ranked_pixabay'?'https://pixabay.com/service/license-summary/':'https://openverse.org/';
+            sourceAnchor.textContent=I18n.t(r.searchMode==='ai_ranked_pixabay'?'imgPixabaySource':'pixabayCredit');
+          }
+          document.getElementById('pixabayCredit').style.display='block';
+        }).catch(function(e2){
+          if (!active()){ finish(); return; }
+          if (retries++ === 0){ scheduleRetry(2); return; }
+          finish();
+          showMsg('imgSearchMsg', I18n.t('imgFetchErr')+API.userErrorText(e2), false);
+        });
+      }
+      attempt();
     };
     window.selectSearchImg = function(el){
       var seq = ++_imgChoiceSeq;
+      GENERATED_IMAGE_URL='';
       document.querySelectorAll('#imgResults img').forEach(function(im){ im.style.borderColor='var(--border)'; });
       el.style.borderColor = '#2563eb';
       showMsg('imgSearchMsg', I18n.t('imgFetching'), true);
@@ -279,13 +1089,14 @@
     }
 
     // カテゴリ選択(select)を組み立てる。現在値は保持し、一覧にない値は追加。
+    var NEW_CAT_VALUE='\u0001new-category';
     function fillCatSel(selId, cats){
       var sel=document.getElementById(selId); var cur=sel.value;
       var h='<option value="">'+I18n.t('catUnset')+'</option>';
       cats.forEach(function(c){ h+='<option value="'+esc(c)+'">'+esc(c)+'</option>'; });
-      h+='<option value="__new__">'+I18n.t('catNew')+'</option>';
       sel.innerHTML=h;
-      if(cur && cur!=='__new__' && cats.indexOf(cur)<0){ var o=document.createElement('option'); o.value=cur; o.textContent=cur; sel.insertBefore(o, sel.lastChild); }
+      var special=document.createElement('option');special.value=NEW_CAT_VALUE;special.textContent=I18n.t('catNew');sel.appendChild(special);
+      if(cur && cur!==NEW_CAT_VALUE && cats.indexOf(cur)<0){ var o=document.createElement('option'); o.value=cur; o.textContent=cur; sel.insertBefore(o, sel.lastChild); }
       sel.value=cur;
     }
     function setCatSel(selId, newId, val){
@@ -294,7 +1105,7 @@
       if(val && !Array.prototype.some.call(sel.options,function(o){return o.value===val;})){ var o=document.createElement('option'); o.value=val; o.textContent=val; sel.insertBefore(o, sel.lastChild); }
       sel.value=val;
     }
-    window.onCatSel=function(selId,newId){ var isNew=document.getElementById(selId).value==='__new__'; var ni=document.getElementById(newId); ni.style.display=isNew?'block':'none'; if(isNew) ni.focus(); };
+    window.onCatSel=function(selId,newId){ var isNew=document.getElementById(selId).value===NEW_CAT_VALUE; var ni=document.getElementById(newId); ni.style.display=isNew?'block':'none'; if(isNew) ni.focus(); };
 
     // ── オプション（サイズ・トッピング等） ──
     var curOpts = [];
@@ -309,6 +1120,7 @@
     function renderOpts(){
       var w = document.getElementById('optWrap');
       w.innerHTML = curOpts.map(function(g, gi){
+        if(g.commissionType==='recipient_charge'||g.kind==='recipient_charge')return '';
         var choices = (g.choices||[]).map(function(c, ci){
           var cja=(c.labelJa!==undefined?c.labelJa:(c.label||'')), cen=c.labelEn||'';
           return '<div class="opt-choice">'
@@ -338,14 +1150,19 @@
     window.addChoice=function(gi){ curOpts[gi].choices.push({label:'',labelJa:'',labelEn:'',price:0}); renderOpts(); };
     window.delChoice=function(gi,ci){ curOpts[gi].choices.splice(ci,1); renderOpts(); };
     function cleanOpts(){
-      return curOpts.map(function(g){
+      return curOpts.filter(function(g){return g&&g.commissionType!=='recipient_charge'&&g.kind!=='recipient_charge';}).map(function(g){
         var gja=String(g.nameJa!==undefined?g.nameJa:(g.name||'')).trim(),gen=String(g.nameEn||'').trim();
-        var ch=(g.choices||[]).map(function(c){var cja=String(c.labelJa!==undefined?c.labelJa:(c.label||'')).trim(),cen=String(c.labelEn||'').trim(),canonical=String(c.label||'').trim()||cja||cen;return {label:canonical,labelJa:cja,labelEn:cen,price:Number(c.price)||0};}).filter(function(c){return !!c.label;});
-        return { name:String(g.name||'').trim()||gja||gen, nameJa:gja, nameEn:gen, type:(g.type==='multi'?'multi':'single'), required:!!g.required, choices:ch };
+        var ch=(g.choices||[]).map(function(c){var cja=String(c.labelJa!==undefined?c.labelJa:(c.label||'')).trim(),cen=String(c.labelEn||'').trim(),canonical=String(c.label||'').trim()||cja||cen;return {label:canonical,labelJa:cja,labelEn:cen,price:Number(c.price)||0,
+          ...(c.choiceId?{choiceId:c.choiceId}:{}),...(c.enabled===false?{enabled:false}:{})};}).filter(function(c){return !!c.label;});
+        return { name:String(g.name||'').trim()||gja||gen, nameJa:gja, nameEn:gen, type:(g.type==='multi'?'multi':'single'), required:!!g.required, choices:ch,
+          ...(g.enabled===false?{enabled:false}:{}),
+          ...(g.groupId?{groupId:g.groupId}:{}) };
       }).filter(function(g){ return g.name && g.choices.length; });
     }
 
     function render(){
+      refreshMenuOrderControls();
+      renderCategoryManager();
       refreshSampleCard();
       // Canonical name persists across category changes; prune only rows
       // actually removed from the current authenticated menu snapshot.
@@ -357,14 +1174,18 @@
       fillCatSel('mCat', catsJa);
       fillCatSel('mCatEn', catsEn);
       // カテゴリタブ
-      if (curCat!=='all' && curCat!=='draft' && cats.indexOf(curCat)<0) curCat='all';
+      if (curCat==='category' && cats.indexOf(selectedCategoryName)<0) { curCat='all'; selectedCategoryName=null; }
       var catLabel = function(c){ for(var i=0;i<MENU.length;i++){ if(MENU[i]['カテゴリ']===c){var ja=MENU[i]['カテゴリ_JA']!==undefined?MENU[i]['カテゴリ_JA']:MENU[i]['カテゴリ'];return loc(ja,MENU[i]['カテゴリ_EN']);}}return c; };
       var tabs = '<button class="cat-tab'+(curCat==='all'?' on':'')+'" onclick="selectCat(\'all\')">'+I18n.t('allCat')+'</button>';
       var draftCount=MENU.filter(function(m){return m['ステータス']==='仮登録';}).length;
       if(draftCount)tabs+='<button class="cat-tab'+(curCat==='draft'?' on':'')+'" style="border-color:#f59e0b;color:#92400e;" onclick="selectCat(\'draft\')">'+I18n.t('draftTag')+' ('+draftCount+')</button>';
-      cats.forEach(function(c){ tabs += '<button class="cat-tab'+(curCat===c?' on':'')+'" onclick="selectCat(\''+esc(c).replace(/'/g,"\\'")+'\')">'+esc(catLabel(c))+'</button>'; });
-      document.getElementById('catTabs').innerHTML = tabs;
-      VIEW = (curCat==='all') ? MENU.slice() : MENU.filter(function(m){ return curCat==='draft'?m['ステータス']==='仮登録':m['カテゴリ']===curCat; });
+      cats.forEach(function(c){ tabs += '<button class="cat-tab'+(curCat==='category'&&selectedCategoryName===c?' on':'')+'" data-menu-category="'+esc(c)+'">'+esc(catLabel(c))+'</button>'; });
+      var catTabs=document.getElementById('catTabs');
+      catTabs.innerHTML = tabs;
+      catTabs.querySelectorAll('[data-menu-category]').forEach(function(button){
+        button.addEventListener('click',function(){ window.selectCat(button.getAttribute('data-menu-category'),true); });
+      });
+      VIEW = (curCat==='all') ? MENU.slice() : MENU.filter(function(m){ return curCat==='draft'?m['ステータス']==='仮登録':m['カテゴリ']===selectedCategoryName; });
       updateMenuBulkToolbar();
       if (!MENU.length){ document.getElementById('list').innerHTML='<div class="muted">'+I18n.t('noItems')+'</div>'; return; }
       if (!VIEW.length){ document.getElementById('list').innerHTML='<div class="muted">'+I18n.t('noItems')+'</div>'; return; }
@@ -384,15 +1205,16 @@
         var sp = Number(m['辛さ'])||0; if(sp>0) tags += ' ・ '+repeat('🌶',sp);
         if(m['アレルゲン']) tags += ' ・ ⚠'+esc(String(m['アレルゲン']));
         if(m['提供開始']&&m['提供終了']) tags += ' ・ ⏰'+esc(m['提供開始'])+'-'+esc(m['提供終了']);
-        var kdsOn = (String(m['厨房表示']||'1') !== '0');
+        var kdsOn = (String(m['厨房表示']==null?'1':m['厨房表示']) !== '0');
         tags += ' ・ <span style="color:'+(kdsOn?'#15803d':'#b91c1c')+';">'+(kdsOn?I18n.t('kdsOn'):I18n.t('kdsOff'))+'</span>';
         if (m['在庫紐づけ']) tags += ' ・ <span style="color:#2563eb;">🔗 '+esc(m['在庫紐づけ'])+'</span>';
-        var mv = '<div class="mv"><button class="btn-sm mvb" onclick="moveFromArrow(event,'+vi+',-1)"'+(vi===0?' disabled':'')+'>▲</button>'+
-                 '<button class="btn-sm mvb" onclick="moveFromArrow(event,'+vi+',1)"'+(vi===VIEW.length-1?' disabled':'')+'>▼</button></div>';
+        // Both buttons remain tappable; out-of-range/category moves are no-ops.
+        var mv = '<div class="mv"><button class="btn-sm mvb" onclick="moveFromArrow(event,'+vi+',-1)">▲</button>'+
+                 '<button class="btn-sm mvb" onclick="moveFromArrow(event,'+vi+',1)">▼</button></div>';
         var soldBtn = draft?'':'<button class="btn-sm" style="background:'+(sold?'#fee2e2':'#dcfce7')+';color:'+(sold?'#b91c1c':'#15803d')+';" onclick="toggleSold('+mi+')">'+(sold?I18n.t('markAvail'):I18n.t('markSold'))+'</button>';
         var marked=selectedMenuNames.has(m['商品名']);
         var checkbox='<label class="menu-row-check"><input type="checkbox" class="menu-bulk-check" aria-label="'+esc(I18n.t('bulkSelectItem')+': '+nm)+'" onchange="toggleMenuSelection('+mi+',this.checked)"'+(marked?' checked':'')+(bulkDeleting?' disabled':'')+'></label>';
-        return '<div class="mi'+(off?' off':'')+(draft?' draft':'')+(marked?' bulk-selected':'')+'">'+checkbox+mv+thumb+'<div class="mi-info"><div class="nm">'+esc(nm)+(draft?' <span class="draft-tag">'+I18n.t('draftTag')+'</span>':'')+(sample?' <span style="display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;background:#dbeafe;color:#1d4ed8;font-size:11px;">🧪 '+I18n.t('sampleTag')+'</span>':'')+(sold?' <span style="color:#b91c1c;font-size:12px;">('+I18n.t('soldOut')+')</span>':'')+'</div>'+
+        return '<div class="mi'+(off?' off':'')+(draft?' draft':'')+(marked?' bulk-selected':'')+'">'+checkbox+mv+thumb+'<div class="mi-info"><div class="nm"><span data-iz-ellipsis="item" title="'+esc(nm)+'">'+esc(nm)+'</span>'+(draft?' <span class="draft-tag">'+I18n.t('draftTag')+'</span>':'')+(sample?' <span style="display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;background:#dbeafe;color:#1d4ed8;font-size:11px;">🧪 '+I18n.t('sampleTag')+'</span>':'')+(sold?' <span style="color:#b91c1c;font-size:12px;">('+I18n.t('soldOut')+')</span>':'')+'</div>'+
           '<div class="meta">'+esc(cat)+' ・ '+(SYM)+(Number(m['価格'])||0).toLocaleString()+' ・ '+st+tags+'</div>'+(draft?window.MenuAiReviewReasons.html(m,isEN,esc):'')+'</div>'+
           '<div class="mi-actions">'+soldBtn+
           '<button class="btn-sm" onclick="edit('+mi+')">'+(draft?I18n.t('reviewDraft'):I18n.t('edit'))+'</button>'+
@@ -419,12 +1241,20 @@
         el.title=labels[pair[0]]+' ('+count+')';
       });
       button.textContent=labels.delete;
+      var kitchen=document.getElementById('menuBulkKitchen');
+      kitchen.innerHTML=(isEN()?'Kitchen':'キッチン')+'<span>ON/OFF</span>';
+      kitchen.disabled=bulkDeleting||selectedMenuNames.size===0;
+      var willEnable=bulkMenuCandidates('kitchen_on').length>0;
+      kitchen.title=(isEN()?(willEnable?'Show selected items in kitchen':'Hide selected items from kitchen')
+        :(willEnable?'選択商品をキッチン表示ON':'選択商品をキッチン表示OFF'))+' ('+selectedMenuNames.size+')';
     }
     // Category selection is preserved; actions only touch eligible, selected rows.
     // A stopped item is never activated by a sold-out/restore operation.
     function bulkMenuCandidates(action){
       return MENU.filter(function(m){
         if(!selectedMenuNames.has(m['商品名']))return false;
+        if(action==='kitchen_on')return String(m['厨房表示']==null?'1':m['厨房表示'])==='0';
+        if(action==='kitchen_off')return String(m['厨房表示']==null?'1':m['厨房表示'])!=='0';
         if(action==='publish')return m['ステータス']==='仮登録';
         return m['ステータス']==='販売中'&&(action==='sellout'?!m.soldOut:!!m.soldOut);
       });
@@ -474,7 +1304,7 @@
         try{
           var fresh=await rpc('getAllMenuForAdmin',[]);
           if(!Array.isArray(fresh))throw new Error('menu_readback_unavailable');
-          MENU=fresh;
+          adoptMenuRows(fresh);
           var remaining=new Set(fresh.map(function(row){return row['商品名'];}));
           failed=failed.filter(function(failure){
             if(remaining.has(failure.name))return true;
@@ -496,15 +1326,20 @@
         status.textContent=(isEN()?'Bulk deletion interrupted: ':'一括削除を中断しました：')+API.userErrorText(error);
       }finally{bulkDeleting=false;render();}
     };
+    window.bulkKitchenToggle=function(){
+      // Mixed ON/OFF selections are unified to ON; an all-ON selection goes OFF.
+      if(bulkDeleting||selectedMenuNames.size===0)return;
+      return bulkMenuState(bulkMenuCandidates('kitchen_on').length?'kitchen_on':'kitchen_off');
+    };
     window.bulkMenuState=async function(action){
-      if(bulkDeleting||!['sellout','restore','publish'].includes(action))return;
+      if(bulkDeleting||!['sellout','restore','publish','kitchen_on','kitchen_off'].includes(action))return;
       var targets=bulkMenuCandidates(action);
       if(!targets.length)return;
       bulkDeleting=true;render();
       var status=document.getElementById('menuBulkStatus');
       var label=(isEN()
-        ?{sellout:'Mark sold out',restore:'Restore availability',publish:'Publish'}
-        :{sellout:'売切にする',restore:'売切を解除',publish:'販売開始'})[action];
+        ?{sellout:'Mark sold out',restore:'Restore availability',publish:'Publish',kitchen_on:'Kitchen display ON',kitchen_off:'Kitchen display OFF'}
+        :{sellout:'売切にする',restore:'売切を解除',publish:'販売開始',kitchen_on:'キッチン表示ON',kitchen_off:'キッチン表示OFF'})[action];
       try{
         var preview=targets.slice(0,5).map(function(m){return loc(m['商品名_JA'],m['商品名_EN'])||m['商品名'];}).join('\n');
         if(!await UIConfirm((isEN()
@@ -523,14 +1358,16 @@
         // the authoritative tenant menu, including store-time-zone soldOut.
         var fresh=await rpc('getAllMenuForAdmin',[]);
         if(!Array.isArray(fresh))throw new Error('menu_readback_unavailable');
-        MENU=fresh;
+        adoptMenuRows(fresh);
         var byName=new Map(MENU.map(function(m){return [m['商品名'],m];}));
         var verified=0,remaining=[];
         targets.forEach(function(before){
           var after=byName.get(before['商品名']);
-          var ok=!!after&&(action==='publish'
-            ?after['ステータス']==='販売中'&&!after.soldOut
-            :after['ステータス']==='販売中'&&(action==='sellout'?!!after.soldOut:!after.soldOut));
+          var ok=!!after&&((action==='kitchen_on'||action==='kitchen_off')
+            ?String(after['厨房表示']==null?'1':after['厨房表示'])===(action==='kitchen_on'?'1':'0')
+            :action==='publish'
+              ?after['ステータス']==='販売中'&&!after.soldOut
+              :after['ステータス']==='販売中'&&(action==='sellout'?!!after.soldOut:!after.soldOut));
           if(ok){verified++;selectedMenuNames.delete(before['商品名']);}
           else remaining.push(loc(before['商品名_JA'],before['商品名_EN'])||before['商品名']);
         });
@@ -543,7 +1380,11 @@
         status.textContent=(isEN()?'Could not verify changes. Reload to confirm: ':'変更を確認できません。再読み込みして確認してください：')+API.userErrorText(error);
       }finally{bulkDeleting=false;render();}
     };
-    window.selectCat = function(c){ curCat=c; render(); };
+    window.selectCat = function(c,forceCategory){
+      if(forceCategory||(c!=='all'&&c!=='draft')){curCat='category';selectedCategoryName=c;}
+      else{curCat=c;selectedCategoryName=null;}
+      render();
+    };
     var lastMenuTouchStart=null;
     // Capture the REAL contact point before mobile hit-target adjustment
     // rewrites click coordinates to the center of a nearby small button.
@@ -569,14 +1410,11 @@
     };
     // ▲▼ 並び替え：VIEW内で隣と入れ替え→MENU配列に反映→表示順を保存
     window.move = function(vi, dir){
-      if(bulkDeleting)return;
-      var a = VIEW[vi], b = VIEW[vi+dir]; if(!a || !b) return;
+      if(bulkDeleting||menuOrderBusy)return;
+      var a = VIEW[vi], b = VIEW[vi+dir]; if(!a || !b || a['カテゴリ']!==b['カテゴリ']) return;
       var ia = MENU.indexOf(a), ib = MENU.indexOf(b);
       MENU[ia] = b; MENU[ib] = a;
-      render();
-      rpc('setMenuOrder',[MENU.map(function(m){ return m['商品名']; })]).then(function(res){
-        if(String(res).indexOf('Error')===0){ msg(I18n.t('errPrefix')+res, false); } else { msg(I18n.t('orderSaved'), true); }
-      }).catch(function(e){ msg(I18n.t('errPrefix')+API.userErrorText(e), false); });
+      menuOrderNotice='';menuOrderError=false;render();
     };
     function repeat(s,n){ var o=''; for(var k=0;k<n;k++) o+=s; return o; }
     // [GPTレビュー(2026-08-19再確認レポート)対応/C-7] 以前はブラウザのローカル日付で「本日売切か」を
@@ -634,6 +1472,7 @@
     window.edit = function(i){
       ++_imgChoiceSeq; ++_imgSearchSeq;
       var m = MENU[i]; if(!m) return;
+      toggleMenuSection('form',true);
       editSnapshot={name:String(m['商品名']||''),category:String(m['カテゴリ']||''),nameJa:String(m['商品名_JA']||''),nameEn:String(m['商品名_EN']||''),categoryJa:String(m['カテゴリ_JA']||''),categoryEn:String(m['カテゴリ_EN']||'')};
       document.getElementById('oldName').value = m['商品名'];
       document.getElementById('mName').value = m['商品名_JA']!==undefined ? m['商品名_JA'] : m['商品名'];
@@ -643,7 +1482,7 @@
       document.getElementById('mNameEn').value = m['商品名_EN']||'';
       setCatSel('mCatEn','mCatEnNew', m['カテゴリ_EN']||'');
       document.getElementById('mFile').value = '';
-      URL_IMG_DATA = null; document.getElementById('mImgUrl').value=''; document.getElementById('mImgQuery').value=''; hideMsg('imgUrlMsg'); hideMsg('imgSearchMsg'); var ir=document.getElementById('imgResults'); ir.innerHTML=''; ir.style.display='none'; document.getElementById('imgPreview').style.display='none';
+      URL_IMG_DATA = null; GENERATED_IMAGE_URL=''; document.getElementById('mImgUrl').value=''; document.getElementById('mImgQuery').value=''; hideMsg('imgUrlMsg'); hideMsg('imgSearchMsg'); var ir=document.getElementById('imgResults'); ir.innerHTML=''; ir.style.display='none'; document.getElementById('imgPreview').style.display='none'; updateImageRightsControl(true);
       document.getElementById('mSvcStart').value = m['提供開始']||'';
       document.getElementById('mSvcEnd').value = m['提供終了']||'';
       document.getElementById('mAllergens').value = m['アレルゲン']||'';
@@ -653,9 +1492,9 @@
       renderInvSel(); document.getElementById('mLinkInv').value = m['在庫紐づけ']||'';
       try { curOpts = JSON.parse(m['オプション']||'[]')||[]; } catch(e){ curOpts=[]; }
       renderOpts();
-      window.scrollTo({top:0,behavior:'smooth'});
+      document.getElementById('guide-menu-form').scrollIntoView({behavior:'smooth',block:'start'});
     };
-window.clearForm = function(){ ++_imgChoiceSeq; ++_imgSearchSeq;  editSnapshot=null; ['oldName','mName','mPrice','mNameEn','mFile','mSvcStart','mSvcEnd','mAllergens'].forEach(function(id){ document.getElementById(id).value=''; }); setCatSel('mCat','mCatNew',''); setCatSel('mCatEn','mCatEnNew',''); document.getElementById('mStatus').value='販売中'; document.getElementById('mSpicy').value='0'; document.getElementById('mKitchen').checked=true; document.getElementById('mTakeout').checked=true; document.getElementById('mLinkInv').value=''; curOpts=[]; renderOpts(); document.getElementById('msg').style.display='none'; URL_IMG_DATA=null; document.getElementById('mImgUrl').value=''; document.getElementById('mImgQuery').value=''; hideMsg('imgUrlMsg'); hideMsg('imgSearchMsg'); var ir=document.getElementById('imgResults'); ir.innerHTML=''; ir.style.display='none'; document.getElementById('imgPreview').style.display='none'; };
+window.clearForm = function(){ ++_imgChoiceSeq; ++_imgSearchSeq;  editSnapshot=null; ['oldName','mName','mPrice','mNameEn','mFile','mSvcStart','mSvcEnd','mAllergens'].forEach(function(id){ document.getElementById(id).value=''; }); setCatSel('mCat','mCatNew',''); setCatSel('mCatEn','mCatEnNew',''); document.getElementById('mStatus').value='販売中'; document.getElementById('mSpicy').value='0'; document.getElementById('mKitchen').checked=true; document.getElementById('mTakeout').checked=true; document.getElementById('mLinkInv').value=''; curOpts=[]; renderOpts(); document.getElementById('msg').style.display='none'; URL_IMG_DATA=null; GENERATED_IMAGE_URL=''; _menuImagePending=null; document.getElementById('mImgUrl').value=''; document.getElementById('mImgQuery').value=''; hideMsg('imgUrlMsg'); hideMsg('imgSearchMsg'); var ir=document.getElementById('imgResults'); ir.innerHTML=''; ir.style.display='none'; document.getElementById('imgPreview').style.display='none'; updateImageRightsControl(true); };
     function msg(text, ok){ var m=document.getElementById('msg'); m.style.display='block'; m.style.background=ok?'#dcfce7':'#fee2e2'; m.style.color=ok?'#15803d':'#b91c1c'; m.innerText=text; }
 
     var allergensField=document.getElementById('mAllergens');
@@ -664,14 +1503,54 @@ window.clearForm = function(){ ++_imgChoiceSeq; ++_imgSearchSeq;  editSnapshot=n
     function allergensWouldOverflow(s){return allergensField.value.length-(allergensField.selectionEnd-allergensField.selectionStart)+s.length>120;}
     allergensField.addEventListener('paste',function(e){if(allergensWouldOverflow(e.clipboardData.getData('text'))){e.preventDefault();allergensLimitError();}});
     allergensField.addEventListener('beforeinput',function(e){if(e.isComposing||e.inputType==='insertCompositionText'||!e.inputType||e.inputType.indexOf('insert')!==0)return;var s=e.data;if(s===null&&e.dataTransfer)s=e.dataTransfer.getData('text/plain');if(s!==null&&allergensWouldOverflow(s)){e.preventDefault();allergensLimitError();}});
+    // A successful save is committed before the optional full-menu readback.
+    // Preserve the list (and the just-saved row) even if that second read fails.
+    function retainSavedMenuItem(item){
+      var name=String(item.canonicalName||item.name||'').trim();
+      if(!name)return;
+      var oldName=String(item.oldName||name).trim();
+      var index=MENU.findIndex(function(m){return m['商品名']===oldName||m['商品名']===name;});
+      var previous=index>=0?MENU[index]:{};
+      var saved=Object.assign({},previous,{
+        '商品名':name,
+        '商品名_JA':item.nameJa||previous['商品名_JA']||name,
+        '商品名_EN':item.nameEn||previous['商品名_EN']||'',
+        'カテゴリ':item.canonicalCategory||item.category||'',
+        'カテゴリ_JA':item.categoryJa||previous['カテゴリ_JA']||item.canonicalCategory||'',
+        'カテゴリ_EN':item.categoryEn||previous['カテゴリ_EN']||'',
+        '価格':Number(item.price)||0,
+        'ステータス':item.status||'販売中',
+        'オプション':item.options||'[]',
+        '提供開始':item.svcStart||'',
+        '提供終了':item.svcEnd||'',
+        'アレルゲン':item.allergens||'',
+        '辛さ':Number(item.spicy)||0,
+        '厨房表示':item.kitchenDisplay?'1':'0',
+        'テイクアウト可':item.takeoutEnabled?'1':'0',
+        '在庫紐づけ':item.inventoryLink||''
+      });
+      if(item.imageUrl)saved.displayUrl=item.imageUrl;
+      if(index>=0)MENU[index]=saved;
+      else MENU.push(saved);
+      render();
+    }
+    function savedMenuRefreshWarning(error){
+      var hint=isEN()
+        ? 'The list could not be refreshed. Saved changes remain visible; try reloading later.'
+        : '一覧を再取得できませんでした。保存した内容を表示しています。後ほど更新してください。';
+      msg(I18n.t('saved')+' — '+hint,true);
+      var notice=document.getElementById('msg');
+      notice.style.background='#fef3c7';notice.style.color='#92400e';
+      notice.setAttribute('role','status');
+    }
     window.save = function(){
       if(allergensField.value.length>120){allergensLimitError();return;}
       var nameJa=document.getElementById('mName').value.trim(),nameEn=document.getElementById('mNameEn').value.trim();
       if (!nameJa&&!nameEn){ msg(I18n.t('needName'), false); return; }
       var catSel=document.getElementById('mCat').value;
-      var categoryJa=(catSel==='__new__')?document.getElementById('mCatNew').value.trim():catSel;
+      var categoryJa=(catSel===NEW_CAT_VALUE)?document.getElementById('mCatNew').value.trim():catSel;
       var catEnSel=document.getElementById('mCatEn').value;
-      var categoryEn=(catEnSel==='__new__')?document.getElementById('mCatEnNew').value.trim():catEnSel;
+      var categoryEn=(catEnSel===NEW_CAT_VALUE)?document.getElementById('mCatEnNew').value.trim():catEnSel;
       var sameCategory=!!editSnapshot&&categoryJa===editSnapshot.categoryJa&&categoryEn===editSnapshot.categoryEn;
       var canonicalName=editSnapshot?editSnapshot.name:(nameJa||nameEn);
       var canonicalCategory=sameCategory?editSnapshot.category:((window.I18n&&I18n.lang()==='en')?(categoryEn||categoryJa):(categoryJa||categoryEn));
@@ -680,10 +1559,33 @@ window.clearForm = function(){ ++_imgChoiceSeq; ++_imgSearchSeq;  editSnapshot=n
         svcStart:document.getElementById('mSvcStart').value, svcEnd:document.getElementById('mSvcEnd').value,
         allergens:document.getElementById('mAllergens').value.trim(), spicy:document.getElementById('mSpicy').value,
         kitchenDisplay:document.getElementById('mKitchen').checked, takeoutEnabled:document.getElementById('mTakeout').checked, inventoryLink:document.getElementById('mLinkInv').value };
-      var btn=document.getElementById('saveBtn'); btn.disabled=true;
+      if(GENERATED_IMAGE_URL)item.imageUrl=GENERATED_IMAGE_URL;
       var file = document.getElementById('mFile').files[0];
+      if(file || URL_IMG_DATA){
+        if(!document.getElementById('mImageRightsConfirmed').checked){
+          msg(I18n.t('imgRightsRequired'),false); return;
+        }
+        item.imageRightsConfirmation='confirmed-v1';
+        item.imageInputOrigin=file?'file_upload':'external_url';
+      }
+      var btn=document.getElementById('saveBtn'); btn.disabled=true;
       function send(fd){
-        rpc('saveMenuItem',[item, fd],(API.TIMEOUT_MS&&API.TIMEOUT_MS.ai)||45000).then(function(res){ btn.disabled=false; if(!res||res.success===false||String(res).indexOf('Error')===0){ var er=res&&res.error; msg(er==='plan_limit_menu_items'?I18n.t('planLimit'):I18n.t('errPrefix')+API.userErrorText(er||res||'error'), false); return; } clearForm(); msg(I18n.t('saved'), true); if(Array.isArray(res.menu)){ MENU=res.menu; render(); return; } rpc('getAllMenuForAdmin',[]).then(function(l){ MENU=l||[]; render(); }).catch(function(e){ document.getElementById('list').innerHTML='<div style="color:#b91c1c;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</div>'; }); })
+        rpc('saveMenuItem',[item, fd],(API.TIMEOUT_MS&&API.TIMEOUT_MS.ai)||45000).then(function(res){
+          btn.disabled=false;
+          if(!res||res.success===false||String(res).indexOf('Error')===0){
+            var er=res&&res.error;
+            msg(er==='plan_limit_menu_items'?I18n.t('planLimit'):I18n.t('errPrefix')+API.userErrorText(er||res||'error'),false);
+            return;
+          }
+          var rightsAuditWarning=!!(item.imageRightsConfirmation && res.imageRightsRecorded!==true);
+          clearForm(); msg(rightsAuditWarning?I18n.t('imgRightsAuditWarning'):I18n.t('saved'),!rightsAuditWarning);
+          if(Array.isArray(res.menu)){adoptMenuRows(res.menu);render();return;}
+          retainSavedMenuItem(item);
+          rpc('getAllMenuForAdmin',[]).then(function(rows){
+            if(!Array.isArray(rows))throw new Error('invalid_menu_response');
+            adoptMenuRows(rows);render();
+          }).catch(function(error){savedMenuRefreshWarning(error);});
+        })
           .catch(function(e){ btn.disabled=false; msg(I18n.t('errPrefix')+API.userErrorText(e), false); });
       }
       if (file){ API.fileToBase64(file).then(function(b64){ send({ data:b64, type:file.type, name:file.name }); }).catch(function(e){ btn.disabled=false; msg(I18n.t('errPrefix')+API.userErrorText(e), false); }); }
@@ -694,19 +1596,23 @@ window.clearForm = function(){ ++_imgChoiceSeq; ++_imgSearchSeq;  editSnapshot=n
     API.post('getSettings', {}).then(function(r){ if(r.data && r.data.currencySymbol){ SYM=r.data.currencySymbol; renderOpts(); } }).catch(function(){});
     rpc('getDrinkInventory',[]).then(function(l){ INVENTORY=(l||[]).map(function(r){ return { key:r.name,ja:(r.nameJa!==undefined?r.nameJa:r.name),en:r.nameEn }; }).filter(function(r){ return r.key; }); renderInvSel(); }).catch(function(){});
     var __loaded=false;
-    rpc('getAllMenuForAdmin',[]).then(function(l){ MENU=l||[]; __loaded=true; render(); })
+    rpc('getAllMenuForAdmin',[]).then(function(l){ adoptMenuRows(l||[]); __loaded=true; render(); })
       .catch(function(e){ if(String(e.message||e).indexOf('unauthorized')>=0){ location.href='./manage.html'; return; } document.getElementById('list').innerHTML='<div style="color:#b91c1c;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</div>'; });
 
     I18n.init({
-      ja:{ title:'🍽️ メニュー編集', back:'← 管理へ', formTitle:'➕ 商品の追加 / 編集', lblNameJa:'商品名（日本語）', lblPrice:'価格', lblCatJa:'カテゴリ（日本語）', lblStatus:'ステータス', onSale:'販売中', stopped:'販売停止', provisional:'仮登録（注文画面には非表示）', draftTag:'仮登録', reviewDraft:'確認・販売開始', bulkSelectVisible:'表示中を全選択', bulkDelete:'🗑️ 選択した商品を削除', bulkSelectItem:'商品を選択', lblNameEn:'商品名（English）', lblCatEn:'カテゴリ（English）', catUnset:'（未選択）', catNew:'＋ 新規カテゴリ…', phNewCatJa:'新規カテゴリ名', phNewCatEn:'New category', langHint:'商品名・カテゴリ・オプションは日本語・英語のどちらか一方だけでも登録できます。未入力側は保存時に自動翻訳されます（あとで編集可）。', optTitle:'🎛️ オプション（サイズ・トッピング等）', optHint:'グループ名・選択肢も日本語/英語のどちらか一方だけで登録できます。未入力側は保存時に自動翻訳されます。例）サイズ＝単一選択、トッピング＝複数選択。追加料金は差額（+のみ）。', addGroup:'＋ オプショングループ追加', phGroupJa:'グループ名（例: サイズ）', phGroupEn:'Group name (e.g. Size)', phChoiceJa:'選択肢（例: 大盛り）', phChoiceEn:'Choice (e.g. Large)', single:'単一選択', multi:'複数選択', required:'必須', addChoice:'選択肢を追加', lblImg:'画像（任意・変更時のみ選択）', save:'💾 保存', clear:'クリア', sampleCardTitle:'🧪 サンプルデータ', sampleCardText:'初回体験用のサンプル商品です。お客様QRには表示されず、デモ注文の会計は売上・ポイント・在庫へ反映されません。', sampleDelete:'🗑️ サンプルデータを一括削除', sampleDeleteConfirm:'サンプル商品とデモ注文をすべて削除しますか？通常の商品・売上は削除しません。', sampleDeleted:'✅ サンプルデータを削除しました', sampleTag:'サンプル', listTitle:'🍽️ 商品一覧', loading:'読み込み中…', noItems:'商品がありません', edit:'編集', del:'削除', delConfirm:'この商品を削除しますか？', deleted:'✅ 削除しました', needName:'商品名は日本語または英語のどちらかを入力してください', saved:'✅ 保存しました', errPrefix:'エラー: ', loadErr:'読み込みエラー: ', allCat:'すべて', reorderHint:'▲▼ で並び替え（客の注文画面の表示順に反映）。カテゴリタブで絞り込めます。', orderSaved:'✅ 並び順を保存しました', availTitle:'⏰ 提供時間帯・タグ', availHint:'提供時間は空欄なら常時提供。深夜跨ぎ（例 22:00〜02:00）も可。', lblSvcStart:'提供開始', lblSvcEnd:'提供終了', lblAllerg:'アレルゲン（任意・カンマ区切り）', phAllerg:'例: 卵, 小麦, えび', lblSpicy:'辛さ', spicy0:'なし', soldOut:'本日売切', markSold:'売切にする', markAvail:'売切解除', lblKitchen:'🍳 キッチン画面に表示する（ドリンク等、調理不要な商品はオフ）', lblTakeout:'🥡 テイクアウト可', kdsOn:'🍳キッチン表示ON', kdsOff:'🚫🍳キッチン表示OFF',
+      ja:{ title:'🍽️ メニュー編集', back:'← 管理へ', formTitle:'➕ 商品の追加 / 編集', lblNameJa:'商品名（日本語）', lblPrice:'価格', lblCatJa:'カテゴリ（日本語）', lblStatus:'ステータス', onSale:'販売中', stopped:'販売停止', provisional:'仮登録（注文画面には非表示）', draftTag:'仮登録', reviewDraft:'確認・販売開始', bulkSelectVisible:'表示中を全選択', bulkDelete:'🗑️ 選択した商品を削除', bulkSelectItem:'商品を選択', lblNameEn:'商品名（English）', lblCatEn:'カテゴリ（English）', catUnset:'（未選択）', catNew:'＋ 新規カテゴリ…', phNewCatJa:'新規カテゴリ名', phNewCatEn:'New category', langHint:'商品名・カテゴリ・オプションは日本語・英語のどちらか一方だけでも登録できます。未入力側は保存時に自動翻訳されます（あとで編集可）。', optTitle:'🎛️ オプション（サイズ・トッピング等）', optHint:'グループ名・選択肢も日本語/英語のどちらか一方だけで登録できます。未入力側は保存時に自動翻訳されます。例）サイズ＝単一選択、トッピング＝複数選択。追加料金は差額（+のみ）。', addGroup:'＋ オプショングループ追加', phGroupJa:'グループ名（例: サイズ）', phGroupEn:'Group name (e.g. Size)', phChoiceJa:'選択肢（例: 大盛り）', phChoiceEn:'Choice (e.g. Large)', single:'単一選択', multi:'複数選択', required:'必須', addChoice:'選択肢を追加', lblImg:'画像（任意・変更時のみ選択）', save:'💾 保存', clear:'クリア', sampleCardTitle:'🧪 サンプルデータ', sampleCardText:'初回体験用のサンプル商品です。お客様QRには表示されず、デモ注文の会計は売上・ポイント・在庫へ反映されません。', sampleDelete:'🗑️ サンプルデータを一括削除', sampleDeleteConfirm:'サンプル商品とデモ注文をすべて削除しますか？通常の商品・売上は削除しません。', sampleDeleted:'✅ サンプルデータを削除しました', sampleTag:'サンプル', listTitle:'🍽️ 商品一覧', loading:'読み込み中…', noItems:'商品がありません', edit:'編集', del:'削除', delConfirm:'この商品を削除しますか？', deleted:'✅ 削除しました', needName:'商品名は日本語または英語のどちらかを入力してください', saved:'✅ 保存しました', errPrefix:'エラー: ', loadErr:'読み込みエラー: ', allCat:'すべて', reorderHint:'▲▼で並び替え、最後に「並び順を保存」で客の注文画面に反映します。カテゴリタブで絞り込めます。', orderSaved:'✅ 並び順を保存しました', availTitle:'⏰ 提供時間帯・タグ', availHint:'提供時間は空欄なら常時提供。深夜跨ぎ（例 22:00〜02:00）も可。', lblSvcStart:'提供開始', lblSvcEnd:'提供終了', lblAllerg:'アレルゲン（任意・カンマ区切り）', phAllerg:'例: 卵, 小麦, えび', lblSpicy:'辛さ', spicy0:'なし', soldOut:'本日売切', markSold:'売切にする', markAvail:'売切解除', lblKitchen:'🍳 キッチン画面に表示する（ドリンク等、調理不要な商品はオフ）', lblTakeout:'🥡 テイクアウト可', kdsOn:'🍳キッチン表示ON', kdsOff:'🚫🍳キッチン表示OFF',
         optHint:'例）サイズ → 普通 +0 / 大盛 +100。1つのオプションに複数の選択肢を登録できます。', addGroup:'＋ 別のオプションを追加', phGroupJa:'例: サイズ・量・トッピング', phGroupEn:'e.g. Size, Quantity, Toppings', phChoiceJa:'例: 普通・大盛・チーズ', phChoiceEn:'e.g. Regular, Large, Cheese', stepGroup:'① 何を選ばせますか？', groupHelp:'（オプション名）', stepType:'② いくつ選べますか？', selectionType:'選択方式', stepChoices:'③ 選択肢を登録', choiceLabel:'選択肢', extraPrice:'追加料金', single:'1つだけ', multi:'複数選択可', required:'選択必須', addChoice:'選択肢を追加', deleteChoice:'選択肢を削除', deleteGroup:'オプションを削除', optionExample:'例）サイズ → 普通 +0 / 大盛 +100 / 特盛 +200',
-        lblLinkInv:'🔗 在庫紐づけ（任意）', linkInvNone:'（紐づけなし）', linkInvHint:'ドリンク等、注文1点で在庫を1点そのまま自動減算したい商品に設定します（レシピ不要）。複数材料を消費するフード等は「レシピ・原価」ページで設定してください。',
-        btnImgSearch2:'🔍 画像検索', phImgQuery:'検索キーワード（空欄なら商品名で検索）', urlAltTitle:'画像のURLを直接指定する場合はこちら', btnImgWebSearch:'🔍 Web画像検索を開く', phImgUrl:'画像のURLを貼り付け', btnImgFetch:'⬇️ 取得', imgNeedUrl:'URLを入力してください', imgNeedQuery:'検索キーワードを入力してください', imgSearching:'検索中…', imgNoResults:'画像が見つかりませんでした', imgNotConfigured:'画像検索は現在利用できません。運営側のPixabay設定を確認してください。', imgRateLimited:'画像検索の利用上限に達しました。時間をおいて再度お試しください。', pixabayCredit:'Pixabay提供画像', imgFetching:'取得中…', imgFetchOk:'✅ 画像を取得しました（保存を押すと登録されます）', imgFetchErr:'取得エラー: ' },
-      en:{ title:'🍽️ Menu Editor', back:'← Manage', formTitle:'➕ Add / Edit item', lblNameJa:'Name (Japanese)', lblPrice:'Price', lblCatJa:'Category (Japanese)', lblStatus:'Status', onSale:'On sale', stopped:'Stopped', provisional:'Provisional (hidden from orders)', draftTag:'PROVISIONAL', reviewDraft:'Review & publish', bulkSelectVisible:'Select all visible', bulkDelete:'🗑️ Delete selected items', bulkSelectItem:'Select item', lblNameEn:'Name (English)', lblCatEn:'Category (English)', catUnset:'(none)', catNew:'＋ New category…', phNewCatJa:'New Japanese category', phNewCatEn:'New category', langHint:'Enter either Japanese or English for item names, categories, and options. The missing language is auto-translated when you save (editable later).', optTitle:'🎛️ Options (size, toppings, etc.)', optHint:'Option-group and choice names can also be entered in either English or Japanese. The missing language is auto-translated on save. e.g. Size = single choice, Toppings = multiple. Extra charge = price delta (+ only).', addGroup:'＋ Add option group', phGroupJa:'Japanese group name', phGroupEn:'Group name (e.g. Size)', phChoiceJa:'Japanese choice', phChoiceEn:'Choice (e.g. Large)', single:'Single', multi:'Multiple', required:'Required', addChoice:'Add choice', lblImg:'Image (optional, only to change)', save:'💾 Save', clear:'Clear', sampleCardTitle:'🧪 Sample data', sampleCardText:'These sample items are for first-time practice. They are hidden from customer QR ordering, and demo checkout does not affect sales, points, or inventory.', sampleDelete:'🗑️ Delete all sample data', sampleDeleteConfirm:'Delete all sample items and demo orders? Regular menu items and sales will not be deleted.', sampleDeleted:'✅ Sample data deleted', sampleTag:'SAMPLE', listTitle:'🍽️ Menu items', loading:'Loading…', noItems:'No items', edit:'Edit', del:'Delete', delConfirm:'Delete this item?', deleted:'✅ Deleted', needName:'Enter an item name in either English or Japanese', saved:'✅ Saved', errPrefix:'Error: ', loadErr:'Load error: ', allCat:'All', reorderHint:'Use ▲▼ to reorder (reflected in the customer order screen). Filter by category tabs.', orderSaved:'✅ Order saved', availTitle:'⏰ Service hours & tags', availHint:'Leave times blank for always-available. Overnight (e.g. 22:00–02:00) supported.', lblSvcStart:'Serve from', lblSvcEnd:'Serve until', lblAllerg:'Allergens (optional, comma-separated)', phAllerg:'e.g. egg, wheat, shrimp', lblSpicy:'Spiciness', spicy0:'None', soldOut:'Sold out today', markSold:'Mark sold out', markAvail:'Undo sold out', lblKitchen:'🍳 Show on kitchen display (turn off for drinks etc. that need no cooking)', lblTakeout:'🥡 Available for takeout', kdsOn:'🍳Kitchen: shown', kdsOff:'🚫🍳Kitchen: hidden',
-        btnImgSearch2:'🔍 Search images', phImgQuery:'Search keywords (uses item name if blank)', urlAltTitle:'Or enter an image URL directly', btnImgWebSearch:'🔍 Open web image search', phImgUrl:'Paste image URL', btnImgFetch:'⬇️ Fetch', imgNeedUrl:'Please enter a URL', imgNeedQuery:'Please enter search keywords', imgSearching:'Searching…', imgNoResults:'No images found', imgNotConfigured:'Pixabay image search is currently unavailable. Please contact the service operator.', imgRateLimited:'The image-search usage limit has been reached. Please try again later.', pixabayCredit:'Images provided by Pixabay', imgFetching:'Fetching…', imgFetchOk:'✅ Image fetched (press Save to register)', imgFetchErr:'Fetch error: ',
+        lblLinkInv:'🔗 在庫紐づけ（任意）', linkInvNone:'（紐づけなし）', linkInvHint:'ドリンク等、商品が「提供済」になった時に1点につき在庫を1点減らす場合に設定します（レシピ不要）。複数材料を消費するフード等は「レシピ・原価」ページで設定してください。',
+        btnImgGoogleSearch:'🔍 Google画像検索', imgGoogleSearchSteps:'商品名でGoogle画像検索を開きます。利用できる画像を確認して端末に保存し、上の「ファイルを選択」から登録してください。検索結果の表示は利用許諾ではありません。', imgLicensedSearchTitle:'権利情報付きの画像候補を探す（任意）', imgRightsConfirm:'この画像を店舗メニューに掲載するための利用権限・許可があることを確認しました。', imgRightsRequired:'画像を登録するには、利用権限・許可を確認してチェックしてください。', imgRightsAuditWarning:'商品は保存されましたが、画像の利用権限確認記録を保存できませんでした。運営にご連絡ください。',
+        btnImgSearch2:'🔍 画像検索', phImgQuery:'検索キーワード（空欄なら商品名で検索）', phImgQueryHint:'空欄なら商品名で検索します', urlAltTitle:'画像のURLを直接指定する場合はこちら', btnImgWebSearch:'🔍 Web画像検索を開く', phImgUrl:'画像のURLを貼り付け', btnImgFetch:'⬇️ 取得', imgNeedUrl:'URLを入力してください', imgNeedQuery:'検索キーワードを入力してください', imgSearching:'検索中…', imgModeSearch:'🔍 画像検索', imgModeGenerate:'✨ AI画像生成', imgPromptTitle:'作りたい画像の説明（プロンプト）', imgPromptExample:'例：4個入りの唐揚げを白い皿に盛り付けてください\n例：枝豆を小鉢に入れて、白背景で生成してください\n例：ハイボールをジョッキ1杯、メニュー用の商品写真風で生成してください', imgCreditCost:'画像生成は1回につき1ポイント（再生成も1ポイント）', imgCreditBalance:'残高 {balance}ポイント ／ 生成1回{cost}ポイント', imgCreditChecking:'AIポイント残高を確認中…', imgCreditUnavailable:'AIポイント残高を確認できません。通信状態を確認して再試行してください。', imgCreditInsufficient:'残高 {balance}ポイントでは生成に必要な{cost}ポイントが不足しています。', imgGenerateButton:'✨ 1ポイントで画像を生成', imgRegenerateButton:'✨ 再生成（1ポイント）', imgPromptRequired:'生成する画像の説明を700文字以内で入力してください。', imgConfirmSpend:'AI画像生成で1ポイント消費します。よろしいですか？', imgGenerating:'AIで画像を生成中…', imgRecovering:'前回の画像生成結果を確認中…', imgGenerated:'画像を生成しました。気に入ったら商品を保存してください。1ポイント消費済みです。', imgGeneratedStale:'画像生成は完了しましたが、別の画像が選択されたため反映しませんでした。', imgGenerateError:'生成できませんでした：', imgSourceLink:'出典・利用条件', imgRetryIn:'画像検索が一時的に制限されています。約{seconds}秒後に自動再試行します。', imgNoResults:'画像が見つかりませんでした', imgNoVerifiedResults:'画像候補はありましたが、商品との一致を確認できませんでした', imgUnverifiedCandidates:'関連画像の候補です。商品と一致するか確認してから選択してください（AI未検証）。', imgPixabaySource:'Pixabay画像（利用条件を確認）', imgNotConfigured:'画像検索は現在利用できません。運営側のPixabay設定を確認してください。', imgRateLimited:'画像検索の制限が続いています。しばらくしてから再度お試しください。', pixabayCredit:'Openverse画像（出典・ライセンスを確認）', imgFetching:'取得中…', imgFetchOk:'✅ 画像を取得しました（保存を押すと登録されます）', imgFetchErr:'取得エラー: ' },
+      en:{ title:'🍽️ Menu Editor', back:'← Manage', formTitle:'➕ Add / Edit item', lblNameJa:'Name (Japanese)', lblPrice:'Price', lblCatJa:'Category (Japanese)', lblStatus:'Status', onSale:'On sale', stopped:'Stopped', provisional:'Provisional (hidden from orders)', draftTag:'PROVISIONAL', reviewDraft:'Review & publish', bulkSelectVisible:'Select all visible', bulkDelete:'🗑️ Delete selected items', bulkSelectItem:'Select item', lblNameEn:'Name (English)', lblCatEn:'Category (English)', catUnset:'(none)', catNew:'＋ New category…', phNewCatJa:'New Japanese category', phNewCatEn:'New category', langHint:'Enter either Japanese or English for item names, categories, and options. The missing language is auto-translated when you save (editable later).', optTitle:'🎛️ Options (size, toppings, etc.)', optHint:'Option-group and choice names can also be entered in either English or Japanese. The missing language is auto-translated on save. e.g. Size = single choice, Toppings = multiple. Extra charge = price delta (+ only).', addGroup:'＋ Add option group', phGroupJa:'Japanese group name', phGroupEn:'Group name (e.g. Size)', phChoiceJa:'Japanese choice', phChoiceEn:'Choice (e.g. Large)', single:'Single', multi:'Multiple', required:'Required', addChoice:'Add choice', lblImg:'Image (optional, only to change)', save:'💾 Save', clear:'Clear', sampleCardTitle:'🧪 Sample data', sampleCardText:'These sample items are for first-time practice. They are hidden from customer QR ordering, and demo checkout does not affect sales, points, or inventory.', sampleDelete:'🗑️ Delete all sample data', sampleDeleteConfirm:'Delete all sample items and demo orders? Regular menu items and sales will not be deleted.', sampleDeleted:'✅ Sample data deleted', sampleTag:'SAMPLE', listTitle:'🍽️ Menu items', loading:'Loading…', noItems:'No items', edit:'Edit', del:'Delete', delConfirm:'Delete this item?', deleted:'✅ Deleted', needName:'Enter an item name in either English or Japanese', saved:'✅ Saved', errPrefix:'Error: ', loadErr:'Load error: ', allCat:'All', reorderHint:'Reorder with ▲▼, then save item order to update customer screens. Filter by category tabs.', orderSaved:'✅ Order saved', availTitle:'⏰ Service hours & tags', availHint:'Leave times blank for always-available. Overnight (e.g. 22:00–02:00) supported.', lblSvcStart:'Serve from', lblSvcEnd:'Serve until', lblAllerg:'Allergens (optional, comma-separated)', phAllerg:'e.g. egg, wheat, shrimp', lblSpicy:'Spiciness', spicy0:'None', soldOut:'Sold out today', markSold:'Mark sold out', markAvail:'Undo sold out', lblKitchen:'🍳 Show on kitchen display (turn off for drinks etc. that need no cooking)', lblTakeout:'🥡 Available for takeout', kdsOn:'🍳Kitchen: shown', kdsOff:'🚫🍳Kitchen: hidden',
+        btnImgGoogleSearch:'🔍 Google Images', imgGoogleSearchSteps:'Open Google Images with the item name. Check permission to reuse the image, save it on your device, then select it with the file picker above. Search results do not grant a license.', imgLicensedSearchTitle:'Find image candidates with rights metadata (optional)', imgRightsConfirm:'I confirm I have the rights or permission to use this image on the store menu.', imgRightsRequired:'Confirm that you have permission to use this image before saving.', imgRightsAuditWarning:'The item was saved, but your image rights confirmation could not be recorded. Please contact support.',
+        btnImgSearch2:'🔍 Search images', phImgQuery:'Search keywords (uses item name if blank)', phImgQueryHint:'Uses item name if left blank.', urlAltTitle:'Or enter an image URL directly', btnImgWebSearch:'🔍 Open web image search', phImgUrl:'Paste image URL', btnImgFetch:'⬇️ Fetch', imgNeedUrl:'Please enter a URL', imgNeedQuery:'Please enter search keywords', imgSearching:'Searching…', imgModeSearch:'🔍 Image search', imgModeGenerate:'✨ AI image generation', imgPromptTitle:'Describe the image to generate', imgPromptExample:'e.g. Four pieces of karaage on a white plate\n e.g. Edamame in a small bowl with a white background\n e.g. One mug of highball as a realistic menu product photo', imgCreditCost:'1 credit per generation (regenerate costs another 1)', imgCreditBalance:'Balance: {balance} credits / {cost} credit(s) per image', imgCreditChecking:'Checking AI credit balance…', imgCreditUnavailable:'Unable to verify your AI credit balance. Check the connection and retry.', imgCreditInsufficient:'Balance {balance} is insufficient for {cost} credits required.', imgGenerateButton:'✨ Generate for 1 credit', imgRegenerateButton:'✨ Regenerate (1 credit)', imgPromptRequired:'Enter an image prompt (up to 700 characters).', imgConfirmSpend:'Generating this image will use 1 AI credit. Continue?', imgGenerating:'Generating your image…', imgRecovering:'Checking the previous image generation result…', imgGenerated:'Image created. Save the menu item to use it. 1 credit was used.', imgGeneratedStale:'Image generated, but you selected another image before it completed.', imgGenerateError:'Generation failed: ', imgSourceLink:'Source / terms', imgRetryIn:'Image search is temporarily limited. Retrying automatically in about {seconds} seconds.', imgNoResults:'No images found', imgNoVerifiedResults:'Images were found, but no exact product match could be verified', imgUnverifiedCandidates:'Related image suggestions: confirm the product matches before selecting (not AI-verified).', imgPixabaySource:'Pixabay images (check the license)', imgNotConfigured:'Pixabay image search is currently unavailable. Please contact the service operator.', imgRateLimited:'Image search is still limited. Please try again later.', pixabayCredit:'Openverse images (check source and license)', imgFetching:'Fetching…', imgFetchOk:'✅ Image fetched (press Save to register)', imgFetchErr:'Fetch error: ',
         optHint:'Example: Size → Regular +0 / Large +100. One option can contain multiple choices.', addGroup:'＋ Add another option', phGroupJa:'e.g. サイズ・量・トッピング', phGroupEn:'e.g. Size, Quantity, Toppings', phChoiceJa:'e.g. 普通・大盛・チーズ', phChoiceEn:'e.g. Regular, Large, Cheese', stepGroup:'① What should they choose?', groupHelp:'(Option name)', stepType:'② How many can they choose?', selectionType:'Selection type', stepChoices:'③ Register choices', choiceLabel:'Choice', extraPrice:'Extra price', single:'One only', multi:'Multiple allowed', required:'Required', addChoice:'Add choice', deleteChoice:'Delete choice', deleteGroup:'Delete option', optionExample:'Example: Size → Regular +0 / Large +100 / XL +200',
-        lblLinkInv:'🔗 Linked inventory item (optional)', linkInvNone:'(No link)', linkInvHint:'Use this for items where 1 order = 1 inventory unit deducted directly (e.g. drinks) — no recipe needed. For food items that consume multiple ingredients, use the Recipes page instead.' }
-    }, function(){ syncLanguageFieldOrder(); renderInvSel(); renderOpts(); if(__loaded) render(); });
+        lblLinkInv:'🔗 Linked inventory item (optional)', linkInvNone:'(No link)', linkInvHint:'Use this for items that deduct one inventory unit when the order is marked Served (e.g. drinks) — no recipe needed. For food items that consume multiple ingredients, use the Recipes page instead.' }
+    }, function(){ syncLanguageFieldOrder(); renderInvSel(); renderOpts(); if(__loaded) render();
+      if(document.getElementById('imageGeneratePanel').style.display!=='none')refreshImageCreditBalance();
+    });
   </script>
 
   <script src="./help.js?v=auth2"></script>
@@ -718,9 +1624,11 @@ window.clearForm = function(){ ++_imgChoiceSeq; ++_imgSearchSeq;  editSnapshot=n
         { ja: '① 商品名・カテゴリ・オプションは日本語・英語のどちらか一方だけ入力すれば、未入力側を保存時に自動翻訳します。自動翻訳後の値はあとから編集できます。', en: '① Enter either Japanese or English for item names, categories, and options. The missing language is auto-translated on save and can be edited later.' },
         { ja: '② 「画像検索」でキーワードから候補画像を選ぶか、「画像のURLを直接指定」でURLから取得、またはファイルを直接アップロードできます。', en: '② Use "Search images" to pick from search results, "enter an image URL directly" to fetch from a URL, or upload a file directly.' },
         { ja: '③ 「提供時間帯」で時間限定メニュー（深夜跨ぎも可）、「アレルゲン」「辛さ」も設定できます。「🍳 キッチン画面に表示する」をオフにするとドリンクなど調理不要な商品をキッチン画面から除外できます。', en: '③ Set "Service hours" for time-limited items (overnight spans allowed), plus allergens and spiciness. Turn off "Show on kitchen display" to hide items like drinks that need no cooking.' },
-        { ja: '④ 「🔗 在庫紐づけ」で、注文1点につき在庫を1点自動で減らしたい商品（ドリンク等）を設定できます。複数材料を使うフードは別の「レシピ・原価」ページで設定します。', en: '④ Use "Linked inventory item" for items where 1 order deducts 1 inventory unit automatically (e.g. drinks). Food using multiple ingredients is set up on the separate Recipes page.' },
+        { ja: '④ 「🔗 在庫紐づけ」は、商品を「提供済」にしたとき1点につき在庫を1点減算するドリンク等に使います。複数材料を使うフードは「レシピ・原価」で設定してください。', en: '④ Linked inventory deducts one stock unit per item when the order is marked Served (for example, drinks). Use Recipes for food with multiple ingredients.' },
         { ja: '⑤ 「＋ オプショングループ追加」でサイズ・トッピングなどの選択肢（単一選択/複数選択、追加料金）を設定できます。', en: '⑤ Use "＋ Add option group" to set up choices like size or toppings (single/multiple choice, extra charge).' },
-        { ja: '⑥ 商品一覧の▲▼ボタンで並び替え（お客様の注文画面の表示順に反映）、「編集」「削除」、「売切にする/売切解除」で当日の在庫状況を切り替えられます。カテゴリタブで絞り込み表示も可能です。', en: '⑥ In the item list, use ▲▼ to reorder (reflected on the customer order screen), "Edit"/"Delete", and "Mark sold out"/"Undo sold out" for today\'s availability. Filter by category tabs.' }
+        { ja: '⑥ 商品一覧の▲▼で並び替えた後は「💾 並び順を保存」で注文画面への反映を確定します。「編集」「削除」「売切」操作やカテゴリ絞り込み・一括操作も利用できます。', en: '⑥ After reordering items with ▲▼, press Save item order to apply the order to customer screens. You can also edit, delete, mark items sold out, filter by category, and use bulk actions.' },
+        { ja: '⑦ 「✨ AI画像生成」で料理・飲料の画像を文章から生成できます。生成・再生成のAIポイント残高と消費量を確認してから実行し、商品保存で画像を反映します。', en: '⑦ Use AI image generation to create menu images from descriptions. Check the AI-credit balance and cost before generation or regeneration, then save the menu item to apply the image.' },
+        { ja: '⑧ カテゴリ管理ではカテゴリ追加・改名・統合・並び替えができます。並び替えは「この並び順を保存」で確定します。統合前に移動先と対象商品を確認してください。', en: '⑧ Category Management supports adding, renaming, merging, and reordering categories. Save category order to persist reordering; check the destination and affected items before a merge.' }
       ]
     });
   </script>
@@ -770,5 +1678,6 @@ window.clearForm = function(){ ++_imgChoiceSeq; ++_imgSearchSeq;  editSnapshot=n
     window.addEventListener('resize',sync);window.addEventListener('orientationchange',sync);sync();
   })();
 </script>
+<script src="./ai-credit-ui.js?v=auth2"></script>
 </body>
 </html>

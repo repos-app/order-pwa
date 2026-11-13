@@ -68,7 +68,7 @@
     .header-actions button,.header-actions a,.card button,.cat-chip{min-height:44px;min-width:44px;box-sizing:border-box}
     .header-actions a,.cat-chip{display:inline-flex;align-items:center;justify-content:center}
     .pr-row .btn-xs,td .btn-xs{margin-top:2px;margin-bottom:2px}
-    @media (orientation:landscape) and (max-height:500px){ body{padding-bottom:220px;} #shopAddress{width:min(100%,320px);max-width:100%;font-size:16px;scroll-margin-top:72px;} }
+    @media (orientation:landscape) and (max-height:500px){ body{padding-bottom:220px;} #shopTin{width:min(100%,320px);max-width:100%;font-size:16px;scroll-margin-top:72px;} }
 </style>
 </head>
 <body>
@@ -112,10 +112,6 @@
 
     <div class="card" id="receipt-print-settings">
       <div class="card-title">🧾 <span id="t-receipt-settings">レシート印刷設定</span></div>
-      <div class="form-group">
-        <label class="form-label" id="t-shop-address">住所（レシート表示）</label>
-        <input id="shopAddress" class="form-control">
-      </div>
       <div class="form-group">
         <label class="form-label" id="t-shop-tin">税務登録番号（レシート表示）</label>
         <input id="shopTin" class="form-control">
@@ -247,13 +243,13 @@
         prform:'印刷出力先の追加 / 編集', prformHint:'用途・この端末での利用・Bluetooth接続を1つの流れで設定します。同じ物理プリンタを複数端末で使う場合は、各端末で初回だけ接続設定してください。', prname:'出力先名',
         prcat:'対応カテゴリ', hintCat:'厨房用途では印刷する商品カテゴリを1つ以上選択してください。レシート用途ではカテゴリは使用しません。', prenabled:'有効', save:'保存', clear2:'クリア', prlist:'印刷出力先', generalRoute:'レシート・一般',
         test:'テスト印刷', edit:'編集', del:'削除', delConfirm:'このプリンタを削除しますか？', saved:'✅ 保存しました', nameReq:'プリンタ名を入力してください', err:'エラー',
-        cTime:'時刻', cPrinter:'プリンタ', cTable:'卓', cStatus:'状態', cTry:'試行', reprint:'再印刷', noJobs:'ジョブはありません', noPrinters:'プリンタ未登録', testDone:'✅ テストジョブを登録しました', reprintDone:'再印刷キューに戻しました', clearDoneMsg:'✅ 印刷済を削除しました', plang:'印刷の言語', plangHint:'メニュー名の印刷言語（オーダ票・レシート共通）', receiptSettings:'レシート印刷設定', shopAddress:'住所（レシート表示）', shopTin:'税務登録番号（レシート表示）', shopLogo:'レシートのロゴ（先頭に中央印字）', logoClear:'クリア', logoSize:'印字サイズ（%）', logoHint:'白黒の感熱印刷用に自動で縮小・変換します。58mm幅を100%として、下の値で印字サイズを調整できます。', receiptSettingsSave:'保存', receiptSettingsSaved:'✅ レシート印刷設定を保存しました' },
+        cTime:'時刻', cPrinter:'プリンタ', cTable:'卓', cStatus:'状態', cTry:'試行', reprint:'再印刷', noJobs:'ジョブはありません', noPrinters:'プリンタ未登録', testDone:'✅ テストジョブを登録しました', reprintDone:'再印刷キューに戻しました', clearDoneMsg:'✅ 印刷済を削除しました', plang:'印刷の言語', plangHint:'メニュー名の印刷言語（オーダ票・レシート共通）', receiptSettings:'レシート印刷設定', shopTin:'税務登録番号（レシート表示）', shopLogo:'レシートのロゴ（先頭に中央印字）', logoClear:'クリア', logoSize:'印字サイズ（%）', logoHint:'白黒の感熱印刷用に自動で縮小・変換します。58mm幅を100%として、下の値で印字サイズを調整できます。', receiptSettingsSave:'保存', receiptSettingsSaved:'✅ レシート印刷設定を保存しました' },
       en: { title:'Printers', langBtn:'JP', enable:'Printer Output', on:'✅ On (orders print automatically)', off:'⛔ Off (no printing)', receipt:'Auto-print receipt on checkout', receiptHint:'Sends receipts to the configured Bluetooth printer when a bill is settled', pt210Title:'Bluetooth printer', pt210Help:'Search, connect, and test the Bluetooth device used by this terminal. Other terminals that share the same printer can each complete their own one-time setup. Normal printing connects on demand and disconnects after the batch. Verified: PT-210.', pt210Connect:'Scan', btConnect:'Connect', btScope:'Connection profile', btGeneral:'Receipt / General', btSaved:'Saved printer', btNone:'None', btDevice:'Detected Bluetooth devices', btReconnect:'Reconnect saved', btDisconnect:'Disconnect', btForget:'Unregister', btTest:'Test print', btDisconnected:'Not connected', btScanning:'Scanning for Bluetooth devices…', btChooseDevice:'Select a detected Bluetooth device, then press “Connect”', btReadyToConnect:'Bluetooth device selected. Press “Connect”.', btNoDevices:'No connectable Bluetooth device found', btConnecting:'Connecting to Bluetooth printer…', btResolving:'Connected. Checking the print setup…', btConnected:'Connected', btNoWrite:'No usable print endpoint was found on this Bluetooth device', btProfileUnknown:'The print setup for this Bluetooth device could not be determined automatically', btNoSupport:'This device cannot use direct Bluetooth printing', btNoSaved:'No saved printer', btReconnecting:'Reconnecting to saved printer…', btNeedConnection:'Not connected. Scan, select a device, then press “Connect”. The test print will continue after connection.', btPrinting:'Sending test print…', btPrinted:'✅ Test print sent', btWriteFailed:'Bluetooth is still connected, but sending the print data failed', btForgetConfirm:'Unregister the Bluetooth printer saved for this connection profile?', btForgetDone:'Bluetooth printer unregistered', btDisconnectedUnexpected:'Bluetooth disconnected', purpose:'Purpose', generalPurpose:'Receipt / general printing', kitchenPurpose:'Kitchen / category printing', host:'Printing on this device', hostCurrent:'Use this printer on this device', hostKeep:'Keep this device setting', hostNone:'Do not use on this device', hostUnassigned:'Initial connection not set on this device', hostThis:'This device: setup complete', hostOther:'Configured on other device(s) only', hostOnline:'Recently active', hostOffline:'Not active / unknown', hostRegisteredNoProfile:'This device: registered, Bluetooth not set', hostProfileOnly:'This device: Bluetooth saved, use disabled', eligibleDevices:'Eligible devices', deviceIdentifier:'Device identifier', macAddress:'MAC address', notAvailable:'Not available', pendingJobs:'Pending', categoryRequired:'Select at least one category for a kitchen printer',
         queue:'Print Queue', pend:'Pending', prog:'Printing', done:'Done', fail:'Failed', reall:'Reprint failed', clear:'Clear done',
         prform:'Add / Edit print output', prformHint:'Configure purpose, use on this device, and Bluetooth in one flow. To share the same physical printer across terminals, complete the one-time connection setup on each terminal that may print.', prname:'Output name',
         prcat:'Categories', hintCat:'For kitchen printing, select at least one item category. Receipt/general printers do not use categories.', prenabled:'Enabled', save:'Save', clear2:'Clear', prlist:'Print outputs', generalRoute:'Receipt / General',
         test:'Test print', edit:'Edit', del:'Delete', delConfirm:'Delete this printer?', saved:'✅ Saved', nameReq:'Please enter a printer name', err:'Error',
-        cTime:'Time', cPrinter:'Printer', cTable:'T', cStatus:'Status', cTry:'Try', reprint:'Reprint', noJobs:'No jobs', noPrinters:'No printers yet', testDone:'✅ Test job queued', reprintDone:'Requeued for printing', clearDoneMsg:'✅ Cleared printed jobs', plang:'Print language', plangHint:'Language of menu names on tickets & receipts', receiptSettings:'Receipt print settings', shopAddress:'Address (on receipt)', shopTin:'Tax registration number (on receipt)', shopLogo:'Receipt logo (centered on top)', logoClear:'Clear', logoSize:'Print size (%)', logoHint:'Auto-resized & converted for B/W thermal printing. 58mm width = 100%; adjust the print size below.', receiptSettingsSave:'Save', receiptSettingsSaved:'✅ Receipt print settings saved' }
+        cTime:'Time', cPrinter:'Printer', cTable:'T', cStatus:'Status', cTry:'Try', reprint:'Reprint', noJobs:'No jobs', noPrinters:'No printers yet', testDone:'✅ Test job queued', reprintDone:'Requeued for printing', clearDoneMsg:'✅ Cleared printed jobs', plang:'Print language', plangHint:'Language of menu names on tickets & receipts', receiptSettings:'Receipt print settings', shopTin:'Tax registration number (on receipt)', shopLogo:'Receipt logo (centered on top)', logoClear:'Clear', logoSize:'Print size (%)', logoHint:'Auto-resized & converted for B/W thermal printing. 58mm width = 100%; adjust the print size below.', receiptSettingsSave:'Save', receiptSettingsSaved:'✅ Receipt print settings saved' }
     };
 
     function $(id){ return document.getElementById(id); }
@@ -324,7 +320,7 @@
       if($('t-prform-hint')) $('t-prform-hint').innerText=t.prformHint||'';
       if($('t-receipt')) $('t-receipt').innerText=t.receipt||'会計時にレシートを自動印刷'; if($('t-receipt-hint')) $('t-receipt-hint').innerText=t.receiptHint||'';
       if($('t-plang')) $('t-plang').innerText=t.plang||''; if($('t-plang-hint')) $('t-plang-hint').innerText=t.plangHint||'';
-      $('t-receipt-settings').innerText=t.receiptSettings; $('t-shop-address').innerText=t.shopAddress; $('t-shop-tin').innerText=t.shopTin;
+      $('t-receipt-settings').innerText=t.receiptSettings; $('t-shop-tin').innerText=t.shopTin;
       $('t-shop-logo').innerText=t.shopLogo; $('t-logo-clear').innerText=t.logoClear; $('t-logo-size').innerText=t.logoSize; $('t-logo-hint').innerText=t.logoHint; $('t-receipt-settings-save').innerText=t.receiptSettingsSave;
       $('t-queue').innerText=t.queue; $('l-pend').innerText=t.pend; $('l-prog').innerText=t.prog; $('l-done').innerText=t.done; $('l-fail').innerText=t.fail;
       $('t-reall').innerText=t.reall; $('t-clear').innerText=t.clear; $('t-prform').innerText=t.prform; $('lbl-prname').innerText=t.prname;
@@ -365,7 +361,7 @@
       enqueueSettingSave('printLang',function(){return rpc('saveSettings',[{ printLang: next }]).then(requireSaveSuccess).then(function(){return verifyPrinterSetting('printLang',next);});}).then(function(){ savedPrintLang=next; if(seq!==settingsMutationSeq.printLang)return; messageAt('printer-basic-msg',i18n[currentLang].saved,true); }).catch(function(e){ if(seq!==settingsMutationSeq.printLang)return; $('printLangSel').value=savedPrintLang; settingSaveError(e); });
     };
     function receiptSettingsMessage(text, ok){ var m=$('receipt-settings-msg'); m.innerText=text; m.className='alert '+(ok?'alert-success':'alert-error'); m.style.display='block'; }
-    window.saveReceiptSettings=function(){ rpc('saveSettings',[{ shopAddress:$('shopAddress').value, shopTin:$('shopTin').value }]).then(function(r){ requireSaveSuccess(r); receiptSettingsMessage(i18n[currentLang].receiptSettingsSaved,true); }).catch(function(e){ onErr(e); receiptSettingsMessage((i18n[currentLang].err||'Error')+': '+API.userErrorText(e),false); }); };
+    window.saveReceiptSettings=function(){ rpc('saveSettings',[{ shopTin:$('shopTin').value }]).then(function(r){ requireSaveSuccess(r); receiptSettingsMessage(i18n[currentLang].receiptSettingsSaved,true); }).catch(function(e){ onErr(e); receiptSettingsMessage((i18n[currentLang].err||'Error')+': '+API.userErrorText(e),false); }); };
     window.onLogoPick=function(ev){
       var f=ev.target.files&&ev.target.files[0]; if(!f)return;
       API.readFileAsDataURL(f).then(function(dataUrl){ var im=new Image(); im.onload=function(){ var maxW=384,maxH=160,sc=Math.min(maxW/im.width,maxH/im.height,1),w=Math.max(1,Math.round(im.width*sc)),h=Math.max(1,Math.round(im.height*sc)),c=document.createElement('canvas'); c.width=w;c.height=h;var cx=c.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,w,h);cx.drawImage(im,0,0,w,h);var url=c.toDataURL('image/png');$('logoPrev').src=url;$('logoPrev').style.display='inline-block';rpc('saveReceiptLogo',[url]).then(function(r){requireSaveSuccess(r);receiptSettingsMessage(i18n[currentLang].saved,true);}).catch(function(e){onErr(e);receiptSettingsMessage((i18n[currentLang].err||'Error')+': '+API.userErrorText(e),false);});}; im.src=dataUrl; }).catch(function(e){ onErr(e); receiptSettingsMessage((i18n[currentLang].err||'Error')+': '+API.userErrorText(e),false); });
@@ -489,8 +485,8 @@
     // init
     updateUI();
     var initialSettingsSeq={printEnabled:settingsMutationSeq.printEnabled,receiptPrintEnabled:settingsMutationSeq.receiptPrintEnabled,printLang:settingsMutationSeq.printLang};
-    rpc('getPrinterSettings',[]).then(function(s){ s=s||{}; if(initialSettingsSeq.printEnabled===settingsMutationSeq.printEnabled){savedPrintEnabled=(String(s.printEnabled)==='true');$('enableToggle').checked=savedPrintEnabled;} if(initialSettingsSeq.receiptPrintEnabled===settingsMutationSeq.receiptPrintEnabled){savedReceiptEnabled=(String(s.receiptPrintEnabled)==='true');$('receiptToggle').checked=savedReceiptEnabled;} if(initialSettingsSeq.printLang===settingsMutationSeq.printLang){savedPrintLang=s.printLang||'ja';if($('printLangSel'))$('printLangSel').value=savedPrintLang;} $('shopAddress').value=s.shopAddress||'';$('shopTin').value=s.shopTin||'';$('logoScale').value=Math.max(20,Math.min(100,Number(s.logoScalePct)||100));if(s.receiptLogo){$('logoPrev').src=s.receiptLogo;$('logoPrev').style.display='inline-block';}updateEnableState(); setBasicSettingsReady(true); }).catch(function(e){ setBasicSettingsReady(false); settingSaveError(e); });
-    rpc('getAllMenuForAdmin',[]).then(function(items){ var set={}; (items||[]).forEach(function(i){ var key=i['カテゴリ']; if(key&&!set[key])set[key]={key:key,ja:(i['カテゴリ_JA']!==undefined?i['カテゴリ_JA']:key),en:i['カテゴリ_EN']||''}; }); allCategories=Object.keys(set).map(function(k){return set[k];}); renderCatChips(); }).catch(onErr);
+    rpc('getPrinterSettings',[]).then(function(s){ s=s||{}; if(initialSettingsSeq.printEnabled===settingsMutationSeq.printEnabled){savedPrintEnabled=(String(s.printEnabled)==='true');$('enableToggle').checked=savedPrintEnabled;} if(initialSettingsSeq.receiptPrintEnabled===settingsMutationSeq.receiptPrintEnabled){savedReceiptEnabled=(String(s.receiptPrintEnabled)==='true');$('receiptToggle').checked=savedReceiptEnabled;} if(initialSettingsSeq.printLang===settingsMutationSeq.printLang){savedPrintLang=s.printLang||'ja';if($('printLangSel'))$('printLangSel').value=savedPrintLang;} $('shopTin').value=s.shopTin||'';$('logoScale').value=Math.max(20,Math.min(100,Number(s.logoScalePct)||100));if(s.receiptLogo){$('logoPrev').src=s.receiptLogo;$('logoPrev').style.display='inline-block';}updateEnableState(); setBasicSettingsReady(true); }).catch(function(e){ setBasicSettingsReady(false); settingSaveError(e); });
+    rpc('getMenuCategoryOptions',[]).then(function(items){ allCategories=(items||[]).map(function(c){return {key:c.name,ja:c.nameJa,en:c.nameEn};}); renderCatChips(); }).catch(onErr);
     mountPrinterBluetooth();
     onPrinterPurposeChange();
     loadPrinters();
@@ -509,7 +505,7 @@
         { ja: '③ 「印刷の言語」でメニュー名の印刷言語（日本語／English／両方）を選択できます。', en: '③ "Print language" sets the language used for menu names on printed tickets/receipts.' },
         { ja: '④ 「Bluetoothプリンタ接続」で検索→機器選択→接続を行います。接続後は同じボタンが「切断」に切り替わります。再接続・登録解除・テスト印刷もこのページ本文内で完結し、接続情報はこの端末に保存されます。動作確認済みプリンタはPT-210です。', en: '④ In “Bluetooth printer connection”, scan, choose a device, then connect. The same connection button switches to Disconnect while connected. Reconnect, unregister, and test printing also stay in this page, and the profile is saved on this device. PT-210 is the verified model.' },
         { ja: '⑤ 「印刷キュー」で未印刷・印刷中・印刷済・失敗の件数を確認でき、「失敗を再印刷」で失敗分を一括再送、「印刷済を削除」でキューを掃除できます。', en: '⑤ The Print Queue shows pending/printing/done/failed counts; "Reprint failed" requeues failures, "Clear done" removes completed jobs.' },
-        { ja: '⑥ 「印刷出力先」で印刷先名・対応カテゴリ・有効/無効を設定します。カテゴリを選ぶと厨房用、未選択ならレシート・一般印刷用です。', en: '⑥ “Print outputs” configures output names, categories, and enabled state. Category-assigned outputs are for kitchen tickets; outputs with no category are for receipts/general printing.' }
+        { ja: '⑥ 「印刷出力先」で用途（レシート・一般／厨房・カテゴリ）、出力先名、この端末での利用、Bluetooth接続を設定します。厨房用を選んだ場合は印刷するカテゴリを1つ以上指定してください。', en: '⑥ Under Print outputs, choose the purpose (receipt/general or kitchen/categories), output name, whether this device uses it, and its Bluetooth connection. Kitchen outputs require at least one category.' }
       ]
     });
   </script>
@@ -519,7 +515,7 @@
     function recover(){
       if(!matchMedia('(orientation:landscape) and (max-height:500px)').matches)return;
       var el=document.activeElement;
-      if(!el||!el.matches('#shopAddress'))return;
+      if(!el||!el.matches('#shopTin'))return;
       var vv=window.visualViewport;
       var top=(vv?vv.offsetTop:0)+Math.max(60,document.querySelector('.head')?.getBoundingClientRect().height||0)+8;
       var bottom=(vv?vv.offsetTop+vv.height:innerHeight)-8;

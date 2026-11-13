@@ -68,13 +68,14 @@
         html += '<tr>'+
           '<td><select required aria-required="true" data-recipe-row="'+i+'" data-recipe-field="menu" onchange="window.rows['+i+'].menu=this.value">'+opts(MENUS, r.menu)+'</select></td>'+
           '<td><select required aria-required="true" data-recipe-row="'+i+'" data-recipe-field="material" onchange="window.rows['+i+'].material=this.value">'+opts(MATERIALS, r.material)+'</select></td>'+
-          '<td><input required aria-required="true" data-recipe-row="'+i+'" data-recipe-field="qty" type="number" min="0.000001" step="any" value="'+(r.qty||'')+'" oninput="window.rows['+i+'].qty=Number(this.value)||0"></td>'+
+          '<td><input required aria-required="true" data-recipe-row="'+i+'" data-recipe-field="qty" type="number" min="0.000001" step="any" value="'+(r.qty??'')+'" oninput="window.rows['+i+'].qty=this.value.length?Number(this.value):null"></td>'+
           '<td><button class="btn-sm" onclick="delRow('+i+')">🗑</button></td></tr>';
       });
       if (!window.rows.length) html = '<tr><td colspan="4" style="color:#aaa;padding:16px;text-align:center;">'+I18n.t('empty')+'</td></tr>';
       document.getElementById('rows').innerHTML = html;
     }
-    window.addRow = function(){ window.rows.push({ menu:'', material:'', qty:1 }); render(); };
+    // Ingredient consumption must be explicitly entered; never assume 1.
+    window.addRow = function(){ window.rows.push({ menu:'', material:'', qty:'' }); render(); };
     window.delRow = function(i){ window.rows.splice(i,1); render(); };
     window.save = function(){
       for(var i=0;i<window.rows.length;i++){
@@ -112,8 +113,8 @@
       items: [
         { ja: '① 「＋ 行を追加」で行を追加し、「メニュー」欄で商品、「材料（在庫）」欄で使う在庫材料、「消費量」欄で1回の提供に使う量を選んで入力します（例: 生ビール → ビール樽 0.33）。', en: '① Press "＋ Add row", then choose a menu item, the stock ingredient it uses, and the amount consumed per serving (e.g. Draft beer → Beer keg 0.33).' },
         { ja: '② 1つのメニューに複数の材料が必要な場合は、同じメニューで行を分けて複数登録できます。', en: '② If a menu item needs multiple ingredients, add a separate row for each one using the same menu item.' },
-        { ja: '③ 「💾 保存」を押すとレシピが確定します。以降、そのメニューが注文されるたびに登録した消費量ぶん在庫が自動で減算されます。', en: '③ Press "💾 Save" to confirm the recipe. From then on, stock is automatically deducted by the registered amount every time that menu item is ordered.' },
-        { ja: '④ 登録したレシピは売上分析での原価率の算出にも使われます。材料の選択肢は「在庫管理」に登録済みの商品名から選びます。', en: '④ Registered recipes are also used to calculate the cost ratio in sales analytics. Ingredient choices come from the item names already registered in "Inventory".' },
+        { ja: '③ 「💾 保存」でレシピを確定します。登録した消費量ぶんの在庫減算は、該当注文を「提供済」にしたときに行われます（同じ注文の二重減算は防止されます）。', en: '③ Save the recipe to confirm it. Its ingredient quantities are deducted when an order is marked Served, not when it is first placed; repeat updates do not deduct twice.' },
+        { ja: '④ レシピは「月間利益」と「売上管理」の商品別原価・原価率の計算に使われます。材料は「在庫管理」の登録品目から選びます。原価が未設定の品目は「売上管理」で「—」表示となります。', en: '④ Recipes contribute to cost calculations in Monthly Profit and per-item costs in Sales analytics. Choose ingredients from Inventory. Items without a known recipe/link cost show — in Sales analytics.' },
         { ja: '⑤ 各行の🗑ボタンでその行（メニューと材料の組み合わせ）を削除できます。', en: '⑤ Use the 🗑 button on a row to delete that menu-to-ingredient pairing.' }
       ]
     });

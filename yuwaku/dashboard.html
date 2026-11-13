@@ -94,8 +94,8 @@
       });
     }
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-    var SYM='₱', D=null, targetSaveError='';
-    function money(v){ return SYM+(Math.round(Number(v)||0)).toLocaleString(); }
+    var SYM='₱', SETTINGS={}, D=null, targetSaveError='';
+    function money(v){ var digits=SETTINGS.currencyCode==='PHP'?2:SETTINGS.currencyCode==='JPY'?0:Math.max(0,Math.min(3,Number(SETTINGS.currencyDecimalDigits)||0)); return SYM+(Number(v)||0).toLocaleString(SETTINGS.locale||undefined,{minimumFractionDigits:digits,maximumFractionDigits:digits}); }
 
     window.saveTarget = function(){
       var v = Number(document.getElementById('tgt').value)||0;
@@ -150,7 +150,7 @@
       document.getElementById('wrap').innerHTML = html;
     }
 
-    API.post('getSettings', {}).then(function(r){ if(r.data && r.data.currencySymbol) SYM=r.data.currencySymbol; if(D) render(); }).catch(function(){});
+    API.post('getSettings', {}).then(function(r){ SETTINGS=r.data||{}; if(SETTINGS.currencySymbol) SYM=SETTINGS.currencySymbol; if(D) render(); }).catch(function(){});
     // [GPT第22回レポート対応/G22-2] 自動再試行が尽きた場合はエラー＋最終試行時刻＋「再試行」ボタンを
     // 表示し、以降の再試行は利用者の操作に委ねる（総待ち時間の上限を明確にする）。
     function loadDashboard(){
@@ -171,8 +171,8 @@
     // そのまま表示されていた。I18n.init()（同期的にDICTを設定してapply()する）を先に呼んでから
     // loadDashboard()を呼ぶ順序に修正する。
     I18n.init({
-      ja:{ title:'📊 ダッシュボード', back:'← 管理へ', loading:'読み込み中…', todaySales:'本日の売上', monthSales:'今月の売上', ordersU:'件', avg:'客単価', grossProfit:'今月の粗利', margin:'粗利率', primeRate:'プライムコスト率', primeSub:'(原価+人件費)÷売上', targetTitle:'🎯 月間売上目標', monthVsTarget:'今月 / 目標', setTarget:'目標を設定:', save:'保存', saveErr:'保存エラー: ', costTitle:'💴 今月の原価内訳', cogs:'商品原価(自動)', wages:'従業員給与', expenses:'経費(固定費・備品・その他)', costNote:'詳細・仕入実績での計算は', toProfit:'月間粗利へ', lowStock:'低在庫アラート', toInv:'在庫管理へ', menuAlert:'要注意メニュー', toSales:'売上分析へ', loadErr:'読み込みエラー: ', busyErr:'集計が混み合っています。数秒後に再試行してください。' },
-      en:{ title:'📊 Dashboard', back:'← Manage', loading:'Loading…', todaySales:"Today's sales", monthSales:'This month', ordersU:' orders', avg:'Avg/order', grossProfit:'Gross profit (month)', margin:'Margin', primeRate:'Prime cost %', primeSub:'(COGS+labor)÷sales', targetTitle:'🎯 Monthly sales target', monthVsTarget:'Month / Target', setTarget:'Set target:', save:'Save', saveErr:'Save error: ', costTitle:'💴 Cost breakdown (month)', cogs:'Product cost (auto)', wages:'Wages', expenses:'Expenses (fixed/supplies/other)', costNote:'For detail & purchase-based calc →', toProfit:'Gross profit', lowStock:'Low-stock alerts', toInv:'Inventory', menuAlert:'Menu to review', toSales:'Sales analytics', loadErr:'Load error: ', busyErr:'Sales analysis is busy. Please retry in a few seconds.' }
+      ja:{ title:'📊 ダッシュボード', back:'← 管理へ', loading:'読み込み中…', todaySales:'本日の売上', monthSales:'今月の売上', ordersU:'件', avg:'客単価', grossProfit:'今月の概算利益', margin:'利益率', primeRate:'プライムコスト率', primeSub:'(原価+人件費)÷売上', targetTitle:'🎯 月間売上目標', monthVsTarget:'今月 / 目標', setTarget:'目標を設定:', save:'保存', saveErr:'保存エラー: ', costTitle:'💴 今月の原価内訳', cogs:'商品原価(自動)', wages:'従業員給与', expenses:'経費(固定費・備品・その他)', costNote:'詳細・仕入実績での計算は', toProfit:'月間利益へ', lowStock:'低在庫アラート', toInv:'在庫管理へ', menuAlert:'要注意メニュー', toSales:'売上分析へ', loadErr:'読み込みエラー: ', busyErr:'集計が混み合っています。数秒後に再試行してください。' },
+      en:{ title:'📊 Dashboard', back:'← Manage', loading:'Loading…', todaySales:"Today's sales", monthSales:'This month', ordersU:' orders', avg:'Avg/order', grossProfit:'Estimated profit (month)', margin:'Margin', primeRate:'Prime cost %', primeSub:'(COGS+labor)÷sales', targetTitle:'🎯 Monthly sales target', monthVsTarget:'Month / Target', setTarget:'Set target:', save:'Save', saveErr:'Save error: ', costTitle:'💴 Cost breakdown (month)', cogs:'Product cost (auto)', wages:'Wages', expenses:'Expenses (fixed/supplies/other)', costNote:'For detail & purchase-based calc →', toProfit:'Monthly profit', lowStock:'Low-stock alerts', toInv:'Inventory', menuAlert:'Menu to review', toSales:'Sales analytics', loadErr:'Load error: ', busyErr:'Sales analysis is busy. Please retry in a few seconds.' }
     }, function(){ if(D) render(); });
 
     loadDashboard();
@@ -183,7 +183,7 @@
       title: 'ダッシュボード',
       titleEn: 'Dashboard',
       items: [
-        { ja: '① 画面上部に本日の売上・今月の売上・今月の粗利・プライムコスト率（原価+人件費÷売上）が一目で表示されます。', en: '① The top of the screen shows today\'s sales, this month\'s sales, this month\'s gross profit, and prime cost rate ((COGS+labor)÷sales) at a glance.' },
+        { ja: '① 画面上部で本日の売上・今月の売上・今月の概算利益（売上から商品原価・人件費・経費を控除）・プライムコスト率（商品原価＋人件費）÷売上を確認できます。', en: '① The top shows today\'s sales, monthly sales, estimated monthly profit (after product costs, labor and expenses), and prime cost rate ((product costs + labor) ÷ sales).' },
         { ja: '② 「🎯 月間売上目標」で今月の売上目標を入力して「保存」を押すと、達成率がバーで表示されます。', en: '② Under "🎯 Monthly sales target", enter this month\'s target and tap "Save" to see progress as a bar.' },
         { ja: '③ 「💴 今月の原価内訳」で商品原価（自動計算）・従業員給与・経費（賃料/電気代/水道代/備品/その他）の内訳を確認できます。', en: '③ "💴 Cost breakdown" shows product cost (auto), wages, and expenses (rent/electricity/water/supplies/other).' },
         { ja: '④ 「低在庫アラート」の件数から「在庫管理へ」のリンクで在庫画面に移動できます。', en: '④ The "Low-stock alerts" count links to the Inventory screen.' },

@@ -156,7 +156,13 @@
       }
       // 履歴
       if(HIST.length){
-        var rows = HIST.map(function(h){ var o=h.overShort||0; return '<tr><td>'+esc(h.closeAt)+'</td><td class="num">'+money(h.cashSales)+'</td><td class="num">'+money(h.cardSales)+'</td><td class="num" style="color:'+(o===0?'inherit':(o>0?'#15803d':'#b91c1c'))+';">'+(o>0?'+':'')+money(o)+'</td></tr>'; }).join('');
+        var rows = HIST.map(function(h){
+          var o=h.overShort||0, corrected=Number(h.correctionCount)>0, en=I18n.lang()==='en';
+          var label=corrected?('<div class="muted">'+(en?'Post-close corrections':'締め後訂正')+': '+h.correctionCount+'</div>'):'';
+          var cashNote=corrected?('<div class="muted">'+(en?'Corrected':'訂正後')+': '+money(h.correctedCashSales)+'</div>'):'';
+          var cardNote=corrected?('<div class="muted">'+(en?'Corrected':'訂正後')+': '+money(h.correctedCardSales)+'</div>'):'';
+          return '<tr><td>'+esc(h.closeAt)+label+'</td><td class="num">'+money(h.cashSales)+cashNote+'</td><td class="num">'+money(h.cardSales)+cardNote+'</td><td class="num" style="color:'+(o===0?'inherit':(o>0?'#15803d':'#b91c1c'))+';">'+(o>0?'+':'')+money(o)+'</td></tr>';
+        }).join('');
         html += '<div class="card"><div class="card-title">'+I18n.t('histTitle')+'</div><div style="overflow:auto;"><table><thead><tr><th>'+I18n.t('closeAt')+'</th><th class="num">'+I18n.t('cashSales')+'</th><th class="num">'+I18n.t('cardSales')+'</th><th class="num">'+I18n.t('overShort')+'</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
       }
       // スタッフ別売上（今月・締めたシフト集計）
@@ -199,7 +205,7 @@
         { ja: '① レジがまだ開いていない場合は「開店フロート（釣銭準備金）」を入力し「🔓 レジを開ける」を押すと、担当者名は自動でログイン中のアカウントが設定され、営業中の売上集計が始まります。', en: '① If the register is not open, enter the "Opening float (change fund)" and tap "🔓 Open register" — your logged-in account is set as staff automatically, and sales tracking begins.' },
         { ja: '② レジを開けている間は「📋 現在のシフト（X）」で現金売上・キャッシュレス売上・想定現金がリアルタイムに確認できます。「🔄 更新」で再取得できます。', en: '② While open, "📋 Current shift (X)" shows cash sales, cashless sales, and expected cash in real time. Tap "🔄 Refresh" to reload.' },
         { ja: '③ 閉店時は「現金入出金」に両替・釣銭補充があれば入力（入金は+、出金は−）し、「実現金」にレジ内の現金を実際に数えた金額を入力します。', en: '③ At close, enter any cash exchanged/added under "Cash in/out" (in +, out −), and enter the actually counted drawer cash as "Counted cash".' },
-        { ja: '④ 必要なら「メモ」を入力し、「🔒 レジを締める」を押すと、想定現金との差（過不足）が自動計算されZ結果として表示されます。', en: '④ Add a "Memo" if needed and tap "🔒 Close register" — the difference from expected cash (over/short) is calculated automatically and shown as the Z result.' },
+        { ja: '④ レジ締め前に勤務中のスタッフ全員が退勤打刻を済ませてください。必要なら「メモ」を入力し、「🔒 レジを締める」を押すと、想定現金との差（過不足）が計算されZ結果として表示されます。未退勤のスタッフがいる場合は締められません。', en: '④ Clock out all working staff before closing the register; active clock-ins block closing. Add a memo if needed, then press Close register to calculate over/short cash and show the Z result.' },
         { ja: '⑤ 「📖 締め履歴」で過去のレジ締め結果（現金売上・カード売上・過不足）を確認できます。', en: '⑤ "📖 History" lists past register closes (cash sales, card sales, over/short).' },
         { ja: '⑥ 「👤 スタッフ別売上」で今月の担当者ごとのシフト数・売上合計・過不足を確認できます。', en: '⑥ "👤 Sales by staff" shows this month\'s shift count, total sales, and over/short per staff member.' }
       ]

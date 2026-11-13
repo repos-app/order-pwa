@@ -161,8 +161,15 @@
     // 言語切替の一元ヘルパー（新しい表示・候補リストを追加する際は必ずこれを通すこと）
     function isEN(){ return !!(window.I18n && I18n.lang && I18n.lang()==='en'); }
     function loc(ja, en){ ja=(ja||'').trim(); en=(en||'').trim(); return isEN() ? (en || ja) : (ja || en); }
-    var SYM = '₱';
-    function money(v){ return SYM + (Number(v)||0).toLocaleString(); }
+    var SYM = '', SETTINGS = {};
+    function money(v){
+      var raw=SETTINGS.currencyDecimalDigits, n=Number(raw);
+      var digits=raw!=null && raw!=='' && Number.isInteger(n) && n>=0 && n<=3 ? n : 0;
+      var opts={minimumFractionDigits:digits,maximumFractionDigits:digits};
+      var amount=Number(v)||0, locale=SETTINGS.locale||undefined;
+      try{ return SYM+amount.toLocaleString(locale,opts); }
+      catch(e){ return SYM+amount.toLocaleString('en-US',opts); }
+    }
     var dailyChart, hourChart, dowChart;
     var _sales=null, _ana=null, _pop=null;
 
@@ -282,11 +289,11 @@
     function renderAnalytics(d){
       _ana = d || _ana || { items:[], byHour:[], byDow:[], total:0, count:0 };
       d = _ana;
-      document.getElementById('anaSummary').innerText = I18n.t('sOrders')+d.count+I18n.t('sOrdersU')+' ・ '+I18n.t('sSales')+money(d.total)+' ・ '+I18n.t('sAvg')+money(d.avg||0)+' ・ '+I18n.t('sCost')+(d.costRate||0)+'%';
+      document.getElementById('anaSummary').innerText = I18n.t('sOrders')+d.count+I18n.t('sOrdersU')+' ・ '+I18n.t('sSales')+money(d.total)+' ・ '+I18n.t('sAvg')+money(d.avg||0)+' ・ '+I18n.t('sCost')+(d.costRate==null?'—':d.costRate+'%')+(d.costIncomplete?' '+I18n.t('costIncomplete'):'');
       var abc = { A:'#16a34a', B:'#f59e0b', C:'#94a3b8' };
       var html = '<thead><tr><th>'+I18n.t('cItem')+'</th><th style="text-align:right;">'+I18n.t('cQty')+'</th><th style="text-align:right;">'+I18n.t('cRev')+'</th><th style="text-align:right;">'+I18n.t('cCost')+'</th><th style="text-align:right;">'+I18n.t('cCostR')+'</th><th style="text-align:right;">'+I18n.t('cCum')+'</th><th>ABC</th></tr></thead><tbody>';
       if (!d.items.length) html += '<tr><td colspan="7" style="color:#aaa;padding:14px;">'+I18n.t('noData')+'</td></tr>';
-      d.items.forEach(function(it){ html += '<tr><td>'+esc(loc(it.name, it.nameEn))+'</td><td style="text-align:right;">'+it.qty+'</td><td style="text-align:right;">'+money(it.revenue)+'</td><td style="text-align:right;color:var(--text-3);">'+money(it.cost||0)+'</td><td style="text-align:right;">'+(it.costRate||0)+'%</td><td style="text-align:right;">'+it.cumPct+'%</td><td><span style="background:'+(abc[it.abc]||'#94a3b8')+';color:#fff;font-weight:800;font-size:11px;padding:1px 8px;border-radius:999px;">'+it.abc+'</span></td></tr>'; });
+      d.items.forEach(function(it){ html += '<tr><td>'+esc(loc(it.name, it.nameEn))+'</td><td style="text-align:right;">'+it.qty+'</td><td style="text-align:right;">'+money(it.revenue)+'</td><td style="text-align:right;color:var(--text-3);">'+(it.cost==null?'—':money(it.cost))+'</td><td style="text-align:right;">'+(it.costRate==null?'—':it.costRate+'%')+'</td><td style="text-align:right;">'+it.cumPct+'%</td><td><span style="background:'+(abc[it.abc]||'#94a3b8')+';color:#fff;font-weight:800;font-size:11px;padding:1px 8px;border-radius:999px;">'+it.abc+'</span></td></tr>'; });
       html += '</tbody>';
       document.getElementById('anaItems').innerHTML = html;
       var ch = '<thead><tr><th>'+I18n.t('cCat')+'</th><th style="text-align:right;">'+I18n.t('cRev')+'</th></tr></thead><tbody>';
@@ -302,7 +309,7 @@
     }
 
     // 通貨記号
-    API.post('getSettings', {}).then(function(r){ if(r.data && r.data.currencySymbol) SYM = r.data.currencySymbol; }).catch(function(){});
+    API.post('getSettings', {}).then(function(r){ SETTINGS=r.data||{}; if(SETTINGS.currencySymbol) SYM=SETTINGS.currencySymbol; if(_sales && !_sales.building) renderSales(); if(_ana) renderAnalytics(); }).catch(function(){});
     // 2026-08-24修正: toISOString()はUTC基準のため、フィリピン時間で月初の午前0〜8時頃に開くと
     // 前月が選択されてしまう不具合があった（profit_sim.htmlで先に見つけて修正済みだった同じ問題を
     // 横展開）。ローカル時間（店舗のタイムゾーン）で当月を決める。
@@ -329,8 +336,8 @@
     // 行う。ここでは即時実行しない（構築中の重複負荷を避けるため）。
 
     I18n.init({
-      ja:{ title:'📊 売上管理', back:'← 管理へ', dailyTitle:'📈 日別売上', monthlyTitle:'📅 月別サマリー', anaTitle:'🔎 分析（商品・時間帯・曜日）', month:'対象月', analyze:'🔍 分析', byItem:'🏆 商品別（ABC分析）', byCat:'🍱 カテゴリ別売上', byHour:'🕐 時間帯別', byDow:'📅 曜日別', popTitle:'🍽️ メニュー人気度スコア（直近30日）', popHint:'直近30日の注文数量で算出（最も売れた商品=100）。低スコア・未売上はメニュー見直しの参考に。', loading:'読み込み中…', noData:'データがありません', noSales:'売上データがありません。', dailySales:'日別売上', colMonth:'月', colTotal:'合計', sOrders:'注文 ', sOrdersU:'件', sSales:'売上 ', sAvg:'客単価 ', sCost:'原価率 ', cItem:'商品', cQty:'数量', cRev:'売上', cCost:'原価', cCostR:'原価率', cCum:'累計比', cCat:'カテゴリ', cScore:'スコア', other:'その他', hourU:'時', dowNames:'日,月,火,水,木,金,土', lHot:'🔥人気', lOk:'標準', lLow:'⚠️低調', lUnsold:'❌未売上', loadErr:'読み込みエラー: ' },
-      en:{ title:'📊 Sales', back:'← Manage', dailyTitle:'📈 Daily sales', monthlyTitle:'📅 Monthly summary', anaTitle:'🔎 Analysis (items / hours / days)', month:'Target month', analyze:'🔍 Analyze', byItem:'🏆 By item (ABC analysis)', byCat:'🍱 Sales by category', byHour:'🕐 By hour', byDow:'📅 By day of week', popTitle:'🍽️ Menu popularity score (last 30 days)', popHint:'Based on order quantity over the last 30 days (top seller = 100). Low-score / unsold items help you review the menu.', loading:'Loading…', noData:'No data', noSales:'No sales data.', dailySales:'Daily sales', colMonth:'Month', colTotal:'Total', sOrders:'Orders ', sOrdersU:'', sSales:'Sales ', sAvg:'Avg/order ', sCost:'Cost rate ', cItem:'Item', cQty:'Qty', cRev:'Revenue', cCost:'Cost', cCostR:'Cost %', cCum:'Cum %', cCat:'Category', cScore:'Score', other:'Other', hourU:':00', dowNames:'Sun,Mon,Tue,Wed,Thu,Fri,Sat', lHot:'🔥Popular', lOk:'Normal', lLow:'⚠️Low', lUnsold:'❌Unsold', loadErr:'Load error: ' }
+      ja:{ title:'📊 売上管理', back:'← 管理へ', dailyTitle:'📈 日別売上', monthlyTitle:'📅 月別サマリー', anaTitle:'🔎 分析（商品・時間帯・曜日）', month:'対象月', analyze:'🔍 分析', byItem:'🏆 商品別（ABC分析）', byCat:'🍱 カテゴリ別売上', byHour:'🕐 時間帯別', byDow:'📅 曜日別', popTitle:'🍽️ メニュー人気度スコア（直近30日）', popHint:'直近30日の注文数量で算出（最も売れた商品=100）。低スコア・未売上はメニュー見直しの参考に。', loading:'読み込み中…', noData:'データがありません', noSales:'売上データがありません。', dailySales:'日別売上', colMonth:'月', colTotal:'合計', sOrders:'注文 ', sOrdersU:'件', sSales:'売上 ', sAvg:'客単価 ', sCost:'原価率 ', costIncomplete:'（原価未設定品あり）', cItem:'商品', cQty:'数量', cRev:'売上', cCost:'原価', cCostR:'原価率', cCum:'累計比', cCat:'カテゴリ', cScore:'スコア', other:'その他', hourU:'時', dowNames:'日,月,火,水,木,金,土', lHot:'🔥人気', lOk:'標準', lLow:'⚠️低調', lUnsold:'❌未売上', loadErr:'読み込みエラー: ' },
+      en:{ title:'📊 Sales', back:'← Manage', dailyTitle:'📈 Daily sales', monthlyTitle:'📅 Monthly summary', anaTitle:'🔎 Analysis (items / hours / days)', month:'Target month', analyze:'🔍 Analyze', byItem:'🏆 By item (ABC analysis)', byCat:'🍱 Sales by category', byHour:'🕐 By hour', byDow:'📅 By day of week', popTitle:'🍽️ Menu popularity score (last 30 days)', popHint:'Based on order quantity over the last 30 days (top seller = 100). Low-score / unsold items help you review the menu.', loading:'Loading…', noData:'No data', noSales:'No sales data.', dailySales:'Daily sales', colMonth:'Month', colTotal:'Total', sOrders:'Orders ', sOrdersU:'', sSales:'Sales ', sAvg:'Avg/order ', sCost:'Cost rate ', costIncomplete:'(unpriced items)', cItem:'Item', cQty:'Qty', cRev:'Revenue', cCost:'Cost', cCostR:'Cost %', cCum:'Cum %', cCat:'Category', cScore:'Score', other:'Other', hourU:':00', dowNames:'Sun,Mon,Tue,Wed,Thu,Fri,Sat', lHot:'🔥Popular', lOk:'Normal', lLow:'⚠️Low', lUnsold:'❌Unsold', loadErr:'Load error: ' }
     }, function(){ if(_sales) renderSales(); if(_ana) renderAnalytics(); if(_pop) renderPopularity(); });
   </script>
   <script src="./help.js?v=auth2"></script>
@@ -342,7 +349,7 @@
         { ja: '① 「📈 日別売上」のグラフで日ごとの売上推移を確認できます。', en: '① The "📈 Daily sales" chart shows the day-by-day sales trend.' },
         { ja: '② 「📅 月別サマリー」で月ごとの合計売上を一覧できます。', en: '② "📅 Monthly summary" lists the total sales for each month.' },
         { ja: '③ 「対象月」を選んで「🔍 分析」を押すと、商品別（ABC分析）・カテゴリ別売上・時間帯別・曜日別の集計が表示されます。', en: '③ Pick a "Target month" and tap "🔍 Analyze" to see breakdowns by item (ABC analysis), category, hour, and day of week.' },
-        { ja: '④ 商品別テーブルではABCランク（A/B/C）と原価率・売上累計比が確認でき、売れ筋・不振商品の判断材料になります。', en: '④ The item table shows ABC rank, cost rate, and cumulative sales share to help identify top and weak sellers.' },
+        { ja: '④ 商品別の原価・原価率は現在のレシピと在庫単価から計算し、返金分も相殺します。原価未設定や内訳不明の品目は0ではなく「—」と表示します。過去月も現在の材料単価で再計算されます。', en: '④ Item costs and cost rates use current recipes and inventory prices, including refund reversals. Items with unknown costs show — rather than a misleading 0. Historical months are recalculated at current material prices.' },
         { ja: '⑤ 「🍽️ メニュー人気度スコア」では直近30日の販売数量をスコア化し、🔥人気／標準／⚠️低調／❌未売上のラベルでメニュー見直しの参考にできます。', en: '⑤ "🍽️ Menu popularity score" scores items by quantity sold in the last 30 days, labeled 🔥Popular/Normal/⚠️Low/❌Unsold to help review the menu.' },
         { ja: '⑥ 集計に時間がかかる場合は自動で構築中表示・再試行され、失敗時は「🔄 再試行」ボタンで手動再読み込みできます。', en: '⑥ Heavy aggregations show a building/retry status automatically; on failure, tap "🔄 Retry" to reload manually.' }
       ]

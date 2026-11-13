@@ -191,7 +191,7 @@
     // PAYMONGOが常にfalseで一度も実行されない死んだコードだったため、あつしさんの明示許可を
     // 得て削除した（対応するpmWrapのHTML・setPM関数も合わせて削除済み）。現状は常に
     // 「店頭で支払う（Pay at counter）」のみとなる。
-    var MENU = [], SETTINGS = {};
+    var MENU = [], SETTINGS = {}, MENU_READY=false;
     var cart = {}, optLines = [], optCtx = null, curCat = null;
     var takeoutCoupon = null;
     // 言語の切替・優先順位・永続化は共通部品I18nに統一。lang はI18n.init()のonChangeコールバック経由で更新するミラー。
@@ -221,7 +221,7 @@
     };
     function tt(){ return I18n.d(); }
     function sym(){ return SETTINGS.currencySymbol || ''; }
-    function money(n){ return sym() + (Number(n)||0).toLocaleString(); }
+    function money(n){ var raw=SETTINGS.currencyDecimalDigits, val=Number(raw); var digits=SETTINGS.currencyCode==='PHP'?2:SETTINGS.currencyCode==='JPY'?0:(raw!==''&&raw!=null&&Number.isInteger(val)&&val>=0&&val<=3?val:0); return sym()+(Number(n)||0).toLocaleString(SETTINGS.locale||undefined,{minimumFractionDigits:digits,maximumFractionDigits:digits}); }
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
     function isTakeoutEnabled(it){ var v=it&&(it['テイクアウト可']!==undefined?it['テイクアウト可']:(it.takeoutEnabled!==undefined?it.takeoutEnabled:it.takeout_enabled)); return v===true||Number(v)===1; }
     function takeoutErrorText(err,fallback){ var code=String(err&&(err.code||err.message)||err||'').trim().toLowerCase(); if(code==='takeout_item_unavailable')return lang==='ja'?'選択した商品は現在テイクアウト対象外です。メニューを更新して注文内容を確認してください。':'A selected item is no longer available for takeout. Refresh the menu and review your order.'; return API.userErrorText(err,fallback); }
@@ -310,12 +310,20 @@
         var ctrl;
         if(unavail){ctrl='<div class="qty"><span class="unavail-tag">'+(it.soldOut?(lang==='ja'?'本日売切':'Sold out'):(lang==='ja'?'時間外':'Not now'))+'</span></div>';}
         else if(hasOpts){ctrl='<div class="qty"><button type="button" class="opt-btn" data-name="'+esc(nm)+'" onclick="openOpt(this.dataset.name)">'+esc(tt().optChoose)+(q>0?' <span class="opt-badge">'+q+'</span>':'')+'</button></div>';}
-        else{ctrl='<div class="qty"><button class="minus" onclick="chg(\''+safeNm+'\',-1)">−</button><span class="n'+(q>0?' has':'')+'">'+q+'</span><button class="plus" onclick="chg(\''+safeNm+'\',1)">＋</button></div>';}
+        else{ctrl='<div class="qty"><button class="minus" onclick="chg(\''+safeNm+'\',-1,this)">−</button><span class="n'+(q>0?' has':'')+'">'+q+'</span><button class="plus" onclick="chg(\''+safeNm+'\',1,this)">＋</button></div>';}
         html+='<div class="card'+(unavail?' unavail':'')+'">'+thumb+'<div class="body"><div class="name">'+esc(dispNm)+'</div>'+(tags?'<div class="tags">'+tags+'</div>':'')+(it['説明']?'<div class="desc">'+esc(it['説明'])+'</div>':'')+'<div class="price">'+money(it['価格'])+'</div>'+ctrl+'</div></div>';
       });
       document.getElementById('menu').innerHTML=html+'</div>';
     }
-    window.chg = function(nm, d){ cart[nm] = Math.max(0,(cart[nm]||0)+d); if(!cart[nm]) delete cart[nm]; renderMenu(); updateCart(); };
+    window.chg = function(nm, d, button){
+      cart[nm] = Math.max(0,(cart[nm]||0)+d);
+      if(!cart[nm]) delete cart[nm];
+      // Preserve existing product cards and images on every +/- click.
+      var countNode=button&&button.parentNode&&button.parentNode.querySelector('.n');
+      if(countNode){countNode.textContent=String(cart[nm]||0);countNode.classList.toggle('has',(cart[nm]||0)>0);}
+      else renderMenu();
+      updateCart();
+    };
 
     // Option variants have their own counts and server-compatible structured indexes.
     function optionSelectionsFromForm(){
@@ -613,7 +621,7 @@
       document.getElementById('cpApplyBtn').innerText = t.apply;
       document.getElementById('lblTotal').innerText = t.total;
       document.getElementById('coCancel').innerText = t.cancel;
-      renderCats(); renderMenu(); // Display-only locale switch, including category chips.
+      if(MENU_READY){renderCats();renderMenu();} // Initial language selection must preserve the loading notice.
       if(optCtx) paintOptModal(optionSelectionsFromForm());
       if(document.getElementById('coOverlay').classList.contains('on')){
         renderCheckoutItems(); updateCoTotal();
@@ -625,12 +633,14 @@
       // 言語の初期化・切替・永続化は共通部品I18nに一本化（他画面と同じ仕組み）。
       I18n.init(T, onLangChange);
       API.post('bootstrap', { takeoutOnly:true }).then(function(r){
-        SETTINGS = r.settings || {}; MENU = (r.menu || []).filter(isTakeoutEnabled); curCat = null;
+        SETTINGS = r.settings || {}; MENU = (r.menu || []).filter(isTakeoutEnabled); curCat = null; MENU_READY=true;
         var bid = SETTINGS.menuTopImageId;
         if (bid){ var b=document.getElementById('banner'); b.src=API.imageUrl(bid); b.style.display='block'; }
         renderCats(); renderMenu(); onLangChange(I18n.lang()); updateCart();
       }).catch(function(){
-        document.getElementById('loadMsg').innerText = tt().loadErr;
+        var load=document.getElementById('loadMsg');
+        if(load)load.innerText=tt().loadErr;
+        else document.getElementById('menu').innerHTML='<div class="loadwrap" id="loadMsg">'+esc(tt().loadErr)+'</div>';
         onLangChange(I18n.lang());
       });
       if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./sw.js').catch(function(){}); }

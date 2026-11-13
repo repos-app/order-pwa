@@ -36,8 +36,9 @@
   function confirmation(wallet, feature, count, lang, maximum, sourceKind) {
     var q = quote(wallet, feature, count);
     var english = lang === 'en';
+    var generating = feature === 'menu_photo';
     var kind = sourceKind === 'image' || sourceKind === 'page'
-      ? sourceKind : feature === 'inventory_image' ? 'image' : 'page';
+      ? sourceKind : feature === 'inventory_image' || generating ? 'image' : 'page';
     var unit = kind === 'image' ? (english ? 'image' : '画像') : (english ? 'page' : 'ページ');
     return (english ? '🤖 AI credit usage confirmation' : '🤖 AIポイント利用確認') + '\n\n' +
       (english ? 'Current balance: ' : '現在のポイント残高：') + q.balance +
@@ -45,7 +46,8 @@
       (english ? 'Unit price: ' : '単価：') + q.unitCost +
       (english ? ' credit' + (q.unitCost === 1 ? '' : 's') + ' / ' + unit + '\n' :
         'ポイント／' + unit + '\n') +
-      (english ? 'Items to analyze: ' : '解析対象：') + q.count +
+      (english ? (generating ? 'Images to generate: ' : 'Items to analyze: ') :
+        (generating ? '生成対象：' : '解析対象：')) + q.count +
       (english ? ' ' + unit + (q.count === 1 ? '' : 's') + '\n' : unit + '\n') +
       (english ? 'Maximum charge: ' : '最大消費：') + q.amount +
       (english ? ' credits\n' : 'ポイント\n') +
@@ -53,7 +55,8 @@
       (english ? ' credits\n\n' : 'ポイント\n\n') +
       (english ? 'The unit price is fixed. Credits are charged only for successful ' +
         (kind === 'image' ? 'images' : 'pages') + '. Continue?' :
-        '単価は固定です。解析に成功した' + unit + 'の分だけポイントを消費します。続行しますか？');
+        '単価は固定です。' + (generating ? '生成' : '解析') + 'に成功した' + unit +
+        'の分だけポイントを消費します。続行しますか？');
   }
   function noChargeConfirmation(wallet, lang) {
     return (lang === 'en' ? '🤖 AI analysis confirmation\n\n' :
@@ -64,6 +67,43 @@
           'Items to analyze: 1 image\nMaximum charge: 0 credits\n\nContinue?'
         : '単価：0ポイント／画像（現在ポイント課金は無効）\n' +
           '解析対象：1画像\n最大消費：0ポイント\n\n続行しますか？');
+  }
+  // Shared, bounded public error vocabulary for AI menu image generation.
+  // Never expose provider exceptions or transport response bodies to users.
+  function imageGenerationError(error, lang) {
+    var code=String(error && (error.code || error.message) || error || '').trim();
+    var en=lang==='en';
+    var messages={
+      ai_request_failed:en
+        ? 'The AI service could not generate the image. Check your credit balance before trying again.'
+        : 'AIサービスが画像を生成できませんでした。ポイント残高を確認してから再度お試しください。',
+      ai_invalid_response:en
+        ? 'The AI service returned an invalid image. No successful image was generated.'
+        : 'AIサービスから正しい画像が返されませんでした。画像の生成は完了していません。',
+      ai_provider_unavailable:en
+        ? 'AI image generation is temporarily unavailable.'
+        : 'AI画像生成サービスは一時的に利用できません。',
+      ai_account_budget_unavailable:en
+        ? 'AI service usage could not be verified. Please retry later.'
+        : 'AIサービスの利用状況を確認できません。しばらくして再試行してください。',
+      ai_account_budget_exhausted:en
+        ? 'The AI service usage limit has been reached. Please retry later.'
+        : 'AIサービスの利用上限に達しています。しばらくして再試行してください。',
+      ai_request_in_progress:en
+        ? 'The previous generation is still processing. Check its result again shortly.'
+        : '前回の画像生成はまだ処理中です。少し経ってから結果を再確認してください。',
+      ai_request_already_refunded:en
+        ? 'The previous generation failed and its credit was returned. Please start a new generation.'
+        : '前回の画像生成は失敗し、ポイントが返却されています。新しく生成してください。',
+      ai_credits_feature_disabled:en
+        ? 'AI image generation is not currently enabled.'
+        : 'AI画像生成は現在有効になっていません。',
+      ai_credit_insufficient:en
+        ? 'Not enough AI credits. Refresh your balance and try again.'
+        : 'AIポイントが不足しています。残高を更新してから再試行してください。',
+    };
+    return Object.prototype.hasOwnProperty.call(messages,code)
+      ? messages[code]+' ('+code+')' : '';
   }
   var confirmLoader = null;
   async function confirm(message) {
@@ -90,6 +130,7 @@
   }
   root.AICreditUI = Object.freeze({decorate:decorate, quote:quote,
     balanceLabel:balanceLabel, confirmation:confirmation,
-    noChargeConfirmation:noChargeConfirmation, confirm:confirm});
+    noChargeConfirmation:noChargeConfirmation, imageGenerationError:imageGenerationError,
+    confirm:confirm});
   decorate();
 })(typeof window === 'undefined' ? globalThis : window);

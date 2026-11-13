@@ -39,7 +39,7 @@
 <section class="card" id="requestCard"><div class="lang-ja"><h2>削除を申請</h2></div><div class="lang-en"><h2>Request deletion</h2></div><label for="reason"><span class="lang-ja">理由（任意・500文字まで）</span><span class="lang-en">Reason (optional, up to 500 characters)</span></label><textarea id="reason" maxlength="500"></textarea><label for="password"><span class="lang-ja">現在のパスワード</span><span class="lang-en">Current password</span></label><input id="password" type="password" autocomplete="current-password"><label class="check"><input id="confirm" type="checkbox"><span><span class="lang-ja">上記の削除対象と注意事項を確認しました。</span><span class="lang-en">I have reviewed the deletion scope and important notes above.</span></span></label><div class="actions"><button class="btn danger" id="requestBtn"><span class="lang-ja">削除を申請する</span><span class="lang-en">Request deletion</span></button></div><div id="requestMsg" class="status"></div></section>
 <section class="card" id="cancelCard" style="display:none"><div class="lang-ja"><h2>申請を取り消す</h2><p>取消期限より前で、完全削除処理が開始されていない申請を取り消します。</p></div><div class="lang-en"><h2>Cancel request</h2><p>Cancel before the cancellation deadline and before permanent deletion starts.</p></div><label for="cancelPassword"><span class="lang-ja">現在のパスワード</span><span class="lang-en">Current password</span></label><input id="cancelPassword" type="password" autocomplete="current-password"><div class="actions"><button class="btn secondary" id="cancelBtn"><span class="lang-ja">申請を取り消す</span><span class="lang-en">Cancel request</span></button></div><div id="cancelMsg" class="status"></div></section>
 <div class="card"><p class="muted"><span class="lang-ja">ログイン中のスタッフが登録オーナーでない場合、この画面では申請できません。</span><span class="lang-en">A signed-in staff member who is not the registered owner cannot submit this request.</span></p><a href="mailto:admin@izakanpai.com">admin@izakanpai.com</a></div></main>
-<script src="./config.js?v=auth2"></script><script src="./api.js?v=auth2"></script><script src="./legal.js?v=auth2"></script><script src="./account-owner.js?v=auth4"></script><script>
+<script src="./config.js?v=auth2"></script><script src="./api.js?v=auth2"></script><script src="./legal.js?v=auth2"></script><script src="./account-owner.js?v=auth5"></script><script>
 (function(){
   function recover(){
     var el=document.activeElement;
@@ -83,7 +83,8 @@
   reasonField.addEventListener('beforeinput',function(e){if(e.isComposing||e.inputType==='insertCompositionText'||!e.inputType||e.inputType.indexOf('insert')!==0)return;var incoming=e.data;if(incoming===null&&e.dataTransfer)incoming=e.dataTransfer.getData('text/plain');if(incoming!==null&&reasonOverflow(incoming)){e.preventDefault();reasonError();}});
   reasonField.addEventListener('paste',function(e){if(reasonOverflow(e.clipboardData.getData('text'))){e.preventDefault();reasonError();}});
   document.getElementById('requestBtn').addEventListener('click',function(e){if(reasonField.value.trim().length>500){e.stopImmediatePropagation();e.preventDefault();reasonError();}},true);
-  function errorText(e){var code=String((e&&e.error)||(e&&e.message)||e||'');if(code.indexOf('account_owner_required')>=0)return lang()==='en'?'Only the registered store owner can use this function.':'登録された店舗オーナーのみ利用できます。';if(code.indexOf('cancel_deadline_passed')>=0||code.indexOf('erasure_in_progress')>=0)return lang()==='en'?'The cancellation deadline has passed and permanent deletion is being processed.':'取消期限を過ぎたため、完全削除処理中です。';return lang()==='en'?'The operation failed. Please try again.':'処理に失敗しました。もう一度お試しください。';}
+  // Share error mapping with the POS instead of hiding account-specific codes.
+  function errorText(e){return API.userErrorText(e&&e.error||e);}
   function localDeadline(v){if(!v)return '-';try{return new Intl.DateTimeFormat(lang()==='en'?'en-US':'ja-JP',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(v));}catch(e){return v;}}
   function render(d){var current=document.getElementById('current'),pending=d&&d.status==='pending',processing=pending&&d.phase==='processing';document.getElementById('cancelCard').style.display=pending&&d.canCancel?'block':'none';document.getElementById('requestCard').style.display=pending?'none':'block';if(!d||d.status==='none'){current.style.display='none';return;}var text='';if(pending){if(processing)text=lang()==='en'?'Cancellation deadline passed. Permanent deletion is being processed.':'取消期限を過ぎました。完全削除処理中です。';else text=(lang()==='en'?'Deletion request pending. Cancel by: ':'削除申請中　取消期限: ')+localDeadline(d.cancelDeadlineAt);}else{var labels=lang()==='en'?{cancelled:'Previous request cancelled',completed:'Deletion completed'}:{cancelled:'前回の申請は取り消されました',completed:'削除処理が完了しました'};text=labels[d.status]||d.status;}current.textContent=text;current.className='status '+(processing?'err':'ok');current.style.display='block';}
   async function load(){try{var state=await rpc('getAccountDeletionStatus');render(state);}catch(e){msg('current',errorText(e),false);document.getElementById('requestCard').style.display='none';}}
@@ -91,4 +92,16 @@
   document.getElementById('cancelBtn').addEventListener('click',async function(){var pass=document.getElementById('cancelPassword').value;if(!pass){msg('cancelMsg',lang()==='en'?'Enter your current password.':'現在のパスワードを入力してください。',false);return;}this.disabled=true;try{var d=await rpc('cancelAccountDeletionRequest',{password:pass});if(!d.success){msg('cancelMsg',d.error==='wrong_password'?(lang()==='en'?'Incorrect password.':'パスワードが違います。'):errorText(d),false);return;}document.getElementById('cancelPassword').value='';render(d);msg('current',lang()==='en'?'The deletion request was cancelled.':'削除申請を取り消しました。',true);}catch(e){msg('cancelMsg',errorText(e),false);}finally{this.disabled=false;}});
   document.addEventListener('DOMContentLoaded',function(){authReady.then(function(ok){if(ok){OwnerAccountUI.init(rpc);load();}});});
 })();
+</script>
+<script src="./help.js?v=auth2"></script>
+<script>
+  HelpUI.register({
+    title: 'アカウント管理', titleEn: 'Account management',
+    items: [
+      { ja: '① 登録オーナーは現在のパスワードを入力してメールアドレス変更の確認メールを送れます。新アドレスで確認が完了するまでは旧アドレスが有効です。', en: '① The registered owner can request a verification email for a new address using the current password. The old address stays active until the new one is verified.' },
+      { ja: '② パスワード変更は現在のパスワードと8文字以上の新しいパスワードで行います。変更後は新しいパスワードで再ログインしてください。', en: '② Change the password using the current password and a new one of at least eight characters. Sign in again with the new password.' },
+      { ja: '③ 登録オーナーだけが店舗の削除を申請できます。削除対象を確認し、現在のパスワードで申請してください。申請後30日以内なら取り消せます。', en: '③ Only the registered owner may request workspace deletion. Review the deletion scope and confirm with the current password. You can cancel within 30 days.' },
+      { ja: '④ 削除期限後の完全削除は取り消し・復元できません。必要なCSVデータは期限前に書き出し、App Store／Google Playの定期購入は別途解約してください。', en: '④ Permanent deletion after the deadline cannot be undone. Export needed CSV data beforehand and cancel App Store or Google Play subscriptions separately.' }
+    ]
+  });
 </script></body></html>

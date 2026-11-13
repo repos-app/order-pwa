@@ -4,6 +4,20 @@
   const CFG = Object.freeze(Object.assign({}, window.APP_CONFIG || {}));
   const AUTH_PREFIX = CFG.AUTH_STORAGE_PREFIX;
   const API = {};
+  // Shared CSV serializer for Backup and Data Admin. Quote-based CSV escaping
+  // alone does not protect spreadsheet viewers from formula execution.
+  // Prefix potentially active *text* fields with an apostrophe. A doubled
+  // apostrophe protects original text that already starts with one.
+  API.csvSafeCell = function (value) {
+    var s = value == null ? '' : String(value);
+    if (typeof value === 'string' && /^'*[ \t\r\n]*[=+\-@]/.test(s)) s = "'" + s;
+    if (/[",\r\n]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  };
+  API.csvRestoreCell = function (value) {
+    var s = String(value == null ? '' : value);
+    return /^'+[ \t\r\n]*[=+\-@]/.test(s) ? s.slice(1) : s;
+  };
 
   function publicStoreFromQuery() {
     if (typeof location === 'undefined') return '';
@@ -51,6 +65,17 @@
   function storedToken() {
     try { return localStorage.getItem(AUTH_PREFIX + 'mgmtToken') || ''; } catch (e) { return ''; }
   }
+  function setStoredToken(token) {
+    var before = storedToken(), next = String(token || '');
+    if (next) localStorage.setItem(AUTH_PREFIX + 'mgmtToken', next);
+    else localStorage.removeItem(AUTH_PREFIX + 'mgmtToken');
+    if (before !== next) {
+      // localStorage 'storage' never fires in the writing document.
+      // The shared header must see refresh/logout without a page reload.
+      // No credentials are carried in the event.
+      try { window.dispatchEvent(new Event('iz-auth-session-changed')); } catch (_) {}
+    }
+  }
   function storedRefreshToken() {
     try { return localStorage.getItem(AUTH_PREFIX + 'mgmtRefreshToken') || ''; } catch (e) { return ''; }
   }
@@ -78,7 +103,7 @@
       if (!validRefreshToken(r.refreshToken)) throw new Error('invalid_login_response');
       localStorage.setItem(AUTH_PREFIX + 'mgmtRefreshToken', r.refreshToken);
     } else localStorage.removeItem(AUTH_PREFIX + 'mgmtRefreshToken');
-    localStorage.setItem(AUTH_PREFIX + 'mgmtToken', r.token);
+    setStoredToken(r.token);
     if (storedToken() !== r.token) throw new Error('auth_storage_unavailable');
   };
   API.isCurrentToken = function (token) { return !!token && storedToken() === token; };
@@ -98,7 +123,7 @@
     return Promise.resolve(Object.freeze({ token:token, storeId:storeId }));
   };
   API.clearSession = function () {
-    try { localStorage.removeItem(AUTH_PREFIX + 'mgmtToken'); localStorage.removeItem(AUTH_PREFIX + 'mgmtRefreshToken'); } catch (e) {}
+    try { setStoredToken(''); localStorage.removeItem(AUTH_PREFIX + 'mgmtRefreshToken'); } catch (e) {}
   };
   API.imageUrl = function (value) {
     var v = String(value || '');
@@ -149,7 +174,7 @@
   // 定期ポーリング等、待機表示を出さない（点滅防止）アクション
   const BG_ACTIONS = { checkToken: 1, getOrders: 1, getOperationsDelta: 1, checkoutStatus: 1, bootstrap: 1, getSettings: 1, getStaffCalls: 1, getTableCheckoutStamp: 1 };
   const TABLE_SESSION_ACTIONS = { submitOrder:1, getOrdersByTable:1, getTableCheckoutStamp:1, setTablePartySize:1, getTablePartySize:1, callStaff:1, submitFeedback:1 };
-  const BG_RPC = { getPrintQueue: 1, getPrintQueueCounts: 1, getSettings: 1, searchMenuImages: 1 };
+  const BG_RPC = { getPrintQueue: 1, getPrintQueueCounts: 1, getSettings: 1, searchMenuImages: 1, searchMenuImagesV2: 1 };
   const BACKGROUND_MUTATION_ACTIONS = { bridgePoll:1, bridgeAck:1 };
   const BACKGROUND_MUTATION_RPC = { nativePrintPoll:1, nativePrintAck:1, searchMenuImages:1 };
 
@@ -236,7 +261,7 @@
     if(typeof document!=='undefined'&&document.addEventListener){document.addEventListener('click',function(event){if(!_activeMutations.size)return;event.preventDefault();event.stopImmediatePropagation();API.guardNavigation();},true);document.addEventListener('submit',function(event){if(!_activeMutations.size)return;event.preventDefault();event.stopImmediatePropagation();API.guardNavigation();},true);}
     try{localStorage.removeItem(_mutationMarkerKey);}catch(e){}
   }
-  function _isEN() { try { if(window.I18n&&typeof window.I18n.lang==='function')return window.I18n.lang()==='en';var s=localStorage.getItem('lang');if(s==='ja'||s==='en')return s==='en';var first=(navigator.languages&&navigator.languages.length)?navigator.languages[0]:navigator.language;return String(first||'').toLowerCase().indexOf('ja')!==0; } catch (e) { return true; } }
+  function _isEN() { try { if(window.I18n&&typeof window.I18n.lang==='function')return window.I18n.lang()==='en';var visible=typeof document!=='undefined'&&document.documentElement&&document.documentElement.dataset&&document.documentElement.dataset.lang;if(visible==='ja'||visible==='en')return visible==='en';var s=localStorage.getItem('lang');if(s==='ja'||s==='en')return s==='en';var first=(navigator.languages&&navigator.languages.length)?navigator.languages[0]:navigator.language;return String(first||'').toLowerCase().indexOf('ja')!==0; } catch (e) { return true; } }
   API.userErrorText = function (error, fallback) {
     var raw = String(error && (error.code || error.message) || error || '').trim();
     var en = _isEN();
@@ -249,6 +274,9 @@
     var retryLater = en ? 'Too many attempts were made. Please wait a while and try again.' : '操作回数が多すぎます。しばらく待ってからもう一度お試しください。';
     var code = raw.toLowerCase();
     if (!raw) return generic;
+    if (code === 'menu_category_stale' || code === 'category_order_stale' || code === 'category_state_changed')
+      return en ? 'The menu category was updated on another device. Refresh the menu editor before saving again.'
+        : '別の端末でカテゴリが変更されています。メニュー編集画面を更新してから、内容を確認して保存してください。';
     if (code === 'unauthorized' || code === 'invalid_refresh_session' || code === 'stale_session_response') return en ? 'Your session has expired. Please log in again.' : 'ログインの有効期限が切れました。再度ログインしてください。';
     if (code === 'forbidden' || code.indexOf('forbidden_page:') === 0 || code === 'forbidden_fn') return permission;
     if (code === 'owner_cannot_delete') return en ? 'The registered owner cannot be deleted.' : '登録オーナーは削除できません。';
@@ -273,12 +301,27 @@
     if (code === 'data_admin_schema_outdated') return en
       ? 'The database update required for Data Admin has not been applied. Apply the latest database migration, then try again.'
       : 'データ管理に必要なデータベース更新が未適用です。最新のデータベースマイグレーションを適用してから、もう一度お試しください。';
+    if (code === 'transaction_reset_schema_unavailable' || code === 'transaction_reset_schema_invalid') return en
+      ? 'Cannot safely inspect all database tables. Transaction deletion was blocked; contact system support.'
+      : '全DBテーブルを安全に検証できないため、取引データの削除を中止しました。システム管理者に確認してください。';
+    if (code === 'transaction_reset_unclassified_schema' || code === 'transaction_reset_unscoped_child' || code === 'transaction_reset_protected_child' || code === 'transaction_reset_policy_conflict' || code === 'transaction_reset_dependency_cycle') return en
+      ? 'An added table has not passed the transaction/master classification check. No data was deleted. Update the schema policy and CI contract.'
+      : '追加テーブルの取引／マスタ分類が未確認です。削除していません。DB分類・CIゲートを更新してください。';
+    if (code === 'transaction_reset_schema_outdated') return en
+      ? 'This database is missing a transaction-reset migration or concurrent-write lock. No data was deleted. Apply all current migrations.'
+      : '取引データ初期化に必要なDBマイグレーションか書き込みロックが不足しています。削除していません。最新マイグレーションを適用してください。';
+    if (code === 'transaction_reset_incomplete') return en
+      ? 'Transaction reset could not be verified. Check the backup and database before retrying.'
+      : '取引データ初期化の完了を検証できませんでした。再操作前にバックアップとDB状態を確認してください。';
     if (code === 'linked_commission_entries') return en
       ? 'These order items have settled commission history and cannot be deleted or replaced by themselves. Delete or replace the Orders table instead.'
       : 'この注文明細には確定済みの歩合履歴があるため、注文明細だけを削除・全置換できません。Ordersテーブル側から削除または全置換してください。';
     if (code === 'bad_header' || code === 'no_matching_columns') return en
       ? 'The CSV header does not match the selected table. Export that table again and import the exported CSV without changing its header.'
       : 'CSVのヘッダーが選択したテーブルと一致しません。対象テーブルをもう一度書き出し、ヘッダーを変更せずにインポートしてください。';
+    if (code === 'bad_rows') return en
+      ? 'The CSV has missing, extra, or invalid cells. Correct its rows to match the header before importing.'
+      : 'CSVの行に欠落・余分なセルや不正な値があります。全行の列数をヘッダーと一致させてください。';
     if (code === 'invalid_parent') return en
       ? 'The CSV contains detail rows whose parent record does not exist in this store. Check the file and its selected table, then try again.'
       : 'CSVに、この店舗に存在しない親データを参照する明細が含まれています。ファイルと対象テーブルを確認して、もう一度お試しください。';
@@ -294,6 +337,12 @@
     if (code === 'tenant_write_frozen' || code === 'tenant_write_fence_not_ready') return en
       ? 'This store database is temporarily unavailable for writes during maintenance. Wait a moment and try again.'
       : 'メンテナンス中のため、この店舗データベースへの書き込みを一時停止しています。少し待ってから、もう一度お試しください。';
+    if (code === 'table_in_use') return en
+      ? 'One or more seats are still occupied or have active orders. Finish their checkout before reducing the seat count or removing a seating type.'
+      : '使用中・未会計の席があるため席数の削減や席種の削除はできません。該当席の会計・退席を完了してから保存してください。';
+    if (code === 'invalid_custom_seat_types' || code === 'invalid_seat_count' || code === 'too_many_seats') return en
+      ? 'Check each seating type name and count (0–200 each, 1,000 seats in total).'
+      : '席種の名称と席数を確認してください（各0〜200席、合計1,000席以内）。';
     if (code === 'invalid_table') return en ? 'The selected table is no longer valid. Select the table again and retry.' : '選択した席が現在の店舗設定と一致しません。席を選び直して再試行してください。';
     if (code === 'no_items') return en ? 'There are no items in this order.' : '注文商品がありません。';
     if (code === 'invalid_quantity') return en ? 'One or more item quantities are invalid. Review the order and retry.' : '商品の数量が正しくありません。注文内容を確認して再試行してください。';
@@ -307,8 +356,30 @@
     if (code === 'order_print_enqueue_failed') return en ? 'The order was saved, but the print job could not be queued. The order is registered; check Printer Settings or the print host before printing again.' : '注文は登録されましたが、印刷ジョブを登録できませんでした。注文自体は登録済みです。再印刷する前にプリンター設定または印刷担当端末を確認してください。';
     if (code === 'store_context_mismatch' || code === 'store_context_required' || code === 'tenant_store_mismatch') return en ? 'The current store and login session do not match. Sign in to this store again before retrying.' : '現在の店舗とログイン情報が一致していません。この店舗へログインし直してから再試行してください。';
     if (code === 'environment_mismatch') return en ? 'The app environment does not match the server environment. Reopen the app and sign in again.' : 'アプリとサーバーの接続環境が一致していません。アプリを開き直して再ログインしてください。';
-    if (code === 'request_failed') return en ? 'The order response could not be confirmed. Check the order list before retrying; retrying the same order is safe.' : '注文結果を確認できませんでした。再試行前に注文一覧を確認してください。同じ注文の再試行は二重登録されないよう保護されています。';
-    if (code === 'internal_error' || code === 'api_error') return en ? 'The server could not complete the order because of an internal error. Retry after a moment; if it continues, report this error code.' : 'サーバー内部エラーで注文を完了できませんでした。少し待って再試行し、続く場合はこのエラーコードを連絡してください。';
+    if (code === 'request_failed') return en ? 'The request result could not be confirmed. Check the relevant list or history before trying again; do not blindly repeat a payment or other write.' : '処理結果を確認できませんでした。再試行前に対象の一覧・履歴で反映状況を確認してください。会計などの書き込みを確認なしに繰り返さないでください。';
+    if (code === 'internal_error' || code === 'api_error') return en ? 'A server error prevented confirmation of this operation. Check whether the change was saved before retrying. If it continues, contact support with code: '+code+'.' : 'サーバー内部エラーで処理結果を確認できません。再試行前に保存・更新結果を確認してください。続く場合はサポートへエラーコード '+code+' を伝えてください。';
+    if (code === 'api_upstream_unavailable' || code === 'common_gateway_unavailable' || code === 'control_route_unavailable') return en
+      ? 'The service is temporarily unavailable. Check whether the operation was completed before retrying; contact support if it continues. ('+code+')'
+      : 'サーバーのサービスが一時的に利用できません。再試行前に処理結果を確認し、続く場合はサポートへご連絡ください。（'+code+'）';
+    if (code === 'common_gateway_busy' || code === 'server_busy_retry') return en
+      ? 'The server is temporarily busy. Wait a moment, check the result, then try again if needed.'
+      : 'サーバーが混み合っています。少し待ち、処理結果を確認してから必要に応じて再試行してください。';
+    if (code === 'account_owner_required') return en ? 'Only the registered store owner may perform this action. Sign in using the owner account.' : 'この操作は登録済みの店舗オーナー専用です。オーナーのアカウントでログインしてください。';
+    if (code === 'wrong_password') return en ? 'The current password is incorrect. Check it and try again.' : '現在のパスワードが違います。確認して入力し直してください。';
+    if (code === 'reason_too_long') return en ? 'The reason must be 500 characters or fewer.' : '理由は500文字以内で入力してください。';
+    if (code === 'no_pending_request') return en ? 'There is no pending deletion request to cancel. Refresh the account page to check its current status.' : '取り消し可能な削除申請がありません。アカウント画面を再表示して現在の状態を確認してください。';
+    if (code === 'cancel_deadline_passed' || code === 'erasure_in_progress') return en
+      ? 'The cancellation deadline has passed or permanent deletion has started. Cancellation is no longer available.'
+      : '取消期限を過ぎたか、完全削除処理が始まっています。この申請は取り消せません。';
+    if (code === 'owner_email_missing') return en ? 'The store owner has no registered email address. Add one before requesting deletion.' : 'オーナーのメールアドレスが未登録です。アドレスを登録してから削除申請してください。';
+    if (code === 'operator_email_not_configured') return en ? 'Deletion notifications cannot be sent because the operator email is not configured. Contact support.' : '運営側の通知メール設定が未完了のため削除申請を進められません。サポートへご連絡ください。';
+    if (code === 'email_unverified') return en ? 'Verify your email address using the confirmation link before continuing.' : 'メール内の確認リンクでアドレスを認証してから操作してください。';
+    if (code === 'email_taken' || code === 'email_taken_or_pending') return en ? 'This email address is already registered or pending verification. Choose another email address.' : 'このメールアドレスは登録済みか確認待ちです。別のメールアドレスをご利用ください。';
+    if (code === 'duplicate_code' || code === 'discount_code_exists') return en ? 'This code is already in use. Enter a different code.' : '同じコードが既に登録されています。別のコードを入力してください。';
+    if (code === 'insufficient_stock') return en ? 'Not enough stock is available. Check the inventory and adjust the quantity.' : '在庫数が不足しています。在庫と数量を確認してください。';
+    if (code === 'already_refunded' || code === 'already_void' || code === 'already_settled') return en
+      ? 'This transaction has already been completed or cancelled. Refresh the list and check its current status before taking another action.'
+      : 'この取引は既に処理済みです。一覧を再表示し、現在の状態を確認してから操作してください。';
     if (code === 'translation_unavailable') return en
       ? 'Automatic translation is temporarily unavailable. Please try saving again later, or enter both Japanese and English.'
       : '自動翻訳を一時的に利用できません。時間をおいて再度保存するか、日本語・英語の両方を入力してください。';
@@ -332,23 +403,57 @@
     if (code === 'stale_recipe_reference') return en
       ? 'A menu item or inventory item used by this recipe has changed. Refresh the screen, review the selections, and save again.'
       : 'レシピが参照するメニューまたは在庫材料が更新されました。画面を更新して選択内容を確認し、もう一度保存してください。';
+    if (code === 'duplicate_recipe') return en
+      ? 'The same menu item and ingredient appear more than once. Remove duplicate recipe rows and save again.'
+      : '同じメニューと材料の組合せが複数行あります。重複行を削除してから保存してください。';
+    if (code === 'credential_import_forbidden') return en
+      ? 'The CSV includes a password, token, or secret column. Remove credential columns before importing.'
+      : 'CSVにパスワード・トークンなどの機密列が含まれています。機密列を除外してから取り込んでください。';
+    if (code === 'invalid_birthday_coupon_amount') return en
+      ? 'The birthday coupon amount is invalid. Set birthdayCouponAmount to a positive finite amount and retry.'
+      : '誕生日クーポンの金額が不正です。birthdayCouponAmountを正の有限な金額に修正して再試行してください。';
+    if (code === 'backup_no_tables') return en
+      ? 'The server returned no backup tables. The ZIP was not saved; retry after checking the connection.'
+      : 'バックアップ対象テーブルを取得できませんでした。ZIPは保存していません。接続を確認して再試行してください。';
+    if (/^backup_table_failed: [a-z_]+$/.test(code)) return en
+      ? 'Backup stopped because the table ' + code.slice(21) + ' could not be exported. No incomplete ZIP was saved.'
+      : 'テーブル ' + code.slice(21) + ' の書き出しに失敗したため、バックアップを中止しました。不完全なZIPは保存していません。';
     if (code === 'invalid_url') return en ? 'The image URL is invalid.' : '画像URLが正しくありません。';
     if (code === 'not_image') return en ? 'The selected URL did not return an image. Choose another image.' : '選択したURLから画像を取得できませんでした。別の画像を選択してください。';
     if (code === 'too_large') return en ? 'The image is too large. Choose an image smaller than 8 MB.' : '画像サイズが大きすぎます。8MB未満の画像を選択してください。';
     if (code === 'image_fetch_timeout') return en ? 'The image server did not respond in time. Choose another image or try again.' : '画像配信元からの応答がタイムアウトしました。別の画像を選ぶか、もう一度お試しください。';
     if (code === 'image_fetch_failed') return en ? 'The image could not be fetched. Choose another image or try again.' : '画像を取得できませんでした。別の画像を選ぶか、もう一度お試しください。';
-    if (code === 'http_403') return en ? 'The image provider refused the download. Choose another image.' : '画像配信元から取得を拒否されました。別の画像を選択してください。';
-    if (code === 'http_404') return en ? 'The image is no longer available. Choose another image.' : '画像が見つかりません。別の画像を選択してください。';
-    if (code === 'http_429') return en ? 'The image provider is temporarily rate-limiting downloads. Try again later.' : '画像配信元の利用上限に達しています。時間をおいて再度お試しください。';
+    // HTTP codes apply to all API operations, not only image fetches.
+    if (code === 'http_403') return en ? 'The server denied this operation (HTTP 403). Check your login and permissions before trying again.' : 'サーバーが操作を拒否しました（HTTP 403）。ログイン状態と操作権限を確認してください。';
+    if (code === 'http_404') return en ? 'The requested resource was not found (HTTP 404). Reopen the screen and verify the selected item.' : '対象のデータまたはサービスが見つかりません（HTTP 404）。画面を開き直して対象を確認してください。';
+    if (code === 'http_429') return en ? 'Too many requests were made (HTTP 429). Wait a moment and check the operation result before retrying.' : 'アクセス回数の制限に達しました（HTTP 429）。少し待ち、処理結果を確認してから再試行してください。';
     if (code.indexOf('plan_feature_pro_required') === 0) return en ? 'This feature is available on the Pro plan.' : 'この機能はProプランでご利用いただけます。';
     if (code === 'request_timeout') return en ? 'The order request timed out. Please check the order status before trying again.' : '注文送信がタイムアウトしました。注文状況を確認してから再試行してください。';
-    if (/^http_5\d\d$/.test(code)) return en ? 'The server could not complete the request. Please check the operation status before trying again.' : 'サーバー側で処理を完了できませんでした。再試行する前に処理結果をご確認ください。';
+    if (/^http_5\d\d$/.test(code)) return en ? 'The server returned '+code+'. Check the operation status before retrying; contact support with this code if it continues.' : 'サーバーエラー '+code+' が発生しました。再試行前に処理結果を確認し、続く場合はこのコードをサポートへお伝えください。';
     if (code === 'locked, please retry') return en ? 'The order could not be accepted because the server was busy. Please try again.' : 'サーバーが混み合っているため注文を受け付けられませんでした。もう一度お試しください。';
-    if (/^(?:http_\d+|save_failed|delete_failed|load_failed|server_busy_retry|auth_environment_not_configured)$/.test(code)) return generic;
+    if (code === 'save_failed') return en
+      ? 'The save result could not be confirmed. Check whether the change is already reflected before saving again. (save_failed)'
+      : '保存結果を確認できませんでした。もう一度保存する前に、変更が反映済みか確認してください。（save_failed）';
+    if (code === 'delete_failed') return en
+      ? 'The deletion result could not be confirmed. Refresh the list before attempting to delete again. (delete_failed)'
+      : '削除結果を確認できませんでした。再度削除する前に一覧を更新して状態を確認してください。（delete_failed）';
+    if (code === 'load_failed') return en
+      ? 'The data could not be loaded. Check your connection and reopen the screen. (load_failed)'
+      : 'データを読み込めませんでした。通信状態を確認して画面を開き直してください。（load_failed）';
+    if (code === 'auth_environment_not_configured') return en
+      ? 'The login service has not been configured correctly. Contact support. (auth_environment_not_configured)'
+      : 'ログインサービスの設定が不完全です。サポートへご連絡ください。（auth_environment_not_configured）';
+    if (/^http_\d+$/.test(code)) return en ? 'The server returned error '+code+'. Check the result before retrying and contact support if the issue continues.' : 'サーバーエラー '+code+' が発生しました。再試行前に結果を確認し、続く場合はサポートへご連絡ください。';
     if (/failed to fetch|networkerror|aborterror|fetch is aborted|\baborted\b|timeout/i.test(raw)) return network;
     if (/d1_error|sqlite|constraint|primary\s*key|foreign\s*key|sql\b|typeerror|referenceerror|syntaxerror|stack|\bat\s+[^\s]+\s*\(/i.test(raw)) return generic;
     if (/[ぁ-んァ-ヶ一-龠]/.test(raw)) return en ? generic : raw;
     if (/\s/.test(raw) && !/^[A-Za-z]+(?:Error|Exception)\b/.test(raw)) return raw;
+    // A stable, compact public code is safe to show, unlike exception text,
+    // SQL or HTTP response bodies. This keeps unmapped future business errors
+    // diagnosable on-screen without pretending to know their root cause.
+    if (/^[a-z][a-z0-9_]{2,63}$/.test(code) && !/^(?:error|failed|unknown|unknown_error)$/.test(code))
+      return en ? 'The operation could not be completed. Check the result before retrying; if the issue continues, contact support with code: '+code+'.'
+        : '処理を完了できませんでした。再試行前に結果を確認し、続く場合はサポートへエラーコード '+code+' をお伝えください。';
     return generic;
   };
   const _errBar = (function () {
@@ -447,7 +552,7 @@
           throw invalid;
         }
         localStorage.setItem(AUTH_PREFIX + 'mgmtRefreshToken', nextRefresh);
-        localStorage.setItem(AUTH_PREFIX + 'mgmtToken', json.token);
+        setStoredToken(json.token);
         return json.token;
       }).catch(function (error) {
         if (error && error.__staleLifecycle) throw error;
@@ -585,7 +690,7 @@
       if (json.newToken && API.isCurrentToken(send.token)) {
         const before = tokenInfo(send.token), after = tokenInfo(json.newToken);
         if (before && after && before.role === after.role && before.store === after.store && before.uid === after.uid && before.audience === after.audience) {
-          try { localStorage.setItem(AUTH_PREFIX + 'mgmtToken', json.newToken); } catch (e) {}
+          try { setStoredToken(json.newToken); } catch (e) {}
         }
       }
       return json;

@@ -10,15 +10,44 @@
     node.className = 'status ' + (ok ? 'ok' : 'err');
     node.style.display = '';
   }
+  function showMappedError(id,error) {
+    var node=el(id);
+    if(!node)return;
+    node.textContent=API.userErrorText(error);
+    node.className='status err';
+    node.style.display='';
+  }
+  function ownerEmailRequestError(error) {
+    var messages = {
+      wrong_password: ['現在のパスワードが違います。', 'Incorrect current password.'],
+      same_email: ['現在と同じメールアドレスです。', 'This is already your email address.'],
+      email_taken: [
+        'このメールアドレスは既に他の店舗のオーナーに登録されています。別のアドレスを指定してください。',
+        'This email address is already registered to another store owner. Use a different address.'
+      ],
+      email_change_check_unavailable: [
+        'メールアドレスの重複確認ができませんでした。後で再試行してください。確認メールは送信していません。',
+        'Email availability could not be checked. Try again later. No verification email was sent.'
+      ],
+      email_change_sync_pending: [
+        '前のメールアドレス変更を同期中です。確認リンクから再試行してください。',
+        'The previous email change is still syncing. Retry using its verification link.'
+      ],
+      retry_later: ['試行回数の上限です。しばらくしてから再試行してください。',
+        'Too many attempts. Please try again later.'],
+      email_delivery_failed: ['メールを送信できませんでした。後で再試行してください。',
+        'The verification email could not be delivered. Try again later.']
+    };
+    return messages[error] || null;
+  }
   window.OwnerAccountUI = {
     init: async function (rpc) {
       var profile;
       try {
         profile = await rpc('getOwnerAccountProfile');
-        if (!profile || profile.success !== true || !profile.loginId) throw new Error('owner_required');
-      } catch (_) {
-        show('ownerStatus', '登録された店舗オーナーのみ利用できます。',
-          'Only the registered store owner can use account management.', false);
+        if (!profile || profile.success !== true || !profile.loginId) throw new Error('account_owner_required');
+      } catch (error) {
+        showMappedError('ownerStatus',error);
         el('requestCard').style.display = 'none';
         el('cancelCard').style.display = 'none';
         return;
@@ -45,22 +74,17 @@
           var result = await rpc('requestOwnerEmailChange', { newEmail: next, password: password,
             lang: document.documentElement.dataset.lang === 'en' ? 'en' : 'ja' });
           if (!result || result.success !== true) {
-            show('ownerEmailMsg',
-              result && result.error === 'wrong_password' ? '現在のパスワードが違います。' :
-              result && result.error === 'same_email' ? '現在と同じメールアドレスです。' :
-              'メールを送信できませんでした。入力内容を確認して再試行してください。',
-              result && result.error === 'wrong_password' ? 'Incorrect current password.' :
-              result && result.error === 'same_email' ? 'This is already your email address.' :
-              'The email could not be sent. Check your details and try again.', false);
+            var message = ownerEmailRequestError(result && result.error);
+            if(message)show('ownerEmailMsg', message[0], message[1], false);
+            else showMappedError('ownerEmailMsg',result&&result.error||'email_change_failed');
             return;
           }
           el('ownerEmailPassword').value = '';
           show('ownerEmailMsg',
             '新しいメールアドレスへ確認リンクを送りました。確認完了までは元のアドレスが有効です。',
             'A verification link was sent to your new address. Your old address remains active until confirmed.', true);
-        } catch (_) {
-          show('ownerEmailMsg', '通信に失敗しました。再試行してください。',
-            'Network error. Please try again.', false);
+        } catch (error) {
+          showMappedError('ownerEmailMsg',error);
         } finally { this.disabled = false; }
       });
 
@@ -83,8 +107,7 @@
           });
           var result = response && response.data;
           if (!result || result.success !== true) {
-            show('ownerPasswordMsg', 'パスワードを変更できませんでした。現在のパスワードをご確認ください。',
-              'Password change failed. Check your current password.', false);
+            showMappedError('ownerPasswordMsg',result&&result.error||'password_change_failed');
             return;
           }
           el('ownerOldPass').value = '';
@@ -93,9 +116,8 @@
           show('ownerPasswordMsg',
             '変更しました。既存のログインは無効になったため、新しいパスワードで再ログインしてください。',
             'Password updated. All prior sessions were revoked. Log in again.', true);
-        } catch (_) {
-          show('ownerPasswordMsg', '通信に失敗しました。再試行してください。',
-            'Network error. Please try again.', false);
+        } catch (error) {
+          showMappedError('ownerPasswordMsg',error);
         } finally { this.disabled = false; }
       });
     }

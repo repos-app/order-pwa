@@ -174,6 +174,31 @@
         overlay._helpRefreshLanguage();
         overlay.classList.add('on');
       }
+      function attachStandaloneHelp() {
+        var top = document.querySelector('header.top');
+        if (!top) return false;
+        var title = top.querySelector('h1');
+        if (title) {
+          title.style.flex = '1 1 auto';
+          title.style.minWidth = '0';
+          title.style.whiteSpace = 'nowrap';
+          title.style.overflow = 'hidden';
+          title.style.textOverflow = 'ellipsis';
+        }
+        var btn = document.getElementById('standaloneHelpBtn');
+        if (!btn) {
+          btn = document.createElement('button');
+          btn.type = 'button'; btn.id = 'standaloneHelpBtn';
+          top.insertBefore(btn, top.querySelector('#langBtn'));
+        }
+        btn.textContent = '❓';
+        btn.title = currentLang() === 'en' ? 'Help' : 'ヘルプ';
+        btn.setAttribute('aria-label', btn.title);
+        btn.style.minWidth = '44px'; btn.style.minHeight = '44px';
+        btn.style.flexShrink = '0';
+        btn.onclick = function () { openHelp(); };
+        return true;
+      }
       function attachHeaderHelp() {
         var btn = document.getElementById('izHeaderHelp');
         if (!btn) return false;
@@ -186,10 +211,15 @@
         return true;
       }
       if (!attachHeaderHelp()) {
+        attachStandaloneHelp();
         var tries = 0;
         var timer = setInterval(function () {
           tries++;
-          if (attachHeaderHelp() || tries >= 40) clearInterval(timer);
+          if (attachHeaderHelp()) {
+            var standalone = document.getElementById('standaloneHelpBtn');
+            if (standalone) standalone.remove();
+            clearInterval(timer);
+          } else if (tries >= 40) clearInterval(timer);
         }, 50);
       }
     }

@@ -65,7 +65,7 @@
     function exportDone(id,result,webKey){ if(result&&result.mode==='native'){ if(result.status==='shared') alertBox(id,I18n.t('nativeShared')+' '+esc(result.fileName),true); else alertBox(id,I18n.t('nativeDismissed')+' '+esc(result.fileName),null); return; } alertBox(id,I18n.t(webKey)+' '+esc(result&&result.fileName||''),true); }
     function exportFailed(id,e,fileName){ if(window.NativeFileExport&&NativeFileExport.isCancellationError(e)){ alertBox(id,I18n.t('nativeDismissed')+' '+esc(e&&e.fileName||fileName||''),null); return; } var code=String(e&&e.message||e||''); if(code==='native_export_plugins_missing'||code==='native_share_unavailable'){ alertBox(id,I18n.t('nativeUnavailable'),false); return; } alertBox(id,I18n.t('errPrefix')+API.userErrorText(e),false); }
 
-    function csvCell(v){ var s=(v==null)?'':String(v); if(/[",\n]/.test(s)) s='"'+s.replace(/"/g,'""')+'"'; return s; }
+    function csvCell(v){ return API.csvSafeCell(v); }
     function toCsv(rows){ return (rows||[]).map(function(row){ return row.map(csvCell).join(','); }).join('\r\n'); }
     function pad2(n){ return (n<10?'0':'')+n; }
 
@@ -78,14 +78,16 @@
       var btn = document.getElementById('bkBtn');
       btn.disabled = true; var origTxt = btn.textContent; btn.textContent = I18n.t('bkWorking');
       rpc('getSheetNames', []).then(function(names){
-        names = names || [];
+        if (!Array.isArray(names) || !names.length) throw new Error('backup_no_tables');
         var zip = new JSZip();
         var chain = Promise.resolve();
         names.forEach(function(name){
           chain = chain.then(function(){
             return rpc('exportSheetData', [name]).then(function(d){
               d = d || {};
-              if (d.error) { zip.file(name + '.csv', '# error: ' + API.userErrorText(d.error)); return; }
+              if (d.error || !Array.isArray(d.rows)) {
+                throw new Error('backup_table_failed: '+name);
+              }
               zip.file(name + '.csv', '﻿' + toCsv(d.rows));
             });
           });
@@ -130,9 +132,9 @@
       title: 'バックアップ・書き出し',
       titleEn: 'Backup & export',
       items: [
-        { ja: '① 「📦 全データをZIPでダウンロード」ボタンを押すと、店舗の全テーブルをそれぞれCSVファイルにして1つのZIPにまとめ、端末にダウンロードします。作成には時間がかかることがあります。', en: '① The "Download all data (ZIP)" button exports every table as a CSV and bundles them all into one ZIP file, downloaded to your device. This can take a while.' },
+        { ja: '① 「📦 全データをZIPでダウンロード」は店舗のテーブルをCSVにまとめて保存・共有します。対象テーブルが取得できない場合や途中の書き出しに失敗した場合は処理を中止し、不完全なZIPを成功扱いで保存しません。', en: '① "Download all data (ZIP)" bundles the store tables as CSV files for save/share. If the table list or any table export fails, the operation stops without saving an incomplete ZIP as a successful backup.' },
         { ja: '② 「シートをCSVで書き出し」では、プルダウンから1つのシート（テーブル）を選び、「⬇ CSVを書き出し」を押すとそのシートだけをCSVファイルとしてダウンロードできます（Excel等で開けます）。', en: '② In "Export a sheet to CSV", pick one sheet/table from the dropdown and press "Export CSV" to download just that sheet as a CSV file (opens in Excel, etc).' },
-        { ja: '③ ダウンロードが完了すると、それぞれの操作の下に緑色で完了メッセージ（ファイル名）が表示されます。失敗した場合は赤色でエラーが表示されます。', en: '③ After a successful download, a green message with the file name appears below the button. Failures show a red error message instead.' },
+        { ja: '③ 完了時は保存・共有したファイル名が表示され、失敗時はエラーが表示されます。端末の共有画面を閉じただけの場合、保存は完了していません。', en: '③ The file name is shown after export, while errors are reported separately. Closing the device share sheet without choosing a destination does not save the file.' },
         { ja: '④ 「← 管理へ」で管理メニューに戻ります。', en: '④ "← Manage" returns you to the management menu.' }
       ]
     });

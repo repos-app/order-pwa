@@ -20,6 +20,21 @@
       return localStorage.getItem((window.APP_CONFIG && APP_CONFIG.AUTH_STORAGE_PREFIX || '') + 'mgmtToken') || '';
     } catch (e) { return ''; }
   }
+  function sameSessionIdentity(previous, current) {
+    // A v3 access-token refresh changes the signature/expiry, not the
+    // employee/store/session. Keep the current credit chip and guide visible
+    // during harmless rotations, but never reuse them for a different login.
+    function fields(value) {
+      var raw = String(value || ''), dot = raw.lastIndexOf('.');
+      if (dot < 0) return null;
+      var parts = raw.slice(0, dot).split('~');
+      if (!((parts.length === 7 && parts[0] === 'v3' && parts[6]) ||
+            (parts.length === 6 && parts[0] === 'v2'))) return null;
+      return [parts[0], parts[2], parts[3], parts[4], parts[5], parts[6] || ''].join('~');
+    }
+    var a = fields(previous), b = fields(current);
+    return !!a && a === b;
+  }
   function isWorkspaceScreen() {
     // A saved token must never expose the store balance on QR/order, public
     // legal/signup pages or the management login form. Reuse the common
@@ -208,9 +223,14 @@
       badge = null; closeDialog(); return;
     }
     if (nextToken !== activeToken) {
-      ++generation; activeToken = nextToken; balance = null; balanceError = false; lastLoaded = 0;
-      inFlight = 0;
-      closeDialog();
+      var continuing = sameSessionIdentity(activeToken, nextToken);
+      ++generation; activeToken = nextToken; inFlight = 0;
+      if (!continuing) {
+        balance = null; balanceError = false; lastLoaded = 0; closeDialog();
+      }
+      // An old response is invalidated by generation. If it was our only
+      // pending read, refresh under the new token instead of staying at '…'.
+      if (!Number.isSafeInteger(balance) || balanceError) lastLoaded = 0;
     }
     if (!badge) {
       decorate();

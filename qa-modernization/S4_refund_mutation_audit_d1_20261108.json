@@ -1,0 +1,331 @@
+{
+  "schema": "izakanpai.qa.s4.mutation-detection.v1",
+  "at": "2026-11-07T17:20:53.316Z",
+  "runtime": "workerd",
+  "proofDirectory": "C:\\Users\\user\\OneDrive\\_work\\izakanpai\\test-results\\qa-modernization\\s4\\local-d1-2026-11-07T17-14-27-509Z-p19724-n1",
+  "total": 40,
+  "detected": 40,
+  "escaped": 0,
+  "cases": [
+    {
+      "id": "M01",
+      "caseId": "S4-BILL-JPY-SERVICE-VAT-029",
+      "category": "money",
+      "mutation": "円のVATを13円→13.2円へ不正変更",
+      "detected": true,
+      "reason": "S4_BILL_ORACLE_S4-BILL-JPY-SERVICE-VAT-029_vat\n\n13.2 !== 13\n"
+    },
+    {
+      "id": "M02",
+      "caseId": "S4-BILL-SERVICE-VAT-023",
+      "category": "money",
+      "mutation": "ペソのサービス料を10→11へ不正変更",
+      "detected": true,
+      "reason": "S4_BILL_ORACLE_S4-BILL-SERVICE-VAT-023_service_charge\n\n11 !== 10\n"
+    },
+    {
+      "id": "M03",
+      "caseId": "S4-BILL-DISCOUNT-025",
+      "category": "money",
+      "mutation": "20%割引なのにレシート値を18へ変更",
+      "detected": true,
+      "reason": "S4_BILL_ORACLE_S4-BILL-DISCOUNT-025_discount_amount\n\n18 !== 20\n"
+    },
+    {
+      "id": "M04",
+      "caseId": "S4-CASH-CHECKOUT-010",
+      "category": "money",
+      "mutation": "確定会計の領収書合計を100→101へ変更",
+      "detected": true,
+      "reason": "S4_RECEIPT_TOTAL_MUST_EQUAL_ACTUAL_ORDER_PRICE\n\n101 !== 100\n"
+    },
+    {
+      "id": "M05",
+      "caseId": "S4-BILL-JPY-SERVICE-VAT-029",
+      "category": "receipt_line",
+      "mutation": "レシート明細の単価100→999（合計は123のまま）",
+      "detected": true,
+      "reason": "S4_INTEGRITY_RECEIPT_LINE_ORDER_LINE_MISMATCH\n+ actual - expected\n\n  [\n    {\n      name: 'S2 Beer',\n      qty: 1,\n+     unitPrice: 999\n-     unitPrice: 100\n    }\n  ]\n"
+    },
+    {
+      "id": "M06",
+      "caseId": "S4-BILL-JPY-SERVICE-VAT-029",
+      "category": "order_line",
+      "mutation": "会計の注文明細単価100→99（領収書合計は123のまま）",
+      "detected": true,
+      "reason": "S4_INTEGRITY_ORDER_SUBTOTAL_LINE_MISMATCH"
+    },
+    {
+      "id": "M07",
+      "caseId": "S4-BILL-JPY-SERVICE-VAT-029",
+      "category": "referential",
+      "mutation": "領収書紐付け番号を存在しないORへ変更",
+      "detected": true,
+      "reason": "S4_INTEGRITY_ORPHAN_RECEIPT_LINK_RECEIPT"
+    },
+    {
+      "id": "M08",
+      "caseId": "S4-ORDER-QR-007",
+      "category": "tenant",
+      "mutation": "注文明細のstore_idを別店舗へ変更",
+      "detected": true,
+      "reason": "S4_INTEGRITY_CROSS_TENANT_ROW_order_items_0\n+ actual - expected\n\n+ 'qa-s2-b'\n- 'qa-s2-a'\n         ^\n"
+    },
+    {
+      "id": "M09",
+      "caseId": "S4-CASH-CHECKOUT-010",
+      "category": "tenant",
+      "mutation": "領収書のstore_idを別店舗へ変更",
+      "detected": true,
+      "reason": "S4_INTEGRITY_CROSS_TENANT_ROW_receipts_0\n+ actual - expected\n\n+ 'qa-s2-b'\n- 'qa-s2-a'\n         ^\n"
+    },
+    {
+      "id": "M10",
+      "caseId": "S4-SALES-RECEIPT-018",
+      "category": "sales",
+      "mutation": "売上集計は100のままレシート明細数量1→2",
+      "detected": true,
+      "reason": "S4_INTEGRITY_RECEIPT_LINE_ORDER_LINE_MISMATCH\n+ actual - expected\n\n  [\n    {\n      name: 'S2 Beer',\n+     qty: 2,\n-     qty: 1,\n      unitPrice: 100\n    }\n  ]\n"
+    },
+    {
+      "id": "M11",
+      "caseId": "S4-INV-RECEIVE-014",
+      "category": "inventory",
+      "mutation": "入荷時の在庫数量7→8（台帳は7のまま）",
+      "detected": true,
+      "reason": "Expected values to be strictly equal:\n\n8 !== 7\n"
+    },
+    {
+      "id": "M12",
+      "caseId": "S4-INV-RECEIVE-014",
+      "category": "inventory_tenant",
+      "mutation": "入荷台帳2行目のstore_idだけ別店舗に変更",
+      "detected": true,
+      "reason": "S4_INTEGRITY_CROSS_TENANT_ROW_inventory_moves_1\n+ actual - expected\n\n+ 'qa-s2-b'\n- 'qa-s2-a'\n         ^\n"
+    },
+    {
+      "id": "M13",
+      "caseId": "S4-AI-WALLET-019",
+      "category": "ai",
+      "mutation": "月次AIウォレット10→9、付与台帳10のまま",
+      "detected": true,
+      "reason": "Expected values to be strictly equal:\n\n9 !== 10\n"
+    },
+    {
+      "id": "M14",
+      "caseId": "S4-AI-WALLET-019",
+      "category": "ai_ledger",
+      "mutation": "AI付与台帳のmonthly_deltaを10→9に変更",
+      "detected": true,
+      "reason": "S4_INTEGRITY_AI_LEDGER_GRANT_MISMATCH\n\n9 !== 10\n"
+    },
+    {
+      "id": "M15",
+      "caseId": "S4-AI-WALLET-019",
+      "category": "ai_operation",
+      "mutation": "AI操作が未完了state=pendingなのにウォレットに付与",
+      "detected": true,
+      "reason": "S4_INTEGRITY_AI_OPERATION_UNAPPLIED\n+ actual - expected\n\n+ 'pending'\n- 'applied'\n"
+    },
+    {
+      "id": "M16",
+      "caseId": "S4-PO-REPLAY-017",
+      "category": "purchase",
+      "mutation": "仕入注文の品目数量6→7に変更",
+      "detected": true,
+      "reason": "Expected values to be strictly equal:\n\n7 !== 6\n"
+    },
+    {
+      "id": "M17",
+      "caseId": "S4-ROLE-DENY-021",
+      "category": "permissions",
+      "mutation": "在庫閲覧拒否を許可に書き換える",
+      "detected": true,
+      "reason": "The expression evaluated to a falsy value:\n\n  assert.ok(a.permission_matrix.some(x=>\n"
+    },
+    {
+      "id": "M18",
+      "caseId": "S4-MENU-SELLOUT-005",
+      "category": "tenant_isolation",
+      "mutation": "他店舗の在庫行を不正追加",
+      "detected": true,
+      "reason": "S4_OTHER_TENANT_SQL_DIFFERENCE\n+ actual - expected\n... Skipped lines\n\n  {\n    account_deletion_audit: [],\n    account_deletion_requests: [],\n    ai_credit_ledger: [],\n    ai_credit_operations: [],\n...\n        options_json: null,\n+       price: 99999,\n-       price: 100,\n        serve_end: null,\n    "
+    },
+    {
+      "id": "M19",
+      "caseId": "S4-BILL-JPY-SERVICE-VAT-029",
+      "category": "cleanup",
+      "mutation": "cleanup後のDBが初期状態に戻っていない",
+      "detected": true,
+      "reason": "S4_CLEANUP_RESTORE_DIFFERENCE\n+ actual - expected\n... Skipped lines\n\n  {\n    'qa-s2-a': {\n      account_deletion_audit: [],\n      account_deletion_requests: [],\n      ai_credit_ledger: [],\n...\n          options_json: null,\n+         price: 7,\n-         price: 100,\n          serve_end: null,\n        "
+    },
+    {
+      "id": "M20",
+      "caseId": "S4-BILL-JPY-SERVICE-VAT-029",
+      "category": "side_effect",
+      "mutation": "領収書テーブルとは別に監査ログ行が予期せず追加",
+      "detected": true,
+      "reason": "S4_INTEGRITY_AUDIT_SIDE_EFFECT_COUNT\n\n2 !== 1\n"
+    },
+    {
+      "id": "M21",
+      "caseId": "S4-ORDER-QR-007",
+      "category": "referential",
+      "mutation": "注文の注文IDが明細の参照先と異なる",
+      "detected": true,
+      "reason": "S4_INTEGRITY_ORPHAN_ORDER_LINE"
+    },
+    {
+      "id": "M22",
+      "caseId": "S4-CAT-MERGE-003",
+      "category": "menu_price",
+      "mutation": "カテゴリ統合後に商品価格だけ不正変更",
+      "detected": true,
+      "reason": "S4_INTEGRITY_MENU_PRICE_DRIFT\n\n777 !== 100\n"
+    },
+    {
+      "id": "M23",
+      "caseId": "S4-BILL-JPY-SERVICE-VAT-029",
+      "category": "untracked_table",
+      "mutation": "未登録と思われていたtakeout_ordersテーブルへ不正行を追加",
+      "detected": true,
+      "reason": "S4_UNEXPECTED_CHANGE_IN_UNTRACKED_TENANT_TABLE_takeout_orders\n+ actual - expected\n\n+ [\n+   {\n+     order_id: 'phantom-takeout',\n+     store_id: 'qa-s2-a',\n+     total: 100000\n+   }\n+ ]\n- []\n"
+    },
+    {
+      "id": "M24",
+      "caseId": "S4-BILL-JPY-SERVICE-VAT-029",
+      "category": "untracked_table",
+      "mutation": "会計の別台帳payment_ledgerへ不正な支払い行を追加",
+      "detected": true,
+      "reason": "S4_UNEXPECTED_CHANGE_IN_UNTRACKED_TENANT_TABLE_payment_ledger\n+ actual - expected\n\n+ [\n+   {\n+     amount: 9999,\n+     payment_id: 'phantom-payment',\n+     store_id: 'qa-s2-a'\n+   }\n+ ]\n- []\n"
+    },
+    {
+      "id": "M25",
+      "caseId": "S4-BILL-JPY-SERVICE-VAT-029",
+      "category": "operation_log",
+      "mutation": "管理操作履歴を不正なAIクレジット付与処理へすり替え",
+      "detected": true,
+      "reason": "S4_INTEGRITY_OPERATION_AUDIT_MISSING_OR_EXTRA\n+ actual - expected\n\n  [\n+   'force_grant_credit'\n-   'saveSettings'\n  ]\n"
+    },
+    {
+      "id": "M26",
+      "caseId": "S4-BILL-JPY-SERVICE-VAT-029",
+      "category": "schema_coverage",
+      "mutation": "実在する予約テーブルをスナップショットから欠落させる",
+      "detected": true,
+      "reason": "S4_SCHEMA_CHANGED_DURING_CASE\n+ actual - expected\n... Skipped lines\n\n  [\n    'account_deletion_audit',\n    'account_deletion_requests',\n    'ai_credit_ledger',\n    'ai_credit_operations',\n...\n    'reservation_contacts',\n-   'reservations',\n    'revenuecat_webhook_events',\n    'sample_menu_items',\n  "
+    },
+    {
+      "id": "M27",
+      "caseId": "S4-AI-WALLET-019",
+      "category": "tenant",
+      "mutation": "AIクレジット台帳の店舗IDを他店舗へ変更する",
+      "detected": true,
+      "reason": "S4_INTEGRITY_CROSS_TENANT_ROW_ai_credit_ledger_0\n+ actual - expected\n\n+ 'qa-s2-b'\n- 'qa-s2-a'\n         ^\n"
+    },
+    {
+      "id": "M28",
+      "caseId": "S4-REFUND-FULL-034",
+      "category": "refund_total",
+      "mutation": "マイナス伝票の合計-100を-99に改変",
+      "detected": true,
+      "reason": "S4_REFUND_NEGATIVE_RECEIPT_MISMATCH_total"
+    },
+    {
+      "id": "M29",
+      "caseId": "S4-REFUND-FULL-034",
+      "category": "refund_reference",
+      "mutation": "返金台帳の元伝票番号を存在しないORへ差し替え",
+      "detected": true,
+      "reason": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'OR-NONEXISTENT'\n- 'OR-000001'\n      ^\n"
+    },
+    {
+      "id": "M30",
+      "caseId": "S4-REFUND-FULL-034",
+      "category": "refund_line",
+      "mutation": "返金伝票の明細数量をプラス1へ改変",
+      "detected": true,
+      "reason": "S4_INTEGRITY_REFUND_LINES_NOT_NEGATIVE\n+ actual - expected\n\n  [\n    {\n      name: 'S2 Beer',\n+     qty: 1,\n-     qty: -1,\n      unitPrice: 100\n    }\n  ]\n"
+    },
+    {
+      "id": "M31",
+      "caseId": "S4-REFUND-FULL-034",
+      "category": "refund_reason",
+      "mutation": "返金理由をDB台帳から空欄に改変",
+      "detected": true,
+      "reason": "Expected values to be strictly equal:\n+ actual - expected\n\n+ ''\n- 'S4 customer authorized refund'\n"
+    },
+    {
+      "id": "M32",
+      "caseId": "S4-REFUND-FULL-034",
+      "category": "refund_approver",
+      "mutation": "返金承認者IDを消去",
+      "detected": true,
+      "reason": "Expected values to be strictly equal:\n\n'' !== 'emp-qa-s2-a'\n"
+    },
+    {
+      "id": "M33",
+      "caseId": "S4-REFUND-FULL-034",
+      "category": "refund_audit",
+      "mutation": "返金監査ログの金額-100を-50に改変",
+      "detected": true,
+      "reason": "S4_INTEGRITY_REFUND_AUDIT_AMOUNT\n\n-50 !== -100\n"
+    },
+    {
+      "id": "M34",
+      "caseId": "S4-REFUND-PHP-TAX-039",
+      "category": "refund_currency",
+      "mutation": "VAT付きPHP返金伝票のVATを-13.20から-13へ改変",
+      "detected": true,
+      "reason": "S4_REFUND_NEGATIVE_RECEIPT_MISMATCH_vat"
+    },
+    {
+      "id": "M35",
+      "caseId": "S4-REFUND-REPLAY-035",
+      "category": "refund_duplicate",
+      "mutation": "二重返金で不正な3枚目の返金伝票を追加",
+      "detected": true,
+      "reason": "Expected values to be strictly equal:\n\n3 !== 2\n"
+    },
+    {
+      "id": "M36",
+      "caseId": "S4-REFUND-FULL-034",
+      "category": "refund_reporting",
+      "mutation": "売上サマリーの返金後純売上を0から100へ改変",
+      "detected": true,
+      "reason": "Expected values to be strictly equal:\n\n100 !== 0\n"
+    },
+    {
+      "id": "M37",
+      "caseId": "S4-REFUND-FULL-034",
+      "category": "refund_reporting",
+      "mutation": "領収書一覧の返金件数を1から0へ改変",
+      "detected": true,
+      "reason": "Expected values to be strictly equal:\n\n0 !== 1\n"
+    },
+    {
+      "id": "M38",
+      "caseId": "S4-REFUND-FULL-034",
+      "category": "refund_reporting",
+      "mutation": "売上分析の純売上を0から100へ改変",
+      "detected": true,
+      "reason": "Expected values to be strictly equal:\n\n100 !== 0\n"
+    },
+    {
+      "id": "M39",
+      "caseId": "S4-REFUND-FULL-034",
+      "category": "refund_reward",
+      "mutation": "返金済注文のリワード逆仕訳を未実施へ改変",
+      "detected": true,
+      "reason": "Expected values to be strictly equal:\n\n0 !== 1\n"
+    },
+    {
+      "id": "M40",
+      "caseId": "S4-REFUND-FULL-034",
+      "category": "refund_tenant",
+      "mutation": "返金伝票の店舗IDを他店舗に改変",
+      "detected": true,
+      "reason": "S4_INTEGRITY_CROSS_TENANT_ROW_receipts_1\n+ actual - expected\n\n+ 'qa-s2-b'\n- 'qa-s2-a'\n         ^\n"
+    }
+  ]
+}

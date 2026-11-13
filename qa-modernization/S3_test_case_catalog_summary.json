@@ -1,0 +1,51 @@
+{
+  "schema": "izakanpai.qa.test-catalog.v1",
+  "generatedAt": "2026-11-07T18:06:42.608Z",
+  "counts": {
+    "total": 1986,
+    "bySource": {
+      "OFFICIAL": 1659,
+      "PIPELINE": 221,
+      "AUTO_DISCOVERED": 12,
+      "LOCAL_BUSINESS_SCENARIO": 47,
+      "LOCAL_WORKERD_D1_SCENARIO": 47
+    },
+    "bySuite": {
+      "BUSINESS_QA": 1659,
+      "NPM_TEST": 327
+    },
+    "byGroup": {
+      "BUSINESS": 1700,
+      "NATIVE": 8,
+      "UI_UX": 182,
+      "TECHNICAL": 75,
+      "RPM_PERFORMANCE": 21
+    },
+    "byStatus": {
+      "OFFICIAL:PASS": 395,
+      "OFFICIAL:NOT_RUN": 1185,
+      "OFFICIAL:FAIL": 62,
+      "OFFICIAL:BLOCKED": 7,
+      "OFFICIAL:SKIP": 10,
+      "PIPELINE:NOT_VERIFIED": 221,
+      "AUTO_DISCOVERED:NOT_VERIFIED": 11,
+      "AUTO_DISCOVERED:PASS": 1,
+      "LOCAL_BUSINESS_SCENARIO:PASS": 47,
+      "LOCAL_WORKERD_D1_SCENARIO:PASS": 47
+    },
+    "officialUniqueCaseIds": 831,
+    "officialLedgerAvailability": {
+      "android": "AVAILABLE",
+      "ios": "AVAILABLE"
+    },
+    "npmTopLevelCommands": 221,
+    "autoDiscoveredNestedFiles": 12,
+    "s4LocalBusinessScenarioRows": 47,
+    "s4LocalVerifiedPass": 47,
+    "s4WorkerdD1ScenarioRows": 47,
+    "s4WorkerdD1VerifiedPass": 47
+  },
+  "classification": "Two primary suites: NPM_TEST = npm test pipeline command definitions plus nested auto-discovered files, BUSINESS_QA = official Android/iOS business scenarios. The subgroup (business/UX/performance/native/technical) is a separate axis, not another execution suite.",
+  "verifications": "Official cases reflect official ledger; pipeline registrations are NOT execution; S2 PASS only if independent evidence matches",
+  "note": "Snapshot only. For current official status use dashboard API /api/test-catalog"
+}

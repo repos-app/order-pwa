@@ -165,11 +165,11 @@
           <div class="cogsfield"><span class="sym" id="symDrinkBack">₱</span><input type="number" id="pDrinkBackAmt" min="0" step="any" oninput="onAmtManualEdit('pDrinkBackRate')"></div>
         </div>
       </div>
-      <div class="hint" data-t="drinkBackHint">ドリンク売上に対する割合(%)を入力すると自動計算します（上記以外のホスト/ホステス等への一律ドリンク歩合。下記のレディースドリンク・ボトル・紹介料と別枠で加算されます）。計算後の金額は自由に上書き編集できます（割合または「割合から再計算」を押すと再計算されます）。</div>
+      <div class="hint" data-t="drinkBackHint">ドリンク売上に対する割合(%)を入力すると自動計算します（上記以外のホスト/ホステス等への一律ドリンク歩合。下記のコミッションドリンク・ボトル・紹介料と別枠で加算されます）。計算後の金額は自由に上書き編集できます（割合または「割合から再計算」を押すと再計算されます）。</div>
       <button type="button" class="btn-sm" style="margin-top:8px;" onclick="recalcDrinkBack()" data-t="drinkBackRecalc">🔄 割合から再計算</button>
 
       <div class="cogsblock" style="margin-top:10px;">
-        <div class="lb" data-t="eLadiesDrinkBack">レディースドリンクバック</div>
+        <div class="lb" data-t="eLadiesDrinkBack">コミッションドリンクバック</div>
         <div class="cogsinputs">
           <div class="cogsfield"><input type="number" id="pLadiesDrinkCount" min="0" step="1" placeholder="0" oninput="calc()"><span class="sym" data-t="unitCups">杯/月</span></div>
           <div class="cogsfield"><input type="number" id="pLadiesDrinkUnit" min="0" step="any" placeholder="100" oninput="calc()"><span class="sym" data-t="unitPerCup">₱/杯</span></div>
@@ -177,7 +177,7 @@
           <div class="cogsfield"><span class="sym" id="symLadiesDrinkBack">₱</span><input type="number" id="pLadiesDrinkBack" readonly tabindex="-1"></div>
         </div>
       </div>
-      <div class="hint" data-t="ladiesDrinkBackHint">月間の杯数×1杯あたりのバック額で自動計算します（例：レディースドリンクは通常価格＋一定額上乗せし、その上乗せ分を女性スタッフへバックする運用を、杯数×固定額で近似します）。</div>
+      <div class="hint" data-t="ladiesDrinkBackHint">月間の杯数×1杯あたりのバック額で自動計算します（例：コミッションドリンクは通常価格＋一定額上乗せし、その上乗せ分を対象スタッフへバックする運用を、杯数×固定額で近似します）。</div>
 
       <div class="cogsblock" style="margin-top:10px;">
         <div class="lb" data-t="eBottleBack">ボトルバック</div>
@@ -405,7 +405,8 @@
       return raw === 'unauthorized' ? I18n.t('needLoginForAction') : (I18n.t('errPrefix') + API.userErrorText(e));
     }
     var SYM = '';
-    function money(v){ return SYM+(Math.round(Number(v)||0)).toLocaleString(); }
+    var MONEY_SETTINGS={};
+    function money(v){ var raw=MONEY_SETTINGS.currencyDecimalDigits, val=Number(raw); var digits=MONEY_SETTINGS.currencyCode==='PHP'?2:MONEY_SETTINGS.currencyCode==='JPY'?0:(raw!==''&&raw!=null&&Number.isInteger(val)&&val>=0&&val<=3?val:0); return SYM+(Number(v)||0).toLocaleString(MONEY_SETTINGS.locale||undefined,{minimumFractionDigits:digits,maximumFractionDigits:digits}); }
     function num(id){ return Number(document.getElementById(id).value) || 0; }
 
     // pService（サービス代）はユーザー判断により経費合計から除外（参考表示のみ）。
@@ -472,7 +473,7 @@
     function _drinkRevenue(){ return _cogsBaseRevenue() * num('pDrinkRevenuePct') / 100; }
     function _foodRevenue(){ return _cogsBaseRevenue() - _drinkRevenue(); }
 
-    // ドリンクバックの内訳（レディースドリンク・ボトル・紹介料）。いずれも杯数・本数・紹介対象売上を
+    // ドリンクバックの内訳（コミッションドリンク・ボトル・紹介料）。いずれも杯数・本数・紹介対象売上を
     // 直接入力するため、常に確定額として計算する（割合/固定金額モードの排他制御は不要）。
     function _ladiesDrinkBack(){ return num('pLadiesDrinkCount') * num('pLadiesDrinkUnit'); }
     function _bottleBack(){ return num('pBottleCount') * num('pBottleUnitBack'); }
@@ -602,7 +603,7 @@
       FIXED_FIELD_IDS.forEach(function(id){ fixed += num(id); });
       // 給与合計（割増賃金込み）＋13か月給与（基本給ベース・月割り・非表示）は固定費として加算する。
       fixed += _salaryTotal() + _thirteenthMonth();
-      // レディースドリンク・ボトル・紹介料バック（杯数・本数・紹介対象売上ベース）は固定費として加算する。
+      // コミッションドリンク・ボトル・紹介料バック（杯数・本数・紹介対象売上ベース）は固定費として加算する。
       fixed += _drinkBackBreakdownTotal();
       var drinkPct = num('pDrinkRevenuePct') / 100;
       var foodPct = 1 - drinkPct;
@@ -928,7 +929,7 @@
         var storeMonth = API.dateKeysInTimeZone(s.timezone || 'UTC').month;
         var monthInput = document.getElementById('pMonth');
         if (monthInput.value === __initialProfitMonth) monthInput.value = storeMonth;
-        if (s.currencySymbol) SYM = s.currencySymbol;
+        if (s.currencySymbol) SYM = s.currencySymbol; MONEY_SETTINGS=s;
         _syncCountryLaborModel(s);
         VAT_RATE = Number(s.taxRate) || 0;
         SVC_RATE = Number(s.serviceRate) || 0;
@@ -982,9 +983,9 @@
         eFoodCogs:'フード原価', foodCogsHint:'フード売上（原価対象売上×(100−ドリンク割合)%）に対する割合(%)を入力すると自動計算します。',
         eDrinkCogs:'ドリンク原価', drinkCogsHint:'ドリンク売上（原価対象売上×ドリンク割合%）に対する割合(%)を入力すると自動計算します。',
         cogsRecalc:'🔄 割合から再計算',
-        eDrinkBack:'ドリンクバック（その他・簡易）', drinkBackHint:'ドリンク売上に対する割合(%)を入力すると自動計算します（上記以外のホスト/ホステス等への一律ドリンク歩合。下記のレディースドリンク・ボトル・紹介料と別枠で加算されます）。計算後の金額は自由に上書き編集できます（割合または「割合から再計算」を押すと再計算されます）。', drinkBackRecalc:'🔄 割合から再計算',
-        eLadiesDrinkBack:'レディースドリンクバック', unitCups:'杯/月', unitPerCup:'₱/杯',
-        ladiesDrinkBackHint:'月間の杯数×1杯あたりのバック額で自動計算します（例：レディースドリンクは通常価格＋一定額上乗せし、その上乗せ分を女性スタッフへバックする運用を、杯数×固定額で近似します）。',
+        eDrinkBack:'ドリンクバック（その他・簡易）', drinkBackHint:'ドリンク売上に対する割合(%)を入力すると自動計算します（上記以外のホスト/ホステス等への一律ドリンク歩合。下記のコミッションドリンク・ボトル・紹介料と別枠で加算されます）。計算後の金額は自由に上書き編集できます（割合または「割合から再計算」を押すと再計算されます）。', drinkBackRecalc:'🔄 割合から再計算',
+        eLadiesDrinkBack:'コミッションドリンクバック', unitCups:'杯/月', unitPerCup:'₱/杯',
+        ladiesDrinkBackHint:'月間の杯数×1杯あたりのバック額で自動計算します（例：コミッションドリンクは通常価格＋一定額上乗せし、その上乗せ分を対象スタッフへバックする運用を、杯数×固定額で近似します）。',
         eBottleBack:'ボトルバック', unitBottles:'本/月', unitPerBottle:'₱/本',
         bottleBackHint:'月間の本数×1本あたりのバック額で自動計算します（ボトル販売は通常価格に対するバック率が高くなりやすいため、ドリンク売上全体に対する一律%ではなく本数ベースで計算します）。',
         eReferralBack:'紹介料', unitReferralRev:'₱/月',
@@ -1040,9 +1041,9 @@
         eFoodCogs:'Food COGS', foodCogsHint:'Enter a percentage (%) of food revenue (COGS-bearing revenue × (100 − drink share)%) to auto-calculate.',
         eDrinkCogs:'Drink COGS', drinkCogsHint:'Enter a percentage (%) of drink revenue (COGS-bearing revenue × drink share%) to auto-calculate.',
         cogsRecalc:'🔄 Recalculate from %',
-        eDrinkBack:'Drink back (other / simple)', drinkBackHint:'Enter a percentage (%) of drink revenue to auto-calculate (a flat commission for hosts/hostesses other than the items below. Added separately on top of ladies-drink, bottle, and referral back below).', drinkBackRecalc:'🔄 Recalculate from %',
-        eLadiesDrinkBack:'Ladies-drink back', unitCups:'cups/mo', unitPerCup:'₱/cup',
-        ladiesDrinkBackHint:'Auto-calculated as monthly cup count × back amount per cup (approximates ladies-drink pricing, where a markup over the normal price is kicked back to female staff, using a per-cup fixed amount).',
+        eDrinkBack:'Drink back (other / simple)', drinkBackHint:'Enter a percentage (%) of drink revenue to auto-calculate (a flat commission for hosts/hostesses other than the items below. Added separately on top of commission-drink, bottle, and referral back below).', drinkBackRecalc:'🔄 Recalculate from %',
+        eLadiesDrinkBack:'Commission-drink back', unitCups:'cups/mo', unitPerCup:'₱/cup',
+        ladiesDrinkBackHint:'Auto-calculated as monthly cup count × back amount per cup (approximates commission-drink pricing, where a markup over the normal price is kicked back to designated staff, using a per-cup fixed amount).',
         eBottleBack:'Bottle back', unitBottles:'bottles/mo', unitPerBottle:'₱/bottle',
         bottleBackHint:'Auto-calculated as monthly bottle count × back amount per bottle (bottle sales typically carry a higher effective back rate than a flat % of total drink revenue, so this is calculated per bottle instead).',
         eReferralBack:'Referral commission', unitReferralRev:'₱/mo',
@@ -1094,10 +1095,10 @@
       titleEn: 'Operating Profit Simulator',
       items: [
         { ja: '① 「月間売上」に想定の月商を入力すると、下の経費合計と営業利益がリアルタイムで自動計算されます。', en: '① Enter your projected monthly revenue at the top — total expenses and operating profit below update automatically in real time.' },
-        { ja: '② 入場料・延長料金・VIP基本料金は、商品原価がかからない売上として別枠入力できます（人数×単価で自動計算）。', en: '② Entrance fee, extension fee, and VIP base charge can be entered separately as revenue with no product cost (auto-calculated as headcount × unit price).' },
-        { ja: '③ フード原価・ドリンク原価・ドリンクバック（レディースドリンク／ボトル／紹介料含む）は、割合(%)を入力すると金額が自動計算されます。金額欄を直接書き換えると固定金額として扱われます。', en: '③ Food COGS, drink COGS, and drink back (including ladies-drink, bottle, and referral commission) auto-calculate from a percentage you enter. Editing the amount field directly switches it to a fixed amount instead.' },
+        { ja: '② 入場料・延長料金は人数×単価、VIP基本料金は金額を直接入力します。これらは「月間売上」に既に含まれる内訳であり、売上に二重加算されず、フード・ドリンク原価の計算対象から除かれます。', en: '② Entrance/extension fees are headcount × unit price; VIP base charges are entered as an amount. These are components already included in Monthly Revenue, not additional sales, and are excluded from the food/drink COGS base.' },
+        { ja: '③ フード原価・ドリンク原価・その他ドリンクバックは割合(%)または固定金額で計算します。コミッションドリンク・ボトルバック・紹介料はそれぞれ杯数×単価・本数×単価・対象売上×紹介率から別計算します。', en: '③ Food/drink COGS and other drink-back amounts support percentage or fixed-amount inputs. Commission drinks, bottle payouts and referral fees are calculated separately from quantities × rates or eligible referral sales × percentage.' },
         { ja: '④ 賃料・電気代・水道代などの固定費や、ランク別の給与（日給・人数・出勤日数）を入力できます。フィリピン店舗では夜勤／残業／休日出勤の概算割増と13か月給与の月割り積立欄も表示されます。', en: '④ Enter fixed costs such as rent, electricity and water, plus salary by rank (daily wage, headcount and workdays). Philippines stores also show estimated night/overtime/rest-day premiums and a monthly 13th-month-pay accrual.' },
-        { ja: '⑤ 「📥 その月の実績を読み込む」ボタンで、指定した月の実際の売上・経費データを自動入力できます（要ログイン）。', en: '⑤ Use "📥 Load actuals for that month" to auto-fill actual recorded revenue and expenses for a chosen month (requires login).' },
+        { ja: '⑤ 「📥 その月の実績を読み込む」は対象月の売上、賃料・電気・水道、仕入実績（フード原価欄に合算）を反映します。給与実績は参考表示のみで給与入力欄を上書きせず、ドリンク原価を個別には自動振り分けません（要ログイン）。', en: '⑤ "Load actuals for that month" fills revenue, rent, utilities and purchase costs (combined into Food COGS). Actual wages are reference-only and do not overwrite salary inputs; purchases are not automatically split into Drink COGS (login required).' },
         { ja: '⑥ 下部の「欲しい営業利益から売上を計算」で目標の営業利益額を入力し「→ 売上に反映」を押すと、必要な売上高が「月間売上」欄に自動反映されます。', en: '⑥ Under "Calculate revenue from a target operating profit," enter a target profit and press "→ Apply to revenue" to fill in the required revenue automatically.' },
         { ja: '⑦ 「💾 現在の値を既定値として保存」を押すと、次回この画面を開いたときに同じ数字が自動入力されます。', en: '⑦ Press "💾 Save current values as defaults" so the same figures are pre-filled the next time you open this screen.' }
       ]
