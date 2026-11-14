@@ -1,5 +1,14 @@
 # Izakanpai QA再構築：進捗台帳
 
+## 2026-11-14 PHT｜成功ケースから段階的に拡張するQA方針と実行検証
+
+- **方針（旧失敗の再発防止）**：1,659件の旧OS別正式QAは改ざんせず履歴保存し、現在のリリース条件/全件消化の分母には使わない。現行正本 `docs/QA_TEST_CATEGORY_POLICY_20261108.md` の「npm テスト／自動テスト／ユーザー実機テスト」を区別し、業務自動化では既存S2 Fixture、S4実Gateway/独立DB、S5実Chromium、S6復旧、S7実機チェックを再利用する。接続できないRealmeの正式ランナーが止まってもWeb/API/DBの独立レーンを止めない。
+- **実行済みの成功集合（固有10テスト・すべてPASS、FAIL0）**：S2メニュー操作＋故障時cleanup 2件、S5 PHP/JPY会計プレビュー2件、S6通信断/応答喪失・2タブ会計競合・確定後Abortの3件、S5在庫1件・発注1件・カテゴリ1件。固有10件のうち発注・在庫は修正後再実行もPASS。これらは過去のS5/S6登録数やS4の49件に加算しない。実機・旧正式OS別QAの新規PASSは0。証拠は `test-results/qa-modernization/{s2,s5,s5-inventory,s5-category,s6}/` の2026-11-14実行runに保存。
+- **追加の実行で発見した真の弱点**：S5発注画面は保存・履歴・失敗メールを独立照合してPASSする一方、共通ヘッダの `listAnnouncements` が未整備の隔離Control DBで `schema_table_missing` を発してもテストがPASSしていた。既存S2環境のControl表定義を参考に、共通 `s4-workerd-fixture.mjs` のControl DBへ `platform_announcements` を追加。発注E2E `s5-purchasing-browser.test.mjs` は画面起動時の `listAnnouncements` API全応答HTTP200/`ok:true` を必須検証するよう強化した。修正後の発注1/1、カテゴリ1/1、在庫1/1を再実行PASS。発注証拠の `listAnnouncements` は4件成功・失敗0、ブラウザ例外0。これは**テスト環境/検証の欠落修正**であり、外部メール・本番Control DB・実機PASSを証明しない。
+- **今後の拡張順（既存資産・現実の成功率優先）**：①実行可能な基本業務1件→異常系を含む3件→関連する10件を完走、②既存50件の店舗運営候補をリスク×未網羅×準備容易性で整理して各業務へ2〜3件ずつ追加、③変更時は影響テストだけ・全体回帰は既存ランナーの明示実行、④実機接続後のみネイティブ固有の最初の1件をRUNNING claim→実タップ/PNG→ES256 D1独立readback→cleanup→正式判定の順で小さく実証し、それから横展開。接続・公開鍵・署名・独立Oracleが不成立ならBLOCKEDのままとする。
+- **進捗・復旧の運用基準**：登録数、実行ケース数、証拠有効PASS、実機本人判定、旧正式台帳を混ぜない。各実行はcaseID・版/SHA・時刻・実HTTP/UI・期待Oracle・前後DB・他店不変・PNG・cleanupを保持する。1ケースFAILでも他の隔離ケースを継続し、同原因の無制限再実行を禁止する。ただし共有データ汚染やcleanup失敗がある場合は関連レーンの後続操作を止め安全確認する。
+- **境界**：過去に停止したWindows定期QAタスクやChatGPT自動化は再起動しない。実機・本番への書込み、旧正式台帳更新、commit/push/deployは実施していない。変更は上記の共通Fixtureと発注E2Eの局所修正、および本記録だけ。
+
 ## 2026-11-10 PHT｜S6自動化工程100%・実機固有項目はS7（最新）
 
 - **S6実Chromium業務6/6独立PASS**：会計断線/ACK喪失/2タブ競合/Abort、在庫・発注・AI再起動と同一ID冪等再開。個別PNG・SQL読戻し・他店舗不変・cleanup・現行ソースSHAを確認。正式iOS/AndroidのPASS追加は0。

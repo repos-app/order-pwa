@@ -637,20 +637,120 @@
   // provenance with native. Never store URLs, stacks, request bodies or tokens.
   // The queue survives a tab reload; it is acknowledged only by the server.
   const _diagnosticQueueKey=String(CFG.STORAGE_PREFIX||'izakanpai:')+'diagnosticQueueV1';
+  const _diagnosticHistoryKey=String(CFG.STORAGE_PREFIX||'izakanpai:')+'diagnosticHistoryV1';
+  const _diagnosticRetention={DEBUG:86400000,INFO:3*86400000,
+    WARN:7*86400000,ERROR:14*86400000,FATAL:14*86400000};
+  const _diagnosticCodes=new Set([
+    'none','client_error','server_error','internal_error','api_business_failed',
+    'client_timeout','client_transport_failure','client_invalid_response','client_aborted',
+    'client_ui_stalled','js_type_error','js_reference_error','js_syntax_error',
+    'js_range_error','uncaught_exception','unhandled_rejection',
+    'health_reachable','health_http_failure','health_unreachable','manual_test',
+    'auth_refresh_transport','invalid_refresh_session','auth_storage_unavailable',
+    'unauthorized','stale_session_response','environment_mismatch','invalid_store_link',
+    'request_timeout','api_error','invalid_server_response','order_bootstrap_timeout',
+    'order_auth_boot_timeout','invalid_token','store_not_found','not_found',
+    'permission_denied','forbidden','pro_required','network_error','session_expired',
+    'diagnostic_rate_limited',
+  ]);
+  function _diagnosticCode(code,feature,outcome){
+    const str=String(code||'');
+    if(_diagnosticCodes.has(str)||/^http_[45][0-9]{2}$/.test(str))return str;
+    return outcome==='failed'&&['api','rpc'].includes(feature)?'server_error':'client_error';
+  }
   const _diagnosticAppVersion='web_'+String(CFG.VERSION||'unknown')
     .replace(/[^a-zA-Z0-9_.+-]/g,'').slice(0,30);
   let _diagnosticSending=false,_diagnosticLastSend=0,_diagnosticRetryTimer=null;
   let _diagnosticRetryDelay=30000;
+  let _manualDiagnostic=null;
   function _diagnosticTrace(){
     try{return crypto.randomUUID().replace(/-/g,'');}catch(_){}
     return String(Date.now())+String(Math.random()).slice(2,16);
+  }
+  function _diagnosticLevel(outcome,context){
+    const requested=String(context&&context.level||'').toUpperCase();
+    if(outcome==='failed'&&requested!=='FATAL')return 'ERROR';
+    if(outcome==='slow'&&!['ERROR','FATAL'].includes(requested))return 'WARN';
+    if(Object.prototype.hasOwnProperty.call(_diagnosticRetention,requested))return requested;
+    return outcome==='failed'?'ERROR':outcome==='slow'||outcome==='pending'?'WARN':'INFO';
+  }
+  function _diagnosticHistory(){
+    try{
+      const values=JSON.parse(localStorage.getItem(_diagnosticHistoryKey)||'[]'),now=Date.now();
+      if(!Array.isArray(values))return [];
+      return values.filter(function(x){
+        const e=x&&x.event;
+        return x&&Object.prototype.hasOwnProperty.call(_diagnosticRetention,x.level)&&
+          Number.isFinite(x.at)&&x.at>now-_diagnosticRetention[x.level]&&x.at<=now+300000&&
+          /^[a-zA-Z0-9_-]{8,64}$/.test(String(x.id||''))&&
+          /^[a-z0-9][a-z0-9-]{0,31}$/.test(String(x.storeId||''))&&
+          e&&e.eventId===x.id&&
+          /^[a-zA-Z0-9_-]{8,64}$/.test(String(e.traceId||''))&&
+          /^[a-z][a-z0-9_]{0,47}$/.test(String(e.feature||''))&&
+          /^[a-zA-Z][a-zA-Z0-9_:.-]{0,63}$/.test(String(e.operation||''))&&
+          ['failed','slow','pending','completed'].includes(e.outcome)&&
+          /^[a-z][a-z0-9_]{0,63}$/.test(String(e.errorCode||''))&&
+          Number.isInteger(e.durationMs)&&e.durationMs>=0&&e.durationMs<=600000&&
+          /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(String(e.occurredAt||''))&&
+          Number.isFinite(Date.parse(e.occurredAt))&&
+          new Date(Date.parse(e.occurredAt)).toISOString()===e.occurredAt&&
+          ['native','webview','unknown'].includes(e.transport)&&
+          Number.isInteger(e.attemptCount)&&e.attemptCount>=1&&e.attemptCount<=8&&
+          /^[a-zA-Z0-9_.+-]{1,40}$/.test(String(e.appVersion||''));
+      }).map(function(x){
+        const e=x.event;
+        return {id:x.id,at:x.at,storeId:x.storeId,level:x.level,
+          deliveredAt:Number.isFinite(x.deliveredAt)&&x.deliveredAt>0?x.deliveredAt:null,
+          event:{traceId:e.traceId,feature:e.feature,operation:e.operation,
+            outcome:e.outcome,errorCode:e.errorCode,durationMs:e.durationMs,
+            eventId:e.eventId,occurredAt:e.occurredAt,transport:e.transport,
+            attemptCount:e.attemptCount,appVersion:e.appVersion}};
+      });
+    }catch(_){return [];}
+  }
+  function _saveDiagnosticHistory(entries){
+    const bounded=entries.slice();
+    const low=bounded.filter(x=>x.level==='INFO'||x.level==='DEBUG');
+    while(low.length>100){
+      const i=low.findIndex(x=>x.level==='DEBUG');
+      low.splice(i<0?0:i,1);
+    }
+    const high=bounded.filter(x=>x.level!=='INFO'&&x.level!=='DEBUG');
+    while(high.length>200){
+      let i=high.findIndex(x=>x.level==='WARN');
+      if(i<0)i=high.findIndex(x=>x.level==='ERROR');
+      high.splice(i<0?0:i,1);
+    }
+    const keep=new Set(low.concat(high));
+    try{localStorage.setItem(_diagnosticHistoryKey,
+      JSON.stringify(bounded.filter(x=>keep.has(x))));}catch(_){}
+  }
+  function _rememberDiagnostic(item,level){
+    if(!item||!item.event)return;
+    const history=_diagnosticHistory();
+    if(history.some(x=>x.id===item.id&&x.storeId===item.storeId))return;
+    const e=item.event;
+    const safe={traceId:e.traceId,feature:e.feature,operation:e.operation,
+      outcome:e.outcome,errorCode:e.errorCode,durationMs:e.durationMs,
+      eventId:e.eventId,occurredAt:e.occurredAt||new Date(item.at).toISOString(),
+      transport:e.transport||'unknown',attemptCount:e.attemptCount||1,
+      appVersion:e.appVersion||'unknown'};
+    history.push({id:item.id,storeId:item.storeId,at:item.at,
+      level:level||_diagnosticLevel(item.event.outcome),deliveredAt:null,event:safe});
+    _saveDiagnosticHistory(history);
+  }
+  function _markDiagnosticDelivered(item){
+    const history=_diagnosticHistory();
+    const current=history.find(x=>x.id===item.id&&x.storeId===item.storeId);
+    if(current){current.deliveredAt=Date.now();_saveDiagnosticHistory(history);}
   }
   function _diagnosticQueue(){
     try{const rows=JSON.parse(localStorage.getItem(_diagnosticQueueKey)||'[]');
       const now=Date.now();
       return Array.isArray(rows)?rows.filter(x=>{
         const e=x&&x.event;
-        return x&&Number.isFinite(x.at)&&x.at>now-7*86400000&&x.at<=now+5*60000&&
+        return x&&Number.isFinite(x.at)&&
+          x.at>now-(e&&e.outcome==='failed'?14:7)*86400000&&x.at<=now+5*60000&&
           /^[a-zA-Z0-9_-]{8,64}$/.test(String(x.id||''))&&
           /^[a-z0-9][a-z0-9-]{0,31}$/.test(String(x.storeId||''))&&
           e&&typeof e==='object'&&!Array.isArray(e)&&e.eventId===x.id&&
@@ -668,7 +768,7 @@
           (e.attemptCount==null||(Number.isInteger(e.attemptCount)&&
             e.attemptCount>=1&&e.attemptCount<=8))&&
           (e.appVersion==null||/^[a-zA-Z0-9_.+-]{1,40}$/.test(e.appVersion));
-      }).slice(-50).map(x=>{
+      }).slice(-200).map(x=>{
         // Readback is an untrusted persistence boundary, not an API payload.
         const e=x.event;
         return {id:x.id,storeId:x.storeId,at:x.at,event:{
@@ -682,7 +782,7 @@
   }
   function _saveDiagnosticQueue(rows){
     const bounded=rows.slice();
-    while(bounded.length>50){
+    while(bounded.length>200){
       const low=bounded.findIndex(x=>x&&x.event&&
         ['completed','slow'].includes(x.event.outcome));
       bounded.splice(low>=0?low:0,1);
@@ -697,17 +797,30 @@
     if(_diagnosticRetryTimer&&typeof _diagnosticRetryTimer.unref==='function')
       _diagnosticRetryTimer.unref();
   }
+  function _settleManualDiagnostic(item,confirmed){
+    const active=_manualDiagnostic;
+    if(!active||active.id!==item.id||active.storeId!==item.storeId)return;
+    _manualDiagnostic=null;clearTimeout(active.timer);
+    if(confirmed)active.resolve({ok:true,eventId:item.id,
+      pendingCount:_diagnosticQueue().filter(v=>v.storeId===item.storeId).length});
+    else active.reject(new Error('diagnostic_send_unconfirmed'));
+  }
   function _flushDiagnostics(){
     if(_diagnosticSending)return;
     const token=storedToken(),storeId=API.currentStoreId();
     if(!token||!storeId)return;
     const pending=_diagnosticQueue();
-    const item=pending.find(x=>x.storeId===storeId);
+    const item=(_manualDiagnostic&&_manualDiagnostic.storeId===storeId
+      ? pending.find(x=>x.storeId===storeId&&x.id===_manualDiagnostic.id):null)||
+      pending.find(x=>x.storeId===storeId&&x.event.outcome==='failed')||
+      pending.find(x=>x.storeId===storeId);
     if(!item)return;
     // An event added during the send throttle still needs a future attempt.
     const throttleMs=10000-(Date.now()-_diagnosticLastSend);
-    if(throttleMs>0){_scheduleDiagnosticFlush(throttleMs);return;}
+    if(throttleMs>0&&(!(_manualDiagnostic&&_manualDiagnostic.id===item.id&&
+      _manualDiagnostic.storeId===storeId))){_scheduleDiagnosticFlush(throttleMs);return;}
     _diagnosticSending=true;_diagnosticLastSend=Date.now();
+    _rememberDiagnostic(item);
     const ctrl=new AbortController();
     let timeout;
     const deadline=new Promise(function(_,reject){
@@ -729,12 +842,17 @@
           acknowledged=true;
           _saveDiagnosticQueue(_diagnosticQueue().filter(v=>
             v.id!==item.id||v.storeId!==storeId));
-        }
-      }).catch(function(){}).finally(function(){
+          _markDiagnosticDelivered(item);
+          _settleManualDiagnostic(item,true);
+        }else _settleManualDiagnostic(item,false);
+      }).catch(function(){_settleManualDiagnostic(item,false);}).finally(function(){
         clearTimeout(timeout);_diagnosticSending=false;
         _diagnosticRetryDelay=acknowledged?30000:Math.min(300000,_diagnosticRetryDelay*2);
         const activeStore=API.currentStoreId();
-        if(storedToken()&&activeStore&&_diagnosticQueue().some(v=>v.storeId===activeStore))
+        if(_manualDiagnostic&&storedToken()&&activeStore===_manualDiagnostic.storeId&&
+          _diagnosticQueue().some(v=>v.storeId===activeStore&&v.id===_manualDiagnostic.id))
+          _flushDiagnostics();
+        else if(storedToken()&&activeStore&&_diagnosticQueue().some(v=>v.storeId===activeStore))
           _scheduleDiagnosticFlush(acknowledged?11000:_diagnosticRetryDelay);
       });
   }
@@ -747,15 +865,114 @@
       feature:/^[a-z][a-z0-9_]{0,47}$/.test(String(feature))?feature:'client',
       operation:/^[a-zA-Z][a-zA-Z0-9_:.-]{0,63}$/.test(String(operation))?operation:'unknown',
       outcome:['failed','slow','pending','completed'].includes(outcome)?outcome:'failed',
-      errorCode:/^[a-z][a-z0-9_]{0,63}$/.test(String(errorCode))?errorCode:'client_error',
+      errorCode:_diagnosticCode(errorCode,feature,outcome),
       durationMs:Math.min(600000,Math.max(0,Math.floor(Number(durationMs)||0))),
       eventId,occurredAt:new Date().toISOString(),transport:'webview',
       attemptCount:Number.isInteger(context?.attemptCount)&&context.attemptCount>=1&&context.attemptCount<=8?
         context.attemptCount:1,appVersion:_diagnosticAppVersion,
     };
-    const rows=_diagnosticQueue();rows.push({id:eventId,storeId,at:Date.now(),event});
-    _saveDiagnosticQueue(rows);
-    if(!deferSend)_flushDiagnostics();
+    const item={id:eventId,storeId,at:Date.now(),event};
+    const level=_diagnosticLevel(event.outcome,context);
+    _rememberDiagnostic(item,level);
+    if(['WARN','ERROR','FATAL'].includes(level)||
+       (event.feature==='diagnostics'&&event.operation==='manual_upload_probe')){
+      const rows=_diagnosticQueue();rows.push(item);
+      _saveDiagnosticQueue(rows);
+      if(!deferSend)_flushDiagnostics();
+    }
+    return eventId;
+  };
+  async function _resendDiagnosticHistory(items,storeId,maxDurationMs=15000){
+    let next=0,confirmed=0,failed=0,stop=false;
+    const acknowledged=new Set();
+    const endsAt=Date.now()+maxDurationMs;
+    async function worker(){
+      while(!stop&&next<items.length){
+        if(Date.now()>=endsAt){stop=true;return;}
+        const item=items[next++],token=storedToken();
+        if(!token||API.currentStoreId()!==storeId){stop=true;failed++;return;}
+        const ctrl=new AbortController();
+        let timer;
+        const deadline=new Promise(function(_,reject){
+          timer=setTimeout(function(){reject(new Error('diagnostic_transport_timeout'));
+            try{ctrl.abort();}catch(_){}},5000);
+        });
+        try{
+          const data=await Promise.race([Promise.resolve().then(function(){
+            return fetch(CFG.API_URL+'?api=1',{method:'POST',
+              headers:{'Content-Type':'text/plain;charset=utf-8'},
+              body:JSON.stringify({action:'recordClientDiagnostic',storeId:storeId,
+                token:token,event:item.event}),signal:ctrl.signal});
+          }).then(function(response){return response.ok?response.json():null;}),deadline]);
+          if(data&&data.ok===true){
+            confirmed++;acknowledged.add(item.id);
+          }
+          else{failed++;stop=true;}
+        }catch(_){failed++;stop=true;}
+        finally{clearTimeout(timer);}
+      }
+    }
+    await Promise.all(Array.from({length:Math.min(4,items.length)},worker));
+    if(acknowledged.size){
+      const history=_diagnosticHistory();
+      let changed=false;
+      const at=Date.now();
+      history.forEach(function(v){
+        if(v.storeId===storeId&&acknowledged.has(v.id)){
+          v.deliveredAt=at;changed=true;
+        }
+      });
+      if(changed)_saveDiagnosticHistory(history);
+      _saveDiagnosticQueue(_diagnosticQueue().filter(v=>
+        v.storeId!==storeId||!acknowledged.has(v.id)));
+    }
+    return {resentCount:confirmed,failedCount:failed,
+      totalCount:items.length,pendingCount:items.length-confirmed,
+      incomplete:confirmed<items.length};
+  }
+  let _manualBatchPromise=null;
+  let _manualBatchStoreId='';
+  // A manual, clearly labeled probe uses the existing signed/offline queue,
+  // not a separate upload endpoint or a fabricated error alert.
+  API.sendDiagnosticsNow=function(){
+    const storeId=API.currentStoreId();
+    if(_manualBatchPromise)return _manualBatchStoreId===storeId
+      ?_manualBatchPromise:Promise.reject(new Error('diagnostic_busy_other_store'));
+    if(!storedToken()||!storeId)
+      return Promise.reject(new Error('diagnostic_login_required'));
+    _diagnosticQueue().filter(x=>x.storeId===storeId).forEach(x=>_rememberDiagnostic(x));
+    const history=_diagnosticHistory().filter(x=>x.storeId===storeId);
+    const id=API.reportDiagnostic('diagnostics','manual_upload_probe','completed',
+      'manual_test',0,null,true,{transport:'webview',attemptCount:1});
+    if(!id)
+      return Promise.reject(new Error('diagnostic_queue_unavailable'));
+    const queued=_diagnosticQueue().some(v=>v.id===id&&v.storeId===storeId);
+    if(!queued){
+      const probe=_diagnosticHistory().find(v=>v.id===id&&v.storeId===storeId);
+      if(!probe)return Promise.reject(new Error('diagnostic_queue_unavailable'));
+      _manualBatchStoreId=storeId;
+      _manualBatchPromise=_resendDiagnosticHistory([probe],storeId).then(async function(result){
+        if(result.resentCount!==1)throw new Error('diagnostic_send_unconfirmed');
+        const resend=await _resendDiagnosticHistory(history,storeId);
+        return Object.assign({ok:true,eventId:id},resend);
+      }).finally(function(){_manualBatchPromise=null;_manualBatchStoreId='';});
+      return _manualBatchPromise;
+    }
+    let resolve,reject;
+    const promise=new Promise((ok,fail)=>{resolve=ok;reject=fail;});
+    const timer=setTimeout(function(){
+      if(_manualDiagnostic&&_manualDiagnostic.id===id)
+        _settleManualDiagnostic({id,storeId},false);
+    },16000);
+    _manualDiagnostic={id,storeId,resolve,reject,timer,promise};
+    if(_diagnosticRetryTimer){clearTimeout(_diagnosticRetryTimer);_diagnosticRetryTimer=null;}
+    _flushDiagnostics();
+    _manualBatchStoreId=storeId;
+    _manualBatchPromise=promise.then(async function(receipt){
+      const resend=await _resendDiagnosticHistory(history,storeId);
+      return Object.assign({},receipt,resend);
+    }).finally(function(){_manualBatchPromise=null;_manualBatchStoreId='';});
+    return _manualBatchPromise;
   };
   function _webDiagnosticFailure(error){
     if(error?.__izTimedOut)return 'client_timeout';
@@ -847,6 +1064,10 @@
     const fetchOnce = readOnly ? _fetchReadOnce : (backgroundMutation ? _fetchOnce : _fetchForegroundWriteOnce);
     const mutationId = (readOnly || backgroundMutation) ? '' : beginMutation(action === 'rpc' ? ('rpc:' + String(payload.fn || '')) : action);
     let mutationUncertain = false,diagnosticFailed=false,diagnosticAttempts=0;
+    if(!readOnly&&!backgroundMutation)
+      API.reportDiagnostic(action==='rpc'?'rpc':'api',
+        action==='rpc'?'rpc:'+String(payload.fn||'unknown'):String(action||'unknown'),
+        'pending','none',0,diagnosticTraceId,true,{level:'DEBUG'});
     if (!silent) _load.show(payload.__msg);
     try {
       let json;
@@ -914,11 +1135,12 @@
       if (mutationId && !error.__abandonedWrite && mutationOutcomeUncertain(error)) mutationUncertain = true;
       throw error;
     } finally {
-      if(!diagnosticFailed&&Date.now()-diagnosticStart>=5000){
+      if(!diagnosticFailed){
+        const elapsed=Date.now()-diagnosticStart,slow=elapsed>=5000;
         API.reportDiagnostic(action==='rpc'?'rpc':'api',
           action==='rpc'?'rpc:'+String(payload.fn||'unknown'):String(action||'unknown'),
-          'slow','none',Date.now()-diagnosticStart,diagnosticTraceId,false,
-          {attemptCount:diagnosticAttempts});
+          slow?'slow':'completed','none',elapsed,diagnosticTraceId,false,
+          {attemptCount:diagnosticAttempts,level:slow?'WARN':'INFO'});
       }
       _flushDiagnostics();
       if (mutationId) endMutation(mutationId, mutationUncertain);
@@ -1319,14 +1541,25 @@
     'menu_editor.html':'menu_editor','recipe.html':'recipe','clock.html':'clock','attendance.html':'attendance','users.html':'users',
     'todo.html':'todo','requests.html':'requests','members.html':'members','birthdays.html':'birthdays','coupons.html':'coupons',
     'reservations.html':'reservations','printers.html':'printers','bridge.html':'printers','audit.html':'audit',
-    'data_admin.html':'backup','backup.html':'backup','settings.html':'settings','subscription.html':'settings'
+    'data_admin.html':'backup','backup.html':'backup','settings.html':'settings','subscription.html':'__authenticated_info__'
   });
+  var UNRESTRICTED_PERMISSION_SCREENS = new Set([
+    'index.html','manage.html','reserve.html','privacy.html','terms.html',
+    'support.html','overview.html','account.html','staff-calls.html','drink_inv.html'
+  ]);
+  function permissionKeyForPage(page) {
+    if (PAGE_PERMISSION[page]) return PAGE_PERMISSION[page];
+    if (UNRESTRICTED_PERMISSION_SCREENS.has(page)) return '';
+    return /^[a-z0-9_-]+\.html$/.test(page) ? 'screen_'+page.slice(0,-5).replace(/-/g,'_') : '';
+  }
+  API.permissionKeyForPage = permissionKeyForPage;
   function localPageName(href) {
     try {
       var u = href ? new URL(href, location.href) : new URL(location.href);
       if (u.origin !== location.origin) return '';
-      return (u.pathname.split('/').pop() || 'index.html').toLowerCase();
-    } catch (e) { return ''; }
+      var pathname = decodeURIComponent(u.pathname);
+      return (pathname.split('/').pop() || 'index.html').toLowerCase();
+    } catch (e) { return '__invalid_screen__.html'; }
   }
   function permissionReturnTarget(search, hash, currentPage) {
     try {
@@ -1457,11 +1690,16 @@
     var allowed = (me && (me.roleAllowed || me.allowed)) || {};
     Array.prototype.forEach.call(document.querySelectorAll('a[href]'), function (a) {
       var target = localPageName(a.getAttribute('href'));
-      var key = PAGE_PERMISSION[target];
-      var denied = (target === 'account.html' && !(me && me.accountOwner === true)) || (key && allowed[key] !== true);
+      var key = permissionKeyForPage(target);
+      var denied = (target === 'account.html' && !(me && me.accountOwner === true)) || (key && key !== '__authenticated_info__' && allowed[key] !== true);
       if (denied && localPageName() === 'overview.html') { a.hidden = false; a.removeAttribute('aria-hidden'); a.removeAttribute('data-permission-hidden'); a.setAttribute('data-permission-denied', ''); }
       else if (denied) { a.hidden = true; a.setAttribute('aria-hidden', 'true'); a.setAttribute('data-permission-hidden', ''); }
-      else { a.removeAttribute('data-permission-denied'); }
+      else {
+        if (a.hasAttribute('data-permission-hidden')) {
+          a.hidden = false; a.removeAttribute('aria-hidden'); a.removeAttribute('data-permission-hidden');
+        }
+        a.removeAttribute('data-permission-denied');
+      }
     });
     if (!permissionLinkObserver && typeof MutationObserver !== 'undefined' && document.documentElement) {
       permissionLinkObserver = new MutationObserver(function (changes) {
@@ -1477,9 +1715,9 @@
     document.addEventListener('click', function (ev) {
       if (localPageName() !== 'overview.html') return;
       var a = ev.target && ev.target.closest ? ev.target.closest('a[href]') : null; if (!a) return;
-      var target = localPageName(a.getAttribute('href')), key = PAGE_PERMISSION[target]; if (!key) return;
+      var target = localPageName(a.getAttribute('href')), key = permissionKeyForPage(target); if (!key) return;
       ev.preventDefault(); ev.stopPropagation();
-      function finish(){ var allowed=(permissionLinkMe&&(permissionLinkMe.roleAllowed||permissionLinkMe.allowed))||{}; if(allowed[key]===true){location.href=a.getAttribute('href');return;} var en=String(document.documentElement.lang||'').toLowerCase().indexOf('en')===0; try{sessionStorage.setItem('izPermissionNotice',en?'You do not have permission to open that page.':'この画面を開く権限がありません。');}catch(e){} showPermissionNotice(); }
+      function finish(){ var allowed=(permissionLinkMe&&(permissionLinkMe.roleAllowed||permissionLinkMe.allowed))||{}; if(key==='__authenticated_info__'||allowed[key]===true){location.href=a.getAttribute('href');return;} var en=String(document.documentElement.lang||'').toLowerCase().indexOf('en')===0; try{sessionStorage.setItem('izPermissionNotice',en?'You do not have permission to open that page.':'この画面を開く権限がありません。');}catch(e){} showPermissionNotice(); }
       if(permissionLinkMe){finish();return;} API.enforcePagePermission().then(function(ok){if(ok)finish();}).catch(function(){});
     }, true);
   }
@@ -1492,7 +1730,7 @@
   async function enforcePagePermissionGeneration(generation) {
     if (typeof location === 'undefined' || typeof document === 'undefined') return true;
     var page = localPageName();
-    var key = PAGE_PERMISSION[page];
+    var key = permissionKeyForPage(page);
     var nativePrintOneShot = page === 'bridge.html' && /(?:^|[?&])oneshot=1(?:&|$)/.test(String(location.search || ''));
     var shouldInspectLinks = page === 'overview.html';
     var accountPage = page === 'account.html';
@@ -1514,7 +1752,7 @@
       var allowed = r.me.roleAllowed || r.me.allowed || {};
       if (nativePrintOneShot) {
         if (!(allowed.admin === true || allowed.receipts === true || allowed.printers === true || allowed.settings === true)) { hidePermissionGate(); denyPage(); return false; }
-      } else if (key && allowed[key] !== true) { hidePermissionGate(); denyPage(); return false; }
+      } else if (key && key !== '__authenticated_info__' && allowed[key] !== true) { hidePermissionGate(); denyPage(); return false; }
       if (key==='admin' && allowed.admin===true) API.rememberOfflineAdminGrant();
       if (key || accountPage) hidePermissionGate();
       hidePermissionTransientNotice();

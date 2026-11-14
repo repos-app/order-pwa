@@ -7,6 +7,7 @@
   var items = [], unreadCount = 0, failed = false, badge = null, overlay = null;
   var mode = 'list', selectedId = '', filter = 'all', forced = false, previousFocus = null;
   var autoAttempted = Object.create(null);
+  var diagnosticReport = null;
 
   function language() {
     try { if (window.I18n && typeof I18n.lang === 'function') return I18n.lang() === 'en' ? 'en' : 'ja'; }
@@ -86,6 +87,8 @@
       '#izAnnouncementDialog .iz-ann-normal{color:#475569}' +
       '#izAnnouncementDialog .iz-ann-body{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7;margin:16px 0}' +
       '#izAnnouncementDialog .iz-ann-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}' +
+      '#izAnnouncementDialog .iz-ann-diagnostic{margin-top:14px;padding:12px;border:1px solid #cbd5e1;border-radius:9px}' +
+      '#izAnnouncementDialog .iz-ann-diagnostic .iz-ann-muted{margin:6px 0 0;overflow-wrap:anywhere}' +
       '#izAnnouncementDialog button.iz-ann-action{border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;' +
       'color:#0f172a;min-height:44px;padding:8px 12px;cursor:pointer;font:700 14px/1.2 inherit}' +
       '#izAnnouncementDialog button.iz-ann-primary{background:#0f172a;color:#fff;border-color:#0f172a}' +
@@ -221,6 +224,37 @@
       else { mode = 'list'; selectedId = ''; paint(); }
     });
   }
+  function sendDiagnostics() {
+    if (diagnosticReport && diagnosticReport.state === 'sending') return;
+    var session = activeToken;
+    var store = window.API && typeof API.currentStoreId === 'function' ? API.currentStoreId() : '';
+    diagnosticReport = {state:'sending'};
+    paint();
+    Promise.resolve().then(function () {
+      if (!window.API || typeof API.sendDiagnosticsNow !== 'function')
+        throw new Error('diagnostic_unavailable');
+      return API.sendDiagnosticsNow();
+    }).then(function (receipt) {
+      if ((session !== activeToken && !sameSessionIdentity(session, activeToken)) ||
+          !window.API || API.currentStoreId() !== store) return;
+      if (!receipt || receipt.ok !== true || !/^[a-zA-Z0-9_-]{8,64}$/.test(String(receipt.eventId)))
+        throw new Error('diagnostic_send_unconfirmed');
+      diagnosticReport = {state:'confirmed',id:receipt.eventId,
+        pending:Number.isInteger(receipt.pendingCount) ? receipt.pendingCount : null,
+        total:Number.isInteger(receipt.totalCount) ? receipt.totalCount : null,
+        resent:Number.isInteger(receipt.resentCount) ? receipt.resentCount : null,
+        partial:Number(receipt.failedCount)>0 || receipt.incomplete===true};
+      if (overlay) paint();
+    }).catch(function (error) {
+      if ((session !== activeToken && !sameSessionIdentity(session, activeToken)) ||
+          !window.API || API.currentStoreId() !== store) return;
+      var code = String(error && error.message || '');
+      diagnosticReport = {state:'failed',code:
+        code === 'diagnostic_login_required' ? 'auth' :
+        code === 'diagnostic_queue_unavailable' ? 'storage' : 'unconfirmed'};
+      if (overlay) paint();
+    });
+  }
   function paint() {
     if (!overlay) return;
     var dialog = document.getElementById('izAnnouncementDialog');
@@ -265,6 +299,37 @@
       add(row, 'strong', (item.readAt ? '' : '● ') + localized(item, 'title'));
       add(row, 'span', dateLabel(item.publishedAt), 'iz-ann-muted');
     });
+    var diagnostics = add(dialog, 'div', null, 'iz-ann-diagnostic');
+    add(diagnostics, 'strong', t('クライアント診断', 'Client diagnostics'));
+    add(diagnostics, 'p', t('端末に保持しているログを送信・再送します。送信済みのログも削除されず、もう一度送れます。',
+      'Send or resend retained device logs. Already sent logs stay on this device and can be sent again.'), 'iz-ann-muted');
+    var sendButton = button(diagnostics, diagnosticReport && diagnosticReport.state === 'sending'
+      ? t('送信中…', 'Sending…') : t('診断ログを送信', 'Send diagnostic logs'), sendDiagnostics);
+    sendButton.id = 'izAnnouncementSendDiagnostics';
+    sendButton.disabled = !!diagnosticReport && diagnosticReport.state === 'sending';
+    var status = add(diagnostics, 'p', '', 'iz-ann-muted');
+    status.id = 'izAnnouncementDiagnosticStatus';
+    status.setAttribute('role', 'status');
+    status.setAttribute('aria-live', 'polite');
+    if (diagnosticReport && diagnosticReport.state === 'sending') {
+      status.textContent = t('サーバーからの保存確認を待っています…', 'Waiting for the server save acknowledgement…');
+    } else if (diagnosticReport && diagnosticReport.state === 'confirmed') {
+      status.textContent = t('サーバー保存確認済み。確認ID: ', 'Server save confirmed. Event ID: ') +
+        diagnosticReport.id + (diagnosticReport.total == null ? '' :
+          ' · ' + t('ログ再送確認: ', 'Logs re-upload confirmed: ') +
+          diagnosticReport.resent + '/' + diagnosticReport.total) +
+        (diagnosticReport.partial && diagnosticReport.pending
+          ? ' · ' + t('一部未確認（再送可能）: ', 'Unconfirmed (can retry): ') + diagnosticReport.pending
+          : '');
+    } else if (diagnosticReport && diagnosticReport.state === 'failed') {
+      status.textContent = diagnosticReport.code === 'auth'
+        ? t('ログインを確認して再試行してください。', 'Sign in and try again.')
+        : diagnosticReport.code === 'storage'
+        ? t('端末内のログ保存に失敗しました。保存・送信は確認できていません。',
+          'Local log storage failed. No save or delivery is confirmed.')
+        : t('サーバー保存を確認できませんでした。記録は端末に保持し、自動再送します。',
+          'Server save not confirmed. The queued event is retained for automatic retry.');
+    }
     var actions = add(dialog, 'div', null, 'iz-ann-actions');
     button(actions, t('最新情報を取得', 'Refresh'), function () { load(true); });
     button(actions, t('閉じる', 'Close'), close, true);
@@ -328,7 +393,8 @@
     var next = token(), actions = document.getElementById('izHeaderActions');
     if (!eligible() || !actions) {
       ++generation; activeToken = ''; items = []; unreadCount = 0; loadedAt = 0;
-      loading = null; failed = false; autoAttempted = Object.create(null);
+      loading = null; failed = false; diagnosticReport = null;
+      autoAttempted = Object.create(null);
       if (badge) badge.remove();
       badge = null; close();
       return;
@@ -338,7 +404,7 @@
       ++generation; activeToken = next; loading = null;
       if (!continuing) {
         items = []; unreadCount = 0; loadedAt = 0;
-        failed = false; autoAttempted = Object.create(null); close();
+        failed = false; diagnosticReport = null; autoAttempted = Object.create(null); close();
       }
       // A short-lived v3 access-token rotation must not close an important
       // acknowledgment dialog or clear its unread count. Old RPC responses

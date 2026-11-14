@@ -204,7 +204,10 @@
       var order = (pmData.groupOrder||[]).length ? pmData.groupOrder : [null];
       var seen = {};
       function rowFor(k){
-        var h = '<tr><td style="text-align:left;font-weight:700;">'+esc(LBL(k))+'</td>';
+        var screens=(pmData.screenCoverage&&pmData.screenCoverage[k])||[];
+        var h = '<tr><td style="text-align:left;font-weight:700;">'+esc(LBL(k))+
+          (screens.length?'<div class="muted" style="font-size:11px;font-weight:400;margin-top:3px;overflow-wrap:anywhere;">'+
+          esc(screens.join(' / '))+'</div>':'')+'</td>';
         roles.forEach(function(role){
           var on = !!(pmData.matrix[role] && pmData.matrix[role][k]); var sys = (role==='システム');
           h += '<td><input type="checkbox" data-role="'+esc(role)+'" data-key="'+esc(k)+'"'+((on||sys)?' checked':'')+(sys?' disabled':'')+'></td>';
@@ -225,11 +228,22 @@
     }
     window.savePerms = function(){
       if (!pmData) return;
-      var matrix = {}; pmData.roles.forEach(function(r){ matrix[r]={}; });
+      var matrix = {}, expectedMatrix = {}; pmData.roles.forEach(function(r){ matrix[r]={}; expectedMatrix[r]={}; });
       var boxes = document.querySelectorAll('#pmTable input[type="checkbox"]');
-      for (var i=0;i<boxes.length;i++){ matrix[boxes[i].getAttribute('data-role')][boxes[i].getAttribute('data-key')] = boxes[i].checked; }
+      for (var i=0;i<boxes.length;i++){
+        var role=boxes[i].getAttribute('data-role'),key=boxes[i].getAttribute('data-key');
+        if(role==='システム')continue;
+        if(!Object.prototype.hasOwnProperty.call(matrix,role))continue;
+        var previous=!!(pmData.matrix[role]&&pmData.matrix[role][key]);
+        if(boxes[i].checked!==previous){ matrix[role][key]=boxes[i].checked; expectedMatrix[role][key]=previous; }
+      }
       var btn=document.getElementById('saveP'); btn.disabled=true;
-      rpc('savePermissionMatrix',[matrix]).then(function(res){ btn.disabled=false; if(res&&res.success){ msg('pMsg',I18n.t('saved'), true); pmData.matrix=matrix; } else { msg('pMsg', res&&res.error==='forbidden'?I18n.t('forbidden'):I18n.t('errG'), false); } })
+      rpc('savePermissionMatrix',[matrix,expectedMatrix]).then(function(res){ btn.disabled=false; if(res&&res.success){
+        Object.keys(matrix).forEach(function(role){Object.assign(pmData.matrix[role],matrix[role]);});
+        msg('pMsg',I18n.t('saved'), true); loadMatrix();
+      } else if(res&&res.error==='permission_conflict'){
+        msg('pMsg',userCopy('別の管理者による変更がありました。最新の設定を確認してください。','Another administrator changed permissions. Review the refreshed settings.'),false); loadMatrix();
+      } else { msg('pMsg', res&&res.error==='forbidden'?I18n.t('forbidden'):I18n.t('errG'), false); } })
         .catch(function(e){ btn.disabled=false; msg('pMsg',I18n.t('errPrefix')+API.userErrorText(e), false); });
     };
 

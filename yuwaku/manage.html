@@ -182,12 +182,12 @@
       { grp:'orders', key:'admin', ic:'🧾', tt:'注文管理', ds:'テーブル別・会計', ttEn:'Orders', dsEn:'Tables · billing', url:'./admin.html', active:true },
       { grp:'orders', key:'kds', ic:'🍳', tt:'キッチン画面', ds:'未提供オーダー', ttEn:'Kitchen', dsEn:'Pending orders', url:'./kds.html', active:true },
       { grp:'orders', key:'takeout', ic:'🥡', tt:'テイクアウト', ds:'オンライン注文', ttEn:'Takeout', dsEn:'Online orders', url:'./takeout.html', active:true },
-      { grp:'orders', key:null, ic:'✍️', tt:'オーダー入力', ds:'口頭注文を店員が入力', ttEn:'New order', dsEn:'Staff order entry', url:'./index.html', active:true },
+      { grp:'orders', key:'admin', ic:'✍️', tt:'オーダー入力', ds:'口頭注文を店員が入力', ttEn:'New order', dsEn:'Staff order entry', url:'./index.html', active:true },
       { grp:'sales', key:'dashboard', ic:'📊', tt:'ダッシュボード', ds:'今日/今月・目標・粗利', ttEn:'Dashboard', dsEn:'Today · target · profit', url:'./dashboard.html', active:true },
       { grp:'sales', key:'sales', ic:'📈', tt:'売上管理', ds:'集計・分析', ttEn:'Sales', dsEn:'Reports · analytics', url:'./sales.html', active:true },
       { grp:'sales', key:'expenses', ic:'💰', tt:'経費一覧', ds:'固定費・仕入・備品', ttEn:'Expenses', dsEn:'Costs · purchases', url:'./expenses.html', active:true },
       { grp:'sales', key:'profit', ic:'📉', tt:'月間利益', ds:'売上−原価・人件費・経費', ttEn:'Monthly profit', dsEn:'Sales less costs, labor & expenses', url:'./profit.html', active:true },
-      { grp:'sales', key:null, ic:'📐', tt:'営業利益シミュレーション', ds:'経費入力・実績読込で試算', ttEn:'Operating profit sim.', dsEn:'Estimate from costs · actuals', url:'./profit_sim.html', active:true },
+      { grp:'sales', key:'profit', ic:'📐', tt:'営業利益シミュレーション', ds:'経費入力・実績読込で試算', ttEn:'Operating profit sim.', dsEn:'Estimate from costs · actuals', url:'./profit_sim.html', active:true },
       { grp:'sales', key:'register', ic:'💵', tt:'レジ締め', ds:'現金過不足・X/Z', ttEn:'Register', dsEn:'Cash close · X/Z', url:'./register.html', active:true },
       { grp:'sales', key:'commission', ic:'💰', tt:'歩合・スタッフ報酬', ds:'SC分配・歩合・支払管理', ttEn:'Commission & rewards', dsEn:'SC sharing · payouts', url:'./commission.html', active:true },
       { grp:'sales', key:'receipts', ic:'🧾', tt:'会計履歴', ds:'過去の会計・再印刷', ttEn:'Receipts', dsEn:'Past bills · reprint', url:'./receipts.html', active:true },
@@ -256,13 +256,22 @@
         link.textContent=en?'Review':'確認';box.classList.remove('hidden');
       }).catch(function(){box.classList.add('hidden');});
     }
+    function tileAllowed(x, allowed){
+      var base=String(x.url||'').split('?')[0];
+      if(['./account.html','./subscription.html','./support.html','./overview.html'].indexOf(base)>=0)return true;
+      var file=base.replace(/^\.\//,'');
+      var resolved=window.API&&API.permissionKeyForPage&&API.permissionKeyForPage(file);
+      if(resolved && resolved!=='__authenticated_info__')return allowed[resolved]===true;
+      if(x.key && Object.prototype.hasOwnProperty.call(allowed,x.key))return allowed[x.key]===true;
+      return /^[a-z0-9_-]+\.html$/.test(file) && allowed['screen_'+file.slice(0,-5).replace(/-/g,'_')]===true;
+    }
     function renderHub(){
       var allowed = lastAllowed || {};
       var en = (window.I18n && I18n.lang()==='en');
       var isSystem = ROLE==='システム' || ROLE==='system';
       // 権限のあるタイルを持つタブだけ表示
       var visGroups = GROUPS.filter(function(g){
-        return TILES.some(function(x){ return x.grp===g.id && (!x.sysOnly || isSystem) && (!x.ownerOnly || ACCOUNT_OWNER) && (!x.key || allowed[x.key]); });
+        return TILES.some(function(x){ return x.grp===g.id && (!x.sysOnly || isSystem) && (!x.ownerOnly || ACCOUNT_OWNER) && tileAllowed(x,allowed); });
       });
       if (!visGroups.length){ document.getElementById('mtabs').innerHTML=''; document.getElementById('tiles').innerHTML=''; return; }
       if (!curTab || !visGroups.some(function(g){ return g.id===curTab; })) curTab = visGroups[0].id;
@@ -276,7 +285,7 @@
         if (x.grp!==curTab) return;
         if (x.sysOnly && !isSystem) return;
         if (x.ownerOnly && !ACCOUNT_OWNER) return;
-        if (x.key && !allowed[x.key]) return;
+        if (!tileAllowed(x,allowed)) return;
         var tt = (en && x.ttEn) ? x.ttEn : x.tt, ds = (en && x.dsEn) ? x.dsEn : x.ds;
         if (x.active){ var tileUrl=x.url==='./account.html'?x.url+'?lang='+(en?'en':'ja'):x.url; html += '<a class="tile" href="'+tileUrl+'"><span class="ic">'+x.ic+'</span><span class="tt">'+tt+'</span><span class="ds">'+ds+'</span></a>'; }
         else { html += '<div class="tile soon"><span class="ic">'+x.ic+'</span><span class="tt">'+tt+'</span><span class="ds">'+ds+'</span></div>'; }

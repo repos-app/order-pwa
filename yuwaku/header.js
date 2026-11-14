@@ -737,7 +737,7 @@
     if (window.IZAnnouncements) { window.IZAnnouncements.sync(); return; }
     if (!policy || !policy.showAiCredit || document.querySelector('[data-iz-announcements]')) return;
     var script = document.createElement('script');
-    script.src = './announcement-center.js?v=7';
+    script.src = './announcement-center.js?v=8';
     script.setAttribute('data-iz-announcements', '');
     script.onload = function () { if (window.IZAnnouncements) window.IZAnnouncements.sync(); };
     script.onerror = function () {

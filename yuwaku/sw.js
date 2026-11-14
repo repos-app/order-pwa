@@ -133,7 +133,7 @@ const CACHE_PREFIX = 'yuwaku-production-';
 // v315: commission-menu bulk selection and fixed/percentage extra charges.
 // v316: seating picker and settings preview follow configured seat-type order.
 // v317: refresh shared API error messages and account deletion diagnostics.
-const CACHE = CACHE_PREFIX + 'v318';
+const CACHE = CACHE_PREFIX + 'v319';
 const SHELL = [
   './',
   './index.html',
@@ -151,7 +151,7 @@ const SHELL = [
   './menu_editor.html',
   './menu-ai-review-reasons.js?v=auth1',
   './ai-credit-hub.js?v=auth7',
-  './announcement-center.js?v=7',
+  './announcement-center.js?v=8',
   './ai-credit-ui.js?v=auth2',
   './ai-image-quality.js?v=auth1',
   './pending-write-replay.js?v=s6-1',
