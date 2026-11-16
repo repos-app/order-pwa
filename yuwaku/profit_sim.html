@@ -918,12 +918,39 @@
     // エラーバナー＋再読み込みボタンを表示し、計算結果は無効化する（SETTINGS_LOAD_FAILED）。
     var __initialProfitMonth = API.dateKeysInTimeZone('UTC').month;
     document.getElementById('pMonth').value = __initialProfitMonth;
+    // Match Native: retries and bfcache restoration must not let an older
+    // read release the current spinner or overwrite newer form values.
+    var __profitSettingsLoadEpoch = 0;
+    var __profitSettingsPageActive = true;
+    var __profitSettingsSpinnerHeld = false;
+    function __profitSettingsReleaseSpinner(){
+      if(!__profitSettingsSpinnerHeld) return;
+      __profitSettingsSpinnerHeld = false;
+      API.loading.hide();
+    }
+    function __profitSettingsIsCurrent(epoch){
+      return __profitSettingsPageActive && epoch === __profitSettingsLoadEpoch;
+    }
+    window.addEventListener('pagehide', function(){
+      __profitSettingsPageActive = false;
+      ++__profitSettingsLoadEpoch;
+      __profitSettingsSpinnerHeld = false;
+    });
+    window.addEventListener('pageshow', function(e){
+      if(!e.persisted) return;
+      __profitSettingsPageActive = true;
+      loadSettingsAndInit();
+    });
     function loadSettingsAndInit(){
+      __profitSettingsReleaseSpinner();
+      var loadEpoch = ++__profitSettingsLoadEpoch;
       var errEl = document.getElementById('settingsErrorMsg');
       errEl.style.display = 'none';
       errEl.innerHTML = '';
       API.loading.show();
+      __profitSettingsSpinnerHeld = true;
       rpc('getSettings',[]).then(function(s){
+        if(!__profitSettingsIsCurrent(loadEpoch)) return;
         s = s || {};
         SETTINGS_LOAD_FAILED = false;
         var storeMonth = API.dateKeysInTimeZone(s.timezone || 'UTC').month;
@@ -949,6 +976,7 @@
         if (num('pSssRate') > 0) { _recalcVariableAmt('pSssRate','pSss', _salaryTotal()); }
         calc();
       }).catch(function(e){
+        if(!__profitSettingsIsCurrent(loadEpoch)) return;
         SETTINGS_LOAD_FAILED = true;
         errEl.style.display = 'block';
         errEl.style.background = '#fee2e2';
@@ -961,7 +989,9 @@
         btn.onclick = loadSettingsAndInit;
         errEl.appendChild(span); errEl.appendChild(btn);
         calc();
-      }).finally(function(){ API.loading.hide(); });
+      }).finally(function(){
+        if(__profitSettingsIsCurrent(loadEpoch)) __profitSettingsReleaseSpinner();
+      });
     }
     loadSettingsAndInit();
 

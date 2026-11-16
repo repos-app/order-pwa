@@ -9,6 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="Audit log">
 
   <link rel="manifest" href="./audit.webmanifest">
+  <link rel="stylesheet" href="./date-controls.css?v=3">
   <title>Audit log</title>
   <style>
     :root{ --bg:#f6f7f9; --surface:#fff; --border:#e5e7eb; --navy:#0f172a; --text-3:#64748b; --red:#c62828; }
@@ -33,6 +34,7 @@
     .filters label{display:flex;flex-direction:column;gap:3px;font-size:11px;font-weight:700;color:var(--text-3);min-width:0;}
     .filters input,.filters select{font:inherit;font-size:13px;color:var(--navy);height:36px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;padding:5px 7px;max-width:100%;}
     .filters input[type=date]{width:140px;}
+    .filters .iz-date-display-wrap{width:140px;max-width:100%;}
     .filters input[type=search]{width:180px;}
     .filter-btn{height:36px;padding:5px 12px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;font-weight:800;cursor:pointer;}
     .filter-btn.primary{background:var(--navy);color:#fff;border-color:var(--navy);}

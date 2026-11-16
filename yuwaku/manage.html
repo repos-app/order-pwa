@@ -19,6 +19,19 @@
     .head .r{ display:flex; gap:8px; align-items:center; font-size:13px; }
     .hbtn{ background:rgba(255,255,255,.14); color:#fff; border:0; border-radius:9px; padding:8px 12px; font-size:13px; font-weight:800; cursor:pointer; }
     .wrap{ padding:16px; max-width:900px; margin:0 auto; }
+    /* Lock all navigation and controls while the management menu sends errors.
+       The shared fixed header is z-index 2147483000, so this must cover it. */
+    .diag-upload{position:fixed;inset:0;z-index:2147483004;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.78);touch-action:none}
+    .diag-upload.hidden,.diag-upload .hidden{display:none}
+    .diag-panel{box-sizing:border-box;width:min(420px,100%);padding:26px 22px;background:#fff;color:#0f172a;border-radius:16px;text-align:center;box-shadow:0 20px 50px #0003}
+    .diag-panel-title{font-size:17px;font-weight:900;margin-bottom:18px}
+    .diag-upload-text{min-width:0;margin:14px 0 0;font-size:13px;font-weight:750;line-height:1.6;overflow-wrap:anywhere}
+    .diag-spinner{width:34px;height:34px;margin:0 auto;flex:none;border:4px solid #bfdbfe;border-top-color:#2563eb;border-radius:50%;animation:diag-spin .8s linear infinite}
+    .diag-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px;margin-top:18px}
+    .diag-actions:empty{display:none}
+    .diag-retry{flex:none;min-height:44px;border:1px solid #93c5fd;border-radius:8px;padding:9px 12px;background:#eff6ff;color:#1d4ed8;font:800 12px inherit;cursor:pointer}
+    @keyframes diag-spin{to{transform:rotate(360deg)}}
+    @media(prefers-reduced-motion:reduce){.diag-spinner{animation:none;border-top-color:#2563eb}}
     /* Login */
     .login{ max-width:340px; margin:8vh auto; background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:26px 22px; box-shadow:0 8px 24px rgba(0,0,0,.06); }
     .login .emoji{ font-size:42px; text-align:center; }
@@ -93,6 +106,17 @@
     <div class="deletion-banner hidden" id="deletionBanner"><span id="deletionBannerText"></span><a href="./account.html" id="deletionBannerLink">確認</a></div>
     <div class="mtabs" id="mtabs"></div>
     <div class="grid" id="tiles"></div>
+  </div>
+  <div class="diag-upload hidden" id="diagUploadBanner" role="dialog" aria-modal="true" aria-labelledby="diagUploadTitle" aria-describedby="diagUploadText">
+    <div class="diag-panel">
+      <div class="diag-panel-title" id="diagUploadTitle">エラーログを送信中</div>
+      <div class="diag-spinner hidden" id="diagUploadSpinner" aria-hidden="true"></div>
+      <p class="diag-upload-text" id="diagUploadText"></p>
+      <div class="diag-actions">
+        <button class="diag-retry hidden" id="diagUploadRetry" type="button" onclick="retryDiagMenuUpload()">再試行</button>
+        <button class="diag-retry hidden" id="diagUploadContinue" type="button" onclick="continueDiagMenuAfterFailure()">後で送信して操作を続行</button>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -225,11 +249,110 @@
       ['loginBtn','cpBtn'].forEach(function(id){var btn=document.getElementById(id);if(btn)btn.disabled=false;});
     }
     function showLogin(){ ACCOUNT_OWNER=false; var db=document.getElementById('deletionBanner');if(db)db.classList.add('hidden'); document.getElementById('loadingView').classList.add('hidden'); document.getElementById('loginView').classList.remove('hidden'); document.getElementById('hubView').classList.add('hidden'); document.getElementById('logoutBtn').classList.add('hidden'); document.getElementById('who').innerText=''; var _lc=document.getElementById('loginCard'); if(_lc)_lc.classList.remove('hidden'); var _cc=document.getElementById('chgPwCard'); if(_cc)_cc.classList.add('hidden'); if(window.IZHeader&&IZHeader.syncAuthDisplay)IZHeader.syncAuthDisplay(); }
+    var diagMenuSubscribed=false,diagMenuHadPending=false,diagMenuLocked=false;
+    var diagMenuDeferred=false,diagMenuHistoryGuarded=false,diagMenuInertBackup=[];
+    function guardDiagnosticBack(event){
+      if(!diagMenuLocked)return;
+      if(event.preventDefault)event.preventDefault();
+      if(event.stopImmediatePropagation)event.stopImmediatePropagation();
+      try{history.pushState({__izDiagLock:true},'');}catch(_){}
+    }
+    window.addEventListener('popstate',guardDiagnosticBack,true);
+    window.addEventListener('beforeunload',function(event){
+      if(!diagMenuLocked)return;
+      event.preventDefault();event.returnValue='';
+    },true);
+    document.addEventListener('keydown',function(event){
+      if(diagMenuLocked&&(event.key==='Escape'||event.key==='Backspace'||
+        (event.altKey&&event.key==='ArrowLeft'))){
+        event.preventDefault();event.stopImmediatePropagation();
+      }
+    },true);
+    function setDiagMenuLock(active){
+      var box=document.getElementById('diagUploadBanner');if(!box)return;
+      if(active===diagMenuLocked){box.classList.toggle('hidden',!active);return;}
+      diagMenuLocked=active;
+      box.classList.toggle('hidden',!active);
+      if(active){
+        diagMenuInertBackup=[];
+        Array.prototype.forEach.call(document.body.children,function(child){
+          if(child===box||child.tagName==='SCRIPT')return;
+          diagMenuInertBackup.push({node:child,wasInert:!!child.inert});
+          child.inert=true;
+        });
+        try{history.pushState({__izDiagLock:true},'');diagMenuHistoryGuarded=true;}catch(_){ }
+        if(typeof box.focus==='function')box.focus();
+      }else{
+        diagMenuInertBackup.forEach(function(entry){entry.node.inert=entry.wasInert;});
+        diagMenuInertBackup=[];
+        if(diagMenuHistoryGuarded){
+          diagMenuHistoryGuarded=false;
+          try{if(history.state&&history.state.__izDiagLock)history.back();}catch(_){}
+        }
+      }
+    }
+    function renderDiagMenuStatus(status){
+      var box=document.getElementById('diagUploadBanner');if(!box)return;
+      var count=Math.max(0,Number(status&&status.pendingCount)||0);
+      if(Number(status&&status.pendingErrorCount)>0)diagMenuHadPending=true;
+      var enabled=window.API&&typeof API.autoDiagnosticUploadEnabled==='function'
+        ?API.autoDiagnosticUploadEnabled():true;
+      if(diagMenuDeferred||!enabled||!count||!diagMenuHadPending){setDiagMenuLock(false);return;}
+      setDiagMenuLock(true);
+      var en=!!(window.I18n&&typeof I18n.lang==='function'&&I18n.lang()==='en');
+      var sending=status&&status.sending===true;
+      var text=document.getElementById('diagUploadText');
+      var spinner=document.getElementById('diagUploadSpinner');
+      var retry=document.getElementById('diagUploadRetry');
+      var later=document.getElementById('diagUploadContinue');
+      spinner.classList.toggle('hidden',!sending);
+      retry.classList.toggle('hidden',sending);
+      later.classList.toggle('hidden',sending);
+      retry.textContent=en?'Retry upload':'再試行';
+      later.textContent=en?'Continue and send later':'後で送信して操作を続行';
+      document.getElementById('diagUploadTitle').textContent=sending
+        ?(en?'Sending error logs':'エラーログを送信中')
+        :(en?'Log upload interrupted':'ログ送信に失敗しました');
+      if(sending)text.textContent=en?'Please wait. '+count+' errors remaining.':'操作を停止しています。残り'+count+'件のエラーログを送信しています。';
+      else text.textContent=en?'Unable to finish. '+count+' errors remain locally. Retry, or continue and send them later.':'送信できませんでした。未送信'+count+'件は端末に保持しています。再試行するか、後で送信してください。';
+    }
+    function retryDiagMenuUpload(){
+      if(!window.API||typeof API.flushPendingDiagnostics!=='function')return;
+      var state=API.getDiagnosticDeliveryStatus();
+      if(!state.pendingCount||state.sending)return;
+      API.flushPendingDiagnostics();
+      renderDiagMenuStatus(API.getDiagnosticDeliveryStatus());
+    }
+    function continueDiagMenuAfterFailure(){
+      var state=API.getDiagnosticDeliveryStatus();
+      if(!diagMenuLocked||!state.pendingCount||state.sending)return;
+      diagMenuDeferred=true;
+      if(typeof API.deferAutoDiagnosticsUntilNavigation==='function')
+        API.deferAutoDiagnosticsUntilNavigation();
+      setDiagMenuLock(false);
+    }
+    function openDiagMenuUpload(){
+      diagMenuDeferred=false;diagMenuHadPending=false;
+      if(!window.API||typeof API.getDiagnosticDeliveryStatus!=='function')return;
+      if(typeof API.autoDiagnosticUploadEnabled==='function'&&!API.autoDiagnosticUploadEnabled()){
+        setDiagMenuLock(false);return;
+      }
+      if(typeof API.resumeAutoDiagnosticsOnMenu==='function')API.resumeAutoDiagnosticsOnMenu();
+      if(!diagMenuSubscribed&&typeof API.observeDiagnosticDelivery==='function'){
+        API.observeDiagnosticDelivery(renderDiagMenuStatus);diagMenuSubscribed=true;
+      }
+      var status=API.getDiagnosticDeliveryStatus();
+      renderDiagMenuStatus(status);
+      if(status.pendingErrorCount>0&&typeof API.flushPendingDiagnostics==='function')
+        API.flushPendingDiagnostics();
+    }
     function showHub(allowed, accountOwner){
+      var openingHub=document.getElementById('hubView').classList.contains('hidden');
       ACCOUNT_OWNER=accountOwner===true;
       document.getElementById('loadingView').classList.add('hidden');
       document.getElementById('loginView').classList.add('hidden');
       document.getElementById('hubView').classList.remove('hidden');
+      if(openingHub)openDiagMenuUpload();
       window.izkManageOfflineStatus.refresh();
       document.getElementById('logoutBtn').classList.remove('hidden');
       document.getElementById('who').innerText = NAME ? ('👤 '+NAME) : '';
@@ -436,6 +559,7 @@
       title: '管理コンソール',
       titleEn: 'Management console',
       items: [
+        { ja: '未送信エラーログがある状態で管理メニューを開くと自動で送信し、送信が完了するまで操作と画面移動を停止します。通信失敗時は再試行か後で送信を選び、失敗したログは端末内に保持されます。', en: 'When Management opens with unsent errors, uploading temporarily blocks screen actions and navigation until delivery is acknowledged. On failure choose Retry or Continue and send later; unsent logs remain stored locally.' },
         { ja: '① ログインIDとパスワードを入力して「🔓 ログイン」を押すと管理メニューに入れます。', en: '① Enter your login ID and password, then tap "🔓 Login" to enter the management menu.' },
         { ja: '② 現在のパスワードが分かる場合は「🔑 パスワードを変更」で変更できます。忘れた場合は別の「パスワードを忘れた方」から再設定手続きを行ってください。', en: '② If you know your current password, use Change password. If you forgot it, use the separate Forgot password? link to start recovery.' },
         { ja: '③ ログイン後は上部のタブ（接客・注文／売上・経営／在庫・仕入／スタッフ・勤怠／顧客・予約／システム・設定）で機能グループを切り替えられます。', en: '③ After logging in, switch feature groups using the tabs at the top (Service & Orders / Sales & Mgmt / Inventory / Staff / Customers / System).' },

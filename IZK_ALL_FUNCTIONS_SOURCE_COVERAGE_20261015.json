@@ -2,10 +2,10 @@
   "schema": "izk-source-coverage-v1",
   "generatedFrom": "current-local-working-tree",
   "summary": {
-    "modules": 112,
+    "modules": 117,
     "focusedFix": 3,
     "focusedPending": 3,
-    "staticOnly": 106
+    "staticOnly": 111
   },
   "dispatch": {
     "workerHandlerEntries": [
@@ -134,6 +134,7 @@
       "saveRecipes",
       "saveReportSettings",
       "saveSeatCounts",
+      "saveSeatLayout",
       "saveSettings",
       "saveSupplier",
       "saveTodo",
@@ -168,6 +169,7 @@
       "beginSupportAttachmentUpload",
       "bulkUpdateMenuState",
       "cancelAccountDeletionRequest",
+      "cancelStagedDataAdminImport",
       "clearPrintedJobs",
       "closeShift",
       "completeSupportAttachmentUpload",
@@ -187,7 +189,6 @@
       "deleteSampleData",
       "deleteSupplier",
       "deleteTodo",
-      "discountRules",
       "enqueueQrPrintJobs",
       "exportSheetData",
       "fetchImageFromUrl",
@@ -215,6 +216,7 @@
       "getCommissionWorkspace",
       "getCoupons",
       "getDashboard",
+      "getDataAdminJob",
       "getDestructiveTableNames",
       "getDiscountRules",
       "getDiscountValueLimits",
@@ -255,6 +257,7 @@
       "getReservations",
       "getSalesAnalytics",
       "getSalesSummary",
+      "getScDistributionStatus",
       "getSettings",
       "getSettingsBundle",
       "getSheetNames",
@@ -264,6 +267,9 @@
       "getTableMaster",
       "getTableQrLinks",
       "getTodos",
+      "getTransactionResetJob",
+      "getTransactionResetPreview",
+      "getVipSeatSettings",
       "getWorkersAiStoreUsage",
       "importTableData",
       "issueBirthdayCoupon",
@@ -279,12 +285,15 @@
       "nativePrintAck",
       "nativePrintPoll",
       "openShift",
-      "plan",
       "product",
       "profitSimGetMonthly",
       "profitSimSaveSettings",
       "qaDeleteOwnedReservation",
       "qaReadReservationFixture",
+      "queueDataAdminJob",
+      "queueStagedDataAdminImport",
+      "queueTransactionReset",
+      "reallocateUnallocatedSc",
       "receiptLogo",
       "receiveStock",
       "refundReceipt",
@@ -327,9 +336,11 @@
       "saveRecipes",
       "saveReportSettings",
       "saveSeatCounts",
+      "saveSeatLayout",
       "saveSettings",
       "saveSupplier",
       "saveTodo",
+      "saveVipSeatSettings",
       "searchMenuImages",
       "searchMenuImagesV2",
       "sendPurchaseOrderEmail",
@@ -338,6 +349,8 @@
       "sendTestReport",
       "setMenuOrder",
       "setSoldOut",
+      "stageDataAdminImport",
+      "stageDataAdminImportChunk",
       "stageMenuAiWorkflowPage",
       "startMenuAiWorkflow",
       "stocktake",
@@ -355,11 +368,13 @@
       "uploadSystemTopImage",
       "uploadTopImage",
       "wipeAllTableData",
-      "wipeTableData"
+      "wipeTableData",
+      "wipeTransactionData"
     ],
     "gasPermissionTokensApprox": [
       "analyzeMenuImageWithCredits",
       "bulkUpdateMenuState",
+      "cancelStagedDataAdminImport",
       "clearPrintedJobs",
       "closeShift",
       "correctReceiptPaymentMethod",
@@ -400,6 +415,7 @@
       "getCommissionWorkspace",
       "getCoupons",
       "getDashboard",
+      "getDataAdminJob",
       "getDestructiveTableNames",
       "getDiscountRules",
       "getDiscountValueLimits",
@@ -446,6 +462,9 @@
       "getTableMaster",
       "getTableQrLinks",
       "getTodos",
+      "getTransactionResetJob",
+      "getTransactionResetPreview",
+      "getVipSeatSettings",
       "getWorkersAiStoreUsage",
       "importTableData",
       "issueBirthdayCoupon",
@@ -463,6 +482,10 @@
       "profitSimSaveSettings",
       "qaDeleteOwnedReservation",
       "qaReadReservationFixture",
+      "queueDataAdminJob",
+      "queueStagedDataAdminImport",
+      "queueTransactionReset",
+      "reallocateUnallocatedSc",
       "receiptPrintEnabled",
       "receiveStock",
       "refundReceipt",
@@ -503,9 +526,11 @@
       "saveRecipes",
       "saveReportSettings",
       "saveSeatCounts",
+      "saveSeatLayout",
       "saveSettings",
       "saveSupplier",
       "saveTodo",
+      "saveVipSeatSettings",
       "searchMenuImages",
       "searchMenuImagesV2",
       "sendPurchaseOrderEmail",
@@ -515,6 +540,8 @@
       "setMenuOrder",
       "setSoldOut",
       "shopTin",
+      "stageDataAdminImport",
+      "stageDataAdminImportChunk",
       "stageMenuAiWorkflowPage",
       "startMenuAiWorkflow",
       "stocktake",
@@ -529,7 +556,8 @@
       "uploadSystemTopImage",
       "uploadTopImage",
       "wipeAllTableData",
-      "wipeTableData"
+      "wipeTableData",
+      "wipeTransactionData"
     ],
     "gasAuthOnlyTokensApprox": [
       "admin",
@@ -559,6 +587,7 @@
       "getPrintHostConfig",
       "getReceiptLogo",
       "getReservationFormConfig",
+      "getScDistributionStatus",
       "getSettings",
       "getStaffCallInbox",
       "getTableCheckoutStamp",
@@ -616,8 +645,8 @@
     },
     {
       "file": "src/accountDeletion.js",
-      "sha256": "ad25d4a97b85634790db915dbfc64c7f32478dbfe1dc8425bcc8aa535f0dabfc",
-      "lines": 725,
+      "sha256": "55141a609c351ac6023e6198d50dbd6d2b7037cf27670273051b96f27829dfdf",
+      "lines": 727,
       "exports": [
         "cancelAccountDeletionRequest",
         "claimEligibleAccountDeletionForControl",
@@ -635,8 +664,8 @@
     },
     {
       "file": "src/admin.js",
-      "sha256": "2079f84abb4c28542e972a76b6a2eb931fff50fd033d20169b9014840769c6aa",
-      "lines": 906,
+      "sha256": "83514b44c721a837f778cc118081781c77cf377996fd16668a0738249a94b5fc",
+      "lines": 998,
       "exports": [
         "bulkUpdateMenuState",
         "createSampleMenu",
@@ -651,10 +680,11 @@
         "saveEmployee",
         "saveMenuItem",
         "saveSeatCounts",
+        "saveSeatLayout",
         "saveSettings",
         "setMenuOrder"
       ],
-      "dbCallsitesApprox": 36,
+      "dbCallsitesApprox": 35,
       "sqlKeywordsApprox": 105,
       "storeBoundaryMention": true,
       "classification": "STATIC_INVENTORY_DOMAIN_VALIDATION_PENDING"
@@ -821,21 +851,21 @@
     },
     {
       "file": "src/announcementReadState.js",
-      "sha256": "f956eb1203cbbdbbbb5b0481796f33c4e2f4feb42e37f0bbdad87750eb5e9deb",
-      "lines": 74,
+      "sha256": "d2b425049291ce1b7de50ed826f79534683ed211f0a6541021641774ebc854c0",
+      "lines": 138,
       "exports": [
         "listAnnouncements",
         "markAnnouncement"
       ],
       "dbCallsitesApprox": 3,
-      "sqlKeywordsApprox": 4,
+      "sqlKeywordsApprox": 6,
       "storeBoundaryMention": true,
       "classification": "STATIC_INVENTORY_DOMAIN_VALIDATION_PENDING"
     },
     {
       "file": "src/attendance.js",
-      "sha256": "263bcdcc121c9efcf029327cd8c17f8623a670d803470e205f30162a3feb5d67",
-      "lines": 409,
+      "sha256": "c51730b4dfa175d0ddff624d009ec7284aba8b8c1f9e1404829ef0edab5e3315",
+      "lines": 426,
       "exports": [
         "NIGHT_END_HOUR",
         "NIGHT_START_HOUR",
@@ -851,7 +881,7 @@
         "todayStatus"
       ],
       "dbCallsitesApprox": 14,
-      "sqlKeywordsApprox": 18,
+      "sqlKeywordsApprox": 19,
       "storeBoundaryMention": true,
       "classification": "FOCUSED_AUDIT_DOMAIN_VALIDATION_PENDING"
     },
@@ -891,12 +921,13 @@
     },
     {
       "file": "src/backup.js",
-      "sha256": "49956ac43266e399f900d8f9dae1bd6f80e200bb8de038a90d56e1ef608f015c",
-      "lines": 61,
+      "sha256": "655533bd8aa38e04133f440402d8244d2be2ed0d1c5e7e822d9670e69132426b",
+      "lines": 82,
       "exports": [
         "EXPORTABLE_TABLES",
         "exportSheetData",
-        "getSheetNames"
+        "getSheetNames",
+        "isCredentialExportColumn"
       ],
       "dbCallsitesApprox": 3,
       "sqlKeywordsApprox": 3,
@@ -905,8 +936,8 @@
     },
     {
       "file": "src/billing.js",
-      "sha256": "70ddd7cf485c6c9950b101f9c440a8c8273417f3fde90dbe38b03112b5d6902f",
-      "lines": 825,
+      "sha256": "5da85d05cf43f03e238f218f2dbf9f7c62763cdf8860480d31319513d771585b",
+      "lines": 989,
       "exports": [
         "MANAGER_ROLES",
         "breakdownAmounts",
@@ -917,12 +948,26 @@
         "getCheckoutOutcome",
         "getTablePartySize",
         "seniorPwdCalc",
+        "setTableEntryTime",
         "setTablePartySize"
       ],
-      "dbCallsitesApprox": 26,
-      "sqlKeywordsApprox": 57,
+      "dbCallsitesApprox": 32,
+      "sqlKeywordsApprox": 75,
       "storeBoundaryMention": true,
       "classification": "FOCUSED_AUDIT_DOMAIN_VALIDATION_PENDING"
+    },
+    {
+      "file": "src/billingAmounts.js",
+      "sha256": "3afde7173956acf98646a9a3ac59836f02d7b09cce5dcdbecbb66493ece5f78c",
+      "lines": 35,
+      "exports": [
+        "breakdownAmounts",
+        "netOrderCommissionBasis"
+      ],
+      "dbCallsitesApprox": 0,
+      "sqlKeywordsApprox": 0,
+      "storeBoundaryMention": false,
+      "classification": "STATIC_INVENTORY_DOMAIN_VALIDATION_PENDING"
     },
     {
       "file": "src/billingSandboxIngress.js",
@@ -968,8 +1013,8 @@
     },
     {
       "file": "src/commission.js",
-      "sha256": "99b70fb6262fbc2677b24bfdbf2bc7e957ff72c05af975825aefbf8649d6f7dd",
-      "lines": 650,
+      "sha256": "f86d019d6d60b93442c42e5d75d0f35fe6c5198a9cb4e08dfe441f25abd8d772",
+      "lines": 821,
       "exports": [
         "deleteRule",
         "getOpenOrders",
@@ -980,22 +1025,24 @@
         "getWorkspace",
         "markPaid",
         "prepareEntriesForBill",
+        "reallocateUnallocatedSc",
         "saveCommissionEligibleStaff",
         "saveItemAllocations",
         "saveReceiptStaffAssignment",
         "saveRule",
         "saveScEligibleStaff",
-        "saveSettings"
+        "saveSettings",
+        "sqliteUtcToIso"
       ],
-      "dbCallsitesApprox": 26,
-      "sqlKeywordsApprox": 44,
+      "dbCallsitesApprox": 30,
+      "sqlKeywordsApprox": 61,
       "storeBoundaryMention": true,
       "classification": "STATIC_INVENTORY_DOMAIN_VALIDATION_PENDING"
     },
     {
       "file": "src/commissionDrink.js",
-      "sha256": "dc0bef53cd9c3178ca3769e91d6ce10c055401449bf1b71ba5fe90f1822d021c",
-      "lines": 77,
+      "sha256": "b7175cdcf4d5c9e016d2677753b2c89ff567721f81568846536cf9cee4359541",
+      "lines": 87,
       "exports": [
         "getCommissionDrinkItems",
         "saveCommissionDrinkItems"
@@ -1061,8 +1108,8 @@
     },
     {
       "file": "src/controlPlaneWorker.js",
-      "sha256": "82acb45c0e2fef3f8e17a49178c6bf3bbe8801493300a1776562f4300adf3f38",
-      "lines": 2153,
+      "sha256": "e6c397a8c57364a2531f15c2c5b2426d0bdd36b08610128c61f9532e327c29fe",
+      "lines": 2160,
       "exports": [
         "acquireProvisioningBindingLock",
         "beginDeletionJob",
@@ -1093,8 +1140,8 @@
     },
     {
       "file": "src/crm.js",
-      "sha256": "fb97ba57c5e68b2f88988544f0f5d5f727d90f817d610c9834e4bb81bdcd7c6a",
-      "lines": 840,
+      "sha256": "1b1b77950e6ebca7d68e38fb160a898adca56cb4b78497c76f0f5ca0049ac4e8",
+      "lines": 875,
       "exports": [
         "applyLoyalty",
         "buildOrderRewardReversalStatements",
@@ -1119,26 +1166,41 @@
         "updateReservationStatus",
         "validateCoupon"
       ],
-      "dbCallsitesApprox": 38,
-      "sqlKeywordsApprox": 78,
+      "dbCallsitesApprox": 39,
+      "sqlKeywordsApprox": 79,
       "storeBoundaryMention": true,
       "classification": "STATIC_INVENTORY_DOMAIN_VALIDATION_PENDING"
     },
     {
       "file": "src/dataAdmin.js",
-      "sha256": "65ee9d6c0d4d49b936a17111e0bc26660066a0c042b1c929238b478e9e4c92b2",
-      "lines": 969,
+      "sha256": "0cb93cb15c50ec709d3b082a51bd884cd17243f35ad47c8a9136bceacea5880b",
+      "lines": 1621,
       "exports": [
         "ALL_TABLES_BACKUP_NAME",
         "DESTRUCTIVE_TABLES",
+        "TRANSACTION_BACKUP_NAME",
+        "cancelStagedDataAdminImport",
+        "getDataAdminJob",
+        "getTransactionResetJob",
+        "getTransactionResetPreview",
         "importTableData",
         "listBackups",
+        "queueDataAdminJob",
+        "queueStagedDataAdminImport",
+        "queueTransactionReset",
         "restoreBackup",
+        "runDataAdminJob",
+        "runPendingDataAdminJobs",
+        "runPendingTransactionResetJobs",
+        "runTransactionResetJob",
+        "stageDataAdminImport",
+        "stageDataAdminImportChunk",
         "wipeAllTableData",
-        "wipeTableData"
+        "wipeTableData",
+        "wipeTransactionData"
       ],
-      "dbCallsitesApprox": 22,
-      "sqlKeywordsApprox": 45,
+      "dbCallsitesApprox": 56,
+      "sqlKeywordsApprox": 86,
       "storeBoundaryMention": true,
       "classification": "STATIC_INVENTORY_DOMAIN_VALIDATION_PENDING"
     },
@@ -1239,8 +1301,8 @@
     },
     {
       "file": "src/ereceipt.js",
-      "sha256": "975f7ebd403601cf74d81f0404803b40d9b1fa557a68b51b9db273115af54ebe",
-      "lines": 220,
+      "sha256": "2f24f6ecd49223c90ffc5eeb5b47ec1e6da616b92dd6bb7226ad0f9a93f42bc6",
+      "lines": 222,
       "exports": [
         "buildReceiptEmailContent",
         "isValidEmail",
@@ -1256,8 +1318,8 @@
     },
     {
       "file": "src/expenses.js",
-      "sha256": "9ec496ad323bb4bd71d3cbf3dfeb19aac349b2d47061b5594d561d02860e1ea3",
-      "lines": 219,
+      "sha256": "dc7fbcddfd53fd4c58dae760092e1ef90a5f4be183ecd28c9b27696e8828ccc6",
+      "lines": 255,
       "exports": [
         "EXP_CATS",
         "deleteExpense",
@@ -1272,8 +1334,8 @@
     },
     {
       "file": "src/fatalAlertTailWorker.js",
-      "sha256": "1c6404126da19fad8a4e1d455d8ddfb8475a568d0d8de517d522249550b451ec",
-      "lines": 215,
+      "sha256": "352e21f8c90c611e153349a263d9789e2c4f30d6fa90db28b50979519996459a",
+      "lines": 216,
       "exports": [
         "claimAlert",
         "deliverAlert",
@@ -1303,23 +1365,23 @@
     },
     {
       "file": "src/gasApi.js",
-      "sha256": "0f5344f93db234ca233becfbc7508a40416373d63431ff4c36816f15d93e3f40",
-      "lines": 1525,
+      "sha256": "677b2424f31ce5c4a99040dac67692ef36eb397686491abae4b23516104d5f81",
+      "lines": 1631,
       "exports": [
         "PERMISSION_PAGES",
         "gasApiHandled",
         "handleGasCompatRequest",
         "registeredRpcNames"
       ],
-      "dbCallsitesApprox": 19,
-      "sqlKeywordsApprox": 23,
+      "dbCallsitesApprox": 21,
+      "sqlKeywordsApprox": 27,
       "storeBoundaryMention": true,
       "classification": "STATIC_INVENTORY_DOMAIN_VALIDATION_PENDING"
     },
     {
       "file": "src/gasShape.js",
-      "sha256": "373266504ff2e59dd8b4efe9d3c57f6105e407e8e1fdfed43be27816e09aa4b1",
-      "lines": 154,
+      "sha256": "d934f67277d264c093ce7999a950e692aaad28ccdf8b0ef655450731c2abea7c",
+      "lines": 156,
       "exports": [
         "inServiceWindowNow",
         "isSoldOutToday",
@@ -1335,8 +1397,8 @@
     },
     {
       "file": "src/hybridPublicRouter.js",
-      "sha256": "590ddc27c7c06cd40af2bf968b4d09c25d8cc2c18bd14246304ed4c8c64234d9",
-      "lines": 530,
+      "sha256": "50c6bca28bff7863a5077b08f0bebdbf92f978574e852e68997678e7e159a446",
+      "lines": 554,
       "exports": [],
       "dbCallsitesApprox": 0,
       "sqlKeywordsApprox": 1,
@@ -1345,8 +1407,8 @@
     },
     {
       "file": "src/imageStorage.js",
-      "sha256": "4ff0310285060c515f7611690f622051828da941256b2d3bf0ba7eed06fd3ad6",
-      "lines": 425,
+      "sha256": "0445071127da1a0dc84c466327d795374bc3bf2aa21ff919cefc3674020a8834",
+      "lines": 427,
       "exports": [
         "deleteErasedStoreImageBatch",
         "deleteManagedImage",
@@ -1371,8 +1433,8 @@
     },
     {
       "file": "src/index.js",
-      "sha256": "7b6459928007225a255a3dba0f7a088a2fd645b126e48603b2dec9ab31d77805",
-      "lines": 2131,
+      "sha256": "d22d0df6ff7e0e30226a7df476f227617245c20f859ca9ae9b9ef11e613df867",
+      "lines": 2180,
       "exports": [
         "dueReportPeriod"
       ],
@@ -1416,7 +1478,7 @@
     },
     {
       "file": "src/inventory.js",
-      "sha256": "10771814631807abd465ecca8a98cfb6e7ece1a7af1f00a63a7554c9d2553be2",
+      "sha256": "fbfa12504f32be672904ef7a0f9188c509bf709a70287edcf2f78d52b74b3dc0",
       "lines": 781,
       "exports": [
         "auditInventoryLedger",
@@ -1480,14 +1542,14 @@
     },
     {
       "file": "src/loginAuth.js",
-      "sha256": "c3dc7116363301b48842e041822c76c9e8542240f1af76aae8b1c26b4018b57b",
-      "lines": 56,
+      "sha256": "02919a0a228996f749065629117205fa4b7a18669d9a5a5af972428fcdef5099",
+      "lines": 72,
       "exports": [
         "authenticateEmployeeLogin",
         "isCurrentEmployeeSession"
       ],
-      "dbCallsitesApprox": 4,
-      "sqlKeywordsApprox": 4,
+      "dbCallsitesApprox": 5,
+      "sqlKeywordsApprox": 5,
       "storeBoundaryMention": true,
       "classification": "STATIC_INVENTORY_DOMAIN_VALIDATION_PENDING"
     },
@@ -1709,8 +1771,8 @@
     },
     {
       "file": "src/menuOptions.js",
-      "sha256": "83976763167661468f4a2deaa5d54ea616f890808958a82e1650e7fe102fadf1",
-      "lines": 212,
+      "sha256": "361be702034a8c44a67d7ca80b527ebede463d54c8bf9bf12ab3c7fd4414bf35",
+      "lines": 229,
       "exports": [
         "baseItemName",
         "canonicalChoiceLabel",
@@ -1772,21 +1834,21 @@
     },
     {
       "file": "src/operationalDiagnostics.js",
-      "sha256": "a9b95298c3d59702fd004b5239bbf6d02c3af8646c835712cf93baa5149201fc",
-      "lines": 61,
+      "sha256": "f5e611b621c73380ae4f8a20b280b8d4fc764ad065186860af09e0d63f8174ea",
+      "lines": 104,
       "exports": [
         "listDiagnostics",
         "normalizedDiagnostic",
         "recordDiagnostic"
       ],
-      "dbCallsitesApprox": 3,
-      "sqlKeywordsApprox": 3,
+      "dbCallsitesApprox": 4,
+      "sqlKeywordsApprox": 4,
       "storeBoundaryMention": true,
       "classification": "STATIC_INVENTORY_DOMAIN_VALIDATION_PENDING"
     },
     {
       "file": "src/operationalDiagnosticsArchive.js",
-      "sha256": "3423959b8a2f2abb8dcabbc89d3746414a06609db3cc87116e6aead8b0216ef0",
+      "sha256": "a4707c6c6921fc8e46e9539f0c18a14f7c4d260f9b420156492b3e4b40228f44",
       "lines": 170,
       "exports": [
         "archiveDiagnostics",
@@ -1801,8 +1863,8 @@
     },
     {
       "file": "src/operationalErrorSpike.js",
-      "sha256": "d889c8cc595e32d9168976240e0d447fc6a4ebaac6fce1b8ad18a0f4e642a859",
-      "lines": 94,
+      "sha256": "3f86d8045010009737ba13b48605ef3b8a28a014afbc9e12459d1a303afa45e2",
+      "lines": 107,
       "exports": [
         "isSpike",
         "readErrorSpikeState",
@@ -1810,13 +1872,13 @@
       ],
       "dbCallsitesApprox": 8,
       "sqlKeywordsApprox": 11,
-      "storeBoundaryMention": false,
+      "storeBoundaryMention": true,
       "classification": "STATIC_INVENTORY_DOMAIN_VALIDATION_PENDING"
     },
     {
       "file": "src/orders.js",
-      "sha256": "ac304092984c096448844d1770761ddfc638cfa061555a970dcd82dc485e4cec",
-      "lines": 742,
+      "sha256": "f624707892f33f43840a060e23b8d267f27d9fc95562db2e935a0f9986ffd35f",
+      "lines": 815,
       "exports": [
         "callStaff",
         "getActiveOrders",
@@ -1893,9 +1955,22 @@
       "classification": "FOCUSED_AUDIT_DOMAIN_VALIDATION_PENDING"
     },
     {
+      "file": "src/permissionScreenCatalog.generated.js",
+      "sha256": "b7570bebfa9c4d524f03621aa013c820769b7c81e4f75e8f8df692e3de95789a",
+      "lines": 320,
+      "exports": [
+        "AUTO_SCREEN_PERMISSION_KEYS",
+        "PERMISSION_SCREEN_CATALOG"
+      ],
+      "dbCallsitesApprox": 0,
+      "sqlKeywordsApprox": 0,
+      "storeBoundaryMention": false,
+      "classification": "STATIC_INVENTORY_DOMAIN_VALIDATION_PENDING"
+    },
+    {
       "file": "src/permissions.js",
-      "sha256": "b6a4f7f43efd62ba6f3fb4fc7d8e89a8683f66a47836a4834a284c0aa0fcf06c",
-      "lines": 110,
+      "sha256": "b207f633046c93a20521e7e261b187196fdac3be407bc4235d60c1966a0f84cd",
+      "lines": 187,
       "exports": [
         "ROLE_GROUPS",
         "getAllowedPages",
@@ -1905,7 +1980,7 @@
         "savePermissionMatrix"
       ],
       "dbCallsitesApprox": 3,
-      "sqlKeywordsApprox": 2,
+      "sqlKeywordsApprox": 7,
       "storeBoundaryMention": true,
       "classification": "STATIC_INVENTORY_DOMAIN_VALIDATION_PENDING"
     },
@@ -1994,8 +2069,8 @@
     },
     {
       "file": "src/printers.js",
-      "sha256": "cee2418c980aae6eacf8fa0dafb6694aaf0781c9bb254fc637679467df25c72c",
-      "lines": 1183,
+      "sha256": "1ffe26a941a530195392ffc3444c614a2a1e2f7c35f479ee00e8a01b76805dec",
+      "lines": 1199,
       "exports": [
         "bridgeAck",
         "bridgePoll",
@@ -2032,15 +2107,16 @@
         "testPrint"
       ],
       "dbCallsitesApprox": 75,
-      "sqlKeywordsApprox": 92,
+      "sqlKeywordsApprox": 91,
       "storeBoundaryMention": true,
       "classification": "FOCUSED_AUDIT_LOCAL_FIX"
     },
     {
       "file": "src/publicErrors.js",
-      "sha256": "f4dd539dadb98e423bcef300f4ad87fbd8f2098f100c32cb803ee82129451733",
-      "lines": 21,
+      "sha256": "57d53aaa528d0a713e1cf8bea08226b3a727f18a6ef2c8c9d84571e7d27bb2ba",
+      "lines": 87,
       "exports": [
+        "internalErrorDiagnostic",
         "logInternalError",
         "publicErrorCode"
       ],
@@ -2078,8 +2154,8 @@
     },
     {
       "file": "src/purchasing.js",
-      "sha256": "c716d62cb7156a76dfaad64ff0a26386313f0456f44e2228394af86192466d22",
-      "lines": 484,
+      "sha256": "05d239feb6f748aa59b34ffbb6e84046ae9aba9c0e7417d79de81cd78023b9eb",
+      "lines": 532,
       "exports": [
         "deleteOrderItem",
         "deleteSupplier",
@@ -2095,7 +2171,7 @@
         "sendReorderEmail"
       ],
       "dbCallsitesApprox": 26,
-      "sqlKeywordsApprox": 42,
+      "sqlKeywordsApprox": 44,
       "storeBoundaryMention": true,
       "classification": "STATIC_INVENTORY_DOMAIN_VALIDATION_PENDING"
     },
@@ -2143,20 +2219,20 @@
     },
     {
       "file": "src/refunds.js",
-      "sha256": "95df6031f5630380f83c1d04fcc95b5859366d47acdfcd6f62482ca9fc25be3b",
-      "lines": 167,
+      "sha256": "94fa388fd34accf4601e0a73d80847f2839b7538a29ab4ba271343dbde09c70f",
+      "lines": 195,
       "exports": [
         "refundReceipt"
       ],
       "dbCallsitesApprox": 7,
-      "sqlKeywordsApprox": 17,
+      "sqlKeywordsApprox": 21,
       "storeBoundaryMention": true,
       "classification": "STATIC_INVENTORY_DOMAIN_VALIDATION_PENDING"
     },
     {
       "file": "src/regionalSettings.js",
-      "sha256": "41756698f754e15cdee96a088c7716f749fe19fdc3f9de84814d5e04b3591f29",
-      "lines": 218,
+      "sha256": "44c4f96d4d838a7e1c2261bfc12c0e763f31a3f8560b55ed959e34b2c4eae5cd",
+      "lines": 222,
       "exports": [
         "BUSINESS_PROFILES",
         "COUNTRY_PROFILES",
@@ -2198,8 +2274,8 @@
     },
     {
       "file": "src/reports.js",
-      "sha256": "66dbbcab75c454f2571bb9dfd55513a5d4fb6b8c3d944f0ec62ae4ebcb9088b0",
-      "lines": 856,
+      "sha256": "98ca1f6848fbb22d83b3b0b5fb0b52570c80a82694f9891f3bd8b4f5f41047f3",
+      "lines": 925,
       "exports": [
         "buildReportContent",
         "getDashboard",
@@ -2210,8 +2286,8 @@
         "getSalesAnalytics",
         "getSalesListByMonth"
       ],
-      "dbCallsitesApprox": 25,
-      "sqlKeywordsApprox": 27,
+      "dbCallsitesApprox": 26,
+      "sqlKeywordsApprox": 28,
       "storeBoundaryMention": true,
       "classification": "STATIC_INVENTORY_DOMAIN_VALIDATION_PENDING"
     },
@@ -2255,9 +2331,27 @@
       "classification": "STATIC_INVENTORY_DOMAIN_VALIDATION_PENDING"
     },
     {
+      "file": "src/seatTypes.js",
+      "sha256": "e3b1ad297cda1d12b28261f610b9480fd222ed9014c7338a1eada71572162828",
+      "lines": 46,
+      "exports": [
+        "CUSTOM_SEAT_ARCHIVE_KEY",
+        "CUSTOM_SEAT_ID",
+        "CUSTOM_SEAT_KEY",
+        "CUSTOM_SEAT_LABEL",
+        "customSeatDisplay",
+        "normalizeCustomSeatTypes",
+        "parseCustomSeatTypes"
+      ],
+      "dbCallsitesApprox": 0,
+      "sqlKeywordsApprox": 0,
+      "storeBoundaryMention": false,
+      "classification": "STATIC_INVENTORY_DOMAIN_VALIDATION_PENDING"
+    },
+    {
       "file": "src/serverTraceDiagnostics.js",
-      "sha256": "058128617c02a9cb1f6b7086a1468bba30a3e4d6d7431a1494c6901206aad72b",
-      "lines": 114,
+      "sha256": "15c5a372120052846dcf4fc2384294f97aecab9399c352769ced7fc43629bd34",
+      "lines": 143,
       "exports": [
         "classifyDiagnosticResponse",
         "diagnosticSinkWarning",
@@ -2275,8 +2369,8 @@
     },
     {
       "file": "src/sessionTokens.js",
-      "sha256": "c003966305643a7c4cb55a264b4ba2155f21ed73c5db6502bac1801fef69fd1f",
-      "lines": 202,
+      "sha256": "137a20338410a0c39afbde6c2ef3ad520eb72e84dfa30ecee3a1198025b99d10",
+      "lines": 245,
       "exports": [
         "ACCESS_TOKEN_MINUTES",
         "isSessionActive",
@@ -2287,8 +2381,8 @@
         "revokeSession",
         "rotateSession"
       ],
-      "dbCallsitesApprox": 10,
-      "sqlKeywordsApprox": 13,
+      "dbCallsitesApprox": 11,
+      "sqlKeywordsApprox": 16,
       "storeBoundaryMention": true,
       "classification": "STATIC_INVENTORY_DOMAIN_VALIDATION_PENDING"
     },
@@ -2323,14 +2417,15 @@
     },
     {
       "file": "src/staffPush.js",
-      "sha256": "2f14fc2ad856342bef957ef8ae6e8530ab2f62124eaced11f665f08e99ce9fb1",
-      "lines": 216,
+      "sha256": "400b6d71ac0ff341f9f0881f07fa872ccd76b20b36b52f54c462dce8aace329b",
+      "lines": 248,
       "exports": [
         "dispatchStaffCallPush",
         "notifyNewStaffCall",
         "queueStaffCallPush",
         "registerStaffPush",
         "sendStaffPush",
+        "staffPushDeliveryConfigured",
         "unregisterStaffPush",
         "validPushToken"
       ],
@@ -2395,8 +2490,8 @@
     },
     {
       "file": "src/takeout.js",
-      "sha256": "827f367ab9b58b25ed647c76dd9c16825fd0ad75e97406affca03c97f3fef993",
-      "lines": 354,
+      "sha256": "13155e387c4d7e1664a354342741feeeedbe3d54b1db5247d5363555e0e1eee5",
+      "lines": 359,
       "exports": [
         "TAKEOUT_STATUSES",
         "getTakeoutOrders",
@@ -2410,8 +2505,8 @@
     },
     {
       "file": "src/tasks.js",
-      "sha256": "18454e177ec6356c6f7bc2ff97fe09f73e4901c6724d705c12357d232d05d826",
-      "lines": 147,
+      "sha256": "77e93567740153f1063a7768d4318e97d4a01835a2574b0b312e36312c179bd9",
+      "lines": 148,
       "exports": [
         "REQUEST_STATUSES",
         "deleteRequest",
@@ -2430,22 +2525,23 @@
     },
     {
       "file": "src/tenantD1SchemaContract.js",
-      "sha256": "556553ac8c47b5f4cdff1e86b3da37b7acbd5bf72cf000cf54bdfe53c513a62f",
-      "lines": 212,
+      "sha256": "c4aa9dbfb5a636e3cef8b7689fd7fa42ea5c5fc3b49a24a0fc2004ac725faec4",
+      "lines": 257,
       "exports": [
         "D1_SCHEMA_CONTRACTS",
         "assessTenantSchema",
+        "schemaContractBatches",
         "schemaContractSql"
       ],
       "dbCallsitesApprox": 0,
-      "sqlKeywordsApprox": 6,
+      "sqlKeywordsApprox": 7,
       "storeBoundaryMention": true,
       "classification": "STATIC_INVENTORY_DOMAIN_VALIDATION_PENDING"
     },
     {
       "file": "src/tenantDb.js",
-      "sha256": "861e4b49d8ec6b37607693a75dfc110d7ff8df08e2418ca9751146efe63be65c",
-      "lines": 201,
+      "sha256": "27b148b39b6eb956b00e3ba5cd696122224392233069678e45d8d0aa783f4c6c",
+      "lines": 203,
       "exports": [
         "TENANT_TABLES",
         "requireAuthenticatedStoreId",
@@ -2458,8 +2554,8 @@
     },
     {
       "file": "src/tenantProvisionerService.js",
-      "sha256": "eb27b7c22987e2f971462d05180cc0f38a756e5666aa9d9d55f642928d9ba43b",
-      "lines": 1227,
+      "sha256": "41b082cc03f9d46b05b66c8c60f4332a69a3ad8d2f801257e9be9aedeeede460",
+      "lines": 1238,
       "exports": [
         "TENANT_PROVISIONING_MIGRATION_DIGEST",
         "assertCommonBindings",
@@ -2496,28 +2592,43 @@
     },
     {
       "file": "src/tenantProvisioningMigrations.generated.js",
-      "sha256": "5bbded828bf26a7e537704a1c10b4af8511df6229d99ebd68f065d9e9e00d90e",
+      "sha256": "6a73e01004d60b37e0ab20386655c80cbbec9492740cf3bbbc379ae2f169b6d9",
       "lines": 4,
       "exports": [
         "TENANT_PROVISIONING_MIGRATIONS",
         "TENANT_PROVISIONING_MIGRATION_DIGEST"
       ],
       "dbCallsitesApprox": 0,
-      "sqlKeywordsApprox": 1434,
+      "sqlKeywordsApprox": 1592,
       "storeBoundaryMention": true,
       "classification": "STATIC_INVENTORY_DOMAIN_VALIDATION_PENDING"
     },
     {
       "file": "src/tenantSqlGuard.js",
-      "sha256": "a5e425b0c234c97cc70917ff8e332da226650c0b86f679b8b5741634a67a1d8c",
-      "lines": 700,
+      "sha256": "7b370cca2ea7ad61470e7f3d57d185a997bef95665b648d11248cd99f34e2a12",
+      "lines": 791,
       "exports": [
         "assertTenantSql",
         "sqlTokens",
         "tenantSqlGuard"
       ],
-      "dbCallsitesApprox": 8,
-      "sqlKeywordsApprox": 63,
+      "dbCallsitesApprox": 13,
+      "sqlKeywordsApprox": 73,
+      "storeBoundaryMention": true,
+      "classification": "STATIC_INVENTORY_DOMAIN_VALIDATION_PENDING"
+    },
+    {
+      "file": "src/transactionResetCatalog.js",
+      "sha256": "8c15bb1b649844f1fd6832be1e4520e375fa19d1f0d42c80623289090feaf3cb",
+      "lines": 172,
+      "exports": [
+        "LOGICAL_PARENTS",
+        "PROTECTED_TABLES",
+        "TRANSACTION_ROOTS",
+        "planTransactionReset"
+      ],
+      "dbCallsitesApprox": 0,
+      "sqlKeywordsApprox": 1,
       "storeBoundaryMention": true,
       "classification": "STATIC_INVENTORY_DOMAIN_VALIDATION_PENDING"
     },
@@ -2534,6 +2645,23 @@
       ],
       "dbCallsitesApprox": 0,
       "sqlKeywordsApprox": 0,
+      "storeBoundaryMention": true,
+      "classification": "STATIC_INVENTORY_DOMAIN_VALIDATION_PENDING"
+    },
+    {
+      "file": "src/vipCharge.js",
+      "sha256": "0e0f8e92e65d0f9e077694b656c6a02f7e1f3232b1289375e3d66d152e192e0c",
+      "lines": 100,
+      "exports": [
+        "calculateVipCharge",
+        "computeVipTableCharge",
+        "getVipSeatSettings",
+        "getVipTableStates",
+        "saveVipSeatSettings",
+        "vipSessionStartStatement"
+      ],
+      "dbCallsitesApprox": 5,
+      "sqlKeywordsApprox": 11,
       "storeBoundaryMention": true,
       "classification": "STATIC_INVENTORY_DOMAIN_VALIDATION_PENDING"
     }

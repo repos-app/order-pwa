@@ -312,7 +312,10 @@
         : state.menu.filter(function (it) { return it['カテゴリ'] === state.currentCat; });
     }
     if (!items.length) { $('menuArea').innerHTML = '<div class="loading">—</div>'; return; }
-    var html = '<div class="grid">';
+    var layout = typeof window !== 'undefined' && window.OrderGridLayout
+      ? OrderGridLayout.resolve(state.settings, window.screen, {width:window.innerWidth,height:window.innerHeight})
+      : {columns:2};
+    var html = '<div class="grid" style="--order-grid-columns:' + layout.columns + '">';
     items.forEach(function (it) {
       var key = it['商品名'];
       var name = optionLoc(it['商品名_JA'],it['商品名_EN'],key);

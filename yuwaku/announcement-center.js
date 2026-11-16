@@ -76,7 +76,10 @@
       'max-height:min(88dvh,750px);overflow-y:auto;box-shadow:0 18px 45px rgba(0,0,0,.25);' +
       'padding:18px;box-sizing:border-box;font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}' +
       '#izAnnouncementDialog h2{font-size:19px;line-height:1.3;margin:0}' +
-      '#izAnnouncementDialog .iz-ann-top{display:flex;justify-content:space-between;gap:12px;align-items:start}' +
+      '#izAnnouncementDialog .iz-ann-top{display:flex;justify-content:space-between;gap:8px;align-items:center;' +
+      'position:sticky;top:0;z-index:1;background:#fff;padding:3px 0}' +
+      '#izAnnouncementDialog .iz-ann-top h2{min-width:0}' +
+      '#izAnnouncementDialog .iz-ann-top-controls{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-shrink:0}' +
       '#izAnnouncementDialog .iz-ann-muted{font-size:12px;color:#64748b;margin:4px 0 12px}' +
       '#izAnnouncementDialog .iz-ann-list{display:flex;flex-direction:column;gap:8px;margin:12px 0}' +
       '#izAnnouncementDialog .iz-ann-row{display:flex;flex-direction:column;align-items:start;gap:3px;text-align:left;' +
@@ -87,11 +90,14 @@
       '#izAnnouncementDialog .iz-ann-normal{color:#475569}' +
       '#izAnnouncementDialog .iz-ann-body{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7;margin:16px 0}' +
       '#izAnnouncementDialog .iz-ann-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}' +
-      '#izAnnouncementDialog .iz-ann-diagnostic{margin-top:14px;padding:12px;border:1px solid #cbd5e1;border-radius:9px}' +
-      '#izAnnouncementDialog .iz-ann-diagnostic .iz-ann-muted{margin:6px 0 0;overflow-wrap:anywhere}' +
+      '#izAnnouncementDialog #izAnnouncementDiagnosticStatus{margin:0 0 8px;overflow-wrap:anywhere}' +
+      '#izAnnouncementDialog #izAnnouncementDiagnosticStatus:empty{display:none}' +
       '#izAnnouncementDialog button.iz-ann-action{border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;' +
       'color:#0f172a;min-height:44px;padding:8px 12px;cursor:pointer;font:700 14px/1.2 inherit}' +
       '#izAnnouncementDialog button.iz-ann-primary{background:#0f172a;color:#fff;border-color:#0f172a}' +
+      '#izAnnouncementDialog button.iz-ann-send{background:#0369a1;color:#fff;border-color:#0369a1;' +
+      'font-size:13px;font-weight:700;white-space:nowrap;padding:8px 10px}' +
+      '#izAnnouncementDialog button.iz-ann-send:disabled{opacity:.65;cursor:wait}' +
       '#izAnnouncementDialog button[aria-pressed=true]{background:#334155;color:#fff}' +
       '#izAnnouncementDialog button:focus-visible,#izAnnouncementBadge:focus-visible{outline:3px solid #f59e0b;outline-offset:2px}';
     document.head.appendChild(el);
@@ -115,6 +121,49 @@
     if (!window.DateDisplay || typeof DateDisplay.formatUtcDateTime !== 'function' ||
         !DateDisplay.getTimeZone || !DateDisplay.getTimeZone()) return '';
     return DateDisplay.formatUtcDateTime(value).split(' ')[0];
+  }
+  // The catalog intentionally preserves every pushed commit and its own read
+  // receipt. Only its presentation is collapsed. An explicitly tagged release
+  // is never merged with another version; legacy notes without version metadata
+  // form a separately labelled, unversioned history group.
+  function releaseGroupKey(item) {
+    if (!item || item.severity !== 'normal') return '';
+    var ja = String(item.titleJa || '').trim();
+    var en = String(item.titleEn || '').trim();
+    var match = /^izakanpai(?:\s+(v?\d+(?:\.\d+){1,3}))?\s+更新内容$/i.exec(ja);
+    if (!match && !/^izakanpai(?:\s+v?\d+(?:\.\d+){1,3})?\s+update notes$/i.test(en)) return '';
+    var titleVersion = match && match[1] ||
+      /^izakanpai\s+(v?\d+(?:\.\d+){1,3})\s+update notes$/i.exec(en)?.[1];
+    var explicitVersion = String(item.releaseVersion || titleVersion || '').trim();
+    return 'izakanpai-release:' + (explicitVersion ? explicitVersion.replace(/^v/i, '') : 'unversioned');
+  }
+  function groupedItems() {
+    var groups = Object.create(null), display = [];
+    items.forEach(function (item) {
+      var key = releaseGroupKey(item);
+      if (!key) { display.push(item); return; }
+      if (!groups[key]) {
+        groups[key] = {id:item.id, severity:'normal', titleJa:item.titleJa,
+          titleEn:item.titleEn, publishedAt:item.publishedAt,
+          releaseVersion:key.endsWith(':unversioned') ? '' : key.slice('izakanpai-release:'.length),
+          members:[]};
+        display.push(groups[key]);
+      }
+      groups[key].members.push(item);
+    });
+    return display.map(function (entry) {
+      if (!entry.members) return entry;
+      if (entry.members.length === 1) return entry.members[0];
+      entry.readAt = entry.members.some(function (item) { return !item.readAt; }) ? null : entry.members[0].readAt;
+      return entry;
+    });
+  }
+  function countUnreadGroups() {
+    return groupedItems().filter(function (item) { return !item.readAt; }).length;
+  }
+  function displayTitle(item) {
+    var title = localized(item, 'title');
+    return item.members ? title + ' (' + item.members.length + t('件', ' updates') + ')' : title;
   }
   // Native release versions must come from the installed app, not a copied
   // frontend config constant (which remains the same across TestFlight builds).
@@ -177,12 +226,16 @@
     return b;
   }
   function close() {
+    // The upload still belongs to this WebView until the server ACK arrives.
+    // Do not let Escape, backdrop or Close silently abandon its progress.
+    if (diagnosticReport && diagnosticReport.state === 'sending') return;
     if (overlay) { overlay.remove(); overlay = null; }
     forced = false;
     if (previousFocus && previousFocus.isConnected && typeof previousFocus.focus === 'function') previousFocus.focus();
     previousFocus = null;
   }
   function setRead(item) {
+    if (item && item.members) return Promise.all(item.members.map(setRead));
     if (!item || item.readAt || !activeToken) return Promise.resolve();
     if (item.__readPending) return item.__readPending;
     var session = activeToken, seq = generation;
@@ -190,7 +243,7 @@
       if (seq !== generation || session !== activeToken) return;
       if (item.readAt) return;
       item.readAt = new Date().toISOString();
-      unreadCount = Math.max(0, unreadCount - 1);
+      unreadCount = countUnreadGroups();
       badgeUpdate();
       if (overlay) paint();
     }).catch(function () {
@@ -216,7 +269,7 @@
     }
   }
   function finishDetail() {
-    var item = items.find(function (x) { return String(x.id) === String(selectedId); });
+    var item = groupedItems().find(function (x) { return String(x.id) === String(selectedId); });
     var wasForced = forced;
     // Acknowledging an automatically displayed important notice also marks it read.
     Promise.resolve(setRead(item)).finally(function () {
@@ -231,9 +284,14 @@
     diagnosticReport = {state:'sending'};
     paint();
     Promise.resolve().then(function () {
-      if (!window.API || typeof API.sendDiagnosticsNow !== 'function')
+      if (!window.API || typeof API.sendDiagnosticsNow !== 'function' ||
+          typeof API.runForegroundTask !== 'function')
         throw new Error('diagnostic_unavailable');
-      return API.sendDiagnosticsNow();
+      return API.runForegroundTask('diagnostic-upload', function (task) {
+        return API.sendDiagnosticsNow({onProgress:function (progress) {
+          task.progress(progress.completed,progress.total);
+        }});
+      },{message:t('診断ログを送信中…','Uploading diagnostic logs…')});
     }).then(function (receipt) {
       if ((session !== activeToken && !sameSessionIdentity(session, activeToken)) ||
           !window.API || API.currentStoreId() !== store) return;
@@ -243,7 +301,9 @@
         pending:Number.isInteger(receipt.pendingCount) ? receipt.pendingCount : null,
         total:Number.isInteger(receipt.totalCount) ? receipt.totalCount : null,
         resent:Number.isInteger(receipt.resentCount) ? receipt.resentCount : null,
-        partial:Number(receipt.failedCount)>0 || receipt.incomplete===true};
+        partial:Number(receipt.failedCount)>0 || receipt.incomplete===true,
+        reason:['http_401','http_403','http_429','session_changed'].includes(receipt.stopReason)
+          ? receipt.stopReason : ''};
       if (overlay) paint();
     }).catch(function (error) {
       if ((session !== activeToken && !sameSessionIdentity(session, activeToken)) ||
@@ -262,19 +322,99 @@
     dialog.replaceChildren();
     var top = add(dialog, 'div', null, 'iz-ann-top');
     add(top, 'h2', mode === 'detail' ? t('お知らせ詳細', 'Announcement') : t('お知らせ', 'Announcements')).id = 'izAnnouncementTitle';
+    var topControls = add(top, 'div', null, 'iz-ann-top-controls');
+    var sendButton = button(topControls, diagnosticReport && diagnosticReport.state === 'sending'
+      ? t('送信中…', 'Sending…') : t('ログ送信', 'Send logs'), sendDiagnostics);
+    sendButton.classList.add('iz-ann-send');
+    sendButton.id = 'izAnnouncementSendDiagnostics';
+    sendButton.disabled = !!diagnosticReport && diagnosticReport.state === 'sending';
+    sendButton.setAttribute('aria-label', t('診断ログを送信', 'Send diagnostic logs'));
+    sendButton.title = t('端末のログを送信・再送（送信済みログも削除しません）',
+      'Send or resend device logs (sent logs are not deleted)');
     // First-show important notices require explicit acknowledgement. Never
     // expose an X, backdrop click or Escape as an accidental bypass.
-    if (!forced) button(top, '×', close).setAttribute('aria-label', t('閉じる', 'Close'));
+    if (!forced && !(diagnosticReport && diagnosticReport.state === 'sending'))
+      button(topControls, '×', close).setAttribute('aria-label', t('閉じる', 'Close'));
     add(dialog, 'p', t('アプリバージョン: ', 'App version: ') + version() + ' · ' +
       t('未読 ', 'Unread ') + unreadCount, 'iz-ann-muted');
+    var status = add(dialog, 'p', '', 'iz-ann-muted');
+    status.id = 'izAnnouncementDiagnosticStatus';
+    status.setAttribute('role', 'status');
+    status.setAttribute('aria-live', 'polite');
+    if (diagnosticReport && diagnosticReport.state === 'sending') {
+      status.textContent = t('サーバーからの保存確認を待っています…', 'Waiting for the server save acknowledgement…');
+    } else if (diagnosticReport && diagnosticReport.state === 'confirmed') {
+      status.textContent = (diagnosticReport.partial && diagnosticReport.total > 0 && diagnosticReport.resent === 0
+        ? t('診断接続は確認済みですが、対象ログの保存確認は0件です。確認ID: ',
+          'Diagnostic connection confirmed, but no retained logs were acknowledged. Event ID: ')
+        : diagnosticReport.partial
+        ? t('一部のサーバー保存を確認済み。確認ID: ', 'Some logs saved on server. Event ID: ')
+        : t('サーバー保存確認済み。確認ID: ', 'Server save confirmed. Event ID: ')) +
+        diagnosticReport.id + (diagnosticReport.total == null ? '' :
+          ' · ' + t('ログ再送確認: ', 'Logs re-upload confirmed: ') +
+          diagnosticReport.resent + '/' + diagnosticReport.total) +
+        (diagnosticReport.partial && diagnosticReport.pending
+          ? ' · ' + t('一部未確認（再送可能）: ', 'Unconfirmed (can retry): ') + diagnosticReport.pending
+          : '') +
+        (diagnosticReport.reason === 'http_429'
+          ? ' · ' + t('直近24時間のログ受信上限です。時間を置いて再送してください。',
+            'The rolling 24-hour log limit was reached. Retry later.')
+          : ['http_401','http_403','session_changed'].includes(diagnosticReport.reason)
+          ? ' · ' + t('認証または店舗が切り替わりました。ログインを確認して再送してください。',
+            'The session or store changed. Verify sign-in and resend.')
+          : '');
+    } else if (diagnosticReport && diagnosticReport.state === 'failed') {
+      status.textContent = diagnosticReport.code === 'auth'
+        ? t('ログインを確認して再試行してください。', 'Sign in and try again.')
+        : diagnosticReport.code === 'storage'
+        ? t('端末内のログ保存に失敗しました。保存・送信は確認できていません。',
+          'Local log storage failed. No save or delivery is confirmed.')
+        : t('サーバー保存を確認できませんでした。記録は端末に保持し、自動再送します。',
+          'Server save not confirmed. The queued event is retained for automatic retry.');
+    }
+    // Show the observability pipeline's own durable health, not just the last
+    // manual upload result. A locally recorded error is NOT a server ACK.
+    try {
+      var delivery = window.API && typeof API.getDiagnosticDeliveryStatus === 'function'
+        ? API.getDiagnosticDeliveryStatus() : null;
+      if (delivery && Number.isInteger(delivery.pendingCount)) {
+        var pending = Math.max(0, delivery.pendingCount);
+        var deliveryText = pending
+          ? t('診断ログのサーバー保存待ち: ', 'Diagnostic logs awaiting server ACK: ') + pending
+          : delivery.lastAckAt
+          ? t('診断ログ送信: 最終保存確認あり', 'Diagnostic delivery: latest ACK confirmed')
+          : t('診断ログ送信: まだ保存確認なし', 'Diagnostic delivery: no server ACK yet');
+        if (pending && delivery.lastFailureCode && delivery.lastFailureCode !== 'none') {
+          var deliveryCode = /^(?:http_[45][0-9]{2}|client_timeout|client_transport_failure|diagnostic_rate_limited|diagnostic_rejected|diagnostic_session_pending)$/
+            .test(String(delivery.lastFailureCode)) ? delivery.lastFailureCode : 'unconfirmed';
+          deliveryText += ' · ' + t('直近送信エラー: ', 'Last upload error: ') + deliveryCode;
+        }
+        add(dialog, 'p', deliveryText, 'iz-ann-muted').id = 'izAnnouncementDiagnosticDelivery';
+      }
+    } catch (_) { /* Observability must never prevent a user from reading notices. */ }
     if (mode === 'detail') {
-      var item = items.find(function (x) { return String(x.id) === String(selectedId); });
+      var item = groupedItems().find(function (x) { return String(x.id) === String(selectedId); });
       if (item) {
         add(dialog, 'p', item.severity === 'important' ? t('重要なお知らせ', 'Important notice') : t('通常のお知らせ', 'General notice'),
           'iz-ann-type' + (item.severity !== 'important' ? ' iz-ann-normal' : ''));
-        add(dialog, 'h3', localized(item, 'title'));
-        add(dialog, 'p', dateLabel(item.publishedAt), 'iz-ann-muted');
-        add(dialog, 'div', localized(item, 'body'), 'iz-ann-body');
+        add(dialog, 'h3', displayTitle(item));
+        if (item.members) {
+          add(dialog, 'p', item.releaseVersion ?
+            t('リリース v', 'Release v') + item.releaseVersion :
+            t('バージョン未記録の更新履歴', 'Update history without recorded version'), 'iz-ann-muted');
+          var distinct = Object.create(null);
+          item.members.forEach(function (member) {
+            var content = localized(member, 'body');
+            // Duplicate bodies do not become duplicate paragraphs in the rollup.
+            if (distinct[content]) return;
+            distinct[content] = true;
+            add(dialog, 'p', dateLabel(member.publishedAt), 'iz-ann-muted');
+            add(dialog, 'div', content, 'iz-ann-body');
+          });
+        } else {
+          add(dialog, 'p', dateLabel(item.publishedAt), 'iz-ann-muted');
+          add(dialog, 'div', localized(item, 'body'), 'iz-ann-body');
+        }
       }
       var actions = add(dialog, 'div', null, 'iz-ann-actions');
       button(actions, forced ? t('確認しました', 'Acknowledge') : t('一覧へ戻る', 'Back to list'), finishDetail, true);
@@ -287,52 +427,22 @@
     });
     if (failed) add(dialog, 'p', t('お知らせを取得できません。接続を確認して再試行してください。', 'Unable to load announcements. Check your connection and retry.'), 'iz-ann-muted');
     var list = add(dialog, 'div', null, 'iz-ann-list');
-    var visible = items.filter(function (x) { return filter === 'all' || filter === x.severity; });
+    var visible = groupedItems().filter(function (x) { return filter === 'all' || filter === x.severity; });
     if (!visible.length && !failed) add(list, 'p', t('お知らせはありません。', 'There are no announcements.'), 'iz-ann-muted');
     visible.forEach(function (item) {
       var row = button(list, '', function () { openDetail(item.id, false); });
       row.className = 'iz-ann-row';
       row.textContent = '';
-      row.setAttribute('aria-label', (item.readAt ? 'Read' : 'Unread') + ' ' + localized(item, 'title'));
+      row.setAttribute('aria-label', (item.readAt ? 'Read' : 'Unread') + ' ' + displayTitle(item));
       add(row, 'span', item.severity === 'important' ? t('重要', 'Important') : t('通常', 'General'),
         'iz-ann-type' + (item.severity !== 'important' ? ' iz-ann-normal' : ''));
-      add(row, 'strong', (item.readAt ? '' : '● ') + localized(item, 'title'));
+      add(row, 'strong', (item.readAt ? '' : '● ') + displayTitle(item));
       add(row, 'span', dateLabel(item.publishedAt), 'iz-ann-muted');
     });
-    var diagnostics = add(dialog, 'div', null, 'iz-ann-diagnostic');
-    add(diagnostics, 'strong', t('クライアント診断', 'Client diagnostics'));
-    add(diagnostics, 'p', t('端末に保持しているログを送信・再送します。送信済みのログも削除されず、もう一度送れます。',
-      'Send or resend retained device logs. Already sent logs stay on this device and can be sent again.'), 'iz-ann-muted');
-    var sendButton = button(diagnostics, diagnosticReport && diagnosticReport.state === 'sending'
-      ? t('送信中…', 'Sending…') : t('診断ログを送信', 'Send diagnostic logs'), sendDiagnostics);
-    sendButton.id = 'izAnnouncementSendDiagnostics';
-    sendButton.disabled = !!diagnosticReport && diagnosticReport.state === 'sending';
-    var status = add(diagnostics, 'p', '', 'iz-ann-muted');
-    status.id = 'izAnnouncementDiagnosticStatus';
-    status.setAttribute('role', 'status');
-    status.setAttribute('aria-live', 'polite');
-    if (diagnosticReport && diagnosticReport.state === 'sending') {
-      status.textContent = t('サーバーからの保存確認を待っています…', 'Waiting for the server save acknowledgement…');
-    } else if (diagnosticReport && diagnosticReport.state === 'confirmed') {
-      status.textContent = t('サーバー保存確認済み。確認ID: ', 'Server save confirmed. Event ID: ') +
-        diagnosticReport.id + (diagnosticReport.total == null ? '' :
-          ' · ' + t('ログ再送確認: ', 'Logs re-upload confirmed: ') +
-          diagnosticReport.resent + '/' + diagnosticReport.total) +
-        (diagnosticReport.partial && diagnosticReport.pending
-          ? ' · ' + t('一部未確認（再送可能）: ', 'Unconfirmed (can retry): ') + diagnosticReport.pending
-          : '');
-    } else if (diagnosticReport && diagnosticReport.state === 'failed') {
-      status.textContent = diagnosticReport.code === 'auth'
-        ? t('ログインを確認して再試行してください。', 'Sign in and try again.')
-        : diagnosticReport.code === 'storage'
-        ? t('端末内のログ保存に失敗しました。保存・送信は確認できていません。',
-          'Local log storage failed. No save or delivery is confirmed.')
-        : t('サーバー保存を確認できませんでした。記録は端末に保持し、自動再送します。',
-          'Server save not confirmed. The queued event is retained for automatic retry.');
-    }
     var actions = add(dialog, 'div', null, 'iz-ann-actions');
     button(actions, t('最新情報を取得', 'Refresh'), function () { load(true); });
-    button(actions, t('閉じる', 'Close'), close, true);
+    if (!(diagnosticReport && diagnosticReport.state === 'sending'))
+      button(actions, t('閉じる', 'Close'), close, true);
   }
   function openDetail(id, isForced) {
     mode = 'detail'; selectedId = id; forced = !!isForced;
@@ -340,7 +450,7 @@
     paint();
     // An intentionally opened item is read immediately, independent of Back/Close.
     // Automatically presented important notices require explicit acknowledgement.
-    if (!isForced) setRead(items.find(function (x) { return String(x.id) === String(id); }));
+    if (!isForced) setRead(groupedItems().find(function (x) { return String(x.id) === String(id); }));
   }
   function openOverlay() {
     if (overlay) return;
@@ -378,7 +488,7 @@
       if (session !== activeToken || seq !== generation || !eligible()) return;
       if (!Array.isArray(payload.announcements) || !Number.isSafeInteger(payload.unreadCount) || payload.unreadCount < 0)
         throw new Error('announcement_response_invalid');
-      items = payload.announcements; unreadCount = payload.unreadCount;
+      items = payload.announcements; unreadCount = countUnreadGroups();
       loadedAt = Date.now(); failed = false; badgeUpdate();
       if (overlay) paint();
       autoNext();

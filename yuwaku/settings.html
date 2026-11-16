@@ -196,6 +196,16 @@
       <div class="st" id="st-security"></div>
     </div>
 
+    <div class="card" id="clientLogUploadSettings">
+      <div class="card-title" data-t="autoDiagTitle">🛠️ クライアント診断ログ</div>
+      <label class="chk" style="margin:8px 0 10px;">
+        <input type="checkbox" id="autoClientLogUpload" checked onchange="saveAutoClientLogUpload()">
+        <span data-t="autoDiagEnable">自動クライアントログ送信を有効にする</span>
+      </label>
+      <div class="hint" data-t="autoDiagHint">この端末・店舗の設定です。ONの場合、未送信エラーがあると管理メニューで全件送信まで操作を停止します。送信に失敗した場合は再試行か後で送信を選べます。OFFでもエラー記録とℹ️からの手動送信は利用できます。</div>
+      <div class="st" id="st-auto-diag"></div>
+    </div>
+
     <div class="card">
       <div class="card-title" data-t="entryTitle">🎫 入場料・延長料</div>
       <label class="chk" style="margin-bottom:10px;"><input type="checkbox" id="entryFeeEnabled" onchange="syncEntryFeeControls()"><span data-t="entryFeeEnable">入場料を有効にする</span></label>
@@ -409,6 +419,18 @@
     function rpc(fn,args){ return API.post('rpc',{fn:fn,args:args||[],token:TOKEN}).then(function(r){ return r.data; }); }
     function $(id){ return document.getElementById(id); }
     function st(id, text, ok){ var e=$(id); e.style.display='block'; e.style.background=ok?'#dcfce7':'#fee2e2'; e.style.color=ok?'#15803d':'#b91c1c'; e.innerText=text; }
+    function refreshAutoClientLogUpload(){
+      if($('autoClientLogUpload')&&API.autoDiagnosticUploadEnabled)
+        $('autoClientLogUpload').checked=API.autoDiagnosticUploadEnabled();
+    }
+    function saveAutoClientLogUpload(){
+      if(!API.setAutoDiagnosticUploadEnabled)return;
+      var checked=$('autoClientLogUpload').checked;
+      var saved=API.setAutoDiagnosticUploadEnabled(checked);
+      if(!saved)refreshAutoClientLogUpload();
+      st('st-auto-diag',saved?I18n.t('saved'):I18n.t('errPrefix'),saved);
+    }
+    refreshAutoClientLogUpload();
     // ---- テーブルQRコード ----
     function _publicOrderUrl(tableNum, tableToken){
       var base=String((window.APP_CONFIG&&window.APP_CONFIG.PUBLIC_ORDER_URL)||'').trim();
@@ -1094,6 +1116,7 @@ function _seatLabel(v){var s=String(v==null?'':v).trim();var tableTerm=_seatTerm
 
     I18n.init({
       ja:{ title:'⚙️ 設定', back:'← 管理へ', save:'💾 保存', status:'状態:', unset:'未設定', set:'設定済', phPaste:'貼り付けて保存', close:'閉じる',
+        autoDiagTitle:'🛠️ クライアント診断ログ', autoDiagEnable:'自動クライアントログ送信を有効にする', autoDiagHint:'この端末・店舗の設定です。ONの場合、未送信エラーがあると管理メニューで全件送信まで操作を停止します。送信に失敗した場合は再試行か後で送信を選べます。OFFでもエラー記録とℹ️からの手動送信は利用できます。',
         vipSeatTitle:'⭐ 席別VIPチャージ',vipSeatHint:'対象席で最初の注文が確定した時刻から最終会計まで自動計算します。基本料金は1席あたり1回、延長料金は時間単位で加算されます。',vipSeatPick:'設定する席',vipSeatEnabled:'この席にVIPチャージを適用',vipBaseCharge:'基本チャージ',vipBaseMinutes:'基本時間（分）',vipExtCharge:'延長料金（1回あたり）',vipExtMinutes:'延長単位（分）',vipSeatSave:'💾 この席のVIP設定を保存',
 
         qrCardTitle:'📱 席QRコード', qrCardDesc:'各席のQRコードを印刷して設置してください。お客様がスキャンするとその席専用の注文画面が開きます。表示名は保存した業態・呼称設定に従います。', qrShowBtn:'📱 QRコードを表示', qrModalTitle:'席 QRコード', qrModalSub:'スキャンで注文画面を開く', qrPrintBtn:'🖨️ 印刷', qrNoTables:'席が設定されていません。先に席数を保存してください。',
@@ -1122,6 +1145,7 @@ function _seatLabel(v){var s=String(v==null?'':v).trim();var tableTerm=_seatTerm
         ereceiptSaveBtn:'💾 保存', ereceiptEmailsLbl:'送付先メール（固定・複数可・カンマか改行区切り）', ereceiptHint:'ここに登録したメールアドレスには、お会計完了ごとに毎回eレシートのコピーが自動送信されます（会計画面でお客様が任意入力するeレシート送信先とは別に、常に送られます）。経理・オーナー控え等にご利用ください。空欄なら送信しません。上の「eレシートを有効にする」がオフの間は、ここに登録しても送信されません。',
         saved:'✅ 保存しました', savedSched:'✅ 保存＆スケジュール設定しました', uploaded:'✅ アップロードしました', pickImg:'画像を選択してください', needKey:'キーを入力してください', noGeoDev:'この端末は位置情報に対応していません', gotLoc:'現在地を取得しました。「保存」を押してください。', noLoc:'位置情報を取得できませんでした。手動入力してください。', sending:'送信中…', testSent:'✅ テスト送信しました。受信箱をご確認ください', sendFail:'送信できませんでした', scopeReauth:'認証(スコープ)の再承認が必要かもしれません', errPrefix:'エラー: ' },
       en:{ title:'⚙️ Settings', back:'← Manage', save:'💾 Save', status:'Status:', unset:'Not set', set:'Set', phPaste:'Paste and save', close:'Close',
+        autoDiagTitle:'🛠️ Client diagnostic logs', autoDiagEnable:'Enable automatic client log upload', autoDiagHint:'Per-device and per-store setting. When ON, the management menu blocks operations until pending errors are uploaded. On failure, retry or choose to send later. OFF keeps local logs and manual upload through ℹ️ available.',
         vipSeatTitle:'⭐ VIP charges by seat',vipSeatHint:'Automatically charge from the first confirmed order at this seat until final checkout. One base charge per seat; extension fees are time-based, not per guest.',vipSeatPick:'Seat to configure',vipSeatEnabled:'Apply VIP charge to this seat',vipBaseCharge:'Base charge',vipBaseMinutes:'Included minutes',vipExtCharge:'Extension charge (per unit)',vipExtMinutes:'Extension unit (minutes)',vipSeatSave:'💾 Save VIP settings for this seat',
 
         qrCardTitle:'📱 Location QR Codes', qrCardDesc:'Print and place a QR code at each configured location. Scanning opens the order screen locked to that location. Display names follow the saved business terminology.', qrShowBtn:'📱 Show QR Codes', qrModalTitle:'Location QR Codes', qrModalSub:'Scan to open the order screen', qrPrintBtn:'🖨️ Print', qrNoTables:'No locations are set up yet. Save the location counts first.',
@@ -1158,6 +1182,7 @@ function _seatLabel(v){var s=String(v==null?'':v).trim();var tableTerm=_seatTerm
       title: '店舗設定',
       titleEn: 'Store settings',
       items: [
+        { ja: '「自動クライアントログ送信」は初期ONで端末・店舗ごとに保存します。OFFにすると自動送信と管理メニューの操作ロックを停止しますが、端末への記録とℹ️からの手動送信は残ります。', en: 'Automatic client log upload defaults to ON per device and store. OFF disables automatic uploads and the management-menu lock while keeping locally saved diagnostics and manual uploads through the info button.' },
         { ja: '「席QRコード」は店舗ID・席・署名トークンを含む公開HTTPS注文URLを生成し、各席の「ブラウザで開く」で実ページを確認できます。「テイクアウト共有URL」もコピーに加えてブラウザで開けます。どちらもアプリ内部URLは使用しません。', en: '"Location QR Codes" generates public HTTPS order URLs containing the store ID, location and signed token, and each location can be checked with “Open in browser.” The takeout share URL can also be copied or opened in a browser. Neither feature uses an app-internal URL.' },
         { ja: '① 「🏪 店舗設定」で業態プロファイルを選ぶと席の呼称初期値が入ります。日本語・英語の主な席、もう一つの席、全体呼称は個別編集でき、席数0でその席種を非表示にできます。', en: '① In "Store settings", choose a business profile to fill terminology defaults. You can edit the Japanese and English main, other seating, and group labels, and set a location count to 0 to hide that type.' },
         { ja: '② 「📱 席QRコード」の「QRコードを表示」ボタンで公開HTTPS注文URLのQRコードを一覧表示します。各席の「ブラウザで開く」、印刷、対応プリンタへの送信はすべて同じ店舗ID・席・署名トークン付きURLを使います。', en: '② "Location QR Codes" → "Show QR Codes" lists QR codes for the public HTTPS order URLs. “Open in browser,” printing, and printer queues all use the same URL with its store ID, location, and signed token.' },
@@ -1198,7 +1223,8 @@ function _seatLabel(v){var s=String(v==null?'':v).trim();var tableTerm=_seatTerm
   // Android's native time picker is outside WebView layout and can clip Set in landscape.
   // Use an in-page time selector only for short landscape viewports.
   (function(){
-    const landscape=()=>matchMedia('(orientation:landscape) and (max-height:500px)').matches;
+    // Also use the existing in-page 24h editor on iOS, independent of device language.
+    const landscape=()=>matchMedia('(orientation:landscape) and (max-height:500px)').matches||/iPad|iPhone|iPod/.test(navigator.userAgent||'')||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
     const fields=Array.from(document.querySelectorAll('input[type="time"].time-control'));
     if(!fields.length)return;
     const dialog=document.createElement('div');
@@ -1212,6 +1238,14 @@ function _seatLabel(v){var s=String(v==null?'':v).trim();var tableTerm=_seatTerm
     for(let n=0;n<24;n++){const o=document.createElement('option');o.value=String(n).padStart(2,'0');o.textContent=o.value;hours.appendChild(o);}
     for(let n=0;n<60;n++){const o=document.createElement('option');o.value=String(n).padStart(2,'0');o.textContent=o.value;minutes.appendChild(o);}
     let active=null;
+    function refreshTimeDialogLanguage(){
+      const ja=I18n.lang()==='ja';
+      hours.setAttribute('aria-label',ja?'時':'Hour');
+      minutes.setAttribute('aria-label',ja?'分':'Minute');
+      dialog.querySelector('#landscapeCancel').textContent=ja?'キャンセル':'Cancel';
+      dialog.querySelector('#landscapeSet').textContent=ja?'設定':'Set';
+      dialog.setAttribute('aria-label',ja?'時刻を選択':'Select time');
+    }
     function close(){dialog.classList.remove('open');if(active){const f=active;active=null;f.focus();}}
     function sync(){
       if(!landscape())close();
@@ -1228,6 +1262,7 @@ function _seatLabel(v){var s=String(v==null?'':v).trim();var tableTerm=_seatTerm
         active=f;
         const parts=/^(\\d{2}):(\\d{2})$/.exec(f.value)||['','00','00'];
         hours.value=parts[1];minutes.value=parts[2];
+        refreshTimeDialogLanguage();
         dialog.querySelector('#landscapeTimeLabel').textContent=f.closest('.time-field')?.querySelector('label')?.textContent||'Time';
         dialog.classList.add('open');hours.focus();
       }

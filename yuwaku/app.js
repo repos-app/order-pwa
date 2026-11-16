@@ -11,6 +11,7 @@
       svc:'Service', tax:'Tax', ranking:'🏆 Ranking',
       tblTitle:'Select a location', tblMsg:'Staff may select a location here. Guests must scan the signed QR code at their location.', tblGo:'Start',
       partyTitle:'How many guests?', partyLabel:'Guests', partyChoose:'Select party size', partyMsg:'Used for entry and extension fee billing.', partyMsgEntry:'Used for entry fee billing.', partyMsgExtension:'Used for extension fee billing.', partyGo:'OK',
+      partyChange:'Change', partySave:'Save', partyLoadFailed:'Could not confirm the current party size. Please reopen this location.', partySaveFailed:'Could not save the party size. Please try again.', partySaveFirst:'Save the changed party size before starting.', partyStateChanged:'The party size or checkout status changed. Please reopen this location.',
       memberTitle:'Member (points)', memberSub:'Enter your phone to earn points. For privacy, balance checks and point use are handled by staff.', check:'Register', usePoints:'Use points', points:'pts', discountLbl:'Points', earned:'pts earned',
       couponTitle:'Coupon / Voucher', couponSub:'Enter a code to get a discount.', apply:'Apply', remove:'Remove coupon', close:'Close', couponLbl:'Coupon',
       cpApplied:'Applied', cpEmpty:'Enter a code', cpNotfound:'Code not found', cpInactive:'Not available', cpExpired:'Expired', cpNot_started:'Coupon is not valid yet.', cpLimit:'Usage limit reached', cpMin:'Minimum order not met', cpInvalid:'Invalid code',
@@ -34,6 +35,7 @@
       svc:'サービス料', tax:'税', ranking:'🏆 ランキング',
       tblTitle:'席を選択', tblMsg:'スタッフはここで席を選べます。お客様は席の署名付きQRコードを読み取ってください。', tblGo:'開始',
       partyTitle:'ご来店人数は？', partyLabel:'人数', partyChoose:'人数を選択', partyMsg:'入場料・延長料の請求に使用します。', partyMsgEntry:'入場料の請求に使用します。', partyMsgExtension:'延長料の請求に使用します。', partyGo:'OK',
+      partyChange:'変更', partySave:'保存', partyLoadFailed:'現在の人数を確認できませんでした。席を選び直してください。', partySaveFailed:'人数を保存できませんでした。再度お試しください。', partySaveFirst:'人数変更を保存してから開始してください。', partyStateChanged:'人数または会計状態が変わりました。席を選び直してください。',
       memberTitle:'会員（ポイント）', memberSub:'電話番号を入力するとポイントが貯まります。残高確認・利用は個人情報保護のためスタッフへお申し付けください。', check:'登録', usePoints:'ポイントを使う', points:'pt', discountLbl:'ポイント割引', earned:'pt 獲得',
       couponTitle:'クーポン／バウチャー', couponSub:'コードを入力すると割引されます。', apply:'適用', remove:'クーポンを外す', close:'閉じる', couponLbl:'クーポン',
       cpApplied:'適用しました', cpEmpty:'コードを入力してください', cpNotfound:'コードが見つかりません', cpInactive:'利用できません', cpExpired:'期限切れ', cpNot_started:'このクーポンは利用開始日前です。', cpLimit:'利用上限に達しています', cpMin:'最低注文額に達していません', cpInvalid:'無効なコード',
@@ -61,6 +63,7 @@
     partySize: 0             // 入場料/延長料の請求に使う人数（卓/カウンター選択時に入力）
   };
   var bootstrapLoadSeq = 0;
+  var partyPickerLoadSeq = 0, partyPickerSaved = null, partyPickerLoading = false, partyPickerLoadFailed = false, partyPickerEditing = false, partyPickerSaving = false;
 
   function $(id) { return document.getElementById(id); }
   function staffAuthToken() {
@@ -847,10 +850,99 @@
       extension: _feeSettingEnabled('extensionFeeEnabled', 'extensionFeeAmount') && Number(s.extensionFeeAmount) >= 1
     };
   }
-  // [応答速度対応] 以前は「卓選択」（店員操作）→ maybeAskPartySize()がサーバへ既存人数の
-  // 有無を確認 → 未記録なら別画面で人数入力 → サーバへ保存、という2画面・最大2回の逐次サーバ
-  // 往復だった。卓選択と人数入力を1つの画面にまとめ、既存人数の事前確認は行わず（多少の
-  // 再入力の手間より速さを優先）、送信は1回（人数機能を使わない店舗では0回）にする。
+  // 既存の人数は非同期で読んでロック表示する。初回登録のみ開始時に保存し、
+  // 来店中の変更はスタッフの「変更→保存」操作で明示的に更新する。
+  // tables を渡すと卓選択欄を表示（店員のオーダー入力＝?table=なし）。省略時は卓は確定済み
+  // （QR固定客）として人数入力欄のみを表示する。
+  function partyPickerShowError(message) {
+    var hint = $('partyError');
+    if (hint) {
+      hint.textContent = message;
+      hint.style.display = message ? 'block' : 'none';
+    } else if (message) showErr(message);
+  }
+  function paintPartyPicker() {
+    var sel = $('partyCount'), change = $('partyChangeBtn'), start = $('tblGo');
+    if (!sel || !change || !start) return;
+    var registered = !!partyPickerSaved;
+    var tableSel = $('tableSelect');
+    if (tableSel) tableSel.disabled = partyPickerSaving;
+    sel.disabled = partyPickerLoading || partyPickerSaving || (registered && !partyPickerEditing) || state.sessionEnded;
+    change.hidden = !registered || !state.staffMode;
+    change.disabled = partyPickerLoading || partyPickerSaving || partyPickerLoadFailed || state.sessionEnded;
+    change.textContent = partyPickerEditing ? t().partySave : t().partyChange;
+    start.disabled = partyPickerLoading || partyPickerSaving || partyPickerLoadFailed || partyPickerEditing || state.sessionEnded;
+  }
+  function loadSavedPartySizeForPicker(table) {
+    var requestedTable = String(table || '');
+    var partySel = $('partyCount');
+    if (!requestedTable || !partySel) return Promise.resolve();
+    var requestedStoreId = '';
+    try { requestedStoreId = String(API.currentStoreId() || ''); } catch (e) {}
+    var seq = ++partyPickerLoadSeq;
+    // Never show a stale party size while another location is loading.
+    partyPickerSaved = null;
+    partyPickerEditing = false;
+    partyPickerLoading = true;
+    partyPickerLoadFailed = false;
+    partySel.value = '';
+    partyPickerShowError('');
+    paintPartyPicker();
+    if (!requestedStoreId) {
+      partyPickerLoading = false;
+      partyPickerLoadFailed = true;
+      partyPickerShowError(t().partyLoadFailed);
+      paintPartyPicker();
+      return Promise.resolve();
+    }
+    return API.post('getTablePartySize', tablePayload({
+      table: requestedTable,
+      __silent: true
+    })).then(function (r) {
+      if (seq !== partyPickerLoadSeq) return;
+      if (!r || r.ok === false || (r.data && r.data.error)) throw new Error('party_read_failed');
+      var currentStoreId = '';
+      try { currentStoreId = String(API.currentStoreId() || ''); } catch (e) {}
+      if (!currentStoreId || currentStoreId !== requestedStoreId) return;
+      if (!$('tableOverlay').classList.contains('show')) return;
+      var selectedTable = $('tableSelectWrap').style.display === 'none'
+        ? String(state.table || '')
+        : String($('tableSelect').value || '');
+      if (selectedTable !== requestedTable) return;
+      var count = Number(r && r.data && r.data.count);
+      var enteredAt = Number(r && r.data && r.data.enteredAt);
+      if (Number.isInteger(count) && count >= 1 && count <= partySizeMax() &&
+          Number.isSafeInteger(enteredAt) && enteredAt > 0) {
+        partyPickerSaved = { count: count, enteredAt: enteredAt };
+        partySel.value = String(count);
+      }
+    }).catch(function () {
+      if (seq === partyPickerLoadSeq) {
+        partyPickerLoadFailed = true;
+        partyPickerShowError(t().partyLoadFailed);
+      }
+    }).then(function () {
+      if (seq !== partyPickerLoadSeq) return;
+      partyPickerLoading = false;
+      paintPartyPicker();
+    });
+  }
+  // An open picker may outlive an order deletion/void on another screen.
+  // Reconcile its saved headcount while visible instead of leaving a stale
+  // disabled 2-person selector until the entire Native WebView is restarted.
+  // Never overwrite an operator's in-progress edit or initial unsaved choice.
+  function refreshRegisteredPartyPicker() {
+    if (!navigator.onLine || !partyPickerSaved || partyPickerEditing ||
+        partyPickerLoading || partyPickerSaving) return;
+    var overlay = $('tableOverlay'), section = $('partySection');
+    if (!overlay || !overlay.classList.contains('show') ||
+        !section || section.style.display === 'none') return;
+    var table = $('tableSelectWrap').style.display === 'none'
+      ? String(state.table || '') : String($('tableSelect').value || '');
+    if (table) loadSavedPartySizeForPicker(table);
+  }
+  // [応答速度対応] 卓選択と人数入力は1画面のまま維持する。保存済み人数のreadはモーダルを
+  // ブロックせず非同期で反映し、Start時のwriteだけを従来どおり1回行う。
   // tables を渡すと卓選択欄を表示（店員のオーダー入力＝?table=なし）。省略時は卓は確定済み
   // （QR固定客）として人数入力欄のみを表示する。
   function showTableAndPartyPicker(tables) {
@@ -865,6 +957,12 @@
       var sel = $('tableSelect');
       sel.innerHTML = '';
       sortSeats(tables).forEach(function (n) { var o = document.createElement('option'); o.value = n; o.textContent = seatLabel(n); sel.appendChild(o); });
+      if (state.table && Array.prototype.some.call(sel.options, function (o) { return o.value === String(state.table); })) {
+        sel.value = String(state.table);
+      }
+      sel.onchange = function () {
+        if (needParty) loadSavedPartySizeForPicker(sel.value);
+      };
     }
     var partyFeeMsg = feeUsage.entry && feeUsage.extension ? x.partyMsg : (feeUsage.entry ? x.partyMsgEntry : x.partyMsgExtension);
     $('tblTitle').textContent = needTable ? x.tblTitle : x.partyTitle;
@@ -872,6 +970,12 @@
     $('partyLabel').textContent = x.partyLabel;
     $('partyMsg').textContent = needTable && needParty ? partyFeeMsg : '';
     var partySel = $('partyCount');
+    partyPickerSaved = null;
+    partyPickerEditing = false;
+    partyPickerLoading = false;
+    partyPickerLoadFailed = false;
+    partyPickerSaving = false;
+    partyPickerShowError('');
     partySel.innerHTML = '';
     if (needParty) {
       var ph = document.createElement('option');
@@ -884,34 +988,90 @@
         po.textContent = state.lang === 'ja' ? (i + '人') : (i + (i === 1 ? ' guest' : ' guests'));
         partySel.appendChild(po);
       }
+      // A manual choice made while the read is in flight always wins.
+      partySel.onchange = function () { partyPickerLoadSeq++; };
     }
+    $('partyChangeBtn').onclick = function () {
+      if (!needParty || !partyPickerSaved || !state.staffMode || state.sessionEnded ||
+          partyPickerLoading || partyPickerSaving || partyPickerLoadFailed) return;
+      if (!partyPickerEditing) {
+        partyPickerShowError('');
+        partyPickerEditing = true;
+        paintPartyPicker();
+        partySel.focus();
+        return;
+      }
+      var nextCount = Number(partySel.value);
+      if (!Number.isInteger(nextCount) || nextCount < 1 || nextCount > partySizeMax()) return;
+      var previous = partyPickerSaved;
+      partyPickerSaving = true;
+      paintPartyPicker();
+      API.post('setTablePartySize', tablePayload({
+        table: needTable ? $('tableSelect').value : state.table,
+        count: nextCount, mode: 'change',
+        expectedCount: previous.count, expectedEnteredAt: previous.enteredAt
+      })).then(function (r) {
+        var result = r && r.data;
+        if (!result || !result.ok) throw new Error(result && result.error || 'save_failed');
+        partyPickerSaved = { count: result.count, enteredAt: result.enteredAt };
+        partyPickerEditing = false;
+        state.partySize = result.count;
+      }).catch(function (err) {
+        partySel.value = String(previous.count);
+        partyPickerEditing = false;
+        if (err && /state_changed|party_size_locked/.test(err.message || '')) {
+          partyPickerLoadFailed = true;
+          partyPickerShowError(t().partyStateChanged);
+        } else partyPickerShowError(t().partySaveFailed);
+      }).then(function () {
+        partyPickerSaving = false;
+        paintPartyPicker();
+      });
+    };
     $('tblGo').textContent = x.tblGo;
     $('tableOverlay').classList.add('show');
+    if (needParty) loadSavedPartySizeForPicker(needTable ? $('tableSelect').value : state.table);
+    else partyPickerLoadSeq++;
+    paintPartyPicker();
     $('tblGo').onclick = function () {
+      if (partyPickerLoading || partyPickerLoadFailed || partyPickerSaving || state.sessionEnded) return;
+      if (partyPickerEditing) { partyPickerShowError(t().partySaveFirst); return; }
       var v = needTable ? $('tableSelect').value : state.table;
       if (needTable && !v) return;
       var n = 0;
       if (needParty) { n = Number($('partyCount').value); if (!n || n < 1) return; }
-      var prev = state.table;
-      if (needTable) {
-        state.table = String(v);
-        // 卓を切り替えたらカートをリセット（店員の口頭注文で別卓に入れ間違えない）
-        if (prev && prev !== state.table) {
-          state.cart = {}; state.optLines = []; state.coupon = null;
-          updateCouponBtn(); renderMenu(); updateTotal();
+      var finish = function () {
+        var prev = state.table;
+        if (needTable) {
+          state.table = String(v);
+          if (prev && prev !== state.table) {
+            state.cart = {}; state.optLines = []; state.coupon = null;
+            updateCouponBtn(); renderMenu(); updateTotal();
+          }
+          state.sessionEnded = false;
+          $('doneOverlay').classList.remove('show');
+          $('sendBtn').disabled = false;
+          startSessionWatch();
         }
-        // 別卓に切り替えた場合、その卓の会計済み状態を基準に取り直す（ロック状態をリセット）
-        state.sessionEnded = false;
-        $('doneOverlay').classList.remove('show');
-        $('sendBtn').disabled = false;
-        startSessionWatch();
-      }
-      if (needParty) {
-        state.partySize = n;
-        API.post('setTablePartySize', tablePayload({ table: state.table, count: n })).catch(function () {});
-      }
-      $('tableOverlay').classList.remove('show');
-      renderTexts();
+        if (needParty) state.partySize = n;
+        partyPickerLoadSeq++;
+        $('tableOverlay').classList.remove('show');
+        renderTexts();
+      };
+      if (!needParty || partyPickerSaved) { finish(); return; }
+      // First entry only. Do not close the picker until D1 acknowledges it.
+      partyPickerSaving = true;
+      paintPartyPicker();
+      API.post('setTablePartySize', tablePayload({ table: v, count: n, mode: 'create' }))
+        .then(function (r) {
+          if (!r || !r.data || !r.data.ok) throw new Error(r && r.data && r.data.error || 'save_failed');
+          finish();
+        }).catch(function (err) {
+          if (err && /state_changed|party_size_locked/.test(err.message || '')) {
+            partyPickerLoadFailed = true;
+            partyPickerShowError(t().partyStateChanged);
+          } else partyPickerShowError(t().partySaveFailed);
+        }).then(function () { partyPickerSaving = false; paintPartyPicker(); });
     };
   }
 
@@ -1129,8 +1289,13 @@
     if (!navigator.onLine) refreshPending();
     // 定期再送＋タブ復帰時の再送（online イベントが発火しない環境の保険）
     setInterval(function () { if (navigator.onLine) syncQueuedOrders(); }, 20000);
+    // Keep a visible, previously locked seat picker in sync with a remote
+    // checkout/order deletion (including deletion from the admin screen).
+    setInterval(refreshRegisteredPartyPicker, 15000);
     document.addEventListener('visibilitychange', function () {
-      if (!document.hidden && navigator.onLine) { syncQueuedOrders(); checkSessionLock(); }
+      if (!document.hidden && navigator.onLine) {
+        syncQueuedOrders(); checkSessionLock(); refreshRegisteredPartyPicker();
+      }
     });
     var _resizeT = null;
     window.addEventListener('resize', function () { clearTimeout(_resizeT); _resizeT = setTimeout(updateStickyOffsets, 150); });

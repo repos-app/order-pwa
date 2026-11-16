@@ -70,6 +70,12 @@
     .entry-edit-btn{ flex:0 0 auto; min-width:34px; min-height:34px; border:1px solid #64748b; border-radius:8px; background:#243247; color:#fff; font:inherit; font-size:15px; cursor:pointer; }
     .entry-edit-btn:disabled{opacity:.45;cursor:not-allowed;}
     .entry-input{width:100%;min-height:44px;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:9px;font:inherit;font-size:15px;}
+    .entry-time-date{display:flex;gap:6px;align-items:start;min-width:0;}
+    .entry-time-date .entry-time-field{flex:1 1 0;min-width:0;}
+    .entry-time-clock{display:flex;gap:8px;margin-top:8px;}
+    .entry-time-clock .entry-time-field{flex:1;min-width:0;}
+    .entry-time-field span{display:block;font-size:11px;font-weight:800;color:#475569;margin-bottom:4px;}
+    .entry-time-field select{width:100%;min-width:0;height:44px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#0f172a;font:inherit;font-size:15px;padding:6px 2px;}
     .ctlbar{ display:flex; align-items:center; gap:10px; padding:10px 16px; flex-wrap:wrap; position:sticky; top:0; z-index:15; background:var(--bg,#f6f7f9); border-bottom:1px solid #e5e7eb; }
     .auto-toggle{ border:0; border-radius:12px; padding:12px 20px; font-size:16px; font-weight:900; cursor:pointer; font-family:inherit; min-width:150px; }
     .auto-toggle.on{ background:#16a34a; color:#fff; } .auto-toggle.off{ background:#e2e8f0; color:#64748b; }
@@ -169,8 +175,20 @@
     <div class="card">
       <div id="entryTimeTitle" style="font-size:17px;font-weight:900;margin-bottom:12px;">入場時刻を修正</div>
       <div id="entryTimeSeat" style="font-weight:800;margin-bottom:10px;"></div>
-      <label id="entryTimeLabel" for="entryTimeInput" style="display:block;font-size:13px;font-weight:800;margin-bottom:5px;">入場日時</label>
-      <input id="entryTimeInput" class="entry-input" type="datetime-local" step="60">
+      <div id="entryTimeLabel" style="display:block;font-size:13px;font-weight:800;margin-bottom:5px;">入場日時</div>
+      <!-- The native iOS datetime-local UI follows the handset locale even when the app is EN. -->
+      <input id="entryTimeInput" type="datetime-local" step="60" hidden tabindex="-1" aria-hidden="true">
+      <div id="entryTimePicker" role="group" aria-labelledby="entryTimeLabel" onchange="syncEntryTimeFromControls()">
+        <div class="entry-time-date">
+          <label id="entryTimeYearField" class="entry-time-field"><span id="entryTimeYearLabel">年</span><select id="entryTimeYear" aria-labelledby="entryTimeYearLabel"></select></label>
+          <label id="entryTimeMonthField" class="entry-time-field"><span id="entryTimeMonthLabel">月</span><select id="entryTimeMonth" aria-labelledby="entryTimeMonthLabel"></select></label>
+          <label id="entryTimeDayField" class="entry-time-field"><span id="entryTimeDayLabel">日</span><select id="entryTimeDay" aria-labelledby="entryTimeDayLabel"></select></label>
+        </div>
+        <div class="entry-time-clock">
+          <label class="entry-time-field"><span id="entryTimeHourLabel">時</span><select id="entryTimeHour" aria-labelledby="entryTimeHourLabel"></select></label>
+          <label class="entry-time-field"><span id="entryTimeMinuteLabel">分</span><select id="entryTimeMinute" aria-labelledby="entryTimeMinuteLabel"></select></label>
+        </div>
+      </div>
       <div id="entryTimeHint" style="font-size:12px;color:#64748b;line-height:1.5;margin:9px 0 12px;"></div>
       <div id="entryTimeError" role="alert" style="font-size:12px;color:#b91c1c;font-weight:700;margin-bottom:8px;" aria-live="polite"></div>
       <button id="entryTimeSave" class="pbtn" style="background:#0f766e;" type="button" onclick="saveEntryTime()">保存</button>
@@ -338,6 +356,7 @@
       lang = l;
       document.getElementById('title').innerText=t().title;
       var hl=document.getElementById('histLbl'); if(hl) hl.innerText=(lang==='en'?'History':'履歴');
+      if(document.getElementById('entryTimeModal').classList.contains('on')) renderEntryTimeControls();
       if(_opsLastError)displayOpsReadError(_opsLastError);
       render(); renderCalls(); renderAuto(); renderOfflineCashStatus();
     }
@@ -369,6 +388,42 @@
         return entryStoreWallTime(result)===wall?result:NaN;
       }catch(e){return NaN;}
     }
+    // Locale-stable numeric controls. iOS/WebKit's native datetime-local text
+    // is determined by the device language, not reliably by <html lang>.
+    // Keep its ISO wall-time value for the existing timezone and billing API.
+    function entryTimePad(n){return ('0'+n).slice(-2);}
+    function entryTimeOptions(id,start,end,selected){
+      var out='',el=document.getElementById(id);
+      for(var n=start;n<=end;n++){var label=id==='entryTimeYear'?String(n):entryTimePad(n);out+='<option value="'+label+'">'+label+'</option>';}
+      el.innerHTML=out;el.value=id==='entryTimeYear'?String(selected):entryTimePad(selected);
+    }
+    function renderEntryTimeControls(){
+      var wall=document.getElementById('entryTimeInput').value;
+      var m=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(wall);
+      if(!m)return;
+      var year=+m[1],month=+m[2],day=+m[3];
+      entryTimeOptions('entryTimeYear',year-1,year+1,year);
+      entryTimeOptions('entryTimeMonth',1,12,month);
+      entryTimeOptions('entryTimeDay',1,new Date(Date.UTC(year,month,0)).getUTCDate(),day);
+      entryTimeOptions('entryTimeHour',0,23,+m[4]);
+      entryTimeOptions('entryTimeMinute',0,59,+m[5]);
+      var en=lang==='en',labels=en?['Year','Month','Day','Hour (24h)','Minute']:['年','月','日','時（24時間）','分'];
+      ['Year','Month','Day','Hour','Minute'].forEach(function(key,i){
+        document.getElementById('entryTime'+key+'Label').textContent=labels[i];
+      });
+      var format=String(SETTINGS.dateFormat||(window.DateDisplay&&DateDisplay.getFormat&&DateDisplay.getFormat())||'MM/DD/YYYY').toUpperCase();
+      var order=format==='YYYY/MM/DD'?['Year','Month','Day']:format==='DD/MM/YYYY'?['Day','Month','Year']:['Month','Day','Year'];
+      order.forEach(function(key,i){document.getElementById('entryTime'+key+'Field').style.order=i;});
+    }
+    window.syncEntryTimeFromControls=function(){
+      var v=function(key){return document.getElementById('entryTime'+key).value;};
+      var year=+v('Year'),month=+v('Month'),day=+v('Day');
+      var days=new Date(Date.UTC(year,month,0)).getUTCDate();
+      if(day>days){day=days;}
+      entryTimeOptions('entryTimeDay',1,days,day);
+      document.getElementById('entryTimeInput').value=v('Year')+'-'+entryTimePad(month)+'-'+entryTimePad(day)+'T'+v('Hour')+':'+v('Minute');
+      document.getElementById('entryTimeError').textContent='';
+    };
     window.openEntryTime=function(table){
       if(entryTimeSaving||!_ordersSnapshotLoaded||typeof navigator!=='undefined'&&navigator.onLine===false)return;
       if(offlineCashRows.some(function(r){return String(r.table)===String(table)&&r.status!=='rejected';})){
@@ -395,6 +450,7 @@
       input.value=entryStoreWallTime(displayedMs);
       input.min=entryStoreWallTime(Date.now()-30*86400000);
       input.max=entryStoreWallTime(Date.now());
+      renderEntryTimeControls();
       document.getElementById('entryTimeModal').classList.add('on');
     };
     window.closeEntryTime=function(){
@@ -402,6 +458,14 @@
       entryTimeEditing=null;
       document.getElementById('entryTimeModal').classList.remove('on');
     };
+    function applyEntryTimeSaved(edit,ms){
+      if(!PARTY_SIZES[edit.table])PARTY_SIZES[edit.table]={count:0};
+      PARTY_SIZES[edit.table].enteredAt=ms;
+      if(VIP_STATES[edit.table]&&Number(VIP_STATES[edit.table].startedAt)>0)VIP_STATES[edit.table].startedAt=ms;
+      entryTimeEditing=null;
+      document.getElementById('entryTimeModal').classList.remove('on');
+      noteStatusMutation();render();load(true);
+    }
     window.saveEntryTime=function(){
       if(entryTimeSaving||!entryTimeEditing)return;
       var ms=entryWallTimeToMs(document.getElementById('entryTimeInput').value);
@@ -416,15 +480,37 @@
         expectedVipStartedAtMs:edit.expectedVipStartedAtMs,__noInternalRetry:true}).then(function(response){
         var d=response&&response.data;
         if(!response||response.ok===false||!d||d.ok!==true)throw new Error(d&&d.error||response&&response.error||'entry_time_update_failed');
-        if(!PARTY_SIZES[edit.table])PARTY_SIZES[edit.table]={count:0};
-        PARTY_SIZES[edit.table].enteredAt=ms;
-        if(VIP_STATES[edit.table]&&Number(VIP_STATES[edit.table].startedAt)>0)VIP_STATES[edit.table].startedAt=ms;
-        entryTimeEditing=null;
-        document.getElementById('entryTimeModal').classList.remove('on');
-        noteStatusMutation();render();load(true);
+        applyEntryTimeSaved(edit,ms);
       }).catch(function(err){
-        document.getElementById('entryTimeError').textContent=t().entryTimeFailed+' ('+API.userErrorText(err)+')';
-        load(true);
+        var reason=String(err&&err.message||err||'');
+        var uncertain=reason==='state_changed'||/failed to fetch|networkerror|aborterror|fetch is aborted|\baborted\b|timeout|^http_5\d\d$|^request_failed$/i.test(reason);
+        var showError=function(){
+          document.getElementById('entryTimeError').textContent=t().entryTimeFailed+' ('+API.userErrorText(err)+')';
+          load(true);
+        };
+        var showUnverified=function(){
+          document.getElementById('entryTimeError').textContent=lang==='en'
+            ? 'Could not confirm whether the entry time was saved. Refresh and check the current time before trying again.'
+            : '入場時刻が保存されたか確認できませんでした。再度保存する前に画面を更新して現在の時刻を確認してください。';
+          load(true);
+        };
+        if(!uncertain){showError();return;}
+        // Never replay a write with an unknown result. Confirm against the
+        // authoritative store snapshot before reporting an error or success.
+        return API.post('getOperationsDelta',{token:TOKEN,__silent:true,__noInternalRetry:true})
+          .then(function(r){
+            var d=r&&r.data;
+            var current=d&&d.partySizes&&d.partySizes[edit.table];
+            var vip=d&&d.vipStates&&d.vipStates[edit.table];
+            var anchor=d&&Array.isArray(d.orders)&&d.orders.some(function(o){
+              return String(o.id)===edit.anchorOrderId&&String(o.table)===String(edit.table);
+            });
+            if(r&&r.ok!==false&&anchor&&current&&Number(current.enteredAt)===ms&&
+                (edit.expectedVipStartedAtMs==null||vip)&&
+                (!vip||Number(vip.startedAt)===ms)){
+              applyEntryTimeSaved(edit,ms);
+            }else showError();
+          }).catch(function(){showUnverified();});
       }).finally(function(){entryTimeSaving=false;button.disabled=false;button.textContent=t().entryTimeSave;});
     };
     var servedPending = Object.create(null), servedErrors = Object.create(null);
@@ -1494,7 +1580,7 @@
         { ja: '④ 画面上部の🔔呼び出し欄では、お客様のスタッフ呼出・会計希望が自動更新（10/30/60秒）または手動更新時に反映されます。「対応済」で処理できます。自動更新OFF時は手動更新してください。', en: '④ Customer staff-call and bill requests appear at the top after auto-refresh (10/30/60 seconds) or manual refresh. Tap Done to resolve them. When auto-refresh is off, refresh manually.' },
         { ja: '⑤ 「自動更新: ON/OFF」ボタンと10s/30s/60sの間隔ボタンで、画面の自動更新頻度を調整できます。↻ボタンで手動更新もできます。', en: '⑤ Use the Auto ON/OFF toggle and the 10s/30s/60s interval buttons to control how often the screen refreshes. Tap ↻ to refresh manually.' },
         { ja: '⑥ 「🧾履歴」リンクで過去の会計履歴（receipts.html）に、「← 管理」でメニュー画面に戻れます。EN/JPボタンで表示言語を切り替えられます。', en: '⑥ Use the "🧾 History" link for past receipts, "← Manage" to return to the menu, and EN/JP to switch language.' },
-        { ja: '⑦ 卓名・滞在時間の横の「✎」で入場時刻を修正できます。保存すると滞在時間と通常/ VIP延長料金の計算時刻が更新されます。注文の記録日時は変更しません。退場時刻の入力は不要です。', en: '⑦ Tap the pencil beside a table’s stay duration to correct its entry date/time. The stay timer and ordinary/VIP overtime fees use the corrected time; order timestamps remain unchanged. No exit-time input is required.' }
+        { ja: '⑦ 卓名・滞在時間の横の「✎」で入場時刻を修正できます。年・月・日・時（24時間）・分を選んで「保存して料金を再計算」を押します。日付の並びと言語は表示・地域設定に従い、時刻は店舗のタイムゾーンで扱います。保存すると滞在時間と通常/VIP延長料金を再計算します。注文の記録日時は変更せず、退場時刻の入力も不要です。', en: '⑦ Tap the pencil beside a table’s stay duration to edit entry time. Choose Year, Month, Day, Hour (24h), and Minute, then Save and recalculate charges. Date order follows store regional settings, field labels follow the app language, and times use the store time zone. Saving recalculates stay duration and standard/VIP overtime fees without altering the original order timestamp. Exit time is recorded automatically at checkout.' }
       ]
     });
   </script>

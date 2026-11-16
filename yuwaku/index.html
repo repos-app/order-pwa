@@ -88,9 +88,8 @@
   </div>
 
   <!-- Table picker + party size (headcount), combined into a single step.
-       [応答速度対応] 以前は「卓選択」→（サーバへ既存人数を確認）→「人数入力」→（サーバへ保存）の
-       2画面・2回の逐次サーバ往復だった。卓選択と人数入力を同じ画面にまとめ、既存人数の事前確認は
-       行わず、送信は1回（人数機能を使わない店舗では0回）にすることで体感速度を上げる。
+       既存人数は非同期で読み込みグレーアウト表示し、「開始」時に再書込しない。
+       未登録時のみ初回登録し、登録後はスタッフの「変更→保存」でのみ更新する。
        tableSelectWrap: ?table=なし（店員のオーダー入力）でのみ表示。partySection: 入場料/延長料が
        どちらも無効の店舗では丸ごと非表示・サーバ往復なし。 -->
   <div class="overlay" id="tableOverlay">
@@ -103,8 +102,12 @@
       </div>
       <div id="partySection" style="display:none;">
         <label id="partyLabel" style="display:block;font-size:13px;font-weight:800;margin:10px 0 4px;text-align:left;">Guests</label>
-        <select id="partyCount" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);font-size:16px;margin:0 0 6px;background:#fff;text-align:center;"></select>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <select id="partyCount" style="flex:1;min-width:0;padding:12px;border-radius:10px;border:1px solid var(--border);font-size:16px;background:#fff;text-align:center;"></select>
+          <button type="button" id="partyChangeBtn" hidden style="flex:none;min-width:72px;min-height:48px;border:1px solid var(--border);border-radius:10px;background:var(--accent);color:#fff;font-size:14px;font-weight:800;"></button>
+        </div>
         <p id="partyMsg" style="font-size:12px;margin:0 0 8px;"></p>
+        <p id="partyError" aria-live="polite" role="alert" style="display:none;font-size:12px;color:var(--red);font-weight:700;margin:0 0 8px;"></p>
       </div>
       <button class="btn-send ok" id="tblGo" style="width:100%;">Start</button>
     </div>
@@ -217,13 +220,14 @@
     .tags{display:flex;flex-wrap:wrap;gap:4px;margin:2px 0 4px;}
     .tag-spicy{font-size:12px;}
     .tag-allg{font-size:11px;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:6px;padding:1px 5px;font-weight:700;}
+    #partyCount:disabled{background:#e5e7eb!important;color:#6b7280!important;opacity:1;-webkit-text-fill-color:#6b7280;}
   </style>
 
   <script src="./date-display.js?v=auth4" data-iz-date-display></script><script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
   <script src="./i18n.js?v=auth3"></script>
   <script src="./confirm.js?v=auth2"></script>
-  <script src="./app.js?v=auth5"></script>
+  <script src="./app.js?v=party-lock1"></script>
   <script src="./help.js?v=auth2"></script>
   <script>
     HelpUI.register({
@@ -236,7 +240,7 @@
         { ja: '④ 🔔スタッフ呼出でスタッフを呼べます。お会計はスタッフへお申し付けください。', en: '④ Use 🔔 to call staff. Please ask a staff member when you are ready to pay.' },
         { ja: '⑤ 📋注文状況で注文内容・小計・サービス料・税・未払い合計を確認できます。内税は「うち○○（内税）」と表示され、合計へ重ねて加算されません。税の名称は店舗設定に従います。', en: '⑤ Use 📋 to see your orders, subtotal, service charge, tax, and unpaid total. Included tax is labeled as included and is not added to the total again. The tax name follows the store settings.' },
         { ja: '⑥ ⭐評価ボタンから星評価とコメントを送信できます。', en: '⑥ Use ⭐ to send a star rating and comment.' },
-        { ja: '⑦ 席を選ばずにアクセスした場合は、最初に店舗設定の呼称で表示された席番号を選びます。席は1,2,3…10の数値順で並びます。入場料または延長料が有効な店舗では、設定した上限までの人数をドロップダウンから選択します。', en: '⑦ If you open this without a location pre-selected, first choose the location shown with the store’s configured terminology. Locations are ordered numerically (1, 2, 3 … 10). If entry or extension fees are enabled, choose the party size from the dropdown up to the configured maximum.' }
+        { ja: '⑦ 席未選択なら最初に席番号を選びます。入場料・延長料が有効な店舗では最初の登録時に人数を確定します。登録済み人数はグレー表示で、会計完了前にスタッフが「変更」ボタンから明示的に変更します。変更後は保存が必要で、精算済みや古い画面からは上書きできません。', en: '⑦ Select a seat first if none is chosen. Where entry or extension fees apply, register the party size once. The saved count is read-only until staff explicitly tap Change and Save before checkout. Stale changes after settlement or another staff update are rejected.' },
       ]
     });
   </script>

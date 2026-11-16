@@ -150,6 +150,16 @@
 <body>
   <div class="head"><h1 data-t="title">🍽️ メニュー編集</h1><div style="display:flex;gap:8px;"><button class="hbtn" data-tlang onclick="I18n.toggle()">EN</button><a class="hbtn" href="./manage.html" data-t="back">← 管理へ</a></div></div>
   <div class="wrap">
+    <section class="card" id="orderLayoutSettings" data-guide-anchor>
+      <div class="card-title"><span class="lang-ja">📱 注文画面の商品表示列数</span><span class="lang-en">📱 Order menu columns</span></div>
+      <p class="muted"><span class="lang-ja">スマホとタブレットで1行に表示する商品数を別々に設定します。店舗内の各端末に共通で適用され、注文画面を再読み込みすると反映されます。</span><span class="lang-en">Set the number of items per row separately for phones and tablets. The choices apply across this store after reloading the order screen.</span></p>
+      <div class="grid2">
+        <div class="fg"><label class="form-label" for="orderGridColumnsPhone"><span class="lang-ja">スマートフォン（1～3列）</span><span class="lang-en">Phone (1–3 columns)</span></label><select class="fc" id="orderGridColumnsPhone" disabled><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option></select></div>
+        <div class="fg"><label class="form-label" for="orderGridColumnsTablet"><span class="lang-ja">タブレット（2～6列）</span><span class="lang-en">Tablet (2–6 columns)</span></label><select class="fc" id="orderGridColumnsTablet" disabled><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option></select></div>
+      </div>
+      <button class="btn btn-pri" type="button" id="saveOrderLayoutBtn" onclick="saveOrderLayoutSettings()" disabled><span class="lang-ja">💾 表示列数を保存</span><span class="lang-en">💾 Save column counts</span></button>
+      <div id="orderLayoutStatus" class="cat-manager-status" role="status" aria-live="polite"></div>
+    </section>
     <div class="card" id="guide-menu-form" data-guide-anchor>
       <div class="cat-manager-head">
         <div class="card-title" data-t="formTitle">➕ 商品の追加 / 編集</div>
@@ -302,6 +312,40 @@
     // 言語切替の一元ヘルパー（新しい選択肢・候補リストを追加する際は必ずこれを通すこと）
     function isEN(){ return !!(window.I18n && I18n.lang && I18n.lang()==='en'); }
     function loc(ja, en){ ja=(ja||'').trim(); en=(en||'').trim(); return isEN() ? (en || ja) : (ja || en); }
+    var orderLayoutLoaded=false;
+    function orderLayoutMessage(ja,en,error){
+      var node=document.getElementById('orderLayoutStatus');
+      node.textContent=isEN()?en:ja;
+      node.classList.toggle('is-error',!!error);
+    }
+    function setOrderLayoutSettings(settings){
+      settings=settings||{};
+      var phone=Number(settings.orderGridColumnsPhone),tablet=Number(settings.orderGridColumnsTablet);
+      document.getElementById('orderGridColumnsPhone').value=Number.isInteger(phone)&&phone>=1&&phone<=3?String(phone):'2';
+      document.getElementById('orderGridColumnsTablet').value=Number.isInteger(tablet)&&tablet>=2&&tablet<=6?String(tablet):'2';
+      orderLayoutLoaded=true;
+      ['orderGridColumnsPhone','orderGridColumnsTablet','saveOrderLayoutBtn'].forEach(function(id){ document.getElementById(id).disabled=false; });
+      orderLayoutMessage('','',false);
+    }
+    window.saveOrderLayoutSettings=async function(){
+      if(!orderLayoutLoaded)return;
+      var button=document.getElementById('saveOrderLayoutBtn');
+      var phone=Number(document.getElementById('orderGridColumnsPhone').value),tablet=Number(document.getElementById('orderGridColumnsTablet').value);
+      if(!Number.isInteger(phone)||phone<1||phone>3||!Number.isInteger(tablet)||tablet<2||tablet>6)return;
+      button.disabled=true;
+      orderLayoutMessage('保存中…','Saving…',false);
+      try{
+        var saved=await rpc('saveOrderLayoutSettings',[{orderGridColumnsPhone:phone,orderGridColumnsTablet:tablet}]);
+        if(!saved||saved.success!==true)throw new Error(saved&&saved.error||'save_failed');
+        var verified=await API.post('getSettings',{__silent:true});
+        var values=verified&&verified.data||{};
+        if(Number(values.orderGridColumnsPhone)!==phone||Number(values.orderGridColumnsTablet)!==tablet)
+          throw new Error('readback_mismatch');
+        orderLayoutMessage('✅ 保存しました。注文画面を再読み込みしてください。','✅ Saved. Reload the order screen to apply.',false);
+      }catch(e){
+        orderLayoutMessage('保存／確認エラー: '+API.userErrorText(e),'Save / verification error: '+API.userErrorText(e),true);
+      }finally{button.disabled=false;}
+    };
     var sectionToggleIds={
       form:['menuFormPanel','menuFormToggle'],
       ai:['menuAiPanel','menuAiToggle'],
@@ -1593,7 +1637,11 @@ window.clearForm = function(){ ++_imgChoiceSeq; ++_imgSearchSeq;  editSnapshot=n
       else { send(null); }
     };
 
-    API.post('getSettings', {}).then(function(r){ if(r.data && r.data.currencySymbol){ SYM=r.data.currencySymbol; renderOpts(); } }).catch(function(){});
+    API.post('getSettings', {}).then(function(r){
+      if(!r||!r.data||typeof r.data!=='object')throw new Error('settings_unavailable');
+      if(r.data.currencySymbol){ SYM=r.data.currencySymbol; renderOpts(); }
+      setOrderLayoutSettings(r.data);
+    }).catch(function(e){orderLayoutMessage('設定を読み込めません: '+API.userErrorText(e),'Could not load settings: '+API.userErrorText(e),true);});
     rpc('getDrinkInventory',[]).then(function(l){ INVENTORY=(l||[]).map(function(r){ return { key:r.name,ja:(r.nameJa!==undefined?r.nameJa:r.name),en:r.nameEn }; }).filter(function(r){ return r.key; }); renderInvSel(); }).catch(function(){});
     var __loaded=false;
     rpc('getAllMenuForAdmin',[]).then(function(l){ adoptMenuRows(l||[]); __loaded=true; render(); })
@@ -1621,6 +1669,7 @@ window.clearForm = function(){ ++_imgChoiceSeq; ++_imgSearchSeq;  editSnapshot=n
       title: 'メニュー編集',
       titleEn: 'Menu Editor',
       items: [
+        { ja: '注文画面の表示列数はスマホ（1〜3列）とタブレット（2〜6列）で別に指定して保存します。保存後に設定値を読み戻して確認し、狭いカードでは商品名と価格の文字が自動調整されます。', en: 'Set and save order grid columns independently for phone (1–3) and tablet (2–6). The saved values are read back for verification, and item text and prices adapt to narrower cards.' },
         { ja: '① 商品名・カテゴリ・オプションは日本語・英語のどちらか一方だけ入力すれば、未入力側を保存時に自動翻訳します。自動翻訳後の値はあとから編集できます。', en: '① Enter either Japanese or English for item names, categories, and options. The missing language is auto-translated on save and can be edited later.' },
         { ja: '② 「画像検索」でキーワードから候補画像を選ぶか、「画像のURLを直接指定」でURLから取得、またはファイルを直接アップロードできます。', en: '② Use "Search images" to pick from search results, "enter an image URL directly" to fetch from a URL, or upload a file directly.' },
         { ja: '③ 「提供時間帯」で時間限定メニュー（深夜跨ぎも可）、「アレルゲン」「辛さ」も設定できます。「🍳 キッチン画面に表示する」をオフにするとドリンクなど調理不要な商品をキッチン画面から除外できます。', en: '③ Set "Service hours" for time-limited items (overnight spans allowed), plus allergens and spiciness. Turn off "Show on kitchen display" to hide items like drinks that need no cooking.' },
@@ -1659,11 +1708,24 @@ window.clearForm = function(){ ++_imgChoiceSeq; ++_imgSearchSeq;  editSnapshot=n
   (function(){
     var fields=['mSvcStart','mSvcEnd'].map(function(id){return document.getElementById(id);}).filter(Boolean);
     if(!fields.length)return;
-    var landscape=function(){return matchMedia('(orientation:landscape) and (max-height:500px)').matches;};
+    // Reuse the numeric in-page time selector on iOS too: native AM/PM follows
+    // the device language, which may differ from the app's JA/EN selection.
+    var landscape=function(){return matchMedia('(orientation:landscape) and (max-height:500px)').matches||/iPad|iPhone|iPod/.test(navigator.userAgent||'')||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);};
     var overlay=document.createElement('div');overlay.className='menu-landscape-time-overlay';overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');
     overlay.innerHTML='<div class="menu-landscape-time-dialog"><label id="menuTimeTitle">Time</label><div class="menu-landscape-time-selectors"><select aria-label="Hour" id="menuTimeHour"></select><span>:</span><select aria-label="Minute" id="menuTimeMinute"></select></div><div class="menu-landscape-time-actions"><button type="button" id="menuTimeCancel">Cancel</button><button type="button" id="menuTimeSet">Set</button></div></div>';
     document.body.appendChild(overlay);
     var hour=overlay.querySelector('#menuTimeHour'),minute=overlay.querySelector('#menuTimeMinute'),active=null;
+    function refreshTimeLanguage(){
+      var ja=I18n.lang()==='ja';
+      hour.setAttribute('aria-label',ja?'時':'Hour');
+      minute.setAttribute('aria-label',ja?'分':'Minute');
+      overlay.querySelector('#menuTimeCancel').textContent=ja?'キャンセル':'Cancel';
+      overlay.querySelector('#menuTimeSet').textContent=ja?'設定':'Set';
+      if(active)overlay.querySelector('#menuTimeTitle').textContent=active.closest('.fg')?.querySelector('label')?.textContent||(ja?'時刻':'Time');
+    }
+    window.refreshMenuTimeLanguage=refreshTimeLanguage;
+    overlay.addEventListener('focusin',refreshTimeLanguage);
+    refreshTimeLanguage();
     [hour,minute].forEach(function(sel,i){for(var n=0;n<(i?60:24);n++){var o=document.createElement('option');o.value=String(n).padStart(2,'0');o.textContent=o.value;sel.appendChild(o);}});
     function close(){overlay.classList.remove('open');if(active){var f=active;active=null;f.focus();}}
     function sync(){if(!landscape())close();fields.forEach(function(f){var v=f.value;if(landscape()&&f.type==='time'){f.type='text';f.readOnly=true;f.inputMode='none';f.classList.add('menu-landscape-time-trigger');f.value=v;}else if(!landscape()&&f.type==='text'){f.type='time';f.readOnly=false;f.classList.remove('menu-landscape-time-trigger');f.value=v;}});}

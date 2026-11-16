@@ -78,12 +78,20 @@
       <div class="card-title" data-t="warnTitle">⚠️ ご注意</div>
       <div class="muted" data-t="warnBody">この画面の操作（テーブルの全件削除・CSVインポートによる全置換・バックアップからの復元）は取り返しがつきません。実行するとご本人のログインパスワードの再入力を求めます。実行の直前に自動でバックアップが作られ、下部の「バックアップ履歴」から復元できます。</div>
     </div>
+    <div class="card" id="dataAdminJobCard">
+      <div class="card-title">📋 <span data-t="adminJobTitle">削除・復元ジョブ</span></div>
+      <div class="muted" id="dataAdminJobStatus" role="status" aria-live="polite">前回の操作を確認しています…</div>
+      <button type="button" class="btn-sm" style="margin-top:10px;" onclick="refreshDataAdminJob()">🔄 <span data-t="adminJobRefresh">状態を更新</span></button>
+      <button type="button" class="btn-sm" id="adminImportCancel" style="margin-top:10px;display:none;" onclick="cancelAdminImportUpload()" data-t="adminImportCancel">未完了のアップロードを破棄</button>
+      <div class="alert" id="dataAdminJobMsg" aria-live="polite"></div>
+    </div>
 
     <div class="card danger">
       <div class="card-title" data-t="txnTitle">🗑️ 取引データのみ一括リセット</div>
       <div class="muted" data-t="txnHint">注文・会計・コミッション・発注と連動する実績を削除し、商品・席・スタッフ・ルール等のマスタは残します。勤怠・経費・在庫履歴・監査ログも保持します。新規テーブルの分類やロックが不完全なら削除しません。</div>
       <div class="rowCount" id="txnPreview" aria-live="polite"></div>
-      <button class="btn-sm" id="txnRefresh" onclick="loadTxnPreview()" data-t="txnRefresh">対象件数を再確認</button>
+      <div class="rowCount" id="txnStatus" role="status" aria-live="polite"></div>
+      <button class="btn-sm" id="txnRefresh" onclick="refreshTxnPanel()" data-t="txnRefresh">対象件数を再確認</button>
       <label class="lbl" data-t="txnPhraseLabel">確認のため「RESET TRANSACTIONS」と入力</label>
       <input id="txnPhrase" class="fc" autocomplete="off" oninput="updateTxnButton()">
       <label class="lbl" data-t="pwLbl">ご自身のログインパスワード</label>
@@ -139,7 +147,7 @@
       <label class="lbl" data-t="pwLbl">ご自身のログインパスワード</label>
       <input id="restorePass" class="fc" type="password">
       <div class="alert" id="restoreAlert" style="display:none;"></div>
-      <button class="btn danger" style="margin-top:12px;" onclick="confirmRestore()" data-t="restoreGo">↩️ 復元する</button>
+      <button class="btn danger" id="restoreGoBtn" style="margin-top:12px;" onclick="confirmRestore()" data-t="restoreGo">↩️ 復元する</button>
       <button class="btn-sm" style="width:100%;margin-top:8px;padding:11px;" onclick="closeRestoreOv()" data-t="restoreCancel">キャンセル</button>
     </div>
   </div>
@@ -154,7 +162,7 @@
     var TOKEN = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken') || '';
     var ROLE = localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtRole') || '';
     if (!TOKEN) location.href = './manage.html';
-    function rpc(fn,args){ return API.post('rpc',{fn:fn,args:args||[],token:TOKEN}).then(function(r){ return r.data; }); }
+    function rpc(fn,args,opts){ return API.post('rpc',Object.assign({fn:fn,args:args||[],token:TOKEN},opts||{})).then(function(r){ return r.data; }); }
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
     function alertBox(id, text, ok){ var m=document.getElementById(id); m.style.display='block'; m.style.background=ok===true?'#dcfce7':ok===false?'#fee2e2':'#fef3c7'; m.style.color=ok===true?'#15803d':ok===false?'#b91c1c':'#92400e'; m.innerText=text; }
     function exportDone(id,result,webKey){ if(result&&result.mode==='native'){ if(result.status==='shared') alertBox(id,I18n.t('nativeShared')+' '+result.fileName,true); else alertBox(id,I18n.t('nativeDismissed')+' '+result.fileName,null); return; } alertBox(id,I18n.t(webKey)+' '+String(result&&result.fileName||''),true); }
@@ -249,28 +257,77 @@
 
     var TXN_PREVIEW = null;
     var TXN_RUNNING = false;
+    var TXN_ACTIVE = true;
+    var TXN_POLL_TIMER = null;
+    function txnText(ja,en){ return I18n.lang && I18n.lang()==='en' ? en : ja; }
     function updateTxnButton(){
-      document.getElementById('txnBtn').disabled = TXN_RUNNING || !TXN_PREVIEW ||
+      document.getElementById('txnBtn').disabled = TXN_RUNNING || TXN_ACTIVE || ADMIN_JOB_ACTIVE || !TXN_PREVIEW ||
         document.getElementById('txnPhrase').value !== 'RESET TRANSACTIONS' ||
         !document.getElementById('txnPass').value;
     };
     function loadTxnPreview(){
+      if (TXN_ACTIVE || TXN_RUNNING) return;
       TXN_PREVIEW = null;
       updateTxnButton();
       document.getElementById('txnPreview').innerText = I18n.t('txnLoading');
-      rpc('getTransactionResetPreview', []).then(function(d){
+      rpc('getTransactionResetPreview', [], {__timeoutMs:60000,__noInternalRetry:true,__silent:true}).then(function(d){
         if (!d || d.error || !d.success) throw new Error(d && d.error || 'transaction_reset_schema_unavailable');
+        if (TXN_ACTIVE) return;
         TXN_PREVIEW = d;
         document.getElementById('txnPreview').innerText = I18n.t('txnCount')
           .replace('{n}', Number(d.total)).replace('{tables}', Number(d.tables.length))
           .replace('{protected}', Number(d.protectedTables));
         updateTxnButton();
       }).catch(function(e){
+        if (TXN_ACTIVE) return;
         document.getElementById('txnPreview').innerText = I18n.t('txnUnavailable') + ' ' + API.userErrorText(e);
+        alertBox('txnMsg', txnText('事前確認に失敗したため削除は開始されず、ボタンを無効化しています。対象件数を再確認してください。',
+          'Preflight failed; deletion has not started. The button is disabled. Refresh the affected counts.'), false);
       });
     };
+    function loadTxnJobStatus(refreshPreview){
+      if (TXN_POLL_TIMER) { clearTimeout(TXN_POLL_TIMER); TXN_POLL_TIMER = null; }
+      rpc('getTransactionResetJob', [], {__silent:true,__timeoutMs:30000,__noInternalRetry:true}).then(function(d){
+        if (!d || d.error || !d.success) throw new Error(d && d.error || 'transaction_reset_job_failed');
+        var job = d.job;
+        var wasActive = TXN_ACTIVE;
+        TXN_ACTIVE = !!(job && (job.status === 'pending' || job.status === 'running'));
+        if (job) {
+          var label = job.status === 'pending' ? txnText('受付済み・処理待ち','Accepted; waiting') :
+            job.status === 'running' ? txnText('サーバーで削除中','Deleting on the server') :
+            job.status === 'completed' ? txnText('削除完了','Deletion completed') :
+            txnText('削除失敗','Deletion failed');
+          document.getElementById('txnStatus').innerText = label + ' / ID: ' + String(job.jobId||'').slice(0,8);
+          if (TXN_ACTIVE) {
+            TXN_PREVIEW = null;
+            document.getElementById('txnPreview').innerText = txnText('サーバー側の処理中です。完了後に件数を再取得します。',
+              'The server is processing this job. Counts will refresh on completion.');
+            TXN_POLL_TIMER = setTimeout(function(){loadTxnJobStatus(true);},5000);
+          } else if (job.status === 'completed' && wasActive) {
+            alertBox('txnMsg', I18n.t('txnDone').replace('{n}',Number(job.deletedCount||0)), true);
+            window.loadBackups();
+          } else if (job.status === 'failed') {
+            alertBox('txnMsg', txnText('サーバー側で削除に失敗しました。','Server-side deletion failed. ') +
+              ' ' + API.userErrorText(job.error),false);
+          }
+        } else document.getElementById('txnStatus').innerText = '';
+        updateTxnButton();
+        updateDelBtn();
+        if (!TXN_ACTIVE && !TXN_RUNNING && (refreshPreview || wasActive)) loadTxnPreview();
+      }).catch(function(e){
+        TXN_ACTIVE = true;
+        TXN_PREVIEW = null;
+        document.getElementById('txnStatus').innerText = txnText(
+          'ジョブ状態を確認できません。重複削除を防ぐためボタンを停止しています。再確認してください。',
+          'Cannot confirm job status. Deletion is disabled to avoid duplicates. Refresh status.') +
+          ' ' + API.userErrorText(e);
+        updateTxnButton();
+        updateDelBtn();
+      });
+    };
+    function refreshTxnPanel(){ if (!TXN_RUNNING) loadTxnJobStatus(true); }
     function doWipeTransactions(){
-      if (TXN_RUNNING || !TXN_PREVIEW || document.getElementById('txnBtn').disabled) return;
+      if (TXN_RUNNING || TXN_ACTIVE || ADMIN_JOB_ACTIVE || !TXN_PREVIEW || document.getElementById('txnBtn').disabled) return;
       var pass = document.getElementById('txnPass').value;
       UIConfirm(I18n.t('txnConfirm').replace('{n}', Number(TXN_PREVIEW.total)), {
         danger:true, okLabel:I18n.t('delConfirmOk')
@@ -278,24 +335,32 @@
         if (!ok) return;
         TXN_RUNNING = true;
         updateTxnButton();
-        rpc('wipeTransactionData', [pass]).then(function(d){
-          if (!d || d.error || d.success !== true)
-            throw new Error(d && d.error || 'transaction_reset_incomplete');
-          alertBox('txnMsg', I18n.t('txnDone').replace('{n}', d.deletedCount), true);
+        alertBox('txnMsg',txnText('サーバーへ削除ジョブを登録中…','Registering deletion job…'),null);
+        rpc('queueTransactionReset', [pass], {__timeoutMs:30000,__noInternalRetry:true}).then(function(d){
+          if (!d || d.error || d.success !== true || !d.jobId)
+            throw new Error(d && d.error || 'transaction_reset_job_failed');
+          TXN_ACTIVE = true;
+          TXN_PREVIEW = null;
+          alertBox('txnMsg',txnText('受付完了。サーバーで処理するため画面を離れても継続します。',
+            'Accepted. Server processing continues even if you leave the screen.'),null);
           document.getElementById('txnPass').value = '';
           document.getElementById('txnPhrase').value = '';
-          window.loadBackups();
         }).catch(function(e){
-          alertBox('txnMsg', I18n.t('errPrefix') + API.userErrorText(e), false);
+          TXN_ACTIVE = true;
+          alertBox('txnMsg',txnText('受付結果が不明です。再実行前にジョブ状態を確認してください。',
+            'Acceptance is uncertain. Check job status before retrying.') + ' ' + API.userErrorText(e),false);
         }).finally(function(){
           TXN_RUNNING = false;
-          loadTxnPreview();
+          updateTxnButton();
+          loadTxnJobStatus(true);
         });
       });
     };
 
     function init(){
-      loadTxnPreview();
+      refreshDataAdminJob();
+      document.getElementById('txnPreview').innerText = txnText('前回の削除ジョブを確認中…','Checking previous deletion jobs…');
+      loadTxnJobStatus(true);
       rpc('getDestructiveTableNames', []).then(function(d){
         if (d && d.error) { alertBox('delMsg', I18n.t('errPrefix')+API.userErrorText(d.error), false); return; }
         var names = (d && d.names) || [];
@@ -310,6 +375,101 @@
 
       document.getElementById('impFile').addEventListener('change', onImpFileChange);
       document.getElementById('impPass').addEventListener('input', updateImpBtn);
+    }
+
+    // The queue is server-owned. This page only submits and polls; leaving or
+    // reloading the page never cancels an already accepted destructive job.
+    var ADMIN_JOB_ACTIVE = true;
+    var ADMIN_JOB_TIMER = null;
+    var ADMIN_JOB_LAST_ID = '';
+    var ADMIN_IMPORT_UPLOAD_ID = '';
+    function adminJobLabel(job){
+      var action = job.operation === 'restore' ? txnText('復元','Restore') :
+        job.operation === 'import' ? txnText('CSVインポート','CSV import') :
+        job.operation === 'wipe_all' ? txnText('全テーブル削除','Delete all') :
+        txnText('テーブル削除','Delete table');
+      var phase = job.status === 'uploading' ? txnText('CSV転送未完了','CSV upload incomplete') :
+        job.status === 'pending' ? txnText('受付済み・待機中','Accepted / pending') :
+        job.status === 'running' ? txnText('サーバーで処理中','Processing on server') :
+        job.status === 'completed' ? txnText('完了','Completed') : txnText('失敗','Failed');
+      return action+'：'+phase+' / ID '+String(job.jobId||'').slice(0,8);
+    }
+    function refreshDataAdminJob(){
+      if (ADMIN_JOB_TIMER) { clearTimeout(ADMIN_JOB_TIMER); ADMIN_JOB_TIMER = null; }
+      rpc('getDataAdminJob', [], {__silent:true,__timeoutMs:30000,__noInternalRetry:true}).then(function(d){
+        if (!d || d.error || !d.success) throw new Error(d && d.error || 'data_admin_job_failed');
+        var job = d.job;
+        var wasActive = ADMIN_JOB_ACTIVE;
+        ADMIN_JOB_ACTIVE = !!(job && (job.status === 'uploading' || job.status === 'pending' || job.status === 'running'));
+        var status = document.getElementById('dataAdminJobStatus');
+        var cancel=document.getElementById('adminImportCancel');
+        ADMIN_IMPORT_UPLOAD_ID = job && job.operation === 'import' && job.status === 'uploading' ? job.jobId : '';
+        cancel.style.display = ADMIN_IMPORT_UPLOAD_ID ? '' : 'none';
+        if (!job) status.innerText = txnText('ジョブ履歴はありません。','No jobs yet.');
+        else {
+          status.innerText = adminJobLabel(job);
+          if (job.status === 'completed' && (wasActive || ADMIN_JOB_LAST_ID !== job.jobId)) {
+            alertBox('dataAdminJobMsg',txnText('サーバー処理完了。対象件数：','Server job completed. Rows: ')+
+              Number(job.affectedCount||0),true);
+            window.loadBackups();
+          } else if (job.status === 'failed') {
+            alertBox('dataAdminJobMsg',job.operation === 'import' &&
+              ['data_admin_import_cancelled','data_admin_import_upload_expired'].includes(job.error)
+              ? txnText('未完了のCSVを破棄しました。取込は実行していません。',
+                  'Incomplete CSV upload discarded. No import was run.')
+              : txnText('サーバー処理失敗：','Server job failed: ')+
+              API.userErrorText(job.error||'data_admin_job_failed'),false);
+          }
+          ADMIN_JOB_LAST_ID = job.jobId;
+        }
+        updateDelBtn();
+        updateTxnButton();
+        updateImpBtn();
+        if (ADMIN_JOB_ACTIVE) ADMIN_JOB_TIMER = setTimeout(refreshDataAdminJob,5000);
+      }).catch(function(e){
+        ADMIN_JOB_ACTIVE = true; // Unknown acceptance: fail closed, do not duplicate destructive work.
+        document.getElementById('dataAdminJobStatus').innerText =
+          txnText('ジョブ状態を確認できません。再実行せず状態を更新してください。',
+            'Job state unavailable. Refresh status before retrying.')+' '+API.userErrorText(e);
+        updateDelBtn();
+        updateTxnButton();
+        updateImpBtn();
+      });
+    }
+    function cancelAdminImportUpload(){
+      if(!ADMIN_IMPORT_UPLOAD_ID || IMP_UPLOADING) return;
+      var jobId=ADMIN_IMPORT_UPLOAD_ID;
+      UIConfirm(txnText('未完了のCSVアップロードを破棄しますか？削除・取込は実行されません。',
+        'Discard the incomplete CSV upload? No import will run.'),{danger:true}).then(function(ok){
+        if(!ok) return;
+        rpc('cancelStagedDataAdminImport',[jobId],
+          {__timeoutMs:30000,__noInternalRetry:true}).then(function(d){
+          if(!d||!d.success) throw new Error(d&&d.error||'data_admin_import_not_uploading');
+          IMP_UPLOAD_JOB_ID='';
+          alertBox('dataAdminJobMsg',txnText('アップロードを破棄しました。','Upload discarded.'),true);
+        }).catch(function(e){
+          alertBox('dataAdminJobMsg',I18n.t('errPrefix')+API.userErrorText(e),false);
+        }).finally(refreshDataAdminJob);
+      });
+    }
+    function enqueueAdminJob(operation,target,pass){
+      ADMIN_JOB_ACTIVE = true;
+      updateDelBtn();
+      alertBox('dataAdminJobMsg',txnText('サーバーにジョブを登録中…','Registering server job…'),null);
+      return rpc('queueDataAdminJob',[operation,target,pass],
+        {__timeoutMs:30000,__noInternalRetry:true}).then(function(d){
+          if (!d || d.error || !d.success || !d.jobId)
+            throw new Error(d && d.error || 'data_admin_job_failed');
+          alertBox('dataAdminJobMsg',txnText(
+            '受付完了。画面を閉じてもサーバーで継続します。','Accepted. Processing continues on the server after leaving.'),null);
+          return d;
+        }).catch(function(e){
+          alertBox('dataAdminJobMsg',txnText(
+            '受付結果が不明か失敗しました。重複防止のためジョブ状態を確認してください。',
+            'Submission failed or is uncertain. Check job status before retrying.')+
+            ' '+API.userErrorText(e),false);
+          throw e;
+        }).finally(refreshDataAdminJob);
     }
 
     // ---- 全件削除 ----
@@ -339,9 +499,10 @@
       var t = document.getElementById('delTable').value;
       var phrase = document.getElementById('delPhrase').value;
       var expected = t === ALL_TABLES_VALUE ? ALL_TABLES_CONFIRM : t;
-      document.getElementById('delBtn').disabled = !(t && phrase === expected);
+      document.getElementById('delBtn').disabled = ADMIN_JOB_ACTIVE || TXN_ACTIVE || !(t && phrase === expected);
     }
     window.doDelete = function(){
+      if (ADMIN_JOB_ACTIVE || TXN_ACTIVE || document.getElementById('delBtn').disabled) return;
       var t = document.getElementById('delTable').value;
       var pass = document.getElementById('delPass').value;
       if (!pass) { alertBox('delMsg', I18n.t('needPass'), false); return; }
@@ -349,25 +510,28 @@
       var confirmMsg = isAll ? I18n.t('delAllConfirmMsg') : I18n.t('delConfirmMsg').replace('{table}', t).replace('{n}', DEL_ROWS);
       UIConfirm(confirmMsg, { danger: true, okLabel: I18n.t('delConfirmOk') }).then(function(ok){
         if (!ok) return;
-        var btn = document.getElementById('delBtn'); btn.disabled = true;
-        var request = isAll ? rpc('wipeAllTableData', [pass]) : rpc('wipeTableData', [t, pass]);
-        request.then(function(d){
-          btn.disabled = false;
-          if (d && d.error) { alertBox('delMsg', I18n.t('errPrefix')+API.userErrorText(d.error), false); return; }
-          var done = isAll ? I18n.t('delAllDone').replace('{n}', d.deletedCount).replace('{tables}', d.tableCount) : I18n.t('delDone').replace('{n}', d.deletedCount);
-          alertBox('delMsg', done, true);
+        enqueueAdminJob(isAll?'wipe_all':'wipe_table',isAll?null:t,pass).then(function(){
+          alertBox('delMsg',txnText('削除を受け付けました。結果は上のジョブ欄で確認できます。',
+            'Deletion accepted. Check the job panel above for results.'),null);
           document.getElementById('delPass').value = '';
           document.getElementById('delPhrase').value = '';
-          window.onDelTableChange();
-          window.loadBackups();
-        }).catch(function(e){ btn.disabled = false; alertBox('delMsg', I18n.t('errPrefix')+API.userErrorText(e), false); });
+        }).catch(function(e){
+          alertBox('delMsg',I18n.t('errPrefix')+API.userErrorText(e),false);
+        });
       });
     };
 
     // ---- CSVインポート ----
     var IMP_PARSED = null; // {header, rows}
+    var IMP_UPLOADING = false;
+    var IMP_UPLOAD_JOB_ID = '';
+    function canResumeOwnUpload(){
+      return !!(IMP_UPLOAD_JOB_ID && ADMIN_IMPORT_UPLOAD_ID &&
+        IMP_UPLOAD_JOB_ID === ADMIN_IMPORT_UPLOAD_ID);
+    }
     function onImpFileChange(){
       IMP_PARSED = null;
+      IMP_UPLOAD_JOB_ID = '';
       document.getElementById('impPreview').innerText = '';
       updateImpBtn();
       var f = document.getElementById('impFile').files[0];
@@ -384,27 +548,96 @@
     }
     function updateImpBtn(){
       var pass = document.getElementById('impPass').value;
-      document.getElementById('impBtn').disabled = !(IMP_PARSED && pass);
+      document.getElementById('impBtn').disabled =
+        IMP_UPLOADING || (ADMIN_JOB_ACTIVE && !canResumeOwnUpload()) || TXN_ACTIVE ||
+        !(IMP_PARSED && pass);
+    }
+    function makeImportChunks(rows){
+      var chunks=[],current=[],chars=2;
+      // Keep request bodies below the D1/Worker row and HTTP limits even for
+      // Japanese text. Each string char may occupy up to four UTF-8 bytes.
+      (rows||[]).forEach(function(row){
+        var size=JSON.stringify(row).length+1;
+        if(size>48000) throw new Error('data_admin_import_chunk_too_large');
+        if(current.length && (chars+size>48000 || current.length>=400)){
+          chunks.push(current); current=[]; chars=2;
+        }
+        current.push(row); chars+=size;
+      });
+      if(current.length || !chunks.length) chunks.push(current);
+      if(chunks.length>256) throw new Error('data_admin_import_too_large');
+      return chunks;
+    }
+    function importRpc(fn,args){
+      return rpc(fn,args,{__timeoutMs:30000,__noInternalRetry:true,__silent:true}).then(function(d){
+        if(!d || d.error || d.success!==true)
+          throw new Error(d&&d.error||'data_admin_job_failed');
+        return d;
+      });
     }
     window.doImport = function(){
+      if(IMP_UPLOADING || (ADMIN_JOB_ACTIVE && !canResumeOwnUpload()) || TXN_ACTIVE ||
+        document.getElementById('impBtn').disabled)return;
       var t = document.getElementById('impTable').value;
       var pass = document.getElementById('impPass').value;
       if (!IMP_PARSED || !pass || !t) return;
       UIConfirm(I18n.t('impConfirmMsg').replace('{table}', t).replace('{n}', IMP_PARSED.rows.length), { danger: true, okLabel: I18n.t('impConfirmOk') }).then(function(ok){
         if (!ok) return;
-        var btn = document.getElementById('impBtn'); btn.disabled = true;
-        rpc('importTableData', [t, IMP_PARSED.header, IMP_PARSED.rows, pass]).then(function(d){
-          btn.disabled = false;
-          if (d && d.error) { alertBox('impMsg', I18n.t('errPrefix')+API.userErrorText(d.error), false); return; }
-          alertBox('impMsg', I18n.t('impDone').replace('{n}', d.importedCount), true);
+        var chunks;
+        try { chunks=makeImportChunks(IMP_PARSED.rows); }
+        catch(e){alertBox('impMsg',I18n.t('errPrefix')+API.userErrorText(e),false);return;}
+        if(!IMP_UPLOAD_JOB_ID) IMP_UPLOAD_JOB_ID=window.crypto.randomUUID();
+        var jobId=IMP_UPLOAD_JOB_ID;
+        IMP_UPLOADING=true;
+        updateImpBtn();
+        alertBox('impMsg',txnText('CSVアップロード準備中。受付完了までは画面を閉じないでください。',
+          'Preparing CSV upload. Keep this page open until acceptance.'),null);
+        API.runForegroundTask('csv-import-upload',function(task){
+          task.progress(0,chunks.length);
+          return importRpc('stageDataAdminImport',[t,IMP_PARSED.header,IMP_PARSED.rows.length,chunks.length,
+          jobId,pass]).then(function(start){
+          if(start.status==='pending'||start.status==='running'||start.status==='completed')
+            return start; // Idempotent recovery after an uncertain response.
+          if(start.status!=='uploading')throw new Error('data_admin_import_not_uploading');
+          var chain=Promise.resolve();
+          chunks.forEach(function(chunk,index){
+            chain=chain.then(function(){
+              alertBox('impMsg',txnText('CSVアップロード中：','Uploading CSV: ')+
+                (index+1)+' / '+chunks.length+
+                txnText('。受付完了までは画面を閉じないでください。',
+                  '. Keep this page open until acceptance.'),null);
+              return importRpc('stageDataAdminImportChunk',[jobId,index,chunk]).then(function(result){
+                task.progress(index+1,chunks.length);
+                return result;
+              });
+            });
+          });
+          return chain.then(function(){
+            alertBox('impMsg',txnText('全データ受領確認中…','Verifying uploaded data…'),null);
+            return importRpc('queueStagedDataAdminImport',[jobId]);
+          });
+          });
+        },{message:txnText('CSVデータを送信中…','Uploading CSV data…')}).then(function(d){
+          if(!d || !['pending','running','completed'].includes(d.status))
+            throw new Error('data_admin_import_upload_incomplete');
+          ADMIN_JOB_ACTIVE = true;
+          alertBox('impMsg',txnText('受付完了。取込処理はサーバー側で継続します。画面を離れても構いません。',
+            'Accepted. Server import continues after you leave this page.'),true);
           document.getElementById('impPass').value = '';
           document.getElementById('impFile').value = '';
           IMP_PARSED = null;
+          IMP_UPLOAD_JOB_ID = '';
           document.getElementById('impPreview').innerText = '';
+        }).catch(function(e){
+          alertBox('impMsg',txnText(
+            'アップロードまたは受付の確認に失敗しました。取込は未受付の可能性があります。ジョブ状態を確認し、必要なら再送してください。',
+            'Upload or acceptance could not be confirmed. Check job status before retrying.')+
+            ' '+API.userErrorText(e),false);
+        }).finally(function(){
+          IMP_UPLOADING=false;
           updateImpBtn();
-          window.onDelTableChange();
-          window.loadBackups();
-        }).catch(function(e){ btn.disabled = false; alertBox('impMsg', I18n.t('errPrefix')+API.userErrorText(e), false); });
+          refreshDataAdminJob();
+        });
       });
     };
 
@@ -432,6 +665,11 @@
       }).catch(function(e){ alertBox('bkMsg', I18n.t('errPrefix')+API.userErrorText(e), false); });
     };
     window.openRestore = function(backupId, tableName, rowCount){
+      if (ADMIN_JOB_ACTIVE || TXN_ACTIVE) {
+        alertBox('bkMsg',txnText('別の削除・復元ジョブを処理中です。完了後に再試行してください。',
+          'Another data job is active. Please retry after completion.'),false);
+        return;
+      }
       RESTORE_TARGET = { backupId: backupId, tableName: tableName, rowCount: rowCount };
       document.getElementById('restoreTitle').innerText = I18n.t('restoreTitle').replace('{table}', tableName);
       document.getElementById('restoreHint').innerText = I18n.t('restoreHint').replace('{n}', rowCount);
@@ -441,16 +679,19 @@
     };
     window.closeRestoreOv = function(){ document.getElementById('restoreOv').style.display = 'none'; RESTORE_TARGET = null; };
     window.confirmRestore = function(){
-      if (!RESTORE_TARGET) return;
+      if (!RESTORE_TARGET || ADMIN_JOB_ACTIVE || TXN_ACTIVE) return;
       var pass = document.getElementById('restorePass').value;
       if (!pass) { var a=document.getElementById('restoreAlert'); a.style.display='block'; a.style.background='#fee2e2'; a.style.color='#b91c1c'; a.innerText=I18n.t('needPass'); return; }
-      rpc('restoreDataBackup', [RESTORE_TARGET.backupId, pass]).then(function(d){
-        if (d && d.error) { var a=document.getElementById('restoreAlert'); a.style.display='block'; a.style.background='#fee2e2'; a.style.color='#b91c1c'; a.innerText=I18n.t('errPrefix')+API.userErrorText(d.error); return; }
+      var btn=document.getElementById('restoreGoBtn'); btn.disabled=true;
+      enqueueAdminJob('restore',RESTORE_TARGET.backupId,pass).then(function(){
         window.closeRestoreOv();
-        alertBox('bkMsg', I18n.t('restoreDone').replace('{n}', d.restoredCount), true);
-        window.onDelTableChange();
-        window.loadBackups();
-      }).catch(function(e){ var a=document.getElementById('restoreAlert'); a.style.display='block'; a.style.background='#fee2e2'; a.style.color='#b91c1c'; a.innerText=I18n.t('errPrefix')+API.userErrorText(e); });
+        alertBox('bkMsg',txnText('復元を受け付けました。結果は上のジョブ欄で確認できます。',
+          'Restoration accepted. Check the job panel above for results.'),null);
+      }).catch(function(e){
+        var a=document.getElementById('restoreAlert'); a.style.display='block';
+        a.style.background='#fee2e2'; a.style.color='#b91c1c';
+        a.innerText=I18n.t('errPrefix')+API.userErrorText(e);
+      }).finally(function(){btn.disabled=false;});
     };
 
     I18n.init({
@@ -459,6 +700,8 @@
         exportAllTitle:'📦 全データを一括バックアップ', exportAllBtn:'📦 全データをZIPでダウンロード', exportWorking:'作成中…', exportDone:'✅ ダウンロードしました:', nativeShareTitle:'保存 / 共有', nativeShared:'✅ 共有先へ渡しました:', nativeDismissed:'共有画面を閉じました。保存先を選択していない場合は未保存です:', nativeUnavailable:'この端末ではファイルの保存/共有機能を利用できません。アプリを最新版へ更新してください。',
         csvExportTitle:'📄 テーブルをCSVで書き出し', csvExportHint:'テーブルを選んでCSVをダウンロードできます（Excel等で開けます）。', csvExportBtn:'⬇ CSVを書き出し', csvExportDone:'✅ 書き出しました:',
         adminOnlyTitle:'🔒 削除・復元', adminOnlyBody:'テーブルの削除、CSV全置換、バックアップからの復元はシステム管理者だけが実施できます。',
+        adminJobTitle:'データ操作ジョブ（削除・復元・CSV取込）',adminJobRefresh:'状態を更新',
+        adminImportCancel:'未完了のアップロードを破棄',
         warnTitle:'⚠️ ご注意', warnBody:'この画面の操作（テーブルの全件削除・CSVインポートによる全置換・バックアップからの復元）は取り返しがつきません。実行するとご本人のログインパスワードの再入力を求めます。実行の直前に自動でバックアップが作られ、下部の「バックアップ履歴」から復元できます。',
         txnTitle:'🗑️ 取引データのみ一括リセット', txnHint:'注文・会計・コミッション・発注と連動する実績を削除し、商品・席・スタッフ・ルール等のマスタは残します。勤怠・経費・在庫履歴・監査ログも保持します。新規テーブルの分類やロックが不完全なら削除しません。', txnRefresh:'対象件数を再確認', txnPhraseLabel:'確認のため「RESET TRANSACTIONS」と入力', txnBtn:'取引データを一括リセット', txnLoading:'DBスキーマと削除件数を確認中…', txnUnavailable:'リセットは実行できません。', txnCount:'削除予定: {n}件 / {tables}テーブル。保持対象: {protected}テーブル。', txnConfirm:'取引データ{n}件を削除します。マスタは残し、実行直前に復元用バックアップを作成します。続けますか？', txnDone:'取引データ{n}件を削除しました（バックアップ済み）。',
         delTitle:'🗑️ テーブルの全件削除', tblLbl:'対象テーブル', allTablesOpt:'⚠️ 全テーブル一括（従業員を除く）', confirmPhraseLbl:'確認のため、対象テーブル名を入力してください', allConfirmPhraseLbl:'確認のため「DELETE ALL TABLES」と入力してください', pwLbl:'ご自身のログインパスワード', delBtn:'🗑️ このテーブルを全件削除する', delAllBtn:'🗑️ 全テーブルを一括削除する',
@@ -478,6 +721,8 @@
         exportAllTitle:'📦 Back up all data', exportAllBtn:'📦 Download all data (ZIP)', exportWorking:'Preparing…', exportDone:'✅ Downloaded:', nativeShareTitle:'Save / Share', nativeShared:'✅ Sent to the selected share destination:', nativeDismissed:'The share sheet was closed. If you did not choose a destination, the file was not saved:', nativeUnavailable:'File save/share is unavailable on this device. Update the app and try again.',
         csvExportTitle:'📄 Export a table to CSV', csvExportHint:'Select a table and download it as CSV (opens in Excel, etc.).', csvExportBtn:'⬇ Export CSV', csvExportDone:'✅ Exported:',
         adminOnlyTitle:'🔒 Delete & restore', adminOnlyBody:'Deleting tables, replacing data via CSV, and restoring backups are restricted to the System role.',
+        adminJobTitle:'Data jobs (delete / restore / CSV import)',adminJobRefresh:'Refresh status',
+        adminImportCancel:'Discard incomplete upload',
         warnTitle:'⚠️ Warning', warnBody:'Actions on this page (wiping a table, replacing it via CSV import, or restoring a backup) cannot be undone. Each one requires re-entering your own login password. A backup is taken automatically right before the action runs, and can be restored from "Backup history" below.',
         txnTitle:'🗑️ Reset transaction data only', txnHint:'Wipes order, checkout, commission and purchase-order histories while retaining menus, seats, staff, rules and other master data. Attendance, expenses, inventory moves and audit logs remain. Unknown or unlocked new tables block the reset.', txnRefresh:'Refresh affected counts', txnPhraseLabel:'Type “RESET TRANSACTIONS” to confirm', txnBtn:'Reset transaction history', txnLoading:'Checking database schema and record counts…', txnUnavailable:'Transaction reset unavailable.', txnCount:'Will delete {n} rows in {tables} tables. Preserved: {protected} tables.', txnConfirm:'Delete {n} transaction rows? Master data stays and a restorable backup is created first.', txnDone:'Deleted {n} transaction rows (backed up).',
         delTitle:'🗑️ Wipe table data', tblLbl:'Target table', allTablesOpt:'⚠️ All tables (except employees)', confirmPhraseLbl:'Type the table name to confirm', allConfirmPhraseLbl:'Type “DELETE ALL TABLES” to confirm', pwLbl:'Your login password', delBtn:'🗑️ Wipe this table', delAllBtn:'🗑️ Wipe all tables',
@@ -515,7 +760,7 @@
       items: [
         { ja: '① この画面の利用権限があるユーザーは、許可された主要業務テーブルをZIP／CSVで書き出せます。設定・権限などの全DB情報を含む完全復元バックアップではありません。個人情報を含むため厳重に保管してください。', en: '① Authorized users may export the supported business tables as ZIP/CSV. This is not a complete restorable database backup; settings and permission tables are excluded. Exports contain personal data and must be stored securely.' },
         { ja: '② 1テーブルまたは全テーブルの一括削除、CSVによる全置換、バックアップからの復元はシステム管理者だけが実行できます。全テーブル削除でも従業員とバックアップ管理データは保護されます。', en: '② Single-table or all-table deletion, CSV replacement, and backup restoration are restricted to the System role. Employees and backup-management data remain protected during an all-table wipe.' },
-        { ja: '③ 削除・全置換・復元ではご自身のパスワードを再入力し、実行前の内容が自動バックアップされます。', en: '③ Delete, replace, and restore require your password and automatically back up the current data first.' },
+        { ja: '③ 削除・復元・CSV全置換はパスワードの再入力と確認が必要です。CSVは分割転送後、全件受領でサーバー処理を受付します。受付後は画面を閉じてもバックアップ・削除・取込・復元が続きます。上部のジョブ欄で結果を確認し、途中アップロードは破棄できます。', en: '③ Delete, restore and full CSV replacement require password confirmation. CSV data is uploaded in chunks, and the server accepts the job only after all chunks arrive. Once accepted, backup and mutation continue even if you leave the page. Check the job panel for status or discard an incomplete upload.' },
         { ja: '④ バックアップ履歴の「復元」で対象データを復元できます。ただし旧形式のバックアップでは、記録時点の関連明細を完全には復元できない場合があります。', en: '④ Use Restore in backup history to recover backed-up data. Legacy backup formats may lack historical related-detail rows and may not fully reproduce the former state.' },
         { ja: '⑤ CSVではパスワード・認証トークンなどの機密列を除外し、表計算ソフトで数式になり得る文字列を保護します。この画面で再取込する際は元の値に戻ります。列名の誤り・列数不足のCSVは全置換できません。', en: '⑤ CSV exports omit passwords and operational tokens and protect formula-like text for spreadsheet viewing. Importing here restores the original text. Files with unknown headers or mismatched column counts cannot replace table data.' },
         { ja: '⑥ 「取引データのみ一括リセット」は注文・会計・コミッション・発注履歴を対象店舗だけ初期化し、商品・席・スタッフ等のマスタを保持します。「対象件数を再確認」で削除前の件数を確認し、RESET TRANSACTIONSと本人パスワードを入力して実行します。利用履歴の削除では、会員ポイントやクーポン利用回数などのマスタ側累積値は戻りません。未知の新規テーブルやDB更新漏れがあれば安全のため停止します。', en: '⑥ Reset transaction data only deletes order, checkout, commission and purchase histories in this store and preserves menu, seat and staff masters. Review the affected row counts, then enter RESET TRANSACTIONS and your own password. Member points and coupon usage counters stored in master records are not recalculated. Unclassified new tables or missing database migrations block the reset.' }

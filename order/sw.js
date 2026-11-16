@@ -1,4 +1,4 @@
-const CACHE = 'izakanpai-public-order-production-v12';
+const CACHE = 'izakanpai-public-order-production-v13';
 const SHELL = [
   './',
   './index.html',
@@ -8,6 +8,7 @@ const SHELL = [
   '../public/i18n.js',
   '../public/confirm.js',
   '../public/order-app.js',
+  '../public/order-grid-layout.js',
   '../public/help.js'
 ];
 self.addEventListener('install', (event) => {

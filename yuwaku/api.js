@@ -133,26 +133,31 @@
   // ---- ロード中オーバーレイ（全アクション共通の待機表示。完了で自動クローズ）----
   // api.js は全ページが読み込むため、ここに置くだけで共通部品になる。
   const _load = (function () {
-    let count = 0, el = null, txt = null, hideTimer = null, watchTimer = null;
+    let count = 0, epoch = 0, el = null, txt = null, progressText = null, hideTimer = null, watchTimer = null;
     let visibleSince = 0;
     function clearWatch(){if(watchTimer){clearTimeout(watchTimer);watchTimer=null;}visibleSince=0;}
     function ensure() {
       if (el || typeof document === 'undefined' || !document.body) return;
       const st = document.createElement('style');
       st.textContent = '@keyframes izspin{to{transform:rotate(360deg)}}'
-        + '#izLoad{position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.42);opacity:0;transition:opacity .15s;}'
+        + '#izLoad{position:fixed;inset:0;z-index:2147483100;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.42);opacity:0;transition:opacity .15s;}'
         + '#izLoad.on{opacity:1;}'
         + '#izLoad .box{background:#fff;border-radius:14px;padding:20px 26px;display:flex;flex-direction:column;align-items:center;gap:12px;box-shadow:0 12px 40px rgba(0,0,0,.28);min-width:150px;}'
         + '#izLoad .sp{width:34px;height:34px;border:3px solid #e5e7eb;border-top-color:#0f172a;border-radius:50%;animation:izspin .8s linear infinite;}'
-        + '#izLoad .tx{font-size:14px;font-weight:800;color:#0f172a;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,\'Noto Sans JP\',sans-serif;}';
+        + '#izLoad .tx{font-size:14px;font-weight:800;color:#0f172a;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,\'Noto Sans JP\',sans-serif;}'
+        + '#izLoad .progress{font-size:13px;color:#475569;font-variant-numeric:tabular-nums;}'
+        + '#izLoad .progress:empty{display:none;}';
       document.head.appendChild(st);
       el = document.createElement('div'); el.id = 'izLoad';
-      el.innerHTML = '<div class="box"><div class="sp"></div><div class="tx" id="izLoadTx"></div></div>';
+      el.setAttribute('role','status');el.setAttribute('aria-live','polite');
+      el.innerHTML = '<div class="box"><div class="sp" aria-hidden="true"></div><div class="tx" id="izLoadTx"></div><div class="progress" id="izLoadProgress"></div></div>';
       document.body.appendChild(el);
       txt = el.querySelector('#izLoadTx');
+      progressText = el.querySelector('#izLoadProgress');
     }
     function defMsg() { return _isEN() ? 'Please wait…' : '処理中…'; }
     return {
+      epoch: function () { return epoch; },
       show: function (msg) {
         count++;
         if(count===1){
@@ -170,18 +175,29 @@
         }
         ensure(); if (!el) return;
         if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
-        if (txt) txt.textContent = msg || defMsg();
+        if (txt && (count === 1 || msg)) txt.textContent = msg || defMsg();
+        if (progressText && count === 1) progressText.textContent = '';
         el.style.display = 'flex'; void el.offsetWidth; el.classList.add('on');
+      },
+      update: function (msg) { if (count > 0 && txt && msg) txt.textContent = msg; },
+      progress: function (completed,total) {
+        if (count <= 0 || !progressText || !Number.isInteger(completed) ||
+            !Number.isInteger(total) || total < 1 || completed < 0 || completed > total) return;
+        progressText.textContent = _isEN() ? 'Completed ' + completed + ' / ' + total
+          : completed + ' / ' + total + '件完了';
       },
       hide: function () {
         count = Math.max(0, count - 1); if (count > 0) return;
         clearWatch(); if (!el) return;
+        if (progressText) progressText.textContent = '';
         el.classList.remove('on');
         hideTimer = setTimeout(function () { if (count === 0 && el) el.style.display = 'none'; }, 160);
       },
       reset: function () {
+        epoch++;
         count = 0;
         clearWatch();
+        if (progressText) progressText.textContent = '';
         if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
         if (el) { el.classList.remove('on'); el.style.display = 'none'; }
       }
@@ -193,8 +209,10 @@
   const BG_ACTIONS = { checkToken: 1, getOrders: 1, getOperationsDelta: 1, checkoutStatus: 1, bootstrap: 1, getSettings: 1, getStaffCalls: 1, getTableCheckoutStamp: 1 };
   const TABLE_SESSION_ACTIONS = { submitOrder:1, getOrdersByTable:1, getTableCheckoutStamp:1, setTablePartySize:1, getTablePartySize:1, callStaff:1, submitFeedback:1 };
   const BG_RPC = { getPrintQueue: 1, getPrintQueueCounts: 1, getSettings: 1, searchMenuImages: 1, searchMenuImagesV2: 1 };
-  const BACKGROUND_MUTATION_ACTIONS = { bridgePoll:1, bridgeAck:1 };
-  const BACKGROUND_MUTATION_RPC = { nativePrintPoll:1, nativePrintAck:1, searchMenuImages:1 };
+  const BACKGROUND_MUTATION_ACTIONS = { bridgePoll:1, bridgeAck:1,
+    registerStaffPush:1,unregisterStaffPush:1 };
+  const BACKGROUND_MUTATION_RPC = { nativePrintPoll:1, nativePrintAck:1, searchMenuImages:1,
+    markAnnouncementRead:1,markAnnouncementAutoShown:1,getOrCreateBridgeKey:1 };
 
   // ---- タイムアウト設定（全画面共通・唯一の定義元）----
   // [応答速度改善(2026-08-22)/タイムアウト共通化] 従来は各画面（admin.html/kds.html/dashboard.html/
@@ -228,6 +246,7 @@
   const _READ_ACTIONS = { getSettings: 1, checkToken: 1, bootstrap: 1, checkoutStatus: 1, getStaffCalls: 1, getTableCheckoutStamp: 1, getOperationsDelta: 1, getEmployeeStatuses: 1, validateCoupon:1, loyaltyLookup:1, verifyManagerApproval:1 };
   const _READ_RPC = { exportSheetData:1, profitSimGetMonthly:1 };
   function _isReadOnly(action, fn) {
+    if (action === 'rpc' && fn === 'getOrCreateBridgeKey') return false;
     if (action === 'rpc') return !!_READ_RPC[fn] || /^(get|check|list|count|fetch)/i.test(fn || '');
     return !!_READ_ACTIONS[action] || /^(get|check|list|count|fetch)/i.test(String(action || ''));
   }
@@ -254,6 +273,35 @@
     return /(?:AbortError|timeout|timed out|failed to fetch|networkerror|network request failed|load failed|connection was lost|could not connect|invalid_server_response|stale_session_response|http_5\d\d)/i.test(raw);
   }
   function endMutation(id,uncertain){var entry=_activeMutations.get(id)||null;_activeMutations.delete(id);if(uncertain&&entry)_uncertainMutation={action:entry.action,startedAt:entry.startedAt,uncertain:true,endedAt:Date.now()};persistCurrentMutationMarker();emitMutationChange();}
+  API.holdForegroundOperation=function(action){
+    var id=beginMutation(action),released=false;
+    return function(){if(released)return;released=true;endMutation(id,false);};
+  };
+  API.beginForegroundTask=function(action,options){
+    options=options||{};
+    var release=API.holdForegroundOperation(action);
+    try{API.loading.show(options.message);}catch(error){release();throw error;}
+    var loadingEpoch=API.loading.epoch(),closed=false;
+    var controls={update:function(message){
+        if(!closed&&API.loading.epoch()===loadingEpoch)API.loading.update(message);
+      },
+      progress:function(completed,total){
+        if(!closed&&API.loading.epoch()===loadingEpoch)API.loading.progress(completed,total);
+      },
+      close:function(){
+        if(closed)return;closed=true;
+        try{if(API.loading.epoch()===loadingEpoch)API.loading.hide();}
+        finally{release();}
+      }};
+    if(Number.isInteger(options.total)&&options.total>0)controls.progress(0,options.total);
+    return controls;
+  };
+  API.runForegroundTask=function(action,work,options){
+    if(typeof work!=='function')return Promise.reject(new TypeError('foreground_work_required'));
+    var controls;
+    try{controls=API.beginForegroundTask(action,options);}catch(error){return Promise.reject(error);}
+    return Promise.resolve().then(function(){return work(controls);}).finally(controls.close);
+  };
   function ensureMutationNotice() {
     if (typeof document === 'undefined' || !document.body) return null;
     var el=document.getElementById('izMutationNotice'); if(el)return el;
@@ -316,6 +364,31 @@
     if (code === 'data_admin_busy') return en
       ? 'Another data delete, import, or restore is in progress. Wait a moment and try again.'
       : '別のデータ削除・インポート・復元処理を実行中です。少し待ってから、もう一度お試しください。';
+    if (code === 'data_admin_job_active') return en
+      ? 'A data deletion or restore job is already running. Check its status before submitting another operation.'
+      : '削除または復元ジョブが実行中です。ジョブの状態を確認してから次の操作を行ってください。';
+    if (code === 'data_admin_job_failed' || code === 'transaction_reset_job_failed') return en
+      ? 'The server job failed. Review the job status and backup before trying again.'
+      : 'サーバージョブが失敗しました。再実行前にジョブ状態とバックアップを確認してください。';
+    if (code === 'data_admin_async_client_required') return en
+      ? 'This version cannot safely perform data deletion or restoration. Update the app or reload the latest web page.'
+      : 'このバージョンではデータ削除・復元を安全に実行できません。アプリを更新するか、Web画面を再読み込みしてください。';
+    if (code === 'data_admin_import_chunk_too_large' || code === 'data_admin_import_too_large') return en
+      ? 'This CSV is too large for the safe upload limit. Split it into smaller imports.'
+      : 'CSVファイルが安全なアップロード上限を超えています。データを分割して再度取り込んでください。';
+    if (code === 'data_admin_import_upload_incomplete' || code === 'data_admin_import_chunk_missing') return en
+      ? 'Not all CSV chunks reached the server. No data was replaced. Retry the upload before accepting the job.'
+      : 'CSVの一部がサーバーに届いていません。データは置換していません。アップロードを再試行してください。';
+    if (code === 'data_admin_import_not_uploading' || code === 'data_admin_import_state_changed' ||
+        code === 'data_admin_import_manifest_conflict' || code === 'data_admin_import_chunk_conflict') return en
+      ? 'The CSV upload state has changed. Refresh job status before retrying or discarding it.'
+      : 'CSVアップロードの状態が変更されました。ジョブ状態を確認してから再試行または破棄してください。';
+    if (code === 'data_admin_import_invalid_manifest' || code === 'data_admin_import_chunk_invalid') return en
+      ? 'The selected CSV data is invalid. Choose a newly exported CSV and retry.'
+      : 'CSVデータが不正です。新しく書き出したCSVを選び直してください。';
+    if (code === 'data_admin_import_upload_expired' || code === 'data_admin_import_cancelled') return en
+      ? 'The unfinished CSV upload was discarded. No table data was replaced.'
+      : '未完了のCSVアップロードは破棄されました。テーブルのデータは置換していません。';
     if (code === 'data_admin_schema_outdated') return en
       ? 'The database update required for Data Admin has not been applied. Apply the latest database migration, then try again.'
       : 'データ管理に必要なデータベース更新が未適用です。最新のデータベースマイグレーションを適用してから、もう一度お試しください。';
@@ -579,7 +652,9 @@
     var refreshGeneration = _readLifecycleGeneration;
     var beforeToken = storedToken(), before = tokenInfo(beforeToken, true), refreshToken = storedRefreshToken();
     if (!before || before.version !== 'v3' || !refreshToken) return Promise.reject(new Error('invalid_refresh_session'));
-    var operation = _fetchOnce(JSON.stringify({ action:'refreshSession', storeId:before.store, refreshToken:refreshToken }), TIMEOUT_MS.fast)
+    // A 4.5s timeout could abort a successfully committed token rotation.
+    // Refresh is non-retryable; give this credential write the full write budget.
+    var operation = _fetchOnce(JSON.stringify({ action:'refreshSession', storeId:before.store, refreshToken:refreshToken }), TIMEOUT_MS.write)
       .then(function (json) {
         if (refreshGeneration !== _readLifecycleGeneration) throw staleReadLifecycleError();
         var after = tokenInfo(json && json.token), nextRefresh = String(json && json.refreshToken || '');
@@ -601,7 +676,8 @@
         var currentToken = storedToken(), currentRefresh = storedRefreshToken();
         if (currentToken !== beforeToken || currentRefresh !== refreshToken) {
           var current = tokenInfo(currentToken, true);
-          if (current && current.version === 'v3' && validRefreshToken(currentRefresh) &&
+          if (current && current.exp > Date.now() &&
+              current.version === 'v3' && validRefreshToken(currentRefresh) &&
               current.role === before.role && current.store === before.store && current.uid === before.uid &&
               current.audience === before.audience && current.sessionId === before.sessionId) {
             return currentToken;
@@ -638,6 +714,20 @@
   // The queue survives a tab reload; it is acknowledged only by the server.
   const _diagnosticQueueKey=String(CFG.STORAGE_PREFIX||'izakanpai:')+'diagnosticQueueV1';
   const _diagnosticHistoryKey=String(CFG.STORAGE_PREFIX||'izakanpai:')+'diagnosticHistoryV1';
+  const _diagnosticDeliveryKey=String(CFG.STORAGE_PREFIX||'izakanpai:')+'diagnosticDeliveryV1';
+  const _autoDiagnosticKey=String(CFG.STORAGE_PREFIX||'izakanpai:')+'autoClientLogUploadV1:';
+  API.autoDiagnosticUploadEnabled=function(){
+    const storeId=API.currentStoreId();
+    if(!storeId)return true;
+    try{return localStorage.getItem(_autoDiagnosticKey+storeId)!=='off';}catch(_){return true;}
+  };
+  API.setAutoDiagnosticUploadEnabled=function(enabled){
+    const storeId=API.currentStoreId();
+    if(!storeId)return false;
+    try{localStorage.setItem(_autoDiagnosticKey+storeId,enabled?'on':'off');}
+    catch(_){return false;}
+    return true;
+  };
   const _diagnosticRetention={DEBUG:86400000,INFO:3*86400000,
     WARN:7*86400000,ERROR:14*86400000,FATAL:14*86400000};
   const _diagnosticCodes=new Set([
@@ -646,6 +736,7 @@
     'client_ui_stalled','js_type_error','js_reference_error','js_syntax_error',
     'js_range_error','uncaught_exception','unhandled_rejection',
     'health_reachable','health_http_failure','health_unreachable','manual_test',
+    'auth','login_rate_limited','email_unverified','forbidden_page','forbidden_fn',
     'auth_refresh_transport','invalid_refresh_session','auth_storage_unavailable',
     'unauthorized','stale_session_response','environment_mismatch','invalid_store_link',
     'request_timeout','api_error','invalid_server_response','order_bootstrap_timeout',
@@ -660,8 +751,12 @@
   }
   const _diagnosticAppVersion='web_'+String(CFG.VERSION||'unknown')
     .replace(/[^a-zA-Z0-9_.+-]/g,'').slice(0,30);
-  let _diagnosticSending=false,_diagnosticLastSend=0,_diagnosticRetryTimer=null;
-  let _diagnosticRetryDelay=30000;
+  // Deferred auth errors use one wake-up; no recurring diagnostic polling.
+  let _diagnosticSending=false,_diagnosticSendingStoreId='',_diagnosticRetryTimer=null;
+  let _diagnosticPauseForPage=false;
+  API.deferAutoDiagnosticsUntilNavigation=function(){_diagnosticPauseForPage=true;};
+  API.resumeAutoDiagnosticsOnMenu=function(){_diagnosticPauseForPage=false;};
+  const _diagnosticStatusListeners=new Set();
   let _manualDiagnostic=null;
   function _diagnosticTrace(){
     try{return crypto.randomUUID().replace(/-/g,'');}catch(_){}
@@ -789,7 +884,51 @@
     }
     try{localStorage.setItem(_diagnosticQueueKey,JSON.stringify(bounded));}catch(_){}
   }
+  function _deliveryState(storeId){
+    try{const data=JSON.parse(localStorage.getItem(_diagnosticDeliveryKey)||'null');
+      if(data&&data.storeId===storeId&&/^[a-z0-9][a-z0-9-]{0,31}$/.test(storeId))return data;
+    }catch(_){}
+    return {storeId,lastAttemptAt:null,lastAckAt:null,lastFailureAt:null,lastFailureCode:'none'};
+  }
+  function _noteDelivery(storeId,kind,code){
+    if(!/^[a-z0-9][a-z0-9-]{0,31}$/.test(String(storeId||'')))return;
+    const state=_deliveryState(storeId),at=new Date().toISOString();
+    state.lastAttemptAt=at;
+    if(kind==='ack'){state.lastAckAt=at;state.lastFailureCode='none';}
+    else if(kind==='failed'){
+      const value=String(code||'');
+      state.lastFailureAt=at;
+      state.lastFailureCode=/^http_[45][0-9]{2}$/.test(value)?value:
+        ['client_timeout','client_transport_failure','diagnostic_rate_limited',
+          'diagnostic_rejected','diagnostic_session_pending'].includes(value)?value:
+        'client_transport_failure';
+    }
+    try{localStorage.setItem(_diagnosticDeliveryKey,JSON.stringify(state));}catch(_){}
+  }
+  API.getDiagnosticDeliveryStatus=function(){
+    const storeId=API.currentStoreId();
+    if(!storeId)return {state:'NO_STORE',pendingCount:0};
+    const info=_deliveryState(storeId),queue=_diagnosticQueue().filter(x=>x.storeId===storeId);
+    return {state:queue.length?'PENDING':'CLEAR',pendingCount:queue.length,
+      pendingErrorCount:queue.filter(x=>x.event&&x.event.outcome==='failed').length,
+      sending:_diagnosticSending&&_diagnosticSendingStoreId===storeId,
+      oldestPendingAt:queue.length?new Date(Math.min(...queue.map(x=>x.at))).toISOString():null,
+      lastAttemptAt:info.lastAttemptAt||null,lastAckAt:info.lastAckAt||null,
+      lastFailureAt:info.lastFailureAt||null,lastFailureCode:info.lastFailureCode||'none'};
+  };
+  function _notifyDiagnosticStatus(){
+    if(!_diagnosticStatusListeners.size)return;
+    const state=API.getDiagnosticDeliveryStatus();
+    _diagnosticStatusListeners.forEach(function(listener){try{listener(state);}catch(_){}});
+  }
+  API.observeDiagnosticDelivery=function(listener){
+    if(typeof listener!=='function')return function(){};
+    _diagnosticStatusListeners.add(listener);
+    try{listener(API.getDiagnosticDeliveryStatus());}catch(_){}
+    return function(){_diagnosticStatusListeners.delete(listener);};
+  };
   function _scheduleDiagnosticFlush(ms){
+    if(!API.autoDiagnosticUploadEnabled()||_diagnosticPauseForPage)return;
     if(_diagnosticRetryTimer)return;
     _diagnosticRetryTimer=setTimeout(function(){
       _diagnosticRetryTimer=null;_flushDiagnostics();
@@ -805,55 +944,93 @@
       pendingCount:_diagnosticQueue().filter(v=>v.storeId===item.storeId).length});
     else active.reject(new Error('diagnostic_send_unconfirmed'));
   }
+  function _diagnosticSessionToken(){
+    const token=storedToken(),access=typeof tokenInfo==='function'?tokenInfo(token,true):null;
+    // The Control diagnostic sink validates a live session. A Web tab that
+    // only sends logs can otherwise sit on an expired 15-minute access token
+    // indefinitely, even with working internet access.
+    if(!access||access.version!=='v3'||access.exp>Date.now()+60000||
+       typeof API.refreshSession!=='function')return token;
+    return Promise.resolve().then(function(){return API.refreshSession();}).then(function(next){
+      const info=tokenInfo(next,true);
+      return info&&info.exp>Date.now()?next:'';
+    }).catch(function(){
+      const latest=storedToken(),info=tokenInfo(latest,true);
+      return info&&info.exp>Date.now()?latest:'';
+    });
+  }
   function _flushDiagnostics(){
-    if(_diagnosticSending)return;
-    const token=storedToken(),storeId=API.currentStoreId();
-    if(!token||!storeId)return;
+    if(_diagnosticSending||(_manualBatchPromise&&!_manualDiagnostic))return;
+    const storeId=API.currentStoreId();
+    if(!storedToken()||!storeId)return;
+    if((!API.autoDiagnosticUploadEnabled()||_diagnosticPauseForPage)&&!_manualDiagnostic)return;
     const pending=_diagnosticQueue();
     const item=(_manualDiagnostic&&_manualDiagnostic.storeId===storeId
       ? pending.find(x=>x.storeId===storeId&&x.id===_manualDiagnostic.id):null)||
       pending.find(x=>x.storeId===storeId&&x.event.outcome==='failed')||
       pending.find(x=>x.storeId===storeId);
     if(!item)return;
-    // An event added during the send throttle still needs a future attempt.
-    const throttleMs=10000-(Date.now()-_diagnosticLastSend);
-    if(throttleMs>0&&(!(_manualDiagnostic&&_manualDiagnostic.id===item.id&&
-      _manualDiagnostic.storeId===storeId))){_scheduleDiagnosticFlush(throttleMs);return;}
-    _diagnosticSending=true;_diagnosticLastSend=Date.now();
+    _diagnosticSending=true;_diagnosticSendingStoreId=storeId;_notifyDiagnosticStatus();
     _rememberDiagnostic(item);
+    _noteDelivery(storeId,'attempt');
     const ctrl=new AbortController();
     let timeout;
-    const deadline=new Promise(function(_,reject){
-      timeout=setTimeout(function(){
-        reject(new Error('diagnostic_transport_timeout'));
-        try{ctrl.abort();}catch(_){}
-      },5000);
-    });
+    const beginTransport=function(token){
+      if(!token||API.currentStoreId()!==storeId)throw Error('diagnostic_session_pending');
+      const deadline=new Promise(function(_,reject){
+        timeout=setTimeout(function(){
+          reject(new Error('diagnostic_transport_timeout'));
+          try{ctrl.abort();}catch(_){}
+        },5000);
+      });
+      let request;
+      try{request=fetch(CFG.API_URL+'?api=1',{
+        method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body:JSON.stringify({action:'recordClientDiagnostic',storeId:storeId,
+          token:token,event:item.event}),signal:ctrl.signal,
+      });}catch(error){request=Promise.reject(error);}
+      return Promise.race([Promise.resolve(request).then(r=>r.ok?r.json():
+        {ok:false,error:'http_'+(Number(r.status)||0)}),deadline]);
+    };
     let transport;
-    try{transport=fetch(CFG.API_URL+'?api=1',{
-      method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body:JSON.stringify({action:'recordClientDiagnostic',storeId:storeId,
-        token:token,event:item.event}),signal:ctrl.signal,
-    });}catch(error){transport=Promise.reject(error);}
+    try{const session=_diagnosticSessionToken();
+      transport=session&&typeof session.then==='function'
+        ?session.then(beginTransport):beginTransport(session);
+    }catch(error){transport=Promise.reject(error);}
     let acknowledged=false;
-    Promise.race([Promise.resolve(transport).then(r=>r.ok?r.json():null),deadline])
+    let manualTransportRetry=false;
+    Promise.resolve(transport)
       .then(function(data){
         if(data&&data.ok===true){
           acknowledged=true;
+          _noteDelivery(storeId,'ack');
           _saveDiagnosticQueue(_diagnosticQueue().filter(v=>
             v.id!==item.id||v.storeId!==storeId));
           _markDiagnosticDelivered(item);
           _settleManualDiagnostic(item,true);
-        }else _settleManualDiagnostic(item,false);
-      }).catch(function(){_settleManualDiagnostic(item,false);}).finally(function(){
-        clearTimeout(timeout);_diagnosticSending=false;
-        _diagnosticRetryDelay=acknowledged?30000:Math.min(300000,_diagnosticRetryDelay*2);
+        }else{_noteDelivery(storeId,'failed',data&&data.error||'diagnostic_rejected');
+          _settleManualDiagnostic(item,false);}
+       }).catch(function(error){
+          _noteDelivery(storeId,'failed',_webDiagnosticFailure(error));
+         const active=_manualDiagnostic;
+         if(active&&active.id===item.id&&active.storeId===storeId&&
+            (active.transportRetries||0)<1){
+           active.transportRetries=(active.transportRetries||0)+1;
+           manualTransportRetry=true;
+         }else _settleManualDiagnostic(item,false);
+       }).finally(function(){
+        clearTimeout(timeout);_diagnosticSending=false;_diagnosticSendingStoreId='';
         const activeStore=API.currentStoreId();
-        if(_manualDiagnostic&&storedToken()&&activeStore===_manualDiagnostic.storeId&&
+         if(manualTransportRetry&&_manualDiagnostic&&storedToken()&&activeStore===storeId)
+           _flushDiagnostics();
+         else if(_manualDiagnostic&&storedToken()&&activeStore===_manualDiagnostic.storeId&&
           _diagnosticQueue().some(v=>v.storeId===activeStore&&v.id===_manualDiagnostic.id))
           _flushDiagnostics();
-        else if(storedToken()&&activeStore&&_diagnosticQueue().some(v=>v.storeId===activeStore))
-          _scheduleDiagnosticFlush(acknowledged?11000:_diagnosticRetryDelay);
+        else if(acknowledged&&!_manualBatchPromise&&storedToken()&&activeStore&&_diagnosticQueue().some(v=>v.storeId===activeStore))
+          // ACKed items are removed; drain remaining entries immediately.
+          // On any upload failure, keep the item until the next user/network event.
+          _flushDiagnostics();
+        _notifyDiagnosticStatus();
       });
   }
   API.reportDiagnostic=function(feature,operation,outcome,errorCode,durationMs,traceId,deferSend,context){
@@ -879,41 +1056,74 @@
       const rows=_diagnosticQueue();rows.push(item);
       _saveDiagnosticQueue(rows);
       if(!deferSend)_flushDiagnostics();
+      else if(API.autoDiagnosticUploadEnabled())_scheduleDiagnosticFlush(1000);
     }
     return eventId;
   };
-  async function _resendDiagnosticHistory(items,storeId,maxDurationMs=15000){
-    let next=0,confirmed=0,failed=0,stop=false;
+  async function _resendDiagnosticHistory(items,storeId,onProgress) {
+    let next=0,confirmed=0,skipped=0,failed=0,stop=false,stopReason='';
     const acknowledged=new Set();
-    const endsAt=Date.now()+maxDurationMs;
-    async function worker(){
-      while(!stop&&next<items.length){
-        if(Date.now()>=endsAt){stop=true;return;}
-        const item=items[next++],token=storedToken();
-        if(!token||API.currentStoreId()!==storeId){stop=true;failed++;return;}
-        const ctrl=new AbortController();
-        let timer;
-        const deadline=new Promise(function(_,reject){
-          timer=setTimeout(function(){reject(new Error('diagnostic_transport_timeout'));
-            try{ctrl.abort();}catch(_){}},5000);
-        });
-        try{
-          const data=await Promise.race([Promise.resolve().then(function(){
-            return fetch(CFG.API_URL+'?api=1',{method:'POST',
-              headers:{'Content-Type':'text/plain;charset=utf-8'},
-              body:JSON.stringify({action:'recordClientDiagnostic',storeId:storeId,
-                token:token,event:item.event}),signal:ctrl.signal});
-          }).then(function(response){return response.ok?response.json():null;}),deadline]);
-          if(data&&data.ok===true){
-            confirmed++;acknowledged.add(item.id);
-          }
-          else{failed++;stop=true;}
-        }catch(_){failed++;stop=true;}
-        finally{clearTimeout(timer);}
+    async function worker() {
+      while(!stop && next<items.length) {
+        const item=items[next++];
+        if(_diagnosticHistory().some(x=>x.storeId===storeId&&x.id===item.id&&x.deliveredAt)){
+          skipped++;
+          if(typeof onProgress==='function')try{onProgress(confirmed+skipped,failed,items.length);}catch(_){}
+          continue;
+        }
+        if(!storedToken()||API.currentStoreId()!==storeId){
+          stop=true;stopReason='session_changed';return;
+        }
+        const token=await _diagnosticSessionToken();
+        if(!token||API.currentStoreId()!==storeId){
+          stop=true;stopReason='session_refresh_pending';failed++;return;
+        }
+        let saved=false;
+        // Stable event IDs make a replay after a lost ACK idempotent in D1.
+        // Do not stop all remaining events on one recoverable network error.
+        for(let attempt=0;attempt<2&&!saved&&!stop;attempt++){
+          const ctrl=new AbortController();
+          let timer;
+          const deadline=new Promise(function(_,reject){
+            timer=setTimeout(function(){reject(new Error('diagnostic_transport_timeout'));
+              try{ctrl.abort();}catch(_){}},5000);
+          });
+          try {
+            const response=await Promise.race([Promise.resolve().then(function(){
+              return fetch(CFG.API_URL+'?api=1',{method:'POST',
+                headers:{'Content-Type':'text/plain;charset=utf-8'},
+                body:JSON.stringify({action:'recordClientDiagnostic',storeId:storeId,
+                  token:token,event:item.event}),signal:ctrl.signal});
+            }),deadline]);
+            if([401,403,429].includes(response.status)){
+              stop=true;stopReason='http_'+response.status;break;
+            }
+            if(response.ok){
+              const data=await Promise.race([response.json(),deadline]);
+              if(data&&data.ok===true){saved=true;break;}
+              if(data&&data.error==='diagnostic_rate_limited'){
+                stop=true;stopReason='http_429';
+              }
+              break; // Invalid diagnostic payloads are not transient.
+            }
+            if(response.status>=400&&response.status<500)break;
+          } catch (_) {
+            // Retry once with the SAME event ID; do not invent an ACK.
+          } finally {clearTimeout(timer);}
+        }
+        if(saved){
+          confirmed++;
+          acknowledged.add(item.id);
+        }else{failed++;}
+        if (typeof onProgress === 'function') {
+          try { onProgress(confirmed+skipped, failed, items.length); } catch (_) {}
+        }
       }
     }
     await Promise.all(Array.from({length:Math.min(4,items.length)},worker));
     if(acknowledged.size){
+      // Persist 300 ACKs once per batch, not 300 synchronous localStorage
+      // read/parse/write cycles that could freeze a busy POS screen.
       const history=_diagnosticHistory();
       let changed=false;
       const at=Date.now();
@@ -923,25 +1133,35 @@
         }
       });
       if(changed)_saveDiagnosticHistory(history);
-      _saveDiagnosticQueue(_diagnosticQueue().filter(v=>
-        v.storeId!==storeId||!acknowledged.has(v.id)));
+      _saveDiagnosticQueue(_diagnosticQueue().filter(function(v){
+        return v.storeId!==storeId||!acknowledged.has(v.id);
+      }));
     }
-    return {resentCount:confirmed,failedCount:failed,
-      totalCount:items.length,pendingCount:items.length-confirmed,
-      incomplete:confirmed<items.length};
+    return {resentCount:confirmed,alreadyDeliveredCount:skipped,failedCount:failed,
+      stopReason:stopReason,totalCount:items.length,
+      pendingCount:items.length-confirmed-skipped,
+      incomplete:confirmed+skipped<items.length};
   }
   let _manualBatchPromise=null;
   let _manualBatchStoreId='';
   // A manual, clearly labeled probe uses the existing signed/offline queue,
   // not a separate upload endpoint or a fabricated error alert.
-  API.sendDiagnosticsNow=function(){
+  API.sendDiagnosticsNow=function(options){
+    options=options||{};
     const storeId=API.currentStoreId();
     if(_manualBatchPromise)return _manualBatchStoreId===storeId
       ?_manualBatchPromise:Promise.reject(new Error('diagnostic_busy_other_store'));
     if(!storedToken()||!storeId)
       return Promise.reject(new Error('diagnostic_login_required'));
     _diagnosticQueue().filter(x=>x.storeId===storeId).forEach(x=>_rememberDiagnostic(x));
-    const history=_diagnosticHistory().filter(x=>x.storeId===storeId);
+    const history=_diagnosticHistory().filter(x=>x.storeId===storeId&&!x.deliveredAt);
+    const total=history.length+1;
+    function report(completed,failed){
+      if(typeof options.onProgress==='function')try{
+        options.onProgress({completed:completed,total:total,failed:failed||0});
+      }catch(_){}
+    }
+    report(0,0);
     const id=API.reportDiagnostic('diagnostics','manual_upload_probe','completed',
       'manual_test',0,null,true,{transport:'webview',attemptCount:1});
     if(!id)
@@ -953,7 +1173,8 @@
       _manualBatchStoreId=storeId;
       _manualBatchPromise=_resendDiagnosticHistory([probe],storeId).then(async function(result){
         if(result.resentCount!==1)throw new Error('diagnostic_send_unconfirmed');
-        const resend=await _resendDiagnosticHistory(history,storeId);
+        report(1,0);
+        const resend=await _resendDiagnosticHistory(history,storeId,function(done,failed){report(1+done,failed);});
         return Object.assign({ok:true,eventId:id},resend);
       }).finally(function(){_manualBatchPromise=null;_manualBatchStoreId='';});
       return _manualBatchPromise;
@@ -963,13 +1184,14 @@
     const timer=setTimeout(function(){
       if(_manualDiagnostic&&_manualDiagnostic.id===id)
         _settleManualDiagnostic({id,storeId},false);
-    },16000);
-    _manualDiagnostic={id,storeId,resolve,reject,timer,promise};
+    },45000); // refresh (up to 30s) + 2 upload attempts + margin
+    _manualDiagnostic={id,storeId,resolve,reject,timer,promise,transportRetries:0};
     if(_diagnosticRetryTimer){clearTimeout(_diagnosticRetryTimer);_diagnosticRetryTimer=null;}
     _flushDiagnostics();
     _manualBatchStoreId=storeId;
     _manualBatchPromise=promise.then(async function(receipt){
-      const resend=await _resendDiagnosticHistory(history,storeId);
+      report(1,0);
+      const resend=await _resendDiagnosticHistory(history,storeId,function(done,failed){report(1+done,failed);});
       return Object.assign({},receipt,resend);
     }).finally(function(){_manualBatchPromise=null;_manualBatchStoreId='';});
     return _manualBatchPromise;
@@ -977,6 +1199,8 @@
   function _webDiagnosticFailure(error){
     if(error?.__izTimedOut)return 'client_timeout';
     const msg=String(error&&error.message||error||'');
+    if(error?.__server&&/^forbidden_page:/.test(msg))return 'forbidden_page';
+    if(error?.__server&&/^forbidden_fn:/.test(msg))return 'forbidden_fn';
     if(error?.__server&&/^[a-z][a-z0-9_]{1,63}$/.test(msg))return msg;
     if(/request_timeout|timed?\s*out|timeout/i.test(msg))return 'client_timeout';
     if(/failed to fetch|network|connection|load failed|fetch failed/i.test(msg))
@@ -986,12 +1210,7 @@
   }
   if(typeof window!=='undefined'&&window.addEventListener){
     window.addEventListener('online',_flushDiagnostics);
-    window.addEventListener('pageshow',_flushDiagnostics);
     window.addEventListener('iz-auth-session-changed',_flushDiagnostics);
-    window.addEventListener('storage',function(e){
-      if(e&&e.key===_diagnosticQueueKey)_flushDiagnostics();
-    });
-    document.addEventListener('visibilitychange',function(){if(!document.hidden)_flushDiagnostics();});
     function page(){const n=String(location.pathname||'').split('/').pop().toLowerCase();
       return /^[a-z][a-z0-9-]{0,23}\.html$/.test(n)?n.slice(0,-5).replace(/-/g,'_'):'other';}
     function code(error){const type=String(error&&error.name||'');
@@ -1015,6 +1234,7 @@
         kind==='uncaught_exception'?'unhandled_rejection':kind,0);
     });
   }
+  API.flushPendingDiagnostics=_flushDiagnostics;
   API.post = async function (action, payload) {
     if (environmentMismatch()) {
       blockEnvironmentMismatch();
@@ -1026,6 +1246,9 @@
     const timeoutMs = (typeof payload.__timeoutMs === 'number') ? payload.__timeoutMs : (readOnly ? TIMEOUT_MS.read : _FETCH_TIMEOUT_MS);
     const noInternalRetry = !!payload.__noInternalRetry;
     const backgroundMutation = payload.__backgroundMutation === true || !!BACKGROUND_MUTATION_ACTIONS[action] || (action === 'rpc' && !!BACKGROUND_MUTATION_RPC[payload.fn]);
+    // __silent never hides the foreground write spinner/navigation lock.
+    // Real background work must opt into __backgroundMutation explicitly.
+    const foregroundLoading = !readOnly && !backgroundMutation;
     const send = Object.assign({}, payload); delete send.__silent; delete send.__msg; delete send.__timeoutMs; delete send.__noInternalRetry; delete send.__backgroundMutation;
     if (!send.storeId) {
       if (CFG.STORE_ID) send.storeId = CFG.STORE_ID;
@@ -1068,7 +1291,8 @@
       API.reportDiagnostic(action==='rpc'?'rpc':'api',
         action==='rpc'?'rpc:'+String(payload.fn||'unknown'):String(action||'unknown'),
         'pending','none',0,diagnosticTraceId,true,{level:'DEBUG'});
-    if (!silent) _load.show(payload.__msg);
+    if (foregroundLoading) _load.show(payload.__msg);
+    const loadEpoch = _load.epoch();
     try {
       let json;
       try {
@@ -1142,9 +1366,9 @@
           slow?'slow':'completed','none',elapsed,diagnosticTraceId,false,
           {attemptCount:diagnosticAttempts,level:slow?'WARN':'INFO'});
       }
-      _flushDiagnostics();
+      // Routine API completion never starts a diagnostic upload.
       if (mutationId) endMutation(mutationId, mutationUncertain);
-      if (!silent) _load.hide();
+      if (foregroundLoading && _load.epoch() === loadEpoch) _load.hide();
     }
   };
 

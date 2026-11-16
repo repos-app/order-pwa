@@ -16,6 +16,36 @@ Run `mobile:add:*` only once per native platform. Later changes use `mobile:sync
 
 `mobile:sync` uses `scripts/run-capacitor.cjs`. Some managed Windows sessions make Node's user lookup fail with `ERR_SYSTEM_ERROR / uv_os_get_passwd / ENOMEM` before Capacitor starts. Capacitor 8.4 on Windows can also emit backslash-separated local package paths that Swift cannot parse. The runner supplies a fallback user record only for the exact operating-system lookup failure, rethrows every other error, and normalizes only generated local Swift package paths after a successful command. Use the npm script instead of calling `npx cap sync` directly so asset generation and these narrow compatibility fixes are both applied.
 
+### Native distribution source freshness gate
+
+`mobile-app/web` is the canonical editable Native source. `mobile-dist`,
+`ios/App/App/public` and `android/app/src/main/assets/public` are ignored
+generated copies, so a successful Git commit/push does **not** prove that an
+existing local generated copy or previously signed TestFlight build is current.
+
+- `npm run mobile:sync` now regenerates/copies the source and **requires**
+  `NATIVE_ASSET_SYNC_PASS` after SHA-256 comparison of every packaged source
+  file, including new and removed files, against both native platform trees.
+  A stale/missing/extra file makes the command fail. Generated Capacitor
+  `cordova.js` and `cordova_plugins.js` are the only permitted platform extras.
+- `npm run mobile:verify:sync` is **read-only**. Use it after synchronization
+  to verify the current checkout. A failure while actively editing source is
+  expected until the next sync, not evidence that a released app is defective.
+- Local Android debug/release scripts and local macOS signed-archive script also
+  enforce the same source-freshness check before compiling. GitHub Actions and
+  Codemagic use `mobile:sync`, and their signed IPA/APK/AAB paths verify
+  extracted artifact contents before an artifact is published or uploaded.
+- Release reporting is split: (1) source committed/pushed, (2) generated
+  platform assets verified, (3) signed IPA/APK/AAB checked and distributed,
+  (4) the **installed** TestFlight/Firebase/Play build confirmed on a real
+  device. None of these steps implies the next step passed. Never report a
+  source-only/local test as a real-device formal QA PASS.
+
+The safeguard tests are `node --test test/native_asset_sync_gate_test.mjs`.
+They prove that a source-only change, stale native copy, missing added file,
+obsolete extra file, or stale extracted package fails closed. The check is not
+a substitute for a signed build or physical-device behavior test.
+
 ## Branded icons and splash screens
 
 The approved working master and immutable source mark live under `store-assets`. Run `npm run mobile:assets` on Windows to regenerate the App Store 1024 px icon, Google Play 512 px icon, native Web icons, iOS AppIcon and splash images, and Android legacy/adaptive icons and splash images. Then run `npm run mobile:sync` so the native Web icon copies reach both platform projects. The generator deliberately does not touch the existing hosted Web application under `docs/yuwaku`.
