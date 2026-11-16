@@ -236,30 +236,39 @@
     previousFocus = null;
   }
   function setRead(item) {
-    if (item && item.members) return Promise.all(item.members.map(setRead));
-    if (!item || item.readAt || !activeToken) return Promise.resolve();
-    if (item.__readPending) return item.__readPending;
+    if (!item || !activeToken) return Promise.resolve();
+    var members = item.members || [item];
+    if (members.every(function (member) { return !!member.readAt; })) return Promise.resolve();
+    // One representative RPC marks the entire release on the tenant server.
+    // Sending one per member causes redundant group-wide writes and timeouts.
+    var target = members[0];
+    var pendingKey = item.members ? '__groupReadPending' : '__readPending';
+    if (target[pendingKey]) return target[pendingKey];
     var session = activeToken;
-    item.__readPending = rpc('markAnnouncementRead', [item.id], session).then(function (receipt) {
+    target[pendingKey] = rpc('markAnnouncementRead', [target.id], session).then(function (receipt) {
       // The tenant write must actually be acknowledged. A rotated v3 access
       // token is the same employee/store session, not a reason to lose the ACK.
       if (!receipt || !receipt.readAt) throw new Error('announcement_read_unconfirmed');
       if (!activeToken || (session !== activeToken && !sameSessionIdentity(session, activeToken))) return;
-      confirmedReads[item.id] = receipt.readAt;
-      delete readFailures[item.id];
-      item.readAt = receipt.readAt;
+      var readIds = Object.create(null);
+      members.forEach(function (member) {
+        confirmedReads[member.id] = receipt.readAt;
+        delete readFailures[member.id];
+        member.readAt = receipt.readAt;
+        readIds[member.id] = true;
+      });
       items.forEach(function (current) {
-        if (current.id === item.id) current.readAt = receipt.readAt;
+        if (readIds[current.id]) current.readAt = receipt.readAt;
       });
       unreadCount = countUnreadGroups();
       badgeUpdate();
       if (overlay) paint();
     }).catch(function () {
       if (!activeToken || (session !== activeToken && !sameSessionIdentity(session, activeToken))) return;
-      readFailures[item.id] = true;
+      members.forEach(function (member) { readFailures[member.id] = true; });
       if (overlay) paint();
-    }).finally(function () { delete item.__readPending; });
-    return item.__readPending;
+    }).finally(function () { delete target[pendingKey]; });
+    return target[pendingKey];
   }
   function autoNext() {
     if (overlay || !eligible() || failed) return;

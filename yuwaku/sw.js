@@ -136,7 +136,7 @@ const CACHE_PREFIX = 'yuwaku-production-';
 // v325: refresh Orders entry-time locale-independent date/hour/minute controls.
 // v326: audit date overlays and iOS numeric time controls across settings/menu.
 // v327: expose independent phone/tablet menu grid settings in Menu Editor.
-const CACHE = CACHE_PREFIX + 'v328';
+const CACHE = CACHE_PREFIX + 'v329';
 const SHELL = [
   './',
   './index.html',
@@ -154,7 +154,7 @@ const SHELL = [
   './menu_editor.html',
   './menu-ai-review-reasons.js?v=auth1',
   './ai-credit-hub.js?v=auth7',
-  './announcement-center.js?v=12',
+  './announcement-center.js?v=13',
   './ai-credit-ui.js?v=auth2',
   './ai-image-quality.js?v=auth1',
   './pending-write-replay.js?v=s6-1',
