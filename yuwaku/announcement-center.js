@@ -5,6 +5,7 @@
   if (window.IZAnnouncements) return;
   var activeToken = '', generation = 0, loadedAt = 0, loading = null;
   var items = [], unreadCount = 0, failed = false, badge = null, overlay = null;
+  var confirmedReads = Object.create(null), readFailures = Object.create(null);
   var mode = 'list', selectedId = '', filter = 'all', forced = false, previousFocus = null;
   var autoAttempted = Object.create(null);
   var diagnosticReport = null;
@@ -238,17 +239,25 @@
     if (item && item.members) return Promise.all(item.members.map(setRead));
     if (!item || item.readAt || !activeToken) return Promise.resolve();
     if (item.__readPending) return item.__readPending;
-    var session = activeToken, seq = generation;
-    item.__readPending = rpc('markAnnouncementRead', [item.id], session).then(function () {
-      if (seq !== generation || session !== activeToken) return;
-      if (item.readAt) return;
-      item.readAt = new Date().toISOString();
+    var session = activeToken;
+    item.__readPending = rpc('markAnnouncementRead', [item.id], session).then(function (receipt) {
+      // The tenant write must actually be acknowledged. A rotated v3 access
+      // token is the same employee/store session, not a reason to lose the ACK.
+      if (!receipt || !receipt.readAt) throw new Error('announcement_read_unconfirmed');
+      if (!activeToken || (session !== activeToken && !sameSessionIdentity(session, activeToken))) return;
+      confirmedReads[item.id] = receipt.readAt;
+      delete readFailures[item.id];
+      item.readAt = receipt.readAt;
+      items.forEach(function (current) {
+        if (current.id === item.id) current.readAt = receipt.readAt;
+      });
       unreadCount = countUnreadGroups();
       badgeUpdate();
       if (overlay) paint();
     }).catch(function () {
-      var dialog = document.getElementById('izAnnouncementDialog');
-      if (dialog) add(dialog, 'p', t('既読の保存に失敗しました。通信状況をご確認ください。', 'Could not save read status. Check your connection.'), 'iz-ann-muted');
+      if (!activeToken || (session !== activeToken && !sameSessionIdentity(session, activeToken))) return;
+      readFailures[item.id] = true;
+      if (overlay) paint();
     }).finally(function () { delete item.__readPending; });
     return item.__readPending;
   }
@@ -269,13 +278,17 @@
     }
   }
   function finishDetail() {
+    if (!forced) {
+      // Opening a manual notice already starts its read receipt in the background.
+      // Navigation must never depend on the tenant RPC responding (especially
+      // when a grouped release contains several pending read receipts).
+      mode = 'list'; selectedId = ''; paint();
+      return;
+    }
     var item = groupedItems().find(function (x) { return String(x.id) === String(selectedId); });
-    var wasForced = forced;
-    // Acknowledging an automatically displayed important notice also marks it read.
-    Promise.resolve(setRead(item)).finally(function () {
-      if (wasForced) { close(); autoNext(); }
-      else { mode = 'list'; selectedId = ''; paint(); }
-    });
+    // An automatically displayed important notice requires an acknowledged read
+    // before closing; it is intentionally different from manual Back to list.
+    Promise.resolve(setRead(item)).finally(function () { close(); autoNext(); });
   }
   function sendDiagnostics() {
     if (diagnosticReport && diagnosticReport.state === 'sending') return;
@@ -437,6 +450,8 @@
       add(row, 'span', item.severity === 'important' ? t('重要', 'Important') : t('通常', 'General'),
         'iz-ann-type' + (item.severity !== 'important' ? ' iz-ann-normal' : ''));
       add(row, 'strong', (item.readAt ? '' : '● ') + displayTitle(item));
+      if (readFailures[item.id] && !item.readAt)
+        add(row, 'span', t('既読の保存に失敗。タップして再試行', 'Read status not saved. Tap to retry'), 'iz-ann-muted');
       add(row, 'span', dateLabel(item.publishedAt), 'iz-ann-muted');
     });
     var actions = add(dialog, 'div', null, 'iz-ann-actions');
@@ -488,7 +503,11 @@
       if (session !== activeToken || seq !== generation || !eligible()) return;
       if (!Array.isArray(payload.announcements) || !Number.isSafeInteger(payload.unreadCount) || payload.unreadCount < 0)
         throw new Error('announcement_response_invalid');
-      items = payload.announcements; unreadCount = countUnreadGroups();
+      items = payload.announcements;
+      items.forEach(function (item) {
+        if (confirmedReads[item.id]) item.readAt = confirmedReads[item.id];
+      });
+      unreadCount = countUnreadGroups();
       loadedAt = Date.now(); failed = false; badgeUpdate();
       if (overlay) paint();
       autoNext();
@@ -504,6 +523,7 @@
     if (!eligible() || !actions) {
       ++generation; activeToken = ''; items = []; unreadCount = 0; loadedAt = 0;
       loading = null; failed = false; diagnosticReport = null;
+      confirmedReads = Object.create(null); readFailures = Object.create(null);
       autoAttempted = Object.create(null);
       if (badge) badge.remove();
       badge = null; close();
@@ -515,6 +535,7 @@
       if (!continuing) {
         items = []; unreadCount = 0; loadedAt = 0;
         failed = false; diagnosticReport = null; autoAttempted = Object.create(null); close();
+        confirmedReads = Object.create(null); readFailures = Object.create(null);
       }
       // A short-lived v3 access-token rotation must not close an important
       // acknowledgment dialog or clear its unread count. Old RPC responses
