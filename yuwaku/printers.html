@@ -386,7 +386,7 @@
     window.onPrinterPurposeChange=function(){$('prCategoryGroup').style.display=$('prPurpose').value==='kitchen'?'block':'none';};
     function mountPrinterBluetooth(){var mount=$('printerBluetoothMount'),card=$('guide-printer-setup');if(mount&&card&&card.parentNode!==mount){mount.appendChild(card);}card.style.margin='12px 0';syncPrinterBluetoothVisibility();}
 
-    function loadPrinters(){ rpc('getPrintHostConfig',[printHostDeviceId()]).then(function(c){if(!c||c.success===false)throw new Error((c&&c.error)||'printer_config_failed');PRINT_HOST_CONFIG=c;allPrinters=c.printers||[];renderPrinters();btRefreshScopes();btInitOnce();updateHostHint();}).catch(function(e){onErr(e);rpc('getAllPrinters',[]).then(function(d){allPrinters=d||[];renderPrinters();btRefreshScopes();btInitOnce();});}); }
+    function loadPrinters(){ return rpc('getPrintHostConfig',[printHostDeviceId()]).then(function(c){if(!c||c.success===false)throw new Error((c&&c.error)||'printer_config_failed');PRINT_HOST_CONFIG=c;allPrinters=c.printers||[];renderPrinters();btRefreshScopes();btInitOnce();updateHostHint();}).catch(function(e){onErr(e);return rpc('getAllPrinters',[]).then(function(d){allPrinters=d||[];renderPrinters();btRefreshScopes();btInitOnce();});}); }
     function renderPrinters(){
       var t=i18n[currentLang], el=$('prList');
       if(!allPrinters.length){ el.innerHTML='<div class="loading">'+t.noPrinters+'</div>'; return; }
@@ -457,8 +457,13 @@
     window.testPr=function(id){var p=hostRow(id),profile=btProfileForScope(id);if(!p||!p.assignedToThisDevice){messageAt('printer-list-msg',i18n[currentLang].hostUnassigned,false);return;}if(!profile.deviceId){messageAt('printer-list-msg',API.userErrorText(new Error('printer_not_configured')),false);return;}var requestId=TEST_PRINT_REQUESTS[id]||(TEST_PRINT_REQUESTS[id]=nextPrintRequestId('test-print-'));rpc('testPrint',[id,requestId]).then(function(r){delete TEST_PRINT_REQUESTS[id];if(!r||r.success!==true)throw new Error((r&&r.error)||'test_print_failed');refreshQueue();return btPrepareOutputTest(id);}).catch(function(e){delete TEST_PRINT_REQUESTS[id];actionError(e,'printer-list-msg');});};
 
     function refreshQueue(){
-      rpc('getPrintQueueCounts',[]).then(function(c){ $('c-pend').innerText=c['未印刷']||0; $('c-prog').innerText=c['印刷中']||0; $('c-done').innerText=c['印刷済']||0; $('c-fail').innerText=c['失敗']||0; }).catch(onErr);
-      rpc('getPrintQueue',[60]).then(function(rows){ lastQueue=rows||[]; renderQueue(lastQueue); }).catch(onErr);
+      return Promise.all([
+        rpc('getPrintQueueCounts',[]).then(function(c){ $('c-pend').innerText=c['未印刷']||0; $('c-prog').innerText=c['印刷中']||0; $('c-done').innerText=c['印刷済']||0; $('c-fail').innerText=c['失敗']||0; }).catch(onErr),
+        rpc('getPrintQueue',[60]).then(function(rows){ lastQueue=rows||[]; renderQueue(lastQueue); }).catch(onErr)
+      ]);
+    }
+    if(window.IZHeader&&typeof IZHeader.registerRefreshHandler==='function'){
+      IZHeader.registerRefreshHandler(function(){return Promise.all([loadPrinters(),refreshQueue()]);});
     }
     var STCLASS={ '未印刷':'s-pend','印刷中':'s-prog','印刷済':'s-done','失敗':'s-fail' };
     function queueStatusLabel(v){ var raw=String(v||''); if(currentLang!=='en') return raw; return ({'未印刷':'Pending','印刷中':'Printing','印刷済':'Done','失敗':'Failed'})[raw]||raw; }

@@ -134,6 +134,9 @@
       }).catch(function(e){ btn.disabled=false; msg(I18n.t('errPrefix')+API.userErrorText(e), false); });
     };
     function reload(){ return rpc('getOrderItems',[]).then(function(l){ ITEMS=l||[]; render(); }); }
+    if(window.IZHeader&&typeof IZHeader.registerRefreshHandler==='function'){
+      IZHeader.registerRefreshHandler(function(){return reload();});
+    }
 
     rpc('getSuppliers',[]).then(function(l){ SUPS=l||[]; fillSupSel(); }).catch(function(){});
     rpc('getOrderItems',[]).then(function(l){ ITEMS=l||[]; __loaded=true; render(); })

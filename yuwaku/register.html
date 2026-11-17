@@ -176,7 +176,7 @@
     // [P1] 従来はgetSettings＋getCurrentShift＋getShifts＋getStaffSalesの4往復だった初期表示を、
     // 画面単位のbundle API（getRegisterBundle）1回にまとめる。
     window.reload = function(){
-      rpc('getRegisterBundle',[THIS_MONTH]).then(function(b){
+      return rpc('getRegisterBundle',[THIS_MONTH]).then(function(b){
         b = b || {};
         if (b.settings && b.settings.currencySymbol) SYM = b.settings.currencySymbol;
         DIGITS = b.settings && b.settings.currencyDecimalDigits !== undefined ? Math.max(0,Math.min(3,Number(b.settings.currencyDecimalDigits)||0)) : 0;
@@ -185,6 +185,9 @@
       }).catch(function(e){ if(String(e.message||e).indexOf('unauthorized')>=0){ location.href='./manage.html'; return; } document.getElementById('wrap').innerHTML='<div style="color:#b91c1c;padding:14px;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</div>'; });
     };
 
+    if(window.IZHeader&&typeof IZHeader.registerRefreshHandler==='function'){
+      IZHeader.registerRefreshHandler(function(){return window.reload();});
+    }
     I18n.init({
       ja:{ title:'💵 レジ開け／締め', back:'← 管理へ', loading:'読み込み中…', openTitle:'🔓 レジを開ける', float:'開店フロート（釣銭準備金）', staff:'担当', optional:'任意', openBtn:'🔓 レジを開ける', xTitle:'📋 現在のシフト（X）', cashSales:'現金売上', cardSales:'キャッシュレス売上', otherSales:'その他売上', expected:'想定現金', refresh:'更新', closeTitle:'🔒 レジ締め（Z）', cashInOut:'現金入出金', cioHint:'入金+ / 出金−', counted:'実現金（数えた金額）', memo:'メモ', closeBtn:'🔒 レジを締める', zTitle:'✅ レジ締め結果（Z）', openAt:'開始', closeAt:'終了', overShort:'過不足', done:'完了', histTitle:'📖 締め履歴', staffTitle:'👤 スタッフ別売上', thStaff:'担当', thShifts:'シフト数', thTotal:'売上合計', needCount:'実現金を入力してください', errPrefix:'エラー: ', loadErr:'読み込みエラー: ',
         helpOpenTitle:'📘 使い方（開店時）', helpOpenBody:'① 開店フロート（釣銭用の準備金）を入力<br>② 担当者はログイン中のアカウント名が自動設定されます<br>③「🔓 レジを開ける」を押す<br>これで営業中の売上集計が始まります。',

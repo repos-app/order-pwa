@@ -176,8 +176,8 @@
     // [GPT第22回レポート対応/G22-2] 自動再試行が尽きた場合はエラー＋最終試行時刻＋「再試行」ボタンを
     // 表示し、以降の再試行は利用者の操作に委ねる（総待ち時間の上限を明確にする）。
     function loadDashboard(){
-      document.getElementById('wrap').innerHTML = '<div class="loading">'+I18n.t('loading')+'</div>';
-      rpcBusyRetry('getDashboard',[]).then(function(d){ D=d||null; render(); })
+      if(!D) document.getElementById('wrap').innerHTML = '<div class="loading">'+I18n.t('loading')+'</div>';
+      return rpcBusyRetry('getDashboard',[]).then(function(d){ D=d||null; render(); })
         .catch(function(e){
           if(String(e.message||e).indexOf('unauthorized')>=0){ location.href='./manage.html'; return; }
           var ts = new Date().toLocaleTimeString(isEN()?'en-US':'ja-JP');
@@ -186,6 +186,9 @@
             +'<button type="button" class="hbtn" style="background:var(--navy);margin-top:8px;" onclick="loadDashboard()">'+(isEN()?'🔄 Retry':'🔄 再試行')+'</button>'
             +'</div>';
         });
+    }
+    if(window.IZHeader&&typeof IZHeader.registerRefreshHandler==='function'){
+      IZHeader.registerRefreshHandler(function(){return loadDashboard();});
     }
 
     // [GPT第23回レポート対応/G23-2] 以前はI18n.init()より先にloadDashboard()を呼んでいたため、

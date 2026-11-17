@@ -109,12 +109,12 @@
   </div>
   <div class="diag-upload hidden" id="diagUploadBanner" role="dialog" aria-modal="true" aria-labelledby="diagUploadTitle" aria-describedby="diagUploadText">
     <div class="diag-panel">
-      <div class="diag-panel-title" id="diagUploadTitle">エラーログを送信中</div>
+      <div class="diag-panel-title" id="diagUploadTitle">サーバーと通信中…</div>
       <div class="diag-spinner hidden" id="diagUploadSpinner" aria-hidden="true"></div>
       <p class="diag-upload-text" id="diagUploadText"></p>
       <div class="diag-actions">
         <button class="diag-retry hidden" id="diagUploadRetry" type="button" onclick="retryDiagMenuUpload()">再試行</button>
-        <button class="diag-retry hidden" id="diagUploadContinue" type="button" onclick="continueDiagMenuAfterFailure()">後で送信して操作を続行</button>
+        <button class="diag-retry hidden" id="diagUploadContinue" type="button" onclick="continueDiagMenuAfterFailure()">後で再試行して操作を続行</button>
       </div>
     </div>
   </div>
@@ -309,12 +309,12 @@
       retry.classList.toggle('hidden',sending);
       later.classList.toggle('hidden',sending);
       retry.textContent=en?'Retry upload':'再試行';
-      later.textContent=en?'Continue and send later':'後で送信して操作を続行';
+      later.textContent=en?'Continue and retry later':'後で再試行して操作を続行';
       document.getElementById('diagUploadTitle').textContent=sending
-        ?(en?'Sending error logs':'エラーログを送信中')
-        :(en?'Log upload interrupted':'ログ送信に失敗しました');
-      if(sending)text.textContent=en?'Please wait. '+count+' errors remaining.':'操作を停止しています。残り'+count+'件のエラーログを送信しています。';
-      else text.textContent=en?'Unable to finish. '+count+' errors remain locally. Retry, or continue and send them later.':'送信できませんでした。未送信'+count+'件は端末に保持しています。再試行するか、後で送信してください。';
+        ?(en?'Communicating with server…':'サーバーと通信中…')
+        :(en?'Server communication interrupted':'サーバーとの通信を完了できませんでした');
+      if(sending)text.textContent=en?'Please wait while we connect to the server.':'サーバーと通信しています。しばらくお待ちください。';
+      else text.textContent=en?'Unable to complete communication. Retry, or continue and try again later.':'通信を完了できませんでした。再試行するか、後で操作を続行してください。';
     }
     function retryDiagMenuUpload(){
       if(!window.API||typeof API.flushPendingDiagnostics!=='function')return;
@@ -537,6 +537,9 @@
       return tracked;
     }
     window.izkManageOfflineStatus.setRetry(function(){return checkAndShow();});
+    if(window.IZHeader&&typeof IZHeader.registerRefreshHandler==='function'){
+      IZHeader.registerRefreshHandler(function(){return checkAndShow();});
+    }
     // ログイン画面の画像（設定で登録した画像を表示。getSettingsはログイン前でも公開）
     API.post('getSettings', {}).then(function(r){ var d=(r&&r.data)||{}; if(d.systemTopImageId){ var im=document.getElementById('loginPic'); if(im){ im.src=API.imageUrl(d.systemTopImageId); im.style.display='block'; } } }).catch(function(){});
     I18n.init({

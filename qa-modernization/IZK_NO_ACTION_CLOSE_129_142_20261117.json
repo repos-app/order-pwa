@@ -1,0 +1,16 @@
+{
+  "review": "IZK_OPEN_LOCAL_ACTION_TRIAGE_20261117.md",
+  "user_authorization": "2026-11-17: 1と2は問題ないです。クローズして（IZK-UT-129, IZK-UT-142）",
+  "entries": [
+    {
+      "issue_id": "IZK-UT-129",
+      "closure_kind": "ACCEPTED_CURRENT_BEHAVIOR",
+      "reason": "ユーザーが現在のAIメニュー読取り・要確認品の仮登録挙動を問題なしと判断し、追加修正不要と明示してクローズ指示。既存のAI取り込み挙動は変更せず、新規に別の障害が起きた場合は独立に追跡する。"
+    },
+    {
+      "issue_id": "IZK-UT-142",
+      "closure_kind": "ACCEPTED_CURRENT_BEHAVIOR",
+      "reason": "ユーザーが現在のAI画像生成品質の制約を問題なしと判断し、追加修正不要と明示してクローズ指示。生成画像のブランド文字・小物の完全一致を保証する改修は行わず、必要な実在商品画像は既存の検索・手動登録導線を利用できる。"
+    }
+  ]
+}

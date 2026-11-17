@@ -1,5 +1,36 @@
 # Izakanpai QA再構築：進捗台帳
 
+## 2026-11-17 PHT｜IZK-UT-188 動的Behavior Contract QA：strictゲート局所導入
+
+- 作業開始時の製品差分30ファイルを基準SHA `272d7c5dd632d5b380f3ab1596b564a3380edad4` に固定して照合。別チャットのコミットで未コミット件数が減った事象を改善として数えず、**契約未対応30→19→12→2→0ファイル**を確認。現在9契約、strict `--ci --base=... --enforce=all` の未対応/未検証0、exit0、`ADMISSION_READY_NOT_EXECUTION_PASS`。契約内の変更位置適合81はテストPASSではない。
+- `IZK-UT-184` 通知集約、`181` 8時間正常失効、`161` 送信ダイアログ、`048` 注文取消時の歴史的在庫返却を既存5契約に追加。3画面横展開と業務オラクルを再利用し、旧誤実装への故障注入が実際に検知されることを検証。
+- `.githooks/pre-commit` のBehavior Contractゲートを `--enforce=all` に変更。ソース別に未対応変更を検知し将来のコミットを遮断する。ただし今回の変更自体のコミット実行・pushは未実施。
+- 関連Node焦点28/28、クライアント診断224/224、strict接続/変更選別15/15、S4実SQLite取消業務2/2、S5実Chromium4/4が各レーンPASS。S5は最新source SHA独立検証4/4一致。重複件数を合算しない。旧193件会計総合回帰を今回の新規実行数へ加算しない。
+- 正式iPhone/Android QAの追加PASS0、本番Worker/DBと配布版一致照合は未実施。全機能要件保証・運用本番commitゲート実証・ダッシュボードへの契約不足表示は残件。`IZK-UT-188`はOPEN、詳細 `docs/qa-modernization/DYNAMIC_BEHAVIOR_QA_PLAN_20261117.md`。
+
+## 2026-11-17 PHT｜IZK-UT-188 動的Behavior Contract QA：P0 4領域へ拡充
+
+- ローカル試験導入の契約を1→5件に拡張。注文通信断復旧（145）、会計VAT/SC/割引（105/115）、権限（009）、Control DB削除（039/172）、既存人数ロック（185）。各領域にユーザー要求由来の独立期待値と旧誤動作への故障注入テストを配置。
+- 既存Auto-CI差分選択へ契約更新・負例の自動選別を接続。契約JSONのみ変更しても5領域の検証が候補になる。Node焦点46/46 PASS、会計フル組合せ193/193 PASS、選別回帰35/35 PASS（重複ケースを合算しない）。正式実機QA増分0。
+- 既存S5独立証拠の契約・ゲートSHAを必須化。全仕様への契約付与は未完了、strictモードで未契約変更行30ファイルを検知しFAIL。**登録済み領域のゲート成功を全機能検証成功とはしない**。
+- 完全な実施結果・残件は`docs/qa-modernization/DYNAMIC_BEHAVIOR_QA_PLAN_20261117.md`。コミット/プッシュ/Worker/DB本番反映/iOS配布なし。Izakanpai自体の製品挙動を追加変更せず既存未コミットを保護。
+
+## 2026-11-17 PHT｜NG発生時の恒久対応・独立再テスト義務を既存5分類QAに接続
+
+- **新規障害受付 `IZK-UT-187`**：テストNG→原因分類→ソースSHA修正または環境復旧証明→**同一ケースを修正後再実行**→独立証拠PASSまで、従来NGを見かけのPASSに置換できない共通ゲートを既存 `dashboard-execution`/`test-catalog`/`issue-register` に実装。過去正式QA/ユーザー受入判定と混同しない。変異テストと従来ゲートを実行。
+- `IZK-UT-105/115`: Native管理会計の内税/外税VAT、サービス料、クーポン・ポイント割引の見込み合計と印刷表示の根拠を共通バックエンド計算へ合致させ、SQL/ブラウザ回帰。`IZK-UT-145`: iPhone注文応答消失時にサーバー保存結果を**読取り専用**で照会して誤った失敗・自動二重注文を防止、セキュリティ/多店舗隔離をGateway実テスト。`IZK-UT-184`: 手動Worker配備経路でレビュー済みリリース通知をD1公開・readbackまで必須化。関連SQL監査1222呼出の明示ソースレビュー・ゲートPASS。
+- **結果と未完了は** `handoff/IZK_QA_NG_PERMANENT_REMEDIATION_20261117.md` に個別記録。旧64 OPEN/29 WAIT_TESTは**未修正コードの件数ではない**。正式iPhone・Android QA PASS増分0。コミット・プッシュ・Worker/本番DB反映・モバイルビルドは実施していない。既存自動テスト拡充206要求の113未実装（P0 49）はこのNG対策で消滅したものではない。
+
+## 2026-11-17 PHT｜別チャットの自動テスト拡充を継続（ローカル自動検証・正式QA非計上）
+
+- **継承した要求正本**：`scripts/qa-modernization/business-web-scenario-requirements.mjs` に206件の業務/WEB要求。着手時点は89件紐付け／117件未実装（P0未実装53件）。今回、`BW-EXT-046` → S4-064、`BW-PRINT-03`・`BW-PAGE-005` → S5-050、`BW-DATA-03` → S5-051 の4要求を新規検証ケースへ紐付け、**93件紐付け／113件未実装（P0未実装49件）**。要求紐付けと実行PASSは別管理。
+- **追加実装**：`S4-PARTIAL-SERVED-VOID-064`。同じレシピを使う提供済み注文2件のうち1件だけ `voidOrder` で取消し、もう一件の提供ステータス維持、材料2件分の消費・1件分のみ返却、再取消拒否、監査ログ1件、別店舗不変、全テーブルSQL証拠とcleanupを検証。S4共通Fixture/API/Oracleを再利用し、個別基盤は増やしていない。
+- **S4両環境の全件判定（2026-11-17）**：SQLite既存63/63 PASSを確認した後、拡張後のS4 **64/64 PASS・FAIL0・BLOCKED0**（証拠 `test-results/qa-modernization/s4/local-api-2026-11-17T02-09-37-955Z-p22960-n1/summary.json`）。隔離workerd/D1の全件も **64/64 PASS・FAIL0・BLOCKED0**（独立証拠検証64件、`test-results/qa-modernization/s4/local-d1-2026-11-17T02-09-34-220Z-p37588-n1/summary.json`）。同じ業務64ケースの2環境証拠であり、128個の独立した要求ケースに加算しない。他注文の誤取消・過剰返却・二重返却・監査欠落・他店舗更新の**5種の偽造証拠をすべて拒否**する回帰は1/1 PASS。
+- **WEB実操作回帰**：実Chromiumのセッション・権限・画面遷移・UIアクション棚卸し6/6 PASS、現金会計PHP/JPY・データ削除前提・通信断/ACK喪失/2タブ会計競合6/6 PASS（2回の別実行、正式実機QAとは区別）。
+- **新規WEB 2ケースの独立判定**：`S5-BRIDGE-RECONNECT-050` は実Chromeのbridge.htmlボタンで接続→切断→再接続→通信断中の印刷保留→書込失敗ACK(false)→再送ACK(true)→DB単一doneを検証。**Bluetoothの外部ハードウェア部分だけ仮想化**しており、物理印字PASSではない。`S5-DATA-STAGED-RESUME-051` は実ChromeのCSV投入→2タブでpending表示→投入元タブ閉鎖→サーバー側dispatcher継続→completedと再表示、バックアップ・取込2行・他店不変をSQL検証。いずれもローカルChromium **1/1 PASS**、共通S5/S6証拠アダプタで**現在ソースSHA一致／PNGハッシュ／独立Oracle検証済**。証拠 `test-results/qa-modernization/s5-bridge-reconnect/`、`test-results/qa-modernization/s5-data-staged-resume/` に保存。共通独立Oracleの架空成功・重複・他店改ざんを拒否する契約テスト2/2 PASS。
+- **S5全件回帰も完走**：`node --test --test-concurrency=2` でS5 browser test **19ソースファイル／50テスト PASS・FAIL0・skipped0**（177,731ms）。共有 `latestChromiumResults` の**S5登録51ケースすべて現行ソースSHA一致・独立証拠PASS／STALE0／FAIL0** を再確認。1つの自動テスト実行から複数の実行ケース証拠を発行するため、50テストと51証拠ケースは足し算しない。S4もSQLite64/64・workerd/D1 64/64が同じソースで現行PASSであることを `latestS4Run` から再検証。追加の共通異常証拠検出契約2/2 PASS、QA選択/実行ゲートの回帰20/20 PASS。
+- **未完了・制約**：206要求のうち113件未実装（P0 49件）。`BW-CROSS-04` はCSV複数タブ部分のみ検証し、削除・復元の2つの経路は未実装のため紐付けない。正式実機QAの新規PASS **0件**。既存の大量の未コミット差分は保全。今回の作業でGitコミット/プッシュ、Worker/本番DB反映、GitHub Actions起動、端末ビルド/配布は行わない。
+
 ## 2026-11-14 PHT｜成功ケースから段階的に拡張するQA方針と実行検証
 
 - **方針（旧失敗の再発防止）**：1,659件の旧OS別正式QAは改ざんせず履歴保存し、現在のリリース条件/全件消化の分母には使わない。現行正本 `docs/QA_TEST_CATEGORY_POLICY_20261108.md` の「npm テスト／自動テスト／ユーザー実機テスト」を区別し、業務自動化では既存S2 Fixture、S4実Gateway/独立DB、S5実Chromium、S6復旧、S7実機チェックを再利用する。接続できないRealmeの正式ランナーが止まってもWeb/API/DBの独立レーンを止めない。

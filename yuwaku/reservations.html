@@ -92,6 +92,9 @@
       rpc('updateReservationStatus',[id,status]).then(function(r){ if(!r||r.ok!==true) throw new Error((r&&r.error)||'save_failed'); row.status=status; render(); }).catch(function(e){ render(); statusMsg.textContent=I18n.t('statusSaveErr')+API.userErrorText(e); statusMsg.style.display='block'; });
     };
     window.reload = function(){ return rpc('getReservations',[]).then(function(l){ ROWS=l||[]; render(); }); };
+    if(window.IZHeader&&typeof IZHeader.registerRefreshHandler==='function'){
+      IZHeader.registerRefreshHandler(function(){return window.reload();});
+    }
 
     // 予約フォームは店舗ID付きの外部公開URLを共有する。
     function buildReservationUrl(){

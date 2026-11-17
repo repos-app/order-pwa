@@ -231,7 +231,7 @@
     var PO_HISTORY_SEQ=0;
     window.loadPoHistory=function(){
       var seq=++PO_HISTORY_SEQ;
-      rpc('getPurchaseOrders',[]).then(function(rows){
+      return rpc('getPurchaseOrders',[]).then(function(rows){
         if(seq!==PO_HISTORY_SEQ)return;
         PO_HISTORY=rows||[];renderPoHistory();
       }).catch(function(e){
@@ -511,6 +511,9 @@
     };
     function reloadSups(){ return rpc('getSuppliers',[]).then(function(l){ SUPS=l||[]; renderSups(); fillPoSupplierSel(); }); }
     function reloadReorder(){ return rpc('getReorderSuggestions',[]).then(function(l){ REORDER=l||[]; renderReorder(); }).catch(function(){}); }
+    if(window.IZHeader&&typeof IZHeader.registerRefreshHandler==='function'){
+      IZHeader.registerRefreshHandler(function(){return Promise.all([window.loadPoHistory(),reloadReorder()]);});
+    }
 
     API.post('getSettings', {}).then(function(r){ if(r.data && r.data.currencySymbol) SYM=r.data.currencySymbol; }).catch(function(){});
     rpc('getReorderSuggestions',[]).then(function(l){ REORDER=l||[]; renderReorder(); }).catch(function(e){ document.getElementById('reorder').innerHTML='<div class="muted" style="color:#b91c1c;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</div>'; });

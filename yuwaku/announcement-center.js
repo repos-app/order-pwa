@@ -164,7 +164,42 @@
   }
   function displayTitle(item) {
     var title = localized(item, 'title');
-    return item.members ? title + ' (' + item.members.length + t('件', ' updates') + ')' : title;
+    if (item.releaseVersion) {
+      if (/^izakanpai\s+更新内容$/i.test(title))
+        return 'izakanpai v' + item.releaseVersion + ' 更新内容';
+      if (/^izakanpai\s+update notes$/i.test(title))
+        return 'izakanpai v' + item.releaseVersion + ' update notes';
+    }
+    return title;
+  }
+  // Older servers may still return one row per push. Present only distinct,
+  // concrete changes, just as the tenant API now does for grouped releases.
+  function releaseBody(members) {
+    var ja = language() === 'ja', details = [], seen = Object.create(null), disclaimer = false;
+    members.forEach(function (member) {
+      localized(member, 'body').split(/\r?\n/).forEach(function (raw) {
+        var line = raw.trim();
+        if (!line || /^(?:\d+\.\s*)?(?:今回の主な変更点|今回の更新内容|主な更新内容|Changes in this update|Highlights of these changes)\s*[:：]?$/i.test(line)) return;
+        if (/^※?(?:利用可能な機能はインストール済みアプリや配信状況によって異なります|利用できる機能は店舗の設定、データベース更新状況、インストール済みアプリのバージョンや配信状況によって異なります)[。.!]?$/i.test(line) ||
+            /^(?:Availability depends on the installed (?:app version and deployment status|or deployed app version)|Note: Feature availability depends on store settings, database migrations, the installed app version, and rollout status)[.!]?$/i.test(line)) {
+          disclaimer = true;
+          return;
+        }
+        line = line.replace(/^[・•\-*]\s*/, '').trim();
+        if (!line || /^.+に関する更新[。.!！]?$/.test(line) ||
+            /^Updates to (?:Orders and checkout|Menu and inventory|Staff and store management|Notifications and announcements|Display and usability|AI and subscriptions|Other functionality and stability)[.!]?$/i.test(line)) return;
+        var key = line.normalize('NFKC').toLowerCase().replace(/\s+/g, ' ');
+        if (seen[key]) return;
+        seen[key] = true;
+        details.push(line);
+      });
+    });
+    if (!details.length) return t('このリリースには、具体的な変更内容が登録されていません。',
+      'No specific changes have been recorded for this release.');
+    return t('今回の主な変更点：', 'Changes in this update:') + '\n' +
+      details.map(function (detail) { return (ja ? '・' : '• ') + detail; }).join('\n') +
+      (disclaimer ? '\n\n' + t('※利用可能な機能はインストール済みアプリや配信状況によって異なります。',
+        'Availability depends on the installed app version and deployment status.') : '');
   }
   // Native release versions must come from the installed app, not a copied
   // frontend config constant (which remains the same across TestFlight builds).
@@ -236,9 +271,9 @@
     previousFocus = null;
   }
   function setRead(item) {
-    if (!item || !activeToken) return Promise.resolve();
+    if (!item || !activeToken) return Promise.resolve(false);
     var members = item.members || [item];
-    if (members.every(function (member) { return !!member.readAt; })) return Promise.resolve();
+    if (members.every(function (member) { return !!member.readAt; })) return Promise.resolve(true);
     // One representative RPC marks the entire release on the tenant server.
     // Sending one per member causes redundant group-wide writes and timeouts.
     var target = members[0];
@@ -249,7 +284,7 @@
       // The tenant write must actually be acknowledged. A rotated v3 access
       // token is the same employee/store session, not a reason to lose the ACK.
       if (!receipt || !receipt.readAt) throw new Error('announcement_read_unconfirmed');
-      if (!activeToken || (session !== activeToken && !sameSessionIdentity(session, activeToken))) return;
+      if (!activeToken || (session !== activeToken && !sameSessionIdentity(session, activeToken))) return false;
       var readIds = Object.create(null);
       members.forEach(function (member) {
         confirmedReads[member.id] = receipt.readAt;
@@ -263,10 +298,12 @@
       unreadCount = countUnreadGroups();
       badgeUpdate();
       if (overlay) paint();
+      return true;
     }).catch(function () {
-      if (!activeToken || (session !== activeToken && !sameSessionIdentity(session, activeToken))) return;
+      if (!activeToken || (session !== activeToken && !sameSessionIdentity(session, activeToken))) return false;
       members.forEach(function (member) { readFailures[member.id] = true; });
       if (overlay) paint();
+      return false;
     }).finally(function () { delete target[pendingKey]; });
     return target[pendingKey];
   }
@@ -295,9 +332,12 @@
       return;
     }
     var item = groupedItems().find(function (x) { return String(x.id) === String(selectedId); });
-    // An automatically displayed important notice requires an acknowledged read
-    // before closing; it is intentionally different from manual Back to list.
-    Promise.resolve(setRead(item)).finally(function () { close(); autoNext(); });
+    // Do not dismiss a mandatory important notice when its read receipt failed
+    // to persist. Keep it open, show the failure and let Acknowledge retry.
+    Promise.resolve(setRead(item)).then(function (saved) {
+      if (saved) { close(); autoNext(); }
+      else if (overlay) paint();
+    });
   }
   function sendDiagnostics() {
     if (diagnosticReport && diagnosticReport.state === 'sending') return;
@@ -417,6 +457,9 @@
     if (mode === 'detail') {
       var item = groupedItems().find(function (x) { return String(x.id) === String(selectedId); });
       if (item) {
+        if (readFailures[item.id] && !item.readAt)
+          add(dialog, 'p', t('既読の保存に失敗しました。通信状況を確認して再試行してください。',
+            'Read status was not saved. Check your connection and retry.'), 'iz-ann-muted');
         add(dialog, 'p', item.severity === 'important' ? t('重要なお知らせ', 'Important notice') : t('通常のお知らせ', 'General notice'),
           'iz-ann-type' + (item.severity !== 'important' ? ' iz-ann-normal' : ''));
         add(dialog, 'h3', displayTitle(item));
@@ -424,15 +467,8 @@
           add(dialog, 'p', item.releaseVersion ?
             t('リリース v', 'Release v') + item.releaseVersion :
             t('バージョン未記録の更新履歴', 'Update history without recorded version'), 'iz-ann-muted');
-          var distinct = Object.create(null);
-          item.members.forEach(function (member) {
-            var content = localized(member, 'body');
-            // Duplicate bodies do not become duplicate paragraphs in the rollup.
-            if (distinct[content]) return;
-            distinct[content] = true;
-            add(dialog, 'p', dateLabel(member.publishedAt), 'iz-ann-muted');
-            add(dialog, 'div', content, 'iz-ann-body');
-          });
+          add(dialog, 'p', dateLabel(item.publishedAt), 'iz-ann-muted');
+          add(dialog, 'div', releaseBody(item.members), 'iz-ann-body');
         } else {
           add(dialog, 'p', dateLabel(item.publishedAt), 'iz-ann-muted');
           add(dialog, 'div', localized(item, 'body'), 'iz-ann-body');

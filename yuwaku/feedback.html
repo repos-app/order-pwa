@@ -75,7 +75,10 @@ function seatLabel(v){ var s=String(v==null?'':v).trim(),en=(window.I18n&&I18n.l
         return '<tr><td class="muted" style="white-space:nowrap;">'+esc(fmt(r.ts))+'</td><td>'+esc(seatLabel(r.table))+'</td><td class="stars">'+stars(r.rating)+'</td><td style="white-space:normal;max-width:260px;">'+esc(r.comment)+'</td></tr>';
       }).join('');
     }
-    window.reload = function(){ rpc('getFeedback',[200]).then(function(d){ DATA=d||DATA; render(); }).catch(function(e){ document.getElementById('rows').innerHTML='<tr><td colspan="4" style="color:#b91c1c;padding:16px;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</td></tr>'; }); };
+    window.reload = function(){ return rpc('getFeedback',[200]).then(function(d){ DATA=d||DATA; render(); }).catch(function(e){ document.getElementById('rows').innerHTML='<tr><td colspan="4" style="color:#b91c1c;padding:16px;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</td></tr>'; }); };
+    if(window.IZHeader&&typeof IZHeader.registerRefreshHandler==='function'){
+      IZHeader.registerRefreshHandler(function(){return window.reload();});
+    }
     rpc('getFeedback',[200]).then(function(d){ DATA=d||DATA; __loaded=true; render(); })
       .catch(function(e){ if(String(e.message||e).indexOf('unauthorized')>=0){ location.href='./manage.html'; return; } document.getElementById('rows').innerHTML='<tr><td colspan="4" style="color:#b91c1c;padding:16px;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</td></tr>'; });
     API.post('getSettings',{}).then(function(r){SETTINGS=(r&&r.data)||{};if(__loaded)render();}).catch(function(){});

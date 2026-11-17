@@ -203,6 +203,36 @@
   // shared confirm UI may therefore not exist on a very early Refresh tap.
   // Load it once on demand and fail closed if the local asset cannot load.
   var confirmLoader = null, refreshConfirmPending = false;
+  // Hosted screens register their existing data-only read instead of
+  // tearing down the document and flashing the whole screen on Refresh.
+  var refreshHandler = null, refreshPending = false;
+  function registerRefreshHandler(handler) {
+    refreshHandler = typeof handler === 'function' ? handler : null;
+  }
+  function runInPlaceRefresh() {
+    if (refreshPending) return;
+    refreshPending = true;
+    var button = document.getElementById('izHeaderRefresh');
+    if (button) {
+      button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
+      button.classList.add('iz-header-refreshing');
+    }
+    return Promise.resolve().then(function () { return refreshHandler(); }).catch(function (error) {
+      console.warn('in_place_refresh_failed', JSON.stringify({
+        errorName: /^(?:TypeError|RangeError|Error|AbortError|TimeoutError)$/
+          .test(String(error && error.name || '')) ? error.name : 'UnknownError',
+        stage: 'header_refresh',
+      }));
+    }).finally(function () {
+      refreshPending = false;
+      if (button) {
+        button.removeAttribute('aria-busy');
+        button.classList.remove('iz-header-refreshing');
+        button.disabled = !pagePolicy(location.pathname, readSession().loggedIn, location.search).showRefresh;
+      }
+    });
+  }
   function requestConfirmation(message) {
     if (typeof window.UIConfirm === 'function') {
       return Promise.resolve().then(function(){ return window.UIConfirm(message); }).then(Boolean).catch(function(){return false;});
@@ -223,7 +253,7 @@
     }).then(Boolean).catch(function(){return false;});
   }
   function refreshPage() {
-    if (!navigationAllowed() || refreshConfirmPending) return;
+    if (!navigationAllowed() || refreshConfirmPending || refreshPending) return;
     var login = document.getElementById('loginView');
     if (login && !login.classList.contains('hidden')) {
       // Workspace hints are not user edits; password or other typed fields are.
@@ -240,6 +270,9 @@
           }).finally(function(){ refreshConfirmPending = false; });
       }
     }
+    if (!refreshHandler && (!login || login.classList.contains('hidden')) &&
+        readSession().loggedIn && /(?:^|\/)manage\.html$/i.test(location.pathname)) return;
+    if (refreshHandler && (!login || login.classList.contains('hidden'))) return runInPlaceRefresh();
     location.reload();
   }
   function resolveBackTarget(search) {
@@ -332,7 +365,7 @@
     }
     [['izHeaderClock',policy.showClock],['izHeaderRefresh',policy.showRefresh],
       ['izHeaderManage',policy.showManage],['izHeaderBack',policy.showBack]].forEach(function(item){
-      var el=document.getElementById(item[0]);if(el){el.style.visibility=item[1]?'visible':'hidden';if(el.tagName==='BUTTON')el.disabled=!item[1];}
+      var el=document.getElementById(item[0]);if(el){el.style.visibility=item[1]?'visible':'hidden';if(el.tagName==='BUTTON')el.disabled=!item[1]||(item[0]==='izHeaderRefresh'&&refreshPending);}
     });
     renderLanguage();
     ensureAiCreditHub(policy);
@@ -737,7 +770,7 @@
     if (window.IZAnnouncements) { window.IZAnnouncements.sync(); return; }
     if (!policy || !policy.showAiCredit || document.querySelector('[data-iz-announcements]')) return;
     var script = document.createElement('script');
-    script.src = './announcement-center.js?v=13';
+    script.src = './announcement-center.js?v=15';
     script.setAttribute('data-iz-announcements', '');
     script.onload = function () { if (window.IZAnnouncements) window.IZAnnouncements.sync(); };
     script.onerror = function () {
@@ -751,7 +784,7 @@
     document.head.appendChild(script);
   }
 
-  window.IZHeader = { init: init, refreshAccent: refreshAccent, syncAuthDisplay: syncAuthDisplay, confirm: requestConfirmation, validSession: validSession, pagePolicy: pagePolicy, wallClockParts: wallClockParts, saveTimezone: saveTimezone, withBackHref: withBackHref, resolveBackTarget: resolveBackTarget, scrollGuideHashTarget: scrollGuideHashTarget };
+  window.IZHeader = { init: init, refreshAccent: refreshAccent, syncAuthDisplay: syncAuthDisplay, registerRefreshHandler: registerRefreshHandler, confirm: requestConfirmation, validSession: validSession, pagePolicy: pagePolicy, wallClockParts: wallClockParts, saveTimezone: saveTimezone, withBackHref: withBackHref, resolveBackTarget: resolveBackTarget, scrollGuideHashTarget: scrollGuideHashTarget };
   if (typeof document !== 'undefined') {
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
     else init();

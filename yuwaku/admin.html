@@ -254,7 +254,7 @@
     var payRecoveryOrderIds = [], checkoutOutcomeUnknown = false;
     var checkoutFinalizeBusy = false, checkoutOutcomeChecking = false;
     var offlineCashRows = [], offlineCashBusy = false, offlineSnapshotRestore = null;
-    var payEntryFee = 0, payExtensionFee = 0, payPartySize = 0, payVipCharge = 0, payVipExtensionFee = 0;
+    var payEntryFee = 0, payExtensionFee = 0, payPartySize = 0, payVipCharge = 0, payVipExtensionFee = 0, payPointsDiscount = 0;
     var entryTimeEditing = null, entryTimeSaving = false;
 
     var i18n = {
@@ -262,7 +262,7 @@
             cash:'現金', card:'カード', qrPayment:'QR決済', cancel:'キャンセル', pTitle:'お会計', sub:'小計', svc:'サービス料', tax:'税',
             openPay:'支払いページを開く', checkBtn:'支払い確認', checking:'確認中…', notYet:'まだ支払いが確認できません。',
             noKey:'オンライン決済は未設定です。', cashRecv:'現金を受け取りましたか？', cardRecv:'💳 決済端末でクレジットカード決済をしてください。決済を確認したら、下のボタンを押して会計を完了してください。', gcashHint:'お客様にQRコードをスキャンして送金していただき、入金を確認したら下のボタンを押してください。', gcashConfirm:'入金を確認した', confirmed:'支払い完了', done:'完了（会計済にする）', processing:'処理中…', lang:'EN',
-            disc:'割引', senior:'シニア', idPh:'ID番号', eligPh:'対象額', discLine:'割引', vatNote:'うちVAT', orLbl:'レシート番号', printBtn:'🖨️ レシート印刷', close:'閉じる', tableW:'卓', totalW:'合計',
+            disc:'割引', senior:'シニア', idPh:'ID番号', eligPh:'対象額', discLine:'割引', pointsDiscLine:'ポイント値引き', vatNote:'うちVAT', orLbl:'レシート番号', printBtn:'🖨️ レシート印刷', close:'閉じる', tableW:'卓', totalW:'合計',
             partial:'🧾 一部会計', partTitle:'一部会計 — 明細を選択', selected:'選択', selPay:'選択分を会計',
             callHdr:'🔔 呼び出し', callLbl:'スタッフ呼出', billLbl:'お会計希望', resolve:'対応済', agoMin:'分前', stay:'滞在', entryEdit:'入場時刻を修正', entryTime:'入場日時', entryTimeSave:'保存して料金を再計算', entryTimeHint:'入力した入場時刻から滞在時間・通常延長料・VIP延長料金を計算します。退場時刻は会計時に自動確定します。', entryTimeInvalid:'有効な入場時刻（過去30日以内・現在より前）を入力してください。', entryTimeFailed:'入場時刻を変更できませんでした。更新してから再度お試しください。', entryTimeSaved:'入場時刻を修正しました。', voidBtn:'取消', voidT:'注文の取消', reason:'取消理由', approver:'承認者（マネージャー以上のログイン）', loginPh:'ログインID', passPh:'パスワード', voidGo:'取消を承認', voidGoNoApproval:'取消を実行', needReason:'取消理由を入力してください', needApprover:'マネージャー以上の承認者ID・パスワードを入力してください', authFail:'マネージャー以上の承認者IDまたはパスワードを確認してください', voided:'取消しました', alreadySettled:'会計済のため取消できません', eReceipt:'eレシート送信先メール（任意）',
             entryFeeLbl:'入場料', extFeeLbl:'延長料', vipChargeLbl:'VIP基本チャージ',vipExtFeeLbl:'VIP延長料金',
@@ -271,7 +271,7 @@
             cash:'Cash', card:'Card', qrPayment:'QR Payment', cancel:'Cancel', pTitle:'Payment', sub:'Subtotal', svc:'Service', tax:'Tax',
             openPay:'Open payment page', checkBtn:'Check status', checking:'Checking…', notYet:'Payment not confirmed yet.',
             noKey:'Online payment is not set up.', cashRecv:'Cash received?', cardRecv:'💳 Please process the credit card payment on the card terminal. Once confirmed, press the button below to complete checkout.', gcashHint:'Ask the customer to scan the QR code and pay, then press the button below once you\'ve confirmed the payment.', gcashConfirm:'Payment confirmed', confirmed:'Paid', done:'Done (settle)', processing:'Processing…', lang:'JP',
-            disc:'Discount', senior:'Senior', idPh:'ID no.', eligPh:'Eligible amt', discLine:'Discount', vatNote:'incl. VAT', orLbl:'Receipt no.', printBtn:'🖨️ Print receipt', close:'Close', tableW:'Table', totalW:'TOTAL',
+            disc:'Discount', senior:'Senior', idPh:'ID no.', eligPh:'Eligible amt', discLine:'Discount', pointsDiscLine:'Points discount', vatNote:'incl. VAT', orLbl:'Receipt no.', printBtn:'🖨️ Print receipt', close:'Close', tableW:'Table', totalW:'TOTAL',
             partial:'🧾 Partial', partTitle:'Partial checkout — select items', selected:'Selected', selPay:'Checkout selected',
             callHdr:'🔔 Requests', callLbl:'Call staff', billLbl:'Bill please', resolve:'Done', agoMin:'m ago', stay:'Seated', entryEdit:'Edit entry time', entryTime:'Entry date & time', entryTimeSave:'Save and recalculate charges', entryTimeHint:'Stay duration, standard extension fees and VIP overtime will use this entry time. Exit time is automatic at checkout.', entryTimeInvalid:'Enter a valid entry time within the last 30 days, not in the future.', entryTimeFailed:'Could not update entry time. Refresh and try again.', entryTimeSaved:'Entry time updated.', voidBtn:'Void', voidT:'Void order', reason:'Reason', approver:'Approver (Manager or above login)', loginPh:'Login ID', passPh:'Password', voidGo:'Approve void', voidGoNoApproval:'Void order', needReason:'Please enter a reason', needApprover:'Enter a Manager-or-above approver login ID and password', authFail:'Check the Manager-or-above approver login ID and password', voided:'Order voided', alreadySettled:'Cannot void a settled order', eReceipt:'e-receipt email (optional)',
             entryFeeLbl:'Entry fee', extFeeLbl:'Extension fee',vipChargeLbl:'VIP base charge',vipExtFeeLbl:'VIP extension',
@@ -283,8 +283,14 @@
     function sym(){ return SETTINGS.currencySymbol || '₱'; }
     function money(v){ var d=Object.prototype.hasOwnProperty.call(SETTINGS,'currencyDecimalDigits')?Math.max(0,Math.min(3,Number(SETTINGS.currencyDecimalDigits)||0)):0; return sym() + (Number(v)||0).toLocaleString(SETTINGS.locale||undefined,{minimumFractionDigits:d,maximumFractionDigits:d}); }
     function taxName(){ return String(SETTINGS.taxDisplayName||'VAT'); }
-    function taxSummaryLabel(){ return taxName() + (String(SETTINGS.taxInclusive)==='true' ? (lang==='en'?' (incl.)':'(内税)') : ''); }
-    function taxSummaryAmount(value){ var amount=money(value); return String(SETTINGS.taxInclusive)==='true' ? '('+amount+')' : amount; }
+    // Included charges are a part of the subtotal, not extra amounts to add.
+    // Use the same visual convention in checkout and its printed receipt.
+    function includedChargeLabel(label, included){ return label + (included ? (lang==='en'?' (incl.)':'(内税)') : ''); }
+    function includedChargeAmount(value, included){ var amount=money(value); return included ? '('+amount+')' : amount; }
+    function taxSummaryLabel(){ return includedChargeLabel(taxName(), String(SETTINGS.taxInclusive)==='true'); }
+    function taxSummaryAmount(value){ return includedChargeAmount(value, String(SETTINGS.taxInclusive)==='true'); }
+    function serviceSummaryLabel(){ return includedChargeLabel(t().svc, String(SETTINGS.serviceInclusive)==='true'); }
+    function serviceSummaryAmount(value){ return includedChargeAmount(value, String(SETTINGS.serviceInclusive)==='true'); }
     function roundCharge(v){ var d=Object.prototype.hasOwnProperty.call(SETTINGS,'currencyDecimalDigits')?Math.max(0,Math.min(3,Number(SETTINGS.currencyDecimalDigits)||0)):0,f=Math.pow(10,d),n=(Number(v)||0)*f,m=SETTINGS.taxRoundingMode||'nearest'; return (m==='floor'?Math.floor(n+Number.EPSILON):m==='ceil'?Math.ceil(n-Number.EPSILON):Math.round(n+Number.EPSILON))/f; }
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
     // 2026-08-24修正: バックエンドが返す注文日時はSQLiteのdatetime('now')によるUTC時刻
@@ -592,7 +598,8 @@
         // 一覧表示（見出し・お会計ボタン）は、実際に請求される金額（サービス料・入場料込み）と
         // 食い違って見えないよう、computeGroupTotal()で同じ計算式を使って表示用の合計を出す。
         var subtotal = rows.reduce(function(s,o){ return s + (Number(o.price)||0); }, 0);
-        var total = computeGroupTotal(subtotal, tn);
+        var pointsDiscount = rows.reduce(function(s,o){return s+Math.max(0,Number(o.pointsDiscount)||0);},0);
+        var total = computeGroupTotal(subtotal, tn, pointsDiscount);
         // Keep the header clock aligned with the authoritative charging clock.
         // Fall back to the first order only for visits without an occupancy/VIP session.
         var minT = Infinity; rows.forEach(function(o){ var d=toUtcDate(o.date).getTime(); if(!isNaN(d)&&d<minT) minT=d; });
@@ -604,7 +611,8 @@
         var editClock = '<button type="button" class="entry-edit-btn" title="'+esc(t().entryEdit)+'" aria-label="'+esc(t().entryEdit)+'" '+(typeof navigator!=='undefined'&&navigator.onLine===false?'disabled ':'')+'onclick="openEntryTime('+esc(JSON.stringify(tn))+')">✎</button>';
         html += '<div class="tg"><div class="tg-h"><div class="ti"><span>🪑 '+esc(seatLabel(tn))+'</span>'+dwellTag+editClock+'</div><div class="to">'+money(total)+'</div></div>';
         // Each order row shows the same charge-inclusive amount as the checkout total.
-        // Allocate the rounding remainder across rows so their sum equals breakdown(subtotal).total.
+        // Allocate the rounding remainder across rows so their sum equals the
+        // settled order total after recorded points, excluding per-table fees.
         var displayedAmounts = computeOrderDisplayTotals(rows);
         rows.forEach(function(o, rowIndex){
           var served = o.status === '提供済';
@@ -917,8 +925,11 @@
         var b=document.getElementById(id); if(!b) return;
         b.classList.remove('spin-once'); void b.offsetWidth; b.classList.add('spin-once');
       });
-      load(true).then(function(result){showToast(result&&result.ok?(lang==='en'?'✅ Updated':'✅ 更新しました'):(lang==='en'?'⚠ Not updated':'⚠ 更新できませんでした'));});
+      return load(true).then(function(result){showToast(result&&result.ok?(lang==='en'?'✅ Updated':'✅ 更新しました'):(lang==='en'?'⚠ Not updated':'⚠ 更新できませんでした'));});
     };
+    if(window.IZHeader&&typeof IZHeader.registerRefreshHandler==='function'){
+      IZHeader.registerRefreshHandler(function(){return window.manualRefresh();});
+    }
     // Resolve old order names and option suffixes using all three saved aliases.
     function localizedItem(nm){
       nm=String(nm||'').trim();var m=nm.match(/^(.+?)\s*[（(]([^（）()]*)[)）]\s*$/),base=(m?m[1]:nm).trim(),entry=MENU_MAP[base];
@@ -978,7 +989,7 @@
       var entryUnit = Number(SETTINGS.entryFeeAmount)||0, extUnit = Number(SETTINGS.extensionFeeAmount)||0;
       var entryEnabled=feeSettingEnabled('entryFeeEnabled','entryFeeAmount') && entryUnit>=1;
       var extensionEnabled=feeSettingEnabled('extensionFeeEnabled','extensionFeeAmount') && extUnit>=1;
-      if (skipForSplit || (!entryEnabled && !extensionEnabled) || !party || !(Number(party.count)>0)) return { entryFee:0, extensionFee:0, partySize:0, extensionUnits:0 };
+      if (skipForSplit || (!entryEnabled && !extensionEnabled) || !party || !(Number(party.count)>0) || !(Number(party.enteredAt)>0)) return { entryFee:0, extensionFee:0, partySize:0, extensionUnits:0 };
       var count = Number(party.count)||0;
       var entryFee = entryEnabled ? Math.round(entryUnit*count) : 0;
       var extensionFee = 0, extensionUnits = 0;
@@ -1006,10 +1017,12 @@
     }
 
     function computeGroupTotal(subtotal, table){
+      var pointsDiscount = arguments[2]; // optional, keep two-argument callers compatible
       var b = breakdown(subtotal);
       var f = computeEntryFeesPreview(PARTY_SIZES[table], false);
       var vip = computeVipFeesPreview(table,false);
-      return b.total + f.entryFee + f.extensionFee + vip.vipCharge + vip.vipExtensionFee;
+      return Math.max(0,roundCharge(b.total-Math.max(0,Number(pointsDiscount)||0)))
+        + f.entryFee + f.extensionFee + vip.vipCharge + vip.vipExtensionFee;
     }
     // Display-only allocation. The underlying order.price is always the pre-charge
     // subtotal used by openPay/finalizeBill; never save these allocated amounts.
@@ -1017,10 +1030,11 @@
     // the displayed row amounts add up exactly to the checkout charge, excluding
     // per-table entry/extension fees that are shown only in the table total.
     function computeOrderDisplayTotals(rows){
-      var subtotal = 0, previouslyBilled = 0;
+      var subtotal = 0, pointsDiscount = 0, previouslyBilled = 0;
       return rows.map(function(o){
         subtotal += Number(o.price)||0;
-        var billed = breakdown(subtotal).total;
+        pointsDiscount += Math.max(0,Number(o.pointsDiscount)||0);
+        var billed = Math.max(0,roundCharge(breakdown(subtotal).total - pointsDiscount));
         var rowAmount = roundCharge(billed - previouslyBilled);
         previouslyBilled = billed;
         return rowAmount;
@@ -1139,8 +1153,11 @@
       resetPs3();
       payMethod = 'cash';
       payTable = tn; payCheckoutId = null; payOrderIds = (orderIds && orderIds.length) ? orderIds : null; paySub = Number(subtotal)||0; payBase = breakdown(paySub);
-      payRecoveryOrderIds = checkoutTargets(freshOrders||orders, tn, payOrderIds)
-        .map(function(o){return String(o.id);});
+      var checkoutRows = checkoutTargets(freshOrders||orders, tn, payOrderIds);
+      payRecoveryOrderIds = checkoutRows.map(function(o){return String(o.id);});
+      // Coupons already reduce order.price; points are saved separately and
+      // are subtracted once at finalizeBill, after any checkout discount.
+      payPointsDiscount = checkoutRows.reduce(function(s,o){return s+Math.max(0,Number(o.pointsDiscount)||0);},0);
       checkoutOutcomeUnknown = false;
       var shouldPreviewFees = !payOrderIds || partialCoversAllActive(tn, payOrderIds, freshOrders);
       var initialFees = shouldPreviewFees ? computeEntryFeesPreview(PARTY_SIZES[tn], false) : { entryFee:0, extensionFee:0, partySize:0 };
@@ -1194,6 +1211,7 @@
     }
     window.recompPay = function(){
       if (!payBase) return;
+      var pointsDiscount = typeof payPointsDiscount==='number' ? payPointsDiscount : 0;
       var on = document.getElementById('dcOn').checked;
       document.getElementById('dcBody').style.display = on ? 'block' : 'none';
       var sub = paySub, b = payBase, disc = 0, eligible = 0, dtype = '', rule=null;
@@ -1208,20 +1226,23 @@
       else { vat = b.tax; }
       var vipNow=computeVipFeesPreview(payTable,!!(payOrderIds&&!partialCoversAllActive(payTable,payOrderIds,orders)));
       payVipCharge=vipNow.vipCharge;payVipExtensionFee=vipNow.vipExtensionFee;
-      var total = (on ? spc.total : Math.max(0, (b.total||0))) + payEntryFee + payExtensionFee + payVipCharge + payVipExtensionFee;
+      var total = Math.max(0,roundCharge((on ? spc.total : (b.total||0))-pointsDiscount))
+        + payEntryFee + payExtensionFee + payVipCharge + payVipExtensionFee;
       payTotal = total;
       // 表示用のプレビュー計算（実際の会計金額はサーバー側finalizeBillが対象注文の登録価格・卓の人数/入店時刻
       // から再計算する。クライアントのこの値は画面表示のみに使い、送信するのは種別・対象額・氏名・ID番号のみ）。
       document.getElementById('dcId').style.display=on&&rule&&rule.idRequired?'':'none';
       document.getElementById('dcApprBox').style.display=on&&rule&&rule.managerApprovalRequired&&!currentUserCanApprove()?'':'none';
       window._bill = { subtotal: sub, vat: vat, service: b.service, discountType: on?(rule.legacyType||''):'', discountRuleId:on&&!rule.legacyType?rule.id:'', discountId: on?document.getElementById('dcId').value:'',
-        discountName: on?document.getElementById('dcName').value:'', discountEligible: on?eligible:0, discountAmount: disc, total: total,
+        discountName: on?document.getElementById('dcName').value:'', discountEligible: on?eligible:0,
+        discountAmount: roundCharge(disc+pointsDiscount), pointsDiscount:pointsDiscount, total: total,
         entryFee: payEntryFee, extensionFee: payExtensionFee, vipCharge: payVipCharge, vipExtensionFee:payVipExtensionFee };
       var html = '<div style="font-weight:900;font-size:15px;margin-bottom:8px;">🪑 '+esc(seatLabel(payTable))+'</div>';
       html += '<div class="sr"><span>'+t().sub+'</span><span>'+money(sub)+'</span></div>';
-      if (b.service>0) html += '<div class="sr"><span>'+t().svc+'</span><span>'+money(b.service)+'</span></div>';
+      if (b.service>0) html += '<div class="sr"><span>'+esc(serviceSummaryLabel())+'</span><span>'+serviceSummaryAmount(b.service)+'</span></div>';
       if (vat>0) html += '<div class="sr"><span>'+esc(taxSummaryLabel())+'</span><span>'+taxSummaryAmount(vat)+'</span></div>';
       if (disc>0) html += '<div class="sr" style="color:#b91c1c;"><span>'+t().discLine+' ('+esc(lang==='en'?(rule.nameEn||rule.nameJa||rule.name):(rule.nameJa||rule.nameEn||rule.name))+')</span><span>− '+money(disc)+'</span></div>';
+      if (pointsDiscount>0) html += '<div class="sr" style="color:#b91c1c;"><span>'+t().pointsDiscLine+'</span><span>− '+money(pointsDiscount)+'</span></div>';
       if (payEntryFee>0) html += '<div class="sr"><span>'+t().entryFeeLbl+' × '+payPartySize+'</span><span>'+money(payEntryFee)+'</span></div>';
       if (payExtensionFee>0) html += '<div class="sr"><span>'+t().extFeeLbl+'</span><span>'+money(payExtensionFee)+'</span></div>';
       if (payVipCharge>0) html += '<div class="sr"><span>'+t().vipChargeLbl+'</span><span>'+money(payVipCharge)+'</span></div>';
@@ -1269,10 +1290,20 @@
       var b = (window._lastBill&&window._lastBill.bill) || window._bill || {};
       var shop = SETTINGS.shopName || 'Shop'; var nowDate = new Date(); var now = window.DateDisplay?DateDisplay.formatDateTime(nowDate.toISOString()):nowDate.toLocaleString();
       var documentTitle = I18n.lang()==='en' ? (SETTINGS.receiptDocumentTitleEn||SETTINGS.receiptDocumentTitleJa||'Receipt') : (SETTINGS.receiptDocumentTitleJa||SETTINGS.receiptDocumentTitleEn||'レシート');
-      var lines = '<div>'+t().sub+': '+money(b.subtotal)+'</div>';
-      if (b.service>0) lines += '<div>'+t().svc+': '+money(b.service)+'</div>';
-      if (b.discountAmount>0) lines += '<div>'+t().discLine+': -'+money(b.discountAmount)+(b.discountId?(' (ID '+esc(b.discountId)+')'):'')+'</div>';
-      lines += '<div>'+esc(taxName())+': '+money(b.vat)+'</div>';
+      // Server discountAmount is audit metadata. When it contains a coupon,
+      // that coupon has already reduced the saved order subtotal. Printing
+      // the entire aggregate as another "- discount" would imply double
+      // subtraction (especially for combined coupon + points redemptions).
+      var couponAlreadyInSubtotal = /(^|\+)coupon(\+|$)/.test(String(b.discountType||''));
+      var subtotalLabel = couponAlreadyInSubtotal ? (lang==='en'?'Subtotal (after coupon)':'小計（クーポン適用後）') : t().sub;
+      var lines = '<div>'+subtotalLabel+': '+money(b.subtotal)+'</div>';
+      if (b.service>0) lines += '<div>'+esc(serviceSummaryLabel())+': '+serviceSummaryAmount(b.service)+'</div>';
+      if (b.discountAmount>0) {
+        var discountLabel = couponAlreadyInSubtotal ? (lang==='en'?'Recorded discount (coupon included)':'割引記録（クーポン含む）') : t().discLine;
+        var discountValue = couponAlreadyInSubtotal ? '('+money(b.discountAmount)+')' : '-'+money(b.discountAmount);
+        lines += '<div>'+discountLabel+': '+discountValue+(b.discountId?(' (ID '+esc(b.discountId)+')'):'')+'</div>';
+      }
+      if (Number(b.vat)>0) lines += '<div>'+esc(taxSummaryLabel())+': '+taxSummaryAmount(b.vat)+'</div>';
       var w = window.open('', '_blank', 'width=320,height=520'); if(!w) return;
       w.document.write('<html><head><meta charset="utf-8"><title>'+esc(orNo)+'</title></head><body style="font-family:monospace;padding:10px;width:280px;">'
         + '<div style="text-align:center;font-weight:bold;font-size:16px;">'+esc(shop)+'</div>'

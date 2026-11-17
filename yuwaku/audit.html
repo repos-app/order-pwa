@@ -212,11 +212,11 @@
     function loadLog(kind){
       var seq=++logSeq[kind];
       var filters=queryFilters(kind);
-      if(!filters) return;
+      if(!filters) return Promise.resolve();
       var auditLog=kind==='audit', limit=auditLog?200:300;
       var target=auditLog?'rows':'opRows', columns=auditLog?7:5;
       document.getElementById(kind+'Count').textContent=I18n.t('filterLoading');
-      rpc(auditLog?'getAuditLog':'getOpLog',[limit,filters]).then(function(rows){
+      return rpc(auditLog?'getAuditLog':'getOpLog',[limit,filters]).then(function(rows){
         if(seq!==logSeq[kind]) return; // Ignore slower responses to older searches.
         rows=Array.isArray(rows)?rows:[];
         if(auditLog){ ROWS=rows; __loaded=true; render(); } else { OPS=rows; renderOps(); }
@@ -235,7 +235,10 @@
       document.getElementById(kind+'Action').value='';
       loadLog(kind);
     };
-    window.reload=function(){ loadLog('audit');loadLog('op'); };
+    window.reload=function(){ return Promise.all([loadLog('audit'),loadLog('op')]); };
+    if(window.IZHeader&&typeof IZHeader.registerRefreshHandler==='function'){
+      IZHeader.registerRefreshHandler(function(){return window.reload();});
+    }
 
     API.post('getSettings', {}).then(function(r){ SETTINGS=r.data||{}; if(SETTINGS.currencySymbol) SYM=SETTINGS.currencySymbol; render(); }).catch(function(){});
     reload();

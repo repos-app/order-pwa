@@ -356,12 +356,14 @@ function seatLabel(v){ var s=String(v==null?'':v).trim(); var en=(window.I18n&&I
     };
     function load(){
       var mo=document.getElementById('month').value;
-      PAGE=1; ROWS=[];
-      document.getElementById('rows').innerHTML='<tr><td colspan="7" class="muted" style="padding:16px;text-align:center;" data-t="loading">'+I18n.t('loading')+'</td></tr>';
-      rpc('getReceipts',[mo, PAGE, PAGE_SIZE]).then(function(d){
-        d=d||{}; ROWS=d.rows||[]; SUM_TOTAL=Number(d.sumTotal)||0; CNT_TOTAL=Number(d.count)||0; REFUND_COUNT=Number(d.refundCount)||0; HAS_MORE=!!d.hasMore;
+      if(!ROWS.length)document.getElementById('rows').innerHTML='<tr><td colspan="7" class="muted" style="padding:16px;text-align:center;" data-t="loading">'+I18n.t('loading')+'</td></tr>';
+      return rpc('getReceipts',[mo, 1, PAGE_SIZE]).then(function(d){
+        d=d||{}; PAGE=1; ROWS=d.rows||[]; SUM_TOTAL=Number(d.sumTotal)||0; CNT_TOTAL=Number(d.count)||0; REFUND_COUNT=Number(d.refundCount)||0; HAS_MORE=!!d.hasMore;
         render();
       }).catch(function(e){ if(String(e.message||e).indexOf('unauthorized')>=0){ location.href='./manage.html'; return; } document.getElementById('rows').innerHTML='<tr><td colspan="7" style="color:#b91c1c;padding:16px;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</td></tr>'; });
+    }
+    if(window.IZHeader&&typeof IZHeader.registerRefreshHandler==='function'){
+      IZHeader.registerRefreshHandler(function(){return load();});
     }
     window.loadMore = function(){
       var mo=document.getElementById('month').value;

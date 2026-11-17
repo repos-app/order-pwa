@@ -162,6 +162,9 @@
     var __loaded=false;
     function loadMembers(){ return rpc('getMembers',[]).then(function(list){ MEMBERS=(list||[]).slice().sort(function(a,b){ return (Number(b.points)||0)-(Number(a.points)||0); }); MEMBER_LOAD_FAILED=false; __loaded=true; render(); })
       .catch(function(e){ if(String(e.message||e).indexOf('unauthorized')>=0){ location.href='./manage.html'; return; } memberLoadError(e); }); }
+    if(window.IZHeader&&typeof IZHeader.registerRefreshHandler==='function'){
+      IZHeader.registerRefreshHandler(function(){return loadMembers();});
+    }
     window.addEventListener('offline',function(){ memberLoadError(); });
     window.addEventListener('online',function(){ loadMembers(); });
     loadMembers();

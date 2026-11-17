@@ -1,0 +1,291 @@
+{
+  "schema": "izakanpai.qa.behavior-contracts.v1",
+  "contracts": [
+    {
+      "id": "IZK-UT-185",
+      "revision": 2,
+      "changeReason": "Cover JA/EN start-copy, first-order time commit, input and fee handling across the three shipped surfaces; no change to the previously approved lock timing.",
+      "sourceRequirements": ["IZK-UT-180", "IZK-UT-185"],
+      "provenance": "User requirement: selecting a seat and headcount is not an order. First committed order starts the visit and locks headcount. Horizontal Native/Web/TEST copy, entry fee and backend transition are included because they implement the same requested acceptance rule.",
+      "risk": "P0",
+      "scope": [
+        {"path": "mobile-app/web/app.js", "start": "  function partyPickerShowError(", "end": "  // ---- 会員（ロイヤリティ） ----"},
+        {"path": "docs/yuwaku/app.js", "start": "  function partyPickerShowError(", "end": "  // ---- 会員（ロイヤリティ） ----"},
+        {"path": "docs/yuwaku/test/app.js", "start": "  function partyPickerShowError(", "end": "  // ---- 会員（ロイヤリティ） ----"},
+        {"path": "src/billing.js", "start": "async function getTablePartySize(", "end": "async function getAllTablePartySizes("},
+        {"path":"src/billing.js","start":"async function setTablePartySize(","end":"async function getTablePartySize("},
+        {"path":"src/billing.js","start":"async function computeEntryFees(","end":"async function nextReceiptSeq("},
+        {"path":"src/billing.js","start":"export {","end":"__EOF__"},
+        {"path":"src/orders.js","start":"import { tenantDb } from './tenantDb.js';","end":"import { buildServedOrderDeductionPlan"},
+        {"path":"src/orders.js","start":"    const statements = [","end":"    if (isDemo) statements.push("},
+        {"path":"mobile-app/web/app.js","start":"  var i18n = {","end":"      memberTitle:'Member (points)'"},
+        {"path":"docs/yuwaku/app.js","start":"  var i18n = {","end":"      memberTitle:'Member (points)'"},
+        {"path":"docs/yuwaku/test/app.js","start":"  var i18n = {","end":"      memberTitle:'Member (points)'"},
+        {"path":"mobile-app/web/app.js","start":"    ja: { order:'ご注文'","end":"      memberTitle:'会員（ポイント）'"},
+        {"path":"docs/yuwaku/app.js","start":"    ja: { order:'ご注文'","end":"      memberTitle:'会員（ポイント）'"},
+        {"path":"docs/yuwaku/test/app.js","start":"    ja: { order:'ご注文'","end":"      memberTitle:'会員（ポイント）'"},
+        {"path":"mobile-app/web/admin.html","start":"    function computeEntryFeesPreview(","end":"    function computeGroupTotal("},
+        {"path":"docs/yuwaku/admin.html","start":"    function computeEntryFeesPreview(","end":"    function computeGroupTotal("},
+        {"path":"docs/yuwaku/test/admin.html","start":"    function computeEntryFeesPreview(","end":"    function computeGroupTotal("}
+      ],
+      "expected": {
+        "headcountSavedBeforeFirstOrder": {"partyCountDisabled": false, "changeButtonHidden": true, "entryStarted": false},
+        "firstOrderCommitted": {"partyCountDisabled": true, "changeButtonHidden": false, "entryStarted": true},
+        "lastOrderCancelled": {"partyCountDisabled": false, "changeButtonHidden": true}
+      },
+      "preserve": ["existing saved headcount", "tenant isolation", "staff authorization", "billing totals", "first-order clock idempotency"],
+      "oracles": [
+        {"path": "test/auto-ci/party-size-picker-ui.test.mjs", "marker": "expectBehaviorStage('IZK-UT-185'", "lane": "auto"},
+        {"path": "scripts/qa-modernization/s5-party-size-lifecycle-browser.test.mjs", "marker": "expectBehaviorStage('IZK-UT-185'", "lane": "web"},
+        {"path": "test/auto-ci/party-size-edit-lock.test.mjs", "marker": "first persisted order starts entry clock", "lane": "business"}
+      ],
+      "negativeControls": [
+        {"id": "legacy-saved-count-lock", "path": "test/auto-ci/party-size-picker-ui.test.mjs", "marker": "negative control: restoring saved-count-is-locked logic"}
+      ]
+    },
+    {
+      "id": "IZK-UT-145",
+      "revision": 2,
+      "changeReason": "Narrow the server idempotent-order scope to the client-ID guard, and include the authenticated readback dispatcher and its action registries; the first-order clock has its own independent IZK-UT-185 oracle.",
+      "sourceRequirements": ["IZK-UT-145"],
+      "provenance": "User-reported order timeout after confirmed commission order: a lost response must be reconciled by a staff-authorized read using the original client ID; never create a duplicate write. Explicitly scoped to client-ID idempotency rather than unrelated order business handling.",
+      "risk": "P0",
+      "scope": [
+        {"path":"mobile-app/web/api.js","start":"  API.submitOrder = async function (order, authToken) {","end":"  // ---- 送信待ちの再送"},
+        {"path":"src/orders.js","start":"async function submitOrder(","end":"  const tableLabel ="},
+        {"path":"src/gasApi.js","start":"    case 'getOrderSubmission': {","end":"    // 署名付きtableToken"},
+        {"path":"src/gasApi.js","start":"    // A staff order may commit in D1 while the iPhone WebView loses its HTTP","end":"    case 'getOrderSubmission': {"},
+        {"path":"src/gasApi.js","start":"const DIRECT_ACTIONS = new Set([","end":"function isPrinterSettingsPatch("},
+        {"path":"src/gasApi.js","start":"const DIRECT_AUTH_ONLY = new Set([","end":"const DIRECT_STORELESS_ACTIONS = new Set(["}
+      ],
+      "expected": {
+        "committedButReplyLost": {"result":"sent","readbackAction":"getOrderSubmission","writes":1},
+        "readbackNotFound": {"result":"rejected:request_timeout","writes":1,"readbackAction":"getOrderSubmission"}
+      },
+      "preserve": ["original clientId", "no unapproved replay", "store isolation", "no guest order discovery"],
+      "oracles": [
+        {"path":"test/auto-ci/order-submit-response-reconciliation.test.mjs","marker":"expectBehaviorStage('IZK-UT-145'","lane":"auto"},
+        {"path":"test/auto-ci/order-submit-response-reconciliation.test.mjs","marker":"staff-only same-clientId readback resolves committed order without any duplicate write","lane":"business"}
+      ],
+      "negativeControls": [
+        {"id":"force-success-on-missing-readback","path":"test/auto-ci/order-submit-response-reconciliation.test.mjs","marker":"P0_MUTANT_ORDER_READBACK"}
+      ]
+    },
+    {
+      "id": "IZK-UT-105",
+      "revision": 2,
+      "changeReason": "Add the corresponding order-table subtotal, points, receipt and preview functions in all three shipped admin surfaces, with already-existing SQLite/receipt/print business oracles.",
+      "sourceRequirements": ["IZK-UT-105", "IZK-UT-115"],
+      "provenance": "User-reported checkout VAT shown as exclusive although configured inclusive, SC and discounts counted in totals more than once. Display, points/coupon and settled totals must agree across all three shipped admin surfaces and PHP/JPY; the existing complete amount/receipt parity test validates these shared functions.",
+      "risk": "P0",
+      "scope": [
+        {"path":"mobile-app/web/admin.html","start":"    window.recompPay = function(){","end":"    window.openPartial = function(tn){"},
+        {"path":"docs/yuwaku/admin.html","start":"    window.recompPay = function(){","end":"    window.openPartial = function(tn){"},
+        {"path":"docs/yuwaku/test/admin.html","start":"    window.recompPay = function(){","end":"    window.openPartial = function(tn){"},
+        {"path":"src/billing.js","start":"async function finalizeBill(","end":"async function getCheckoutOutcome("},
+        {"path":"src/orders.js","start":"async function getActiveOrders(","end":"async function getStaffCalls("},
+        {"path":"mobile-app/web/admin.html","start":"    var checkoutFinalizeBusy = false","end":"    function money(v)"},
+        {"path":"docs/yuwaku/admin.html","start":"    var checkoutFinalizeBusy = false","end":"    function money(v)"},
+        {"path":"docs/yuwaku/test/admin.html","start":"    var checkoutFinalizeBusy = false","end":"    function money(v)"},
+        {"path":"mobile-app/web/admin.html","start":"    function money(v)","end":"    function esc(s)"},
+        {"path":"docs/yuwaku/admin.html","start":"    function money(v)","end":"    function esc(s)"},
+        {"path":"docs/yuwaku/test/admin.html","start":"    function money(v)","end":"    function esc(s)"},
+        {"path":"mobile-app/web/admin.html","start":"        var subtotal = rows.reduce(function(s,o)","end":"        rows.forEach(function(o, rowIndex)"},
+        {"path":"docs/yuwaku/admin.html","start":"        var subtotal = rows.reduce(function(s,o)","end":"        rows.forEach(function(o, rowIndex)"},
+        {"path":"docs/yuwaku/test/admin.html","start":"        var subtotal = rows.reduce(function(s,o)","end":"        rows.forEach(function(o, rowIndex)"},
+        {"path":"mobile-app/web/admin.html","start":"    function computeGroupTotal(","end":"    function partialCoversAllActive("},
+        {"path":"docs/yuwaku/admin.html","start":"    function computeGroupTotal(","end":"    function partialCoversAllActive("},
+        {"path":"docs/yuwaku/test/admin.html","start":"    function computeGroupTotal(","end":"    function partialCoversAllActive("},
+        {"path":"mobile-app/web/admin.html","start":"    function openPayReady(","end":"    window.recompPay = function(){"},
+        {"path":"docs/yuwaku/admin.html","start":"    function openPayReady(","end":"    window.recompPay = function(){"},
+        {"path":"docs/yuwaku/test/admin.html","start":"    function openPayReady(","end":"    window.recompPay = function(){"},
+        {"path":"mobile-app/web/admin.html","start":"    window.printReceipt = function(orNo){","end":"    window.closePay = function(){"},
+        {"path":"docs/yuwaku/admin.html","start":"    window.printReceipt = function(orNo){","end":"    window.closePay = function(){"},
+        {"path":"docs/yuwaku/test/admin.html","start":"    window.printReceipt = function(orNo){","end":"    window.closePay = function(){"}
+      ],
+      "expected": {
+        "inclusiveVatPhp": {"total":2695,"vat":262.5,"vatIsAdditive":false},
+        "exclusiveVatPhp": {"total":3018.4,"vatIsAdditive":true}
+      },
+      "preserve": ["persisted receipt equals UI preview", "coupon is not subtracted twice", "points discount applied once", "other tenant unchanged"],
+      "oracles": [
+        {"path":"test/auto-ci/admin-checkout-inclusive-vat-display.test.mjs","marker":"expectBehaviorStage('IZK-UT-105'","lane":"auto"},
+        {"path":"test/auto-ci/izk-ut-105-115-admin-charge-regression.test.mjs","marker":"SQLite committed receipt","lane":"business"}
+      ],
+      "negativeControls": [
+        {"id":"double-add-inclusive-vat","path":"test/auto-ci/admin-checkout-inclusive-vat-display.test.mjs","marker":"P0_MUTANT_BILLING_VAT_DOUBLE_ADD"}
+      ]
+    },
+    {
+      "id": "IZK-UT-009",
+      "revision": 1,
+      "sourceRequirements": ["IZK-UT-009"],
+      "provenance": "User-reported navigation to unpermitted admin/settings pages; protected screens and direct RPC calls must reject ungranted roles, including newly introduced screen keys, while explicit grants remain usable.",
+      "risk": "P0",
+      "scope": [
+        {"path":"src/permissions.js","start":"function defaultAllowed(","end":"async function getPermissionMatrixForUI("}
+      ],
+      "expected": {
+        "ungrantedNewScreen": {"allowed":false,"status":403},
+        "explicitlyGrantedScreen": {"allowed":true},
+        "revokedScreen": {"allowed":false,"status":403}
+      },
+      "preserve": ["tenant authorization", "default-denied unknown screens", "existing system permission", "no bypass by direct RPC"],
+      "oracles": [
+        {"path":"test/auto-ci/permissions-single-query-performance.test.mjs","marker":"expectBehaviorStage('IZK-UT-009'","lane":"auto"},
+        {"path":"scripts/qa-modernization/s5-rpc-permission-matrix-browser.test.mjs","marker":"S5-RPC-PERMISSION-MATRIX-044 valid login but denied role","lane":"web"}
+      ],
+      "negativeControls": [
+        {"id":"allow-denied-page-rpc","path":"test/auto-ci/permissions-single-query-performance.test.mjs","marker":"P0_MUTANT_PERMISSION_BYPASS"}
+      ]
+    },
+    {
+      "id": "IZK-UT-039",
+      "revision": 1,
+      "sourceRequirements": ["IZK-UT-039", "IZK-UT-172"],
+      "provenance": "User-required irreversible store deletion and removal of owner personal records: the Control DB purge must require retired state and completed physical cleanup, then independently read back removal without changing another tenant.",
+      "risk": "P0",
+      "scope": [
+        {"path":"src/controlPlaneTenantErasure.js","start":"async function purgeRetiredTenantControlData(","end":"export {purgeRetiredTenantControlData,"}
+      ],
+      "expected": {
+        "physicalCleanupPending": {"authorized":false},
+        "retiredAndCleaned": {"authorized":true,"remainingRecords":0},
+        "otherStore": {"preserved":true}
+      },
+      "preserve": ["owner HMAC removed", "customer links removed", "no premature purge", "other store intact"],
+      "oracles": [
+        {"path":"test/auto-ci/control-plane-tenant-erasure.test.mjs","marker":"expectBehaviorStage('IZK-UT-039'","lane":"auto"},
+        {"path":"test/control_plane_tenant_erasure_test.mjs","marker":"resource_cleanup_state='complete'","lane":"business"}
+      ],
+      "negativeControls": [
+        {"id":"skip-retirement-state-authorization","path":"test/auto-ci/control-plane-tenant-erasure.test.mjs","marker":"P0_MUTANT_TENANT_PURGE_EARLY"}
+      ]
+    },
+    {
+      "id": "IZK-UT-184",
+      "revision": 1,
+      "sourceRequirements": ["IZK-UT-184"],
+      "provenance": "User reported deployed release notices absent from the announcements list and earlier repeated notices for the same release version. The reviewed release must remain visible once per version, retain its actual JA/EN changes, and never present an unreviewed or stale draft as published.",
+      "risk": "P1",
+      "scope": [
+        {"path":"mobile-app/web/announcement-center.js","start":"  function displayTitle(item) {","end":"  function isNativeApp() {"},
+        {"path":"mobile-app/web/announcement-center.js","start":"  function paint() {","end":"  function openDetail(id, isForced) {"},
+        {"path":"docs/yuwaku/announcement-center.js","start":"  function displayTitle(item) {","end":"  function isNativeApp() {"},
+        {"path":"docs/yuwaku/announcement-center.js","start":"  function paint() {","end":"  function openDetail(id, isForced) {"},
+        {"path":"docs/yuwaku/test/announcement-center.js","start":"  function displayTitle(item) {","end":"  function isNativeApp() {"},
+        {"path":"docs/yuwaku/test/announcement-center.js","start":"  function paint() {","end":"  function openDetail(id, isForced) {"},
+        {"path":"mobile-app/web/header.js","start":"    if (!policy || !policy.showAiCredit || document.querySelector('[data-iz-announcements]')) return;","end":"    script.onload = function () { if (window.IZAnnouncements) window.IZAnnouncements.sync(); };"},
+        {"path":"docs/yuwaku/header.js","start":"    if (!policy || !policy.showAiCredit || document.querySelector('[data-iz-announcements]')) return;","end":"    script.onload = function () { if (window.IZAnnouncements) window.IZAnnouncements.sync(); };"},
+        {"path":"docs/yuwaku/test/header.js","start":"    if (!policy || !policy.showAiCredit || document.querySelector('[data-iz-announcements]')) return;","end":"    script.onload = function () { if (window.IZAnnouncements) window.IZAnnouncements.sync(); };"},
+        {"path":"mobile-app/web/sw.js","start":"  './ai-credit-hub.js?v=auth7',","end":"  './vendor/pdfjs/pdf.min.mjs',"},
+        {"path":"docs/yuwaku/sw.js","start":"  './ai-credit-hub.js?v=auth7',","end":"  './ai-image-quality.js?v=auth1',"},
+        {"path":"docs/yuwaku/test/sw.js","start":"  './ai-credit-hub.js?v=auth7',","end":"  './ai-image-quality.js?v=auth1',"},
+        {"path":"src/announcementReadState.js","start":"import { validId } from './platformAnnouncements.js';","end":"function catalog(env) {"},
+        {"path":"src/announcementReadState.js","start":"function visibleReleaseTitle(notice, language) {","end":"async function markAnnouncement("},
+        {"path":"src/releaseAnnouncementSummary.js","start":"// Customer-facing rollup of reviewed release details.","end":"__EOF__"}
+      ],
+      "expected": {
+        "sameReleaseVersion": {"visibleNotices":1,"duplicateChangeOccurrences":1,"reviewedDetailsRemain":true},
+        "missingOrUnverifiedPublication": {"published":false},
+        "matchedDurablePublication": {"published":true}
+      },
+      "preserve": ["JA and EN reviewed changes", "version-specific grouping", "actual publication acknowledgment", "other store and normal notices unchanged", "three-surface cache version parity"],
+      "oracles": [
+        {"path":"test/auto-ci/reviewed-release-notice-integration.test.mjs","marker":"expectBehaviorStage('IZK-UT-184'","lane":"auto"},
+        {"path":"test/announcement_release_grouping_backend_test.mjs","marker":"18 auto-generated notices do not become 18 alleged changes","lane":"business"},
+        {"path":"test/announcement_center_ui_test.mjs","marker":"grouped release generates one server read RPC","lane":"web"}
+      ],
+      "negativeControls": [
+        {"id":"same-version-duplicate-details","path":"test/auto-ci/reviewed-release-notice-integration.test.mjs","marker":"P1_MUTANT_RELEASE_REPEAT"}
+      ]
+    },
+    {
+      "id":"IZK-UT-181",
+      "revision":1,
+      "sourceRequirements":["IZK-UT-181"],
+      "provenance":"User explicitly reported that normal configured eight-hour session expiry was incorrectly sent and counted as a client ERROR. Expired credentials must still be rejected, but only server-proven matching expiry should be INFO/completed and excluded from error-spike metrics; revoke, replay and transport errors remain failures.",
+      "risk":"P0",
+      "scope":[
+        {"path":"mobile-app/web/api.js","start":"          var invalid = new Error((json && json.error) || 'invalid_refresh_session');","end":"        await window.NativeAuth.setSession("},
+        {"path":"mobile-app/web/api.js","start":"          var category = error?.__authInvalid ?","end":"        // 一時的な通信断/timeout"},
+        {"path":"src/gasApi.js","start":"    case 'refreshSession': {","end":"    case 'logoutSession': {"},
+        {"path":"src/index.js","start":"async function handleRefreshSession(","end":"async function handleLogoutSession("},
+        {"path":"src/controlPlaneWorker.js","start":"import { recordDiagnostic","end":"import {archiveDiagnostics"},
+        {"path":"src/controlPlaneWorker.js","start":"async function acceptClientDiagnostic(","end":"function structuralAccessStore("},
+        {"path":"src/operationalDiagnostics.js","start":"async function recordAuthRefreshDecision(","end":"__EOF__"},
+        {"path":"src/serverTraceDiagnostics.js","start":"async function errorCodeFromResponse(","end":"function diagnosticSinkWarning("}
+      ],
+      "expected":{
+        "verifiedExpiry":{"record":false,"outcome":"completed","errorCode":"none"},
+        "unprovenOrRevoked":{"outcome":"failed"}
+      },
+      "preserve":["credential still rejected on expiration", "no client identifiers in diagnostics", "no cross-store downgrade", "unexpected failures remain actionable"],
+      "oracles":[
+        {"path":"test/auto-ci/server-diagnostics-coverage.test.mjs","marker":"expectBehaviorStage('IZK-UT-181'","lane":"auto"},
+        {"path":"test/auto-ci/auth-refresh-decision-audit.test.mjs","marker":"legacy iOS client errors downgrade only with matching server-owned expiry proof","lane":"business"}
+      ],
+      "negativeControls":[
+        {"id":"normal-expiry-counted-as-error","path":"test/auto-ci/server-diagnostics-coverage.test.mjs","marker":"P0_MUTANT_NORMAL_EXPIRY_AS_ERROR"}
+      ]
+    },
+    {
+      "id":"IZK-UT-161",
+      "revision":1,
+      "sourceRequirements":["IZK-UT-161"],
+      "provenance":"User requested a neutral 'communicating with server' status instead of 'sending error logs' while the client diagnostic upload is pending. Existing delivered-event ACK/failed retry must still control navigation and local retention across Native, PROD Web and TEST Web.",
+      "risk":"P1",
+      "scope":[
+        {"path":"mobile-app/web/index.html","start":"  <div class=\"diag-upload hidden\" id=\"diagUploadBanner\"","end":"    function renderDiagMenuStatus(status){"},
+        {"path":"mobile-app/web/index.html","start":"    function renderDiagMenuStatus(status){","end":"    function retryDiagMenuUpload(){"},
+        {"path":"mobile-app/web/manage.html","start":"  <div class=\"diag-upload hidden\" id=\"diagUploadBanner\"","end":"    function renderDiagMenuStatus(status){"},
+        {"path":"mobile-app/web/manage.html","start":"    function renderDiagMenuStatus(status){","end":"    function retryDiagMenuUpload(){"},
+        {"path":"docs/yuwaku/manage.html","start":"  <div class=\"diag-upload hidden\" id=\"diagUploadBanner\"","end":"    function renderDiagMenuStatus(status){"},
+        {"path":"docs/yuwaku/manage.html","start":"    function renderDiagMenuStatus(status){","end":"    function retryDiagMenuUpload(){"},
+        {"path":"docs/yuwaku/test/manage.html","start":"  <div class=\"diag-upload hidden\" id=\"diagUploadBanner\"","end":"    function renderDiagMenuStatus(status){"},
+        {"path":"docs/yuwaku/test/manage.html","start":"    function renderDiagMenuStatus(status){","end":"    function retryDiagMenuUpload(){"}
+      ],
+      "expected":{
+        "sendingJa":{"title":"サーバーと通信中…","suppressesLogDetails":true},
+        "sendingEn":{"title":"Communicating with server…","suppressesLogDetails":true},
+        "acknowledged":{"blocked":false},
+        "failedBeforeAcknowledged":{"retryAvailable":true}
+      },
+      "preserve":["diagnostic events retained on failure", "real server ACK required", "retry never replays business orders", "three-surface language parity"],
+      "oracles":[
+        {"path":"test/auto-ci/client-diagnostic-delivery.test.mjs","marker":"expectBehaviorStage('IZK-UT-161'","lane":"auto"},
+        {"path":"test/auto-ci/client-diagnostic-delivery.test.mjs","marker":"Native/Web/TEST menu upload blocks all controls and back navigation until ACK","lane":"business"}
+      ],
+      "negativeControls":[
+        {"id":"error-log-title-leak","path":"test/auto-ci/client-diagnostic-delivery.test.mjs","marker":"P1_MUTANT_DIAGNOSTIC_DISCLOSURE"}
+      ]
+    },
+    {
+      "id":"IZK-UT-048",
+      "revision":1,
+      "sourceRequirements":["IZK-UT-048"],
+      "provenance":"User-required supported order cancellation; existing independently specified S4-PARTIAL-SERVED-VOID-064 and S4-RECIPE-VOID-060 business scenarios require undo of the precise historical ingredient consumption once, without applying a newer recipe or affecting another served order.",
+      "risk":"P0",
+      "scope":[
+        {"path":"src/inventory.js","start":"async function buildVoidedOrderRestockPlan(","end":"// Read-only diagnostic for historical stock"},
+        {"path":"src/inventory.js","start":"// Revert only the *actual* material movements committed when an order was","end":"async function buildVoidedOrderRestockPlan("},
+        {"path":"src/inventory.js","start":"export {","end":"__EOF__"},
+        {"path":"src/orders.js","start":"import { buildServedOrderDeductionPlan","end":"import {\n  validateCoupon"},
+        {"path":"src/orders.js","start":"async function voidOrder(","end":"export { submitOrder"}
+      ],
+      "expected":{
+        "servedMovementReversed":{"historicalDebit":-3,"restockQuantity":3,"restockBatches":1},
+        "repeatOrStaleCancellation":{"restockBatches":0},
+        "otherOrder":{"changed":false}
+      },
+      "preserve":["historical movement not changed recipe", "cross-tenant isolation", "guarded atomic D1 batch", "cancel audit and stock consistent"],
+      "oracles":[
+        {"path":"test/auto-ci/void-inventory-contract.test.mjs","marker":"expectBehaviorStage('IZK-UT-048'","lane":"auto"},
+        {"path":"scripts/qa-modernization/s4-business-scenarios.test.mjs","marker":"S4-PARTIAL-SERVED-VOID-064","lane":"business"}
+      ],
+      "negativeControls":[
+        {"id":"restock-with-negative-debit","path":"test/auto-ci/void-inventory-contract.test.mjs","marker":"P0_MUTANT_VOID_RESTOCK_SIGN"}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "review": "IZK_OPEN_LOCAL_ACTION_TRIAGE_20261117.md",
+  "user_authorization": "2026-11-17: 不要なやつはクローズしてください",
+  "entries": [
+    {"issue_id":"IZK-UT-110","closure_kind":"SUPERSEDED","reason":"旧『新規注文アラーム』の不明瞭な表記は、現在のKDSスピーカー通知・説明へ置換済み。新たな修正対象とせず、現行通知品質は通常QAで継続確認する。"},
+    {"issue_id":"IZK-UT-116","closure_kind":"SUPERSEDED","reason":"旧画像検索プロバイダーの結果順位改善は、Google画像検索＋権利確認付き手動登録の新導線へ置換。現行画像検索の不具合は143等で追跡する。"},
+    {"issue_id":"IZK-UT-118","closure_kind":"UNACTIONABLE_DUPLICATE","reason":"画面・操作・エラー識別子が不明で、別の画像・通信障害の総称的な重複報告と判断。元証拠で独立障害が特定された場合は再OPENする。"},
+    {"issue_id":"IZK-UT-131","closure_kind":"RETIRED_CI","reason":"旧GitHub Actionsの常時CI長時間実行は廃止され、COSから呼ぶローカル差分QAへ移管済み。現行ローカルQAの失敗は別途保持する。"},
+    {"issue_id":"IZK-UT-141","closure_kind":"NOT_PRODUCT_DEFECT","reason":"利用者が実施すべき事項についての案内依頼であり、ソフトウェアの障害またはソース修正依頼ではない。"},
+    {"issue_id":"IZK-UT-150","closure_kind":"NOT_PRODUCT_DEFECT","reason":"本番監視からCOSへの接続確認用E2Eメッセージであり、製品不具合を申告するものではない。テスト証跡は引き続き保管する。"},
+    {"issue_id":"IZK-UT-154","closure_kind":"DUPLICATE","reason":"過去の単発エラー急増通知は、共通API/端末診断のIZK-UT-155で根本原因を追跡中。過去の通知原本は保持する。"},
+    {"issue_id":"IZK-UT-158","closure_kind":"HISTORICAL_EVENT","reason":"当時のControl D1監視Cron停滞はマイグレーション後のheartbeat回復が記録済み。新たな停止は現行監視で別途検出する。"},
+    {"issue_id":"IZK-UT-159","closure_kind":"DUPLICATE","reason":"旧GitHub release-announcement CIの単発失敗は160・165に根因が分離されている。現在の更新通知自体は184で管理する。"},
+    {"issue_id":"IZK-UT-165","closure_kind":"RETIRED_CI","reason":"旧GitHub通知CIの認証設定問題は当該workflowが無効となり不要。更新通知の本番公開・D1照合は手動配布経路184で管理する。"},
+    {"issue_id":"IZK-UT-168","closure_kind":"RETIRED_CI","reason":"旧GitHub iOS SimulatorのKeychainエラーはワークフローを停止した現行の手動ビルド方針では対象外。実機認証不具合は175等で追跡する。"},
+    {"issue_id":"IZK-UT-169","closure_kind":"RETIRED_CI","reason":"旧auto-ui CIの同期式Data Admin期待との不一致は非同期jobの現行仕様に合わせローカル修正済み。旧Runは履歴として保持する。"},
+    {"issue_id":"IZK-UT-170","closure_kind":"RETIRED_CI","reason":"旧S5/S6固定ケース数によるCI誤検知は、現在の実ケース登録・連番検証へ修正済み。旧Runの履歴と現在の独立QAは保全する。"},
+    {"issue_id":"IZK-UT-173","closure_kind":"NOT_PRODUCT_DEFECT","reason":"作業者向け内部監査の指示文が自動受付で誤って障害ID化されたものであり、製品修正案件ではない。"},
+    {"issue_id":"IZK-UT-177","closure_kind":"RETIRED_CI","reason":"旧auto-ui Runのfeedback reload期待と管理画面マッピングの問題は既存ローカルテストへ修正済み。現行QAの新規FAILは追跡対象とする。"},
+    {"issue_id":"IZK-UT-183","closure_kind":"DUPLICATE","reason":"11月GitHub Actions課金エラーは調査スキップするというユーザー指示が182と重複して登録された。182のスキップ設定を継続する。"}
+  ]
+}

@@ -93,6 +93,9 @@
     // 2026-08-24修正: toISOString()はUTC基準のため、フィリピン時間で月初の午前0〜8時頃に開くと
     // 前月が選択されてしまう不具合があった（profit_sim.htmlで先に見つけて修正済みだった同じ問題を
     // 横展開）。ローカル時間（店舗のタイムゾーン）で当月を決める。
+    if(window.IZHeader&&typeof IZHeader.registerRefreshHandler==='function'){
+      IZHeader.registerRefreshHandler(function(){return Object.keys(PENDING_ISSUES).length?Promise.resolve():load();});
+    }
     API.initStoreDateInputs([{id:'month',kind:'month'}], function(){ ISSUED={}; load(); });
     document.getElementById('month').addEventListener('change', function(){ ISSUED={}; load(); });
 

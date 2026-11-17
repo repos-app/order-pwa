@@ -65,8 +65,7 @@
 
     window.load = function(){
       var month = document.getElementById('month').value; if(!month) return;
-      document.getElementById('rows').innerHTML = '<tr><td colspan="7" style="padding:14px;">'+I18n.t('loading')+'</td></tr>';
-      rpc('getAttendanceMonthlySummary',[month]).then(function(list){
+      return rpc('getAttendanceMonthlySummary',[month]).then(function(list){
         list = (list||[]).filter(function(e){ return e.days>0 || e.workedMin>0; }).sort(function(a,b){ return (b.estimate||0)-(a.estimate||0); });
         if (!list.length){ document.getElementById('rows').innerHTML='<tr><td colspan="7" style="color:#aaa;padding:16px;text-align:center;">'+I18n.t('noData')+'</td></tr>'; return; }
         document.getElementById('rows').innerHTML = list.map(function(e){
@@ -81,6 +80,9 @@
       }).catch(function(e){ if(String(e.message||e).indexOf('unauthorized')>=0){ location.href='./manage.html'; return; } document.getElementById('rows').innerHTML='<tr><td colspan="7" style="color:#b91c1c;padding:14px;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</td></tr>'; });
     };
 
+    if(window.IZHeader&&typeof IZHeader.registerRefreshHandler==='function'){
+      IZHeader.registerRefreshHandler(function(){return window.load();});
+    }
     API.post('getSettings', {}).then(function(r){ if(r.data && r.data.currencySymbol) SYM=r.data.currencySymbol; }).catch(function(){});
     // 2026-08-24修正: toISOString()はUTC基準のため、フィリピン時間で月初の午前0〜8時頃に開くと
     // 前月が選択されてしまう不具合があった（profit_sim.htmlで先に見つけて修正済みだった同じ問題を

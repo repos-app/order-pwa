@@ -154,8 +154,8 @@
 
     window.load = function(){
       var mo = document.getElementById('month').value; if(!mo) return;
-      document.getElementById('result').innerHTML='<div class="loading">'+I18n.t('loading')+'</div>';
-      rpcBusyRetry('getMonthlyProfit',[mo]).then(function(d){ DATA=d||null; render(); })
+      if(!DATA)document.getElementById('result').innerHTML='<div class="loading">'+I18n.t('loading')+'</div>';
+      return rpcBusyRetry('getMonthlyProfit',[mo]).then(function(d){ DATA=d||null; render(); })
         .catch(function(e){
           if(String(e.message||e).indexOf('unauthorized')>=0){ location.href='./manage.html'; return; }
           var ts = new Date().toLocaleTimeString(isEN()?'en-US':'ja-JP');
@@ -166,6 +166,9 @@
         });
     };
 
+    if(window.IZHeader&&typeof IZHeader.registerRefreshHandler==='function'){
+      IZHeader.registerRefreshHandler(function(){return window.load();});
+    }
     API.post('getSettings', {}).then(function(r){ SETTINGS=r.data||{}; if(SETTINGS.currencySymbol) SYM=SETTINGS.currencySymbol; if(DATA) render(); }).catch(function(){});
     // 2026-08-24修正: toISOString()はUTC基準のため、フィリピン時間で月初の午前0〜8時頃に開くと
     // 前月が選択されてしまう不具合があった（profit_sim.htmlで先に見つけて修正済みだった同じ問題を

@@ -220,6 +220,9 @@
       });
     };
 
+    if(window.IZHeader&&typeof IZHeader.registerRefreshHandler==='function'){
+      IZHeader.registerRefreshHandler(function(){return window.reload();});
+    }
     var initialReadSeq=++TODO_READ_SEQ;
     Promise.all([
       rpc('getTodos',[]),

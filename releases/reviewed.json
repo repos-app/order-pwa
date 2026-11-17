@@ -1,0 +1,7 @@
+{
+  "severity": "normal",
+  "titleJa": "izakanpai v1.1 更新内容",
+  "titleEn": "izakanpai v1.1 update notes",
+  "bodyJa": "今回の主な変更点：\n・テーブル／席以外の席種を追加できるようにする機能を整備しました。\n・VIP席のチャージ・時間延長料金、入場時刻の編集に対応しました。\n・オーダー時の自由価格・商品名変更と、会計確定後の担当者設定・コミッション計算を改善しました。\n・スタッフ呼出・会計依頼のプッシュ通知と、ログアウト時の通知停止を改善しました。\n・共通ヘッダーとお知らせ画面を改善し、アプリバージョンをインストール情報から取得するよう変更しました。\n・会計履歴、金額表示、店舗管理の操作性と検証を強化しました。\n・画面操作、通信時の安定性、ヘルプ表示、処理速度を改善しました。\n※利用可能な機能はインストール済みアプリや配信状況によって異なります。",
+  "bodyEn": "Changes in this update:\n• Added support for configurable seating types beyond tables and seats.\n• Added VIP seat charges, time-based extension fees, and editable entry times.\n• Improved custom-price and custom-name orders, post-checkout staff assignment, and commission calculations.\n• Improved push notifications for staff calls and bill requests, including stopping notifications on sign-out.\n• Improved the shared header and announcements, including displaying the installed app version.\n• Strengthened checkout history, amount display, store-management usability, and validation.\n• Improved screen interactions, connection reliability, help content, and performance.\nAvailability depends on the installed app version and deployment status."
+}

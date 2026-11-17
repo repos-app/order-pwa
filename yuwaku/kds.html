@@ -128,7 +128,7 @@ function seatLabel(v){ var s=String(v==null?'':v).trim(),en=(window.I18n&&I18n.l
       return (suffix&&(ja||en)?(ja||en)+suffix:'') || it&&it.nameJa || ((ja||en)?(ja||en)+suffix:'') || it&&it.nameEn || nm;
     }
     function loadMenu(){
-      API.post('getMenu', {token:TOKEN}).then(function(r){
+      return API.post('getMenu', {token:TOKEN}).then(function(r){
         var list = (r && r.data) || [];
         var map = {}, jaMap = {}, enMap = {}, choiceMap = {};
         list.forEach(function(it){
@@ -356,7 +356,10 @@ function seatLabel(v){ var s=String(v==null?'':v).trim(),en=(window.I18n&&I18n.l
     function updateSoundBtn(){ var b = document.getElementById('soundBtn'); var label=soundOn?I18n.t('soundOn'):I18n.t('soundOff'); b.className = 'kbtn' + (soundOn?' on':' sound-off'); b.textContent = '🔊'; b.setAttribute('aria-label',label); b.title=label; }
     window.toggleSound = function(){ soundOn = !soundOn; updateSoundBtn(); if (soundOn) beep(); };
 
-    window.reloadAll = function(){ loadMenu(); load(true); };
+    window.reloadAll = function(){ return Promise.all([loadMenu(),load(true)]); };
+    if(window.IZHeader&&typeof IZHeader.registerRefreshHandler==='function'){
+      IZHeader.registerRefreshHandler(function(){return window.reloadAll();});
+    }
     // [P0] タブが非表示（他アプリ切替・画面ロック等）の間はポーリング間隔を落とし、無駄なGAS実行を減らす。
     // 再表示時は即座に最新化する。
     var _pollTimer = null;

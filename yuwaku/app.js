@@ -9,8 +9,8 @@
       errTitle:'Error', ok:'OK', table:'Table', counter:'Counter', noTable:'Please scan the signed QR code at your location.',
       offline:'OFFLINE\nYou can keep ordering. Orders are saved on this device and will be sent automatically when back online.', syncing:'Back online — syncing\nSending queued orders now…', pending:'Queued orders pending\nThey will be sent automatically when the connection is available.', attention:'A queued order needs attention\nIt was not accepted by the server and was kept on this device. Please review the order or ask a manager.', queueRetry:'Retry', queueAttention:'Check', queueSessionMismatch:'A queued order belongs to a different login session and will not be sent automatically.', invalidTableSession:'This table session is invalid. Staff should reselect the table; guests should rescan the table QR code.', lang:'JP',
       svc:'Service', tax:'Tax', ranking:'🏆 Ranking',
-      tblTitle:'Select a location', tblMsg:'Staff may select a location here. Guests must scan the signed QR code at their location.', tblGo:'Start',
-      partyTitle:'How many guests?', partyLabel:'Guests', partyChoose:'Select party size', partyMsg:'Used for entry and extension fee billing.', partyMsgEntry:'Used for entry fee billing.', partyMsgExtension:'Used for extension fee billing.', partyGo:'OK',
+      tblTitle:'Select a location', tblMsg:'Staff may select a location here. Guests must scan the signed QR code at their location.', tblGo:'Continue to order',
+      partyTitle:'How many guests?', partyLabel:'Guests', partyChoose:'Select party size', partyMsg:'Used for entry and extension fee billing. The first confirmed order starts the visit.', partyMsgEntry:'Used for entry fee billing. The first confirmed order starts the visit.', partyMsgExtension:'Used for extension fee billing. The first confirmed order starts the visit.', partyGo:'OK',
       partyChange:'Change', partySave:'Save', partyLoadFailed:'Could not confirm the current party size. Please reopen this location.', partySaveFailed:'Could not save the party size. Please try again.', partySaveFirst:'Save the changed party size before starting.', partyStateChanged:'The party size or checkout status changed. Please reopen this location.',
       memberTitle:'Member (points)', memberSub:'Enter your phone to earn points. For privacy, balance checks and point use are handled by staff.', check:'Register', usePoints:'Use points', points:'pts', discountLbl:'Points', earned:'pts earned',
       couponTitle:'Coupon / Voucher', couponSub:'Enter a code to get a discount.', apply:'Apply', remove:'Remove coupon', close:'Close', couponLbl:'Coupon',
@@ -33,8 +33,8 @@
       errTitle:'エラー', ok:'OK', table:'卓', counter:'カウンター', noTable:'席に設置された署名付きQRコードを読み取ってください。',
       offline:'オフライン中\nこのまま注文できます。注文は端末に保存し、オンライン復帰時に自動送信します。', syncing:'オンライン復帰 — 同期中\n未同期注文を送信しています…', pending:'未同期注文あり\n通信が利用可能になり次第、自動送信します。', attention:'未同期注文の確認が必要です\nサーバーで受け付けられなかった注文を端末に保持しています。内容を確認するか管理者へ連絡してください。', queueRetry:'再送', queueAttention:'要確認', queueSessionMismatch:'別のログインセッションで作成された未同期注文のため、自動送信しません。', invalidTableSession:'席のセッションが無効です。スタッフは席を選び直し、お客様は席のQRコードを再読み取りしてください。', lang:'EN',
       svc:'サービス料', tax:'税', ranking:'🏆 ランキング',
-      tblTitle:'席を選択', tblMsg:'スタッフはここで席を選べます。お客様は席の署名付きQRコードを読み取ってください。', tblGo:'開始',
-      partyTitle:'ご来店人数は？', partyLabel:'人数', partyChoose:'人数を選択', partyMsg:'入場料・延長料の請求に使用します。', partyMsgEntry:'入場料の請求に使用します。', partyMsgExtension:'延長料の請求に使用します。', partyGo:'OK',
+      tblTitle:'席を選択', tblMsg:'スタッフはここで席を選べます。お客様は席の署名付きQRコードを読み取ってください。', tblGo:'注文へ進む',
+      partyTitle:'ご来店人数は？', partyLabel:'人数', partyChoose:'人数を選択', partyMsg:'入場料・延長料の請求に使用します。最初の注文確定時から入場開始です。', partyMsgEntry:'入場料の請求に使用します。最初の注文確定時から入場開始です。', partyMsgExtension:'延長料の請求に使用します。最初の注文確定時から入場開始です。', partyGo:'OK',
       partyChange:'変更', partySave:'保存', partyLoadFailed:'現在の人数を確認できませんでした。席を選び直してください。', partySaveFailed:'人数を保存できませんでした。再度お試しください。', partySaveFirst:'人数変更を保存してから開始してください。', partyStateChanged:'人数または会計状態が変わりました。席を選び直してください。',
       memberTitle:'会員（ポイント）', memberSub:'電話番号を入力するとポイントが貯まります。残高確認・利用は個人情報保護のためスタッフへお申し付けください。', check:'登録', usePoints:'ポイントを使う', points:'pt', discountLbl:'ポイント割引', earned:'pt 獲得',
       couponTitle:'クーポン／バウチャー', couponSub:'コードを入力すると割引されます。', apply:'適用', remove:'クーポンを外す', close:'閉じる', couponLbl:'クーポン',
@@ -864,11 +864,12 @@
   function paintPartyPicker() {
     var sel = $('partyCount'), change = $('partyChangeBtn'), start = $('tblGo');
     if (!sel || !change || !start) return;
-    var registered = !!partyPickerSaved;
+    // A stored pre-order count is only a draft, not a locked visit.
+    var locked = !!(partyPickerSaved && partyPickerSaved.locked);
     var tableSel = $('tableSelect');
     if (tableSel) tableSel.disabled = partyPickerSaving;
-    sel.disabled = partyPickerLoading || partyPickerSaving || (registered && !partyPickerEditing) || state.sessionEnded;
-    change.hidden = !registered || !state.staffMode;
+    sel.disabled = partyPickerLoading || partyPickerSaving || (locked && !partyPickerEditing) || state.sessionEnded;
+    change.hidden = !locked || !state.staffMode;
     change.disabled = partyPickerLoading || partyPickerSaving || partyPickerLoadFailed || state.sessionEnded;
     change.textContent = partyPickerEditing ? t().partySave : t().partyChange;
     start.disabled = partyPickerLoading || partyPickerSaving || partyPickerLoadFailed || partyPickerEditing || state.sessionEnded;
@@ -912,8 +913,9 @@
       var count = Number(r && r.data && r.data.count);
       var enteredAt = Number(r && r.data && r.data.enteredAt);
       if (Number.isInteger(count) && count >= 1 && count <= partySizeMax() &&
-          Number.isSafeInteger(enteredAt) && enteredAt > 0) {
-        partyPickerSaved = { count: count, enteredAt: enteredAt };
+          Number.isSafeInteger(enteredAt) && enteredAt >= 0) {
+        partyPickerSaved = { count: count, enteredAt: enteredAt,
+          locked: typeof r.data.locked === 'boolean' ? r.data.locked : enteredAt > 0 };
         partySel.value = String(count);
       }
     }).catch(function () {
@@ -933,6 +935,7 @@
   // Never overwrite an operator's in-progress edit or initial unsaved choice.
   function refreshRegisteredPartyPicker() {
     if (!navigator.onLine || !partyPickerSaved || partyPickerEditing ||
+        (partyPickerSaved.locked === false && String($('partyCount').value) !== String(partyPickerSaved.count)) ||
         partyPickerLoading || partyPickerSaving) return;
     var overlay = $('tableOverlay'), section = $('partySection');
     if (!overlay || !overlay.classList.contains('show') ||
@@ -992,7 +995,7 @@
       partySel.onchange = function () { partyPickerLoadSeq++; };
     }
     $('partyChangeBtn').onclick = function () {
-      if (!needParty || !partyPickerSaved || !state.staffMode || state.sessionEnded ||
+      if (!needParty || !partyPickerSaved || !partyPickerSaved.locked || !state.staffMode || state.sessionEnded ||
           partyPickerLoading || partyPickerSaving || partyPickerLoadFailed) return;
       if (!partyPickerEditing) {
         partyPickerShowError('');
@@ -1013,7 +1016,7 @@
       })).then(function (r) {
         var result = r && r.data;
         if (!result || !result.ok) throw new Error(result && result.error || 'save_failed');
-        partyPickerSaved = { count: result.count, enteredAt: result.enteredAt };
+        partyPickerSaved = { count: result.count, enteredAt: result.enteredAt, locked: previous.locked };
         partyPickerEditing = false;
         state.partySize = result.count;
       }).catch(function (err) {
@@ -1058,13 +1061,26 @@
         $('tableOverlay').classList.remove('show');
         renderTexts();
       };
-      if (!needParty || partyPickerSaved) { finish(); return; }
-      // First entry only. Do not close the picker until D1 acknowledges it.
+      if (!needParty || (partyPickerSaved && Number(partyPickerSaved.count) === n)) { finish(); return; }
+      // Initial registration or pre-order headcount change: keep the picker
+      // open until the server acknowledges it. An already-ordered visit can
+      // only be changed through the explicit staff Change/Save path.
+      if (partyPickerSaved && partyPickerSaved.locked) {
+        partyPickerShowError(t().partyStateChanged);
+        return;
+      }
+      var previous = partyPickerSaved;
+      var update = { table: v, count: n, mode: previous && state.staffMode ? 'change' : 'create' };
+      if (update.mode === 'change') {
+        update.expectedCount = previous.count;
+        update.expectedEnteredAt = previous.enteredAt;
+      }
       partyPickerSaving = true;
       paintPartyPicker();
-      API.post('setTablePartySize', tablePayload({ table: v, count: n, mode: 'create' }))
+      API.post('setTablePartySize', tablePayload(update))
         .then(function (r) {
           if (!r || !r.data || !r.data.ok) throw new Error(r && r.data && r.data.error || 'save_failed');
+          partyPickerSaved = { count: r.data.count, enteredAt: r.data.enteredAt, locked: false };
           finish();
         }).catch(function (err) {
           if (err && /state_changed|party_size_locked/.test(err.message || '')) {
