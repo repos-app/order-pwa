@@ -45,15 +45,17 @@
     .po-table{ width:100%; min-width:0; table-layout:fixed; }
     .po-table th,.po-table td{ padding:8px 4px; }
     .po-table .po-qty,.po-table .po-unit{ width:72px; }
-    .po-table .po-del{ width:44px; }
+    /* Common header enforces 44px touch targets; reserve the full width
+       instead of letting the delete action escape the clipped table card. */
+    .po-table .po-del{ width:52px; text-align:center; }
     .po-table input{ display:block; width:100%; min-width:0; max-width:100%; padding:9px 7px; border:1px solid var(--border); border-radius:7px; font:inherit; background:var(--surface); }
-    .po-table .po-del .btn-sm{ width:36px; min-width:0; padding:7px 0; }
+    .po-table .po-del .btn-sm{ width:44px; min-width:44px; min-height:44px; padding:7px 0; }
     @media (max-width:520px){
       .po-table th,.po-table td{ padding-left:3px; padding-right:3px; }
       .po-table .po-qty,.po-table .po-unit{ width:58px; }
-      .po-table .po-del{ width:38px; }
+      .po-table .po-del{ width:52px; }
       .po-table input{ font-size:16px; padding:8px 5px; }
-      .po-table .po-del .btn-sm{ width:32px; padding-left:0; padding-right:0; }
+      .po-table .po-del .btn-sm{ width:44px; padding-left:0; padding-right:0; }
     }
     @media (orientation:landscape) and (max-height:500px){
       .wrap{max-width:none;padding:8px 12px 220px;}
@@ -241,7 +243,9 @@
           ' <span style="color:#9a3412;">'+(isEN()?'remaining ':'残り ')+esc(line.remainingQty)+'</span></div>';
       }).join('');
       var history=(po.receipts||[]).map(function(r){
-        return '<div style="font-size:12px;color:#475569;">📦 '+esc(r.receivedAt)+' · '+
+        // Receipt timestamps are SQLite UTC; format in the configured store timezone.
+        var receivedStamp=window.DateDisplay?DateDisplay.formatUtcDateTime(r.receivedAt):r.receivedAt;
+        return '<div style="font-size:12px;color:#475569;">📦 '+esc(receivedStamp)+' · '+
           (isEN()?'Receipt cost: ':'受領原価: ')+esc(r.costTotal)+' · '+esc(r.id)+'</div>';
       }).join('');
       return '<div style="margin-top:7px;font-weight:700;">'+esc(poLifecycleLabel(po.status))+'</div>'+

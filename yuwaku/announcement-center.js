@@ -361,8 +361,12 @@
         throw new Error('diagnostic_send_unconfirmed');
       diagnosticReport = {state:'confirmed',id:receipt.eventId,
         pending:Number.isInteger(receipt.pendingCount) ? receipt.pendingCount : null,
-        total:Number.isInteger(receipt.totalCount) ? receipt.totalCount : null,
-        resent:Number.isInteger(receipt.resentCount) ? receipt.resentCount : null,
+        // Both foreground progress and the receipt count retained logs only.
+        // The internal connection probe never appears in user-facing totals.
+        historyTotal:Number.isInteger(receipt.totalCount) ? receipt.totalCount : null,
+        historyConfirmed:Number.isInteger(receipt.resentCount) ?
+          receipt.resentCount + (Number.isInteger(receipt.alreadyDeliveredCount)
+            ? receipt.alreadyDeliveredCount : 0) : null,
         partial:Number(receipt.failedCount)>0 || receipt.incomplete===true,
         reason:['http_401','http_403','http_429','session_changed'].includes(receipt.stopReason)
           ? receipt.stopReason : ''};
@@ -406,15 +410,15 @@
     if (diagnosticReport && diagnosticReport.state === 'sending') {
       status.textContent = t('サーバーからの保存確認を待っています…', 'Waiting for the server save acknowledgement…');
     } else if (diagnosticReport && diagnosticReport.state === 'confirmed') {
-      status.textContent = (diagnosticReport.partial && diagnosticReport.total > 0 && diagnosticReport.resent === 0
+      status.textContent = (diagnosticReport.partial && diagnosticReport.historyTotal > 0 && diagnosticReport.historyConfirmed === 0
         ? t('診断接続は確認済みですが、対象ログの保存確認は0件です。確認ID: ',
           'Diagnostic connection confirmed, but no retained logs were acknowledged. Event ID: ')
         : diagnosticReport.partial
         ? t('一部のサーバー保存を確認済み。確認ID: ', 'Some logs saved on server. Event ID: ')
         : t('サーバー保存確認済み。確認ID: ', 'Server save confirmed. Event ID: ')) +
-        diagnosticReport.id + (diagnosticReport.total == null ? '' :
-          ' · ' + t('ログ再送確認: ', 'Logs re-upload confirmed: ') +
-          diagnosticReport.resent + '/' + diagnosticReport.total) +
+        diagnosticReport.id + (diagnosticReport.historyTotal == null ? '' :
+          ' · ' + t('送信確認: ', 'Delivery confirmed: ') +
+          diagnosticReport.historyConfirmed + '/' + diagnosticReport.historyTotal) +
         (diagnosticReport.partial && diagnosticReport.pending
           ? ' · ' + t('一部未確認（再送可能）: ', 'Unconfirmed (can retry): ') + diagnosticReport.pending
           : '') +

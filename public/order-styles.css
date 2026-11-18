@@ -99,19 +99,6 @@ body.offline .net-banner.offline-b { display: flex; }
 /* Menu grid */
 .grid { display: grid; grid-template-columns: repeat(var(--order-grid-columns, 2), minmax(0, 1fr)); gap: 12px; padding: 4px 14px 20px; }
 .grid > .card { min-width:0; container-type:inline-size; }
-@container (max-width: 150px) {
-  .qty { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; }
-  .qty .n { grid-column:1/-1; grid-row:1; justify-self:center; }
-  .qty .minus { grid-column:1; grid-row:2; width:100%; }
-  .qty .plus { grid-column:2; grid-row:2; width:100%; }
-  .qty .opt-btn { grid-column:1/-1; }
-}
-@container (max-width: 110px) {
-  .qty { grid-template-columns:minmax(0,1fr); }
-  .qty .n { grid-column:1; grid-row:1; }
-  .qty .minus { grid-column:1; grid-row:2; }
-  .qty .plus { grid-column:1; grid-row:3; }
-}
 .card {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
   box-shadow: var(--shadow); overflow: hidden; display: flex; flex-direction: column; position: relative;
@@ -145,6 +132,20 @@ body.offline .net-banner.offline-b { display: flex; }
 .qty button.plus { background: var(--accent); color: #fff; border-color: var(--accent); }
 .qty .n { font-size: 16px; font-weight: 800; min-width: 22px; text-align: center; }
 .qty .n.has { color: var(--accent); }
+/* Keep narrow-card overrides after .qty flex so they cannot be overwritten. */
+@container (max-width: 150px) {
+  .qty { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; }
+  .qty .n { grid-column:1/-1; grid-row:1; justify-self:center; }
+  .qty .minus { grid-column:1; grid-row:2; width:100%; min-width:0; min-height:40px; }
+  .qty .plus { grid-column:2; grid-row:2; width:100%; min-width:0; min-height:40px; }
+  .qty .opt-btn { grid-column:1/-1; width:100%; min-width:0; }
+}
+@container (max-width: 110px) {
+  .qty { grid-template-columns:minmax(0,1fr); }
+  .qty .n { grid-column:1; grid-row:1; }
+  .qty .minus { grid-column:1; grid-row:2; }
+  .qty .plus { grid-column:1; grid-row:3; }
+}
 
 /* Cart bar */
 .cartbar {

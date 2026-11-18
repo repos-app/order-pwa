@@ -1160,7 +1160,8 @@
       return Promise.reject(new Error('diagnostic_login_required'));
     _diagnosticQueue().filter(x=>x.storeId===storeId).forEach(x=>_rememberDiagnostic(x));
     const history=_diagnosticHistory().filter(x=>x.storeId===storeId&&!x.deliveredAt);
-    const total=history.length+1;
+    // Internal connection probe never counts toward user-visible log progress.
+    const total=history.length;
     function report(completed,failed){
       if(typeof options.onProgress==='function')try{
         options.onProgress({completed:completed,total:total,failed:failed||0});
@@ -1178,8 +1179,8 @@
       _manualBatchStoreId=storeId;
       _manualBatchPromise=_resendDiagnosticHistory([probe],storeId).then(async function(result){
         if(result.resentCount!==1)throw new Error('diagnostic_send_unconfirmed');
-        report(1,0);
-        const resend=await _resendDiagnosticHistory(history,storeId,function(done,failed){report(1+done,failed);});
+        report(0,0);
+        const resend=await _resendDiagnosticHistory(history,storeId,function(done,failed){report(done,failed);});
         return Object.assign({ok:true,eventId:id},resend);
       }).finally(function(){_manualBatchPromise=null;_manualBatchStoreId='';});
       return _manualBatchPromise;
@@ -1195,8 +1196,8 @@
     _flushDiagnostics();
     _manualBatchStoreId=storeId;
     _manualBatchPromise=promise.then(async function(receipt){
-      report(1,0);
-      const resend=await _resendDiagnosticHistory(history,storeId,function(done,failed){report(1+done,failed);});
+      report(0,0);
+      const resend=await _resendDiagnosticHistory(history,storeId,function(done,failed){report(done,failed);});
       return Object.assign({},receipt,resend);
     }).finally(function(){_manualBatchPromise=null;_manualBatchStoreId='';});
     return _manualBatchPromise;

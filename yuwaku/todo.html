@@ -47,7 +47,9 @@
     .item .meta{ font-size:11.5px; color:var(--text-3); margin-top:3px; }
     .badge{ display:inline-block; background:#eef2f7; color:var(--navy); font-size:11px; font-weight:800; padding:2px 8px; border-radius:999px; margin-right:6px; margin-bottom:3px; }
     .badge.overdue{ background:#fee2e2; color:#b91c1c; }
-    .delbtn{ background:none; border:0; color:#b91c1c; font-size:18px; cursor:pointer; flex:0 0 auto; padding:4px 6px; }
+    .delbtn,.editbtn{ background:none; border:0; font-size:18px; cursor:pointer; flex:0 0 auto; padding:4px 6px; min-width:44px; min-height:44px; }
+    .delbtn{ color:#b91c1c; }
+    .editbtn{ color:#2563eb; }
     .empty{ text-align:center; color:var(--text-3); padding:24px 0; }
     .created-line{ margin-top:2px; }
   /* Formal Android PT-CTL touch target: independent of common header injection. */
@@ -128,7 +130,7 @@
               (r.done && r.doneAt ? ' · '+esc(I18n.t('doneAt'))+esc(window.DateDisplay?DateDisplay.formatUtcDateTime(r.doneAt):r.doneAt) : '') +
             '</div>' +
           '</div>' +
-          '<button class="delbtn" onclick="editTodo(\''+r.id+'\')" title="'+esc(I18n.t('edit'))+'">✎</button>' +
+          '<button class="editbtn" onclick="editTodo(\''+r.id+'\')" title="'+esc(I18n.t('edit'))+'">✎</button>' +
           '<button class="delbtn" onclick="removeTodo(\''+r.id+'\')" title="'+esc(I18n.t('delete'))+'">🗑️</button>' +
         '</div>';
       }).join('');

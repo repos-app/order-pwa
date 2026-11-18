@@ -1,6 +1,6 @@
 {
   "schema": "izakanpai.qa.izk-ut-178-completion-gate.v1",
-  "generatedAt": "2026-11-18T11:07:22.436Z",
+  "generatedAt": "2026-11-18T15:51:37.059Z",
   "goal": {
     "requirementCount": 206,
     "sourceCurrentIndependentCasePassRequired": 206,
@@ -14,165 +14,114 @@
     "target": 206,
     "defined": 206,
     "definitionValid": true,
-    "linked": 191,
-    "currentPass": 8,
-    "open": 198,
+    "linked": 206,
+    "currentPass": 66,
+    "open": 140,
     "byStatus": {
-      "NOT_IMPLEMENTED": 15,
-      "PASS": 8,
-      "STALE_SOURCE": 183
+      "BLOCKED": 4,
+      "PASS": 66,
+      "STALE_SOURCE": 136
     },
     "byPriority": {
       "P0": {
         "total": 115,
-        "linked": 114,
-        "currentPass": 3,
+        "linked": 115,
+        "currentPass": 47,
         "open": [
           "BW-AUTH-01",
           "BW-AUTH-02",
-          "BW-AUTH-03",
           "BW-AUTH-05",
-          "BW-AUTH-06",
           "BW-SET-01",
-          "BW-SET-02",
-          "BW-ROLE-01",
           "BW-ROLE-02",
-          "BW-ROLE-03",
           "BW-ROLE-05",
-          "BW-MENU-01",
           "BW-MENU-02",
           "BW-MENU-03",
           "BW-MENU-06",
-          "BW-ORDER-01",
           "BW-ORDER-02",
-          "BW-ORDER-04",
-          "BW-KDS-01",
           "BW-KDS-02",
-          "BW-CHECK-01",
           "BW-CHECK-02",
           "BW-CHECK-03",
-          "BW-CHECK-04",
           "BW-CHECK-05",
-          "BW-INV-01",
           "BW-INV-02",
-          "BW-COM-01",
           "BW-COM-02",
           "BW-COM-03",
           "BW-COM-04",
-          "BW-SALES-01",
           "BW-SALES-02",
           "BW-SALES-03",
           "BW-SALES-04",
           "BW-SALES-06",
           "BW-PRINT-01",
-          "BW-PRINT-02",
           "BW-PRINT-03",
-          "BW-PRINT-04",
           "BW-DATA-01",
-          "BW-DATA-02",
           "BW-DATA-03",
-          "BW-DATA-04",
           "BW-DATA-06",
           "BW-SUB-01",
-          "BW-SUB-02",
-          "BW-CROSS-01",
-          "BW-CROSS-03",
           "BW-CROSS-04",
           "BW-CROSS-05",
-          "BW-PAGE-001",
           "BW-PAGE-002",
           "BW-PAGE-003",
           "BW-EXT-081",
           "BW-PAGE-005",
           "BW-PAGE-006",
           "BW-EXT-078",
-          "BW-PAGE-009",
           "BW-PAGE-010",
           "BW-PAGE-015",
           "BW-EXT-077",
           "BW-PAGE-016",
           "BW-EXT-001",
           "BW-EXT-002",
-          "BW-EXT-003",
           "BW-EXT-004",
-          "BW-EXT-005",
-          "BW-EXT-006",
           "BW-EXT-007",
-          "BW-EXT-008",
           "BW-EXT-010",
           "BW-EXT-011",
-          "BW-EXT-012",
-          "BW-EXT-013",
           "BW-EXT-014",
           "BW-EXT-015",
           "BW-EXT-016",
           "BW-EXT-017",
           "BW-EXT-018",
           "BW-EXT-019",
-          "BW-EXT-020",
-          "BW-EXT-021",
-          "BW-EXT-022",
           "BW-EXT-023",
-          "BW-EXT-025",
-          "BW-EXT-026",
           "BW-EXT-027",
           "BW-EXT-028",
-          "BW-EXT-029",
           "BW-EXT-030",
           "BW-EXT-031",
           "BW-EXT-032",
           "BW-EXT-033",
           "BW-EXT-035",
-          "BW-EXT-037",
-          "BW-EXT-038",
           "BW-EXT-039",
           "BW-EXT-041",
-          "BW-EXT-042",
-          "BW-EXT-046",
-          "BW-EXT-048",
           "BW-EXT-057",
           "BW-EXT-060",
           "BW-EXT-061",
-          "BW-EXT-064",
           "BW-EXT-065",
           "BW-EXT-070",
-          "BW-EXT-073",
-          "BW-EXT-074",
-          "BW-EXT-075",
           "BW-EXT-076"
         ]
       },
       "P1": {
         "total": 83,
-        "linked": 69,
-        "currentPass": 2,
+        "linked": 83,
+        "currentPass": 16,
         "open": [
           "BW-AUTH-04",
           "BW-SET-03",
           "BW-SET-04",
           "BW-ROLE-04",
           "BW-MENU-04",
-          "BW-MENU-05",
           "BW-ORDER-03",
-          "BW-KDS-03",
           "BW-KDS-04",
           "BW-CHECK-06",
           "BW-INV-03",
           "BW-INV-04",
-          "BW-PO-01",
           "BW-PO-02",
           "BW-PO-03",
           "BW-PO-04",
-          "BW-AI-01",
           "BW-AI-02",
           "BW-AI-03",
-          "BW-AI-04",
           "BW-SALES-05",
-          "BW-CRM-01",
           "BW-CRM-02",
           "BW-CRM-03",
           "BW-CRM-04",
-          "BW-CRM-05",
           "BW-RES-01",
           "BW-RES-02",
           "BW-RES-03",
@@ -180,7 +129,6 @@
           "BW-TAKE-01",
           "BW-TAKE-02",
           "BW-TAKE-03",
-          "BW-TAKE-04",
           "BW-ATT-01",
           "BW-ATT-02",
           "BW-ATT-03",
@@ -196,14 +144,13 @@
           "BW-SUB-04",
           "BW-CROSS-02",
           "BW-PAGE-004",
-          "BW-PAGE-007",
+          "BW-PAGE-008",
           "BW-EXT-080",
           "BW-PAGE-011",
           "BW-EXT-079",
           "BW-PAGE-012",
           "BW-PAGE-014",
           "BW-PAGE-017",
-          "BW-EXT-083",
           "BW-EXT-009",
           "BW-EXT-024",
           "BW-EXT-034",
@@ -212,12 +159,9 @@
           "BW-EXT-043",
           "BW-EXT-044",
           "BW-EXT-045",
-          "BW-EXT-047",
           "BW-EXT-049",
           "BW-EXT-050",
           "BW-EXT-051",
-          "BW-EXT-052",
-          "BW-EXT-053",
           "BW-EXT-054",
           "BW-EXT-055",
           "BW-EXT-056",
@@ -225,9 +169,7 @@
           "BW-EXT-059",
           "BW-EXT-062",
           "BW-EXT-063",
-          "BW-EXT-066",
-          "BW-EXT-071",
-          "BW-EXT-072"
+          "BW-EXT-066"
         ]
       },
       "P2": {
@@ -235,7 +177,7 @@
         "linked": 8,
         "currentPass": 3,
         "open": [
-          "BW-TODO-01",
+          "BW-TODO-02",
           "BW-TODO-04",
           "BW-PAGE-013",
           "BW-PAGE-018",
@@ -260,13 +202,6 @@
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
-      "id": "BW-AUTH-03",
-      "priority": "P0",
-      "caseId": "S5-AUTH-DEEPLINK-045",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
       "id": "BW-AUTH-04",
       "priority": "P1",
       "caseId": "S5-P1-ACCOUNT-NAV-087",
@@ -281,23 +216,9 @@
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
-      "id": "BW-AUTH-06",
-      "priority": "P0",
-      "caseId": "S4-SESSION-REVOKE-053",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
       "id": "BW-SET-01",
       "priority": "P0",
       "caseId": "S5-SETTINGS-012",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-SET-02",
-      "priority": "P0",
-      "caseId": "S4-BILL-JPY-SERVICE-VAT-029",
       "blocker": "STALE_SOURCE",
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
@@ -316,23 +237,9 @@
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
-      "id": "BW-ROLE-01",
-      "priority": "P0",
-      "caseId": "S4-ROLE-DENY-021",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
       "id": "BW-ROLE-02",
       "priority": "P0",
       "caseId": "S5-PERMISSIONS-013",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-ROLE-03",
-      "priority": "P0",
-      "caseId": "S5-PERMISSION-URLS-046",
       "blocker": "STALE_SOURCE",
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
@@ -347,13 +254,6 @@
       "id": "BW-ROLE-05",
       "priority": "P0",
       "caseId": "S5-RPC-PERMISSION-MATRIX-044",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-MENU-01",
-      "priority": "P0",
-      "caseId": "S4-CAT-ORDER-001",
       "blocker": "STALE_SOURCE",
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
@@ -379,23 +279,9 @@
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
-      "id": "BW-MENU-05",
-      "priority": "P1",
-      "caseId": "S4-RECIPE-INSUFFICIENT-027",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
       "id": "BW-MENU-06",
       "priority": "P0",
       "caseId": "S5-MENU-LAYOUT-041",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-ORDER-01",
-      "priority": "P0",
-      "caseId": "S4-ORDER-REPLAY-008",
       "blocker": "STALE_SOURCE",
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
@@ -414,20 +300,6 @@
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
-      "id": "BW-ORDER-04",
-      "priority": "P0",
-      "caseId": "S4-ORDER-FOREIGN-TABLE-009",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-KDS-01",
-      "priority": "P0",
-      "caseId": "S4-ORDER-QR-007",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
       "id": "BW-KDS-02",
       "priority": "P0",
       "caseId": "S5-KDS-011",
@@ -435,23 +307,9 @@
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
-      "id": "BW-KDS-03",
-      "priority": "P1",
-      "caseId": "BW-KDS-03",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
       "id": "BW-KDS-04",
       "priority": "P1",
       "caseId": "BW-KDS-04",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-CHECK-01",
-      "priority": "P0",
-      "caseId": "S4-CASH-REPEAT-011",
       "blocker": "STALE_SOURCE",
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
@@ -470,13 +328,6 @@
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
-      "id": "BW-CHECK-04",
-      "priority": "P0",
-      "caseId": "S4-REFUND-PARALLEL-047",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
       "id": "BW-CHECK-05",
       "priority": "P0",
       "caseId": "S6-CHECKOUT-RECOVER-001",
@@ -486,16 +337,9 @@
     {
       "id": "BW-CHECK-06",
       "priority": "P1",
-      "caseId": null,
-      "blocker": "NOT_IMPLEMENTED",
-      "next": "IMPLEMENT_AND_RUN"
-    },
-    {
-      "id": "BW-INV-01",
-      "priority": "P0",
-      "caseId": "S4-INV-RECEIVE-014",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
+      "caseId": "BW-CHECK-06",
+      "blocker": "BLOCKED",
+      "next": "RUN_AND_VERIFY_INDEPENDENT_PROOF"
     },
     {
       "id": "BW-INV-02",
@@ -514,14 +358,7 @@
     {
       "id": "BW-INV-04",
       "priority": "P1",
-      "caseId": null,
-      "blocker": "NOT_IMPLEMENTED",
-      "next": "IMPLEMENT_AND_RUN"
-    },
-    {
-      "id": "BW-PO-01",
-      "priority": "P1",
-      "caseId": "S4-PO-REPLAY-017",
+      "caseId": "S5-W2-BW-INV-04",
       "blocker": "STALE_SOURCE",
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
@@ -542,14 +379,7 @@
     {
       "id": "BW-PO-04",
       "priority": "P1",
-      "caseId": null,
-      "blocker": "NOT_IMPLEMENTED",
-      "next": "IMPLEMENT_AND_RUN"
-    },
-    {
-      "id": "BW-AI-01",
-      "priority": "P1",
-      "caseId": "S4-AI-NO-CHARGE-020",
+      "caseId": "S5-W2-BW-PO-04",
       "blocker": "STALE_SOURCE",
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
@@ -564,20 +394,6 @@
       "id": "BW-AI-03",
       "priority": "P1",
       "caseId": "S6-AI-RESTART-005",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-AI-04",
-      "priority": "P1",
-      "caseId": null,
-      "blocker": "NOT_IMPLEMENTED",
-      "next": "IMPLEMENT_AND_RUN"
-    },
-    {
-      "id": "BW-COM-01",
-      "priority": "P0",
-      "caseId": "S4-COMMISSION-REFUND-044",
       "blocker": "STALE_SOURCE",
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
@@ -599,13 +415,6 @@
       "id": "BW-COM-04",
       "priority": "P0",
       "caseId": "S4-COM-MULTI-REFUND-065",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-SALES-01",
-      "priority": "P0",
-      "caseId": "S4-SALES-RECEIPT-018",
       "blocker": "STALE_SOURCE",
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
@@ -645,13 +454,6 @@
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
-      "id": "BW-CRM-01",
-      "priority": "P1",
-      "caseId": "S4-COUPON-LOYALTY-PHP-045",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
       "id": "BW-CRM-02",
       "priority": "P1",
       "caseId": "S5-MEMBERS-024",
@@ -673,13 +475,6 @@
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
-      "id": "BW-CRM-05",
-      "priority": "P1",
-      "caseId": "S4-COUPON-LIMIT-RACE-057",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
       "id": "BW-RES-01",
       "priority": "P1",
       "caseId": "S5-RESERVATION-017",
@@ -696,9 +491,9 @@
     {
       "id": "BW-RES-03",
       "priority": "P1",
-      "caseId": null,
-      "blocker": "NOT_IMPLEMENTED",
-      "next": "IMPLEMENT_AND_RUN"
+      "caseId": "BW-RES-03",
+      "blocker": "STALE_SOURCE",
+      "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
       "id": "BW-RES-04",
@@ -729,13 +524,6 @@
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
-      "id": "BW-TAKE-04",
-      "priority": "P1",
-      "caseId": "BW-TAKE-04",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
       "id": "BW-ATT-01",
       "priority": "P1",
       "caseId": "S5-ATTENDANCE-021",
@@ -759,9 +547,9 @@
     {
       "id": "BW-ATT-04",
       "priority": "P1",
-      "caseId": null,
-      "blocker": "NOT_IMPLEMENTED",
-      "next": "IMPLEMENT_AND_RUN"
+      "caseId": "BW-ATT-04",
+      "blocker": "BLOCKED",
+      "next": "RUN_AND_VERIFY_INDEPENDENT_PROOF"
     },
     {
       "id": "BW-STAFF-01",
@@ -792,23 +580,9 @@
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
-      "id": "BW-PRINT-02",
-      "priority": "P0",
-      "caseId": "S4-RECEIPT-PRINT-RETRY-062",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
       "id": "BW-PRINT-03",
       "priority": "P0",
       "caseId": "S5-BRIDGE-RECONNECT-050",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-PRINT-04",
-      "priority": "P0",
-      "caseId": "S4-CORRECT-REFUND-REPRINT-063",
       "blocker": "STALE_SOURCE",
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
@@ -848,23 +622,9 @@
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
-      "id": "BW-DATA-02",
-      "priority": "P0",
-      "caseId": "S5-DATA-JOB-LIFECYCLE-053",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
       "id": "BW-DATA-03",
       "priority": "P0",
       "caseId": "S5-DATA-STAGED-RESUME-051",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-DATA-04",
-      "priority": "P0",
-      "caseId": "S5-DATA-JOB-LIFECYCLE-053",
       "blocker": "STALE_SOURCE",
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
@@ -883,9 +643,9 @@
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
-      "id": "BW-TODO-01",
+      "id": "BW-TODO-02",
       "priority": "P2",
-      "caseId": "S5-TODO-019",
+      "caseId": "S5-FEEDBACK-036",
       "blocker": "STALE_SOURCE",
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
@@ -904,13 +664,6 @@
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
-      "id": "BW-SUB-02",
-      "priority": "P0",
-      "caseId": "S4-FREE-PRO-GATES-061",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
       "id": "BW-SUB-04",
       "priority": "P1",
       "caseId": "BW-SUB-04",
@@ -918,23 +671,9 @@
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
-      "id": "BW-CROSS-01",
-      "priority": "P0",
-      "caseId": "S4-CROSS-KDS-SPLIT-REFUND-056",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
       "id": "BW-CROSS-02",
       "priority": "P1",
       "caseId": "BW-CROSS-02",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-CROSS-03",
-      "priority": "P0",
-      "caseId": "S4-PO-RECIPE-STOCK-058",
       "blocker": "STALE_SOURCE",
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
@@ -949,13 +688,6 @@
       "id": "BW-CROSS-05",
       "priority": "P0",
       "caseId": "S5-DATA-MULTITAB-AUTH-058",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-PAGE-001",
-      "priority": "P0",
-      "caseId": "S5-OWNER-ACCOUNT-049",
       "blocker": "STALE_SOURCE",
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
@@ -1009,16 +741,9 @@
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
-      "id": "BW-PAGE-007",
+      "id": "BW-PAGE-008",
       "priority": "P1",
-      "caseId": "BW-PAGE-007",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-PAGE-009",
-      "priority": "P0",
-      "caseId": "S5-MANAGE-NAVIGATION-047",
+      "caseId": "S5-FEEDBACK-036",
       "blocker": "STALE_SOURCE",
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
@@ -1100,13 +825,6 @@
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
-      "id": "BW-EXT-083",
-      "priority": "P1",
-      "caseId": null,
-      "blocker": "NOT_IMPLEMENTED",
-      "next": "IMPLEMENT_AND_RUN"
-    },
-    {
       "id": "BW-PAGE-018",
       "priority": "P2",
       "caseId": "BW-PAGE-018",
@@ -1135,13 +853,6 @@
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
-      "id": "BW-EXT-003",
-      "priority": "P0",
-      "caseId": "S4-SECOND-SESSION-PAID-VOID-065",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
       "id": "BW-EXT-004",
       "priority": "P0",
       "caseId": "S6-CASH-TENDER-008",
@@ -1149,30 +860,9 @@
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
-      "id": "BW-EXT-005",
-      "priority": "P0",
-      "caseId": "S4-CASH-GCASH-RACE-050",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-EXT-006",
-      "priority": "P0",
-      "caseId": "S4-SECOND-ADMIN-TAX-SNAPSHOT-066",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
       "id": "BW-EXT-007",
       "priority": "P0",
       "caseId": "S6-CHECKOUT-REOPEN-009",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-EXT-008",
-      "priority": "P0",
-      "caseId": "S4-REFUND-REPLAY-RACE-052",
       "blocker": "STALE_SOURCE",
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
@@ -1194,20 +884,6 @@
       "id": "BW-EXT-011",
       "priority": "P0",
       "caseId": "S5-PARTY-LIFECYCLE-042",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-EXT-012",
-      "priority": "P0",
-      "caseId": "S4-SPLIT-ENTRY-FEE-042",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-EXT-013",
-      "priority": "P0",
-      "caseId": "S4-RECEIPT-200-CONCURRENCY-067",
       "blocker": "STALE_SOURCE",
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
@@ -1254,27 +930,6 @@
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
-      "id": "BW-EXT-020",
-      "priority": "P0",
-      "caseId": "S5-DATA-JOB-LIFECYCLE-053",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-EXT-021",
-      "priority": "P0",
-      "caseId": "S5-DATA-JOB-LIFECYCLE-053",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-EXT-022",
-      "priority": "P0",
-      "caseId": "S5-DATA-JOB-LIFECYCLE-053",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
       "id": "BW-EXT-023",
       "priority": "P0",
       "caseId": "S5-DATA-STAGED-RESUME-051",
@@ -1289,20 +944,6 @@
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
-      "id": "BW-EXT-025",
-      "priority": "P0",
-      "caseId": "S5-DATA-JOB-LIFECYCLE-053",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-EXT-026",
-      "priority": "P0",
-      "caseId": "S5-DATA-JOB-LIFECYCLE-053",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
       "id": "BW-EXT-027",
       "priority": "P0",
       "caseId": "S5-RPC-AUTH-MATRIX-043",
@@ -1313,13 +954,6 @@
       "id": "BW-EXT-028",
       "priority": "P0",
       "caseId": "S5-LOGIN-DOUBLE-ACK-054",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-EXT-029",
-      "priority": "P0",
-      "caseId": "S5-SESSION-REVOKE-048",
       "blocker": "STALE_SOURCE",
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
@@ -1373,20 +1007,6 @@
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
-      "id": "BW-EXT-037",
-      "priority": "P0",
-      "caseId": "S4-INV-RECEIVE-RACE-054",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-EXT-038",
-      "priority": "P0",
-      "caseId": "S4-RECIPE-VOID-060",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
       "id": "BW-EXT-039",
       "priority": "P0",
       "caseId": "S5-INV-UNIT-CONVERSION-076",
@@ -1396,21 +1016,14 @@
     {
       "id": "BW-EXT-040",
       "priority": "P1",
-      "caseId": null,
-      "blocker": "NOT_IMPLEMENTED",
-      "next": "IMPLEMENT_AND_RUN"
+      "caseId": "BW-EXT-040",
+      "blocker": "BLOCKED",
+      "next": "RUN_AND_VERIFY_INDEPENDENT_PROOF"
     },
     {
       "id": "BW-EXT-041",
       "priority": "P0",
       "caseId": "S5-MENU-DELETE-IMPACT-057",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-EXT-042",
-      "priority": "P0",
-      "caseId": "S4-MENU-PRICE-ORDER-055",
       "blocker": "STALE_SOURCE",
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
@@ -1424,9 +1037,9 @@
     {
       "id": "BW-EXT-044",
       "priority": "P1",
-      "caseId": null,
-      "blocker": "NOT_IMPLEMENTED",
-      "next": "IMPLEMENT_AND_RUN"
+      "caseId": "S5-W2-BW-EXT-044",
+      "blocker": "STALE_SOURCE",
+      "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
       "id": "BW-EXT-045",
@@ -1436,32 +1049,11 @@
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
-      "id": "BW-EXT-046",
-      "priority": "P0",
-      "caseId": "S4-PARTIAL-SERVED-VOID-064",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-EXT-047",
-      "priority": "P1",
-      "caseId": null,
-      "blocker": "NOT_IMPLEMENTED",
-      "next": "IMPLEMENT_AND_RUN"
-    },
-    {
-      "id": "BW-EXT-048",
-      "priority": "P0",
-      "caseId": "S4-COUPON-LIMIT-RACE-057",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
       "id": "BW-EXT-049",
       "priority": "P1",
-      "caseId": null,
-      "blocker": "NOT_IMPLEMENTED",
-      "next": "IMPLEMENT_AND_RUN"
+      "caseId": "BW-EXT-049",
+      "blocker": "BLOCKED",
+      "next": "RUN_AND_VERIFY_INDEPENDENT_PROOF"
     },
     {
       "id": "BW-EXT-050",
@@ -1478,25 +1070,11 @@
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
-      "id": "BW-EXT-052",
-      "priority": "P1",
-      "caseId": null,
-      "blocker": "NOT_IMPLEMENTED",
-      "next": "IMPLEMENT_AND_RUN"
-    },
-    {
-      "id": "BW-EXT-053",
-      "priority": "P1",
-      "caseId": null,
-      "blocker": "NOT_IMPLEMENTED",
-      "next": "IMPLEMENT_AND_RUN"
-    },
-    {
       "id": "BW-EXT-054",
       "priority": "P1",
-      "caseId": null,
-      "blocker": "NOT_IMPLEMENTED",
-      "next": "IMPLEMENT_AND_RUN"
+      "caseId": "BW-EXT-054",
+      "blocker": "STALE_SOURCE",
+      "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
       "id": "BW-EXT-055",
@@ -1562,13 +1140,6 @@
       "next": "REEXECUTE_CHANGED_SOURCE"
     },
     {
-      "id": "BW-EXT-064",
-      "priority": "P0",
-      "caseId": "S4-REPORT-CONCURRENT-059",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
       "id": "BW-EXT-065",
       "priority": "P0",
       "caseId": "S5-SALES-BUILDING-UI-071",
@@ -1588,41 +1159,6 @@
       "caseId": "BW-EXT-070",
       "blocker": "STALE_SOURCE",
       "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-EXT-071",
-      "priority": "P1",
-      "caseId": "BW-EXT-071",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-EXT-072",
-      "priority": "P1",
-      "caseId": "BW-EXT-072",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-EXT-073",
-      "priority": "P0",
-      "caseId": "S5-DATA-JOB-LIFECYCLE-053",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-EXT-074",
-      "priority": "P0",
-      "caseId": "S5-DATA-JOB-LIFECYCLE-053",
-      "blocker": "STALE_SOURCE",
-      "next": "REEXECUTE_CHANGED_SOURCE"
-    },
-    {
-      "id": "BW-EXT-075",
-      "priority": "P0",
-      "caseId": null,
-      "blocker": "NOT_IMPLEMENTED",
-      "next": "IMPLEMENT_AND_RUN"
     },
     {
       "id": "BW-EXT-076",

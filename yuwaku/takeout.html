@@ -190,6 +190,7 @@
       <button type="button" id="staffEditSave" class="btn-primary2">💾 Save correction</button>
       <button type="button" id="staffEditCancel" class="btn-ghost" style="color:#b91c1c;">Cancel takeout order</button>
     </div>
+    <button type="button" id="staffHandoffDone" class="btn-primary2" style="display:none;margin-top:12px;">✓ Handed over to guest</button>
     <p id="staffEditMsg" role="status" style="font-size:13px;font-weight:700;"></p>
   </section>
 
@@ -666,6 +667,7 @@
         staffSelected=staffOrders.find(function(item){return item.code===code;})||null;
         var editable=staffSelected&&staffSelected.status==='未対応';
         var cancellable=staffSelected&&['未対応','調理中','受渡可能'].indexOf(staffSelected.status)>=0;
+        el('staffHandoffDone').style.display=staffSelected&&staffSelected.status==='受渡可能'?'block':'none';
         el('staffEditFields').style.display=cancellable?'block':'none';
         if(!staffSelected){say('');return;}
         say(editable?'':('Order '+staffSelected.status+' cannot be edited'));
@@ -722,6 +724,15 @@
         }).catch(function(e){say(API.userErrorText(e));})
           .finally(function(){staffBusy=false;el('staffEditCancel').disabled=false;});
       }
+      function handoff(){
+        if(staffBusy||!staffSelected||staffSelected.status!=='受渡可能')return;
+        staffBusy=true;el('staffHandoffDone').disabled=true;
+        rpcStaff('updateTakeoutStatus',[staffSelected.code,'受渡済']).then(function(result){
+          if(!result.success)throw new Error(result.error||'handoff_failed');
+          return reload().then(function(){say(result.duplicate?'Already handed over':'Handed over');});
+        }).catch(function(e){return reload().then(function(){say(API.userErrorText(e));});})
+          .finally(function(){staffBusy=false;el('staffHandoffDone').disabled=false;});
+      }
       document.addEventListener('DOMContentLoaded',function(){
         if(!staffAuthToken())return;
         el('staffTakeoutPanel').style.display='block';
@@ -729,6 +740,7 @@
         el('staffEditAddLine').addEventListener('click',function(){line();});
         el('staffEditSave').addEventListener('click',save);
         el('staffEditCancel').addEventListener('click',cancel);
+        el('staffHandoffDone').addEventListener('click',handoff);
         reload().catch(function(e){say(API.userErrorText(e));});
         if(typeof MutationObserver==='function'){
           var observer=new MutationObserver(function(){

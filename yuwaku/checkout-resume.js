@@ -82,15 +82,23 @@
   function render(results){
     var el=panel();if(!el)return;
     el.textContent='';
-    if(!results.length){el.style.display='none';return;}
+    // A confirmed checkout is normal history, not a persistent status card.
+    // Show recovery controls only when the result is genuinely unresolved.
+    var unresolved=results.filter(function(x){
+      var r=x.record,a=x.answer||{};
+      return !(r.confirmed===true||(a.status==='settled'&&a.recovered===true&&a.table===r.table&&
+        typeof a.orNo==='string'&&a.orNo.length>0&&
+        Number.isFinite(Number(a.total))));
+    });
+    if(!unresolved.length){el.style.display='none';return;}
     el.style.cssText='display:block;margin-top:8px;margin-bottom:8px;'+
       'padding:12px;border:1px solid #e2e8f0;border-radius:11px;'+
       'background:#fff;';
     var en=language()==='en';
     var title=document.createElement('strong');
-    title.textContent=en?'Recent checkout status (server lookup)':'直近の会計状況（サーバー照会）';
+    title.textContent=en?'Checkout result needs attention':'会計結果の確認が必要です';
     el.appendChild(title);
-    results.forEach(function(x){
+    unresolved.forEach(function(x){
       var r=x.record,answer=x.answer||{},verified=answer.status==='settled'&&
         answer.recovered===true&&answer.table===r.table&&
         typeof answer.orNo==='string'&&answer.orNo.length>0&&
@@ -139,11 +147,6 @@
         el.appendChild(resolve);
       }
     });
-    var button=document.createElement('button');
-    button.type='button';button.className='int-btn';
-    button.textContent=en?'Recheck server status':'サーバー状況を再確認';
-    button.addEventListener('click',function(){refresh();});
-    el.appendChild(button);
   }
   async function refresh(){
     if(busy)return;
