@@ -58,7 +58,7 @@
     // 言語切替の一元ヘルパー（新しい選択肢・候補リストを追加する際は必ずこれを通すこと）
     function isEN(){ return !!(window.I18n && I18n.lang && I18n.lang()==='en'); }
     function loc(ja, en){ ja=(ja||'').trim(); en=(en||'').trim(); return isEN() ? (en || ja) : (ja || en); }
-    window.rows = []; var MATERIALS = [], MENUS = [];
+    window.rows = []; var MATERIALS = [], MENUS = [], LOADED_RECIPES = [];
 
     // value（送信値・バックエンド照合キー）はcanonical名、表示テキストのみ現在の言語に合わせる。
     function opts(list, sel){ return '<option value=""></option>' + (list||[]).map(function(n){ return '<option value="'+esc(n.key)+'"'+(n.key===sel?' selected':'')+'>'+esc(loc(n.ja, n.en))+'</option>'; }).join(''); }
@@ -87,13 +87,13 @@
       }
       var clean = window.rows.map(function(r){ return {menu:String(r.menu).trim(),material:String(r.material).trim(),qty:Number(r.qty)}; });
       var btn = document.getElementById('saveBtn'); btn.disabled=true;
-      rpc('saveRecipes',[clean]).then(function(r){ if(!r||r.success!==true) throw new Error((r&&r.error)||'save_failed'); btn.disabled=false; msg(I18n.t('saved'), true); })
+      rpc('saveRecipes',[clean,LOADED_RECIPES]).then(function(r){ if(!r||r.success!==true) throw new Error((r&&r.error)||'save_failed'); LOADED_RECIPES=clean.map(function(x){return Object.assign({},x);}); btn.disabled=false; msg(I18n.t('saved'), true); })
         .catch(function(e){ btn.disabled=false; msg(I18n.t('errPrefix')+API.userErrorText(e), false); });
     };
     function msg(text, ok){ var m=document.getElementById('msg'); m.style.display='block'; m.style.background=ok?'#dcfce7':'#fee2e2'; m.style.color=ok?'#15803d':'#b91c1c'; m.innerText=text; }
 
     Promise.all([ rpc('getRecipes',[]), rpc('getDrinkInventory',[]), rpc('getAllMenuForAdmin',[]) ]).then(function(res){
-      window.rows = (res[0]||[]).slice();
+      window.rows = (res[0]||[]).slice(); LOADED_RECIPES=window.rows.map(function(x){return Object.assign({},x);});
       MATERIALS = (res[1]||[]).map(function(m){ return { key:m.name, ja:(m.nameJa!==undefined?m.nameJa:m.name), en:m.nameEn }; }).filter(function(m){ return m.key; });
       MENUS = (res[2]||[]).map(function(m){ return { key:m['商品名'], ja:(m['商品名_JA']!==undefined?m['商品名_JA']:m['商品名']), en:m['商品名_EN'] }; }).filter(function(m){ return m.key; });
       __loaded = true; render();

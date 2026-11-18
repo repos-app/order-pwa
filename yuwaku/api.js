@@ -114,6 +114,11 @@
     return CFG.PUBLIC_ORDER === true ? publicStoreFromQuery() : '';
   };
   API.currentToken = storedToken;
+  API.expiredWithoutRefresh = function () {
+    var access = tokenInfo(storedToken(), true);
+    return (!access || access.exp <= Date.now()) &&
+      !validRefreshToken(storedRefreshToken());
+  };
   API.pageReady = function (options) {
     options = options || {};
     var token = storedToken() || '';
@@ -1807,6 +1812,18 @@
     if (!/^[a-z0-9_-]+\.html$/i.test(page)) return;
     try { sessionStorage.setItem('izPermissionLastAllowedPage', page); } catch (e) {}
   }
+  function returnToLoginAfterExpiredSession(page) {
+    var store = String(API.currentStoreId() || '').trim().toLowerCase();
+    if (/^[a-z0-9_-]+\.html$/.test(page) && /^[a-z0-9][a-z0-9-]{2,31}$/.test(store)) {
+      try { sessionStorage.setItem('izAuthReturnTargetV1', JSON.stringify({
+        page:page,storeId:store,createdAt:Date.now()
+      })); } catch (e) {}
+    }
+    permissionConfirmedThisDocument = false;
+    hidePermissionTransientNotice();
+    hidePermissionGate();
+    location.replace('./manage.html');
+  }
   function lastAllowedPermissionTarget(currentPage) {
     try {
       var page = String(sessionStorage.getItem('izPermissionLastAllowedPage') || '').trim().toLowerCase();
@@ -1961,7 +1978,17 @@
     if (!key && !accountPage && !shouldInspectLinks) return true;
     var token = await restoredPermissionToken();
     if (generation !== permissionGuardGeneration) return false;
-    if (!token) { if (key || accountPage) { hidePermissionGate(); denyPage(); } return false; }
+    if (!token) {
+      if (key || accountPage) {
+        if (API.expiredWithoutRefresh()) returnToLoginAfterExpiredSession(page);
+        else { hidePermissionGate(); denyPage(); }
+      }
+      return false;
+    }
+    if ((key || accountPage) && API.expiredWithoutRefresh()) {
+      returnToLoginAfterExpiredSession(page);
+      return false;
+    }
     if (key==='admin' && typeof navigator!=='undefined' && navigator.onLine===false && API.hasOfflineAdminGrant()) {
       permissionConfirmedThisDocument=true;
       hidePermissionGate();
@@ -1986,6 +2013,10 @@
     } catch (e) {
       if (generation !== permissionGuardGeneration) return false;
       var code = String(e && e.message || e || '');
+      if ((key || accountPage) && API.expiredWithoutRefresh()) {
+        returnToLoginAfterExpiredSession(page);
+        return false;
+      }
       if (e && e.__server && /^(?:forbidden|forbidden_page:|forbidden_fn)/.test(code)) { permissionConfirmedThisDocument = false; if (key || accountPage) { hidePermissionGate(); denyPage(); } return false; }
       if (code === 'unauthorized' || code === 'stale_session_response') { permissionConfirmedThisDocument = false; hidePermissionTransientNotice(); if (key || accountPage) hidePermissionGate(); return false; }
       if ((key || accountPage) && permissionConfirmedThisDocument) {

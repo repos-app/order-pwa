@@ -90,7 +90,7 @@
       <button class="btn-sm" type="button" id="poNewBtn" onclick="prepareNewPo()" style="margin-top:12px;display:none;" data-t="poNewBtn">🔄 同じ内容で新しい発注</button>
       <div class="alert" id="poMsg"></div>
     </div>
-    <div class="card"><div class="card-title" id="poHistoryTitle" data-t="poHistoryTitle">📋 発注履歴</div><button class="btn-sm" id="poHistoryRefresh" type="button" onclick="loadPoHistory()" data-t="poHistoryRefresh">更新</button><div id="poHistory" class="muted"></div></div>
+    <div class="card"><div class="card-title" id="poHistoryTitle" data-t="poHistoryTitle">📋 発注履歴</div><button class="btn-sm" id="poHistoryRefresh" type="button" onclick="loadPoHistory()" data-t="poHistoryRefresh">更新</button><div id="poLifecycleMsg" role="status" aria-live="polite" class="muted" style="margin:8px 0;"></div><div id="poHistory" class="muted"></div></div>
 
     <div class="card">
       <div class="card-title" data-t="reorderTitle">🔔 発注提案（最小在庫以下）</div>
@@ -117,6 +117,20 @@
           <th data-t="thName">仕入先</th><th data-t="thContact">連絡先</th><th data-t="thEmail">メール</th><th data-t="thLanguage">言語</th><th data-t="thItems">取扱品目</th><th style="width:90px;"></th>
         </tr></thead>
         <tbody id="supRows"><tr><td colspan="6" class="muted" style="padding:14px;text-align:center;" data-t="loading">読み込み中…</td></tr></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新規発注：メニュー／発注アイテムマスタから品目を選ぶピッカー -->
+  <div id="poReceiveOverlay" role="dialog" aria-modal="true" aria-labelledby="poReceiveTitle" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.62);z-index:56;align-items:center;justify-content:center;padding:12px;">
+    <div style="background:#fff;border-radius:14px;padding:16px;max-width:580px;width:100%;max-height:85vh;overflow:auto;">
+      <h2 id="poReceiveTitle" style="margin:0 0 10px;font-size:18px;">📦 発注品を受領</h2>
+      <div class="muted" id="poReceiveHint" style="margin-bottom:12px;"></div>
+      <div id="poReceiveRows"></div>
+      <div id="poReceiveMessage" role="alert" style="color:#b91c1c;margin:10px 0;"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+        <button class="btn-sm" id="poReceiveCancel" type="button" onclick="closePoReceipt()">閉じる</button>
+        <button class="btn" id="poReceiveSubmit" type="button" onclick="submitPoReceipt()">受領を確定</button>
       </div>
     </div>
   </div>
@@ -210,6 +224,29 @@
         poMarkSaved();poMsg((isEN()?'✅ Saved (not emailed): ':'✅ 履歴に保存しました（メール未送信）: ')+r.po.id,true);loadPoHistory();
       }).catch(function(e){poMsg(API.userErrorText(e),false);}).finally(function(){poSetBusy(false);});
     };
+    var PO_RECEIPT_TARGET='',PO_RECEIPT_RETRY=null,PO_LIFECYCLE_BUSY=false;
+    function poLifecycleLabel(s){
+      var en=isEN();
+      return ({created:en?'Saved, approval pending':'記録済み・承認待ち',
+        approved:en?'Approved / awaiting delivery':'承認済み・納品待ち',
+        partial:en?'Partially received / pending remainder':'一部分納・残数量あり',
+        received:en?'Fully received':'全量受領済み'})[s]||String(s||'');
+    }
+    function poLifecycleActions(po){
+      var id=encodeURIComponent(po.id),action='';
+      if(po.status==='created')action='<button type="button" class="btn-sm" data-po-approve="'+esc(po.id)+'" onclick="approvePoRecord(decodeURIComponent(\''+id+'\'))">'+(isEN()?'Approve PO':'発注を承認')+'</button>';
+      if(po.status==='approved'||po.status==='partial')action='<button type="button" class="btn-sm" data-po-receive="'+esc(po.id)+'" onclick="openPoReceipt(decodeURIComponent(\''+id+'\'))">'+(isEN()?'Record delivery':'納品を受領')+'</button>';
+      var progress=(po.lines||[]).map(function(line){
+        return '<div>'+esc(line.name)+' · '+esc(line.receivedQty)+' / '+esc(line.orderedQty)+' '+esc(line.unit)+
+          ' <span style="color:#9a3412;">'+(isEN()?'remaining ':'残り ')+esc(line.remainingQty)+'</span></div>';
+      }).join('');
+      var history=(po.receipts||[]).map(function(r){
+        return '<div style="font-size:12px;color:#475569;">📦 '+esc(r.receivedAt)+' · '+
+          (isEN()?'Receipt cost: ':'受領原価: ')+esc(r.costTotal)+' · '+esc(r.id)+'</div>';
+      }).join('');
+      return '<div style="margin-top:7px;font-weight:700;">'+esc(poLifecycleLabel(po.status))+'</div>'+
+        progress+history+(action?'<div style="margin-top:8px;">'+action+'</div>':'');
+    }
     function renderPoHistory(){
       if(!PO_HISTORY)return;
       document.getElementById('poHistory').innerHTML=PO_HISTORY.map(function(po){
@@ -225,7 +262,7 @@
             (isEN()?' (delivery failed)':'（送信失敗）');
           status+=reason;
         }
-        return '<div style="padding:10px 0;border-bottom:1px solid #e5e7eb;"><strong>'+esc(po.supplierName)+'</strong> · '+esc(stamp)+'<br>'+esc(status)+'<br>'+(po.items||[]).map(function(it){return esc(it.name)+' × '+esc(it.qty)+' '+esc(it.unit)+(it.note?'<div class="muted">'+esc(I18n.t('poNote')+': '+it.note)+'</div>':'');}).join('<br>')+'</div>';
+        return '<div style="padding:10px 0;border-bottom:1px solid #e5e7eb;"><strong>'+esc(po.supplierName)+'</strong> · '+esc(stamp)+'<br>'+esc(status)+'<br>'+(po.items||[]).map(function(it){return esc(it.name)+' × '+esc(it.qty)+' '+esc(it.unit)+(it.note?'<div class="muted">'+esc(I18n.t('poNote')+': '+it.note)+'</div>':'');}).join('<br>')+poLifecycleActions(po)+'</div>';
       }).join('')||(isEN()?'No saved purchase orders':'発注履歴はありません');
     }
     var PO_HISTORY_SEQ=0;
@@ -238,6 +275,127 @@
         if(seq!==PO_HISTORY_SEQ)return;
         PO_HISTORY=null;document.getElementById('poHistory').textContent=API.userErrorText(e);
       });
+    };
+    function poLifecycleErrorText(error){
+      var code=String(error&&error.message||error||'').trim();
+      var ja={
+        po_inventory_item_missing:'先に在庫管理で発注品と同じ名前・単位の在庫品目を登録してください。',
+        po_inventory_ambiguous:'在庫管理に同名の品目が複数あります。名前を整理してから受領してください。',
+        po_inventory_unit_mismatch:'発注と在庫の単位が異なります。在庫管理で単位を確認してください。',
+        po_overreceipt:'未納品の残数量を超えています。履歴を更新し、受領数を調整してください。',
+        po_fully_received:'この発注は全量受領済みです。',
+        po_not_approved:'発注を承認してから受領してください。',
+        po_invalid_items:'品目・数量が不正な発注書です。',
+        invalid_po_receipt_items:'受領数・単価を確認してください。単価は0より大きく、小数2桁まで入力できます。',
+        request_conflict:'同じ受領IDで異なる内容を再送できません。履歴を再読み込みしてください。',
+        state_changed:'別の端末で発注や在庫が更新されました。最新の発注履歴を再取得してください。',
+        forbidden:'この操作は管理者またはマネージャーに限定されています。',
+      };
+      var en={
+        po_inventory_item_missing:'Add the ordered item to Inventory with the same name and unit before receiving.',
+        po_inventory_ambiguous:'Inventory has duplicate matching names. Resolve them before receiving.',
+        po_inventory_unit_mismatch:'The purchase-order unit differs from Inventory. Check the item unit.',
+        po_overreceipt:'Quantity exceeds the outstanding balance. Refresh history and adjust the quantity.',
+        po_fully_received:'This purchase order is already fully received.',
+        po_not_approved:'Approve the purchase order before recording delivery.',
+        po_invalid_items:'The purchase order contains an invalid item or quantity.',
+        invalid_po_receipt_items:'Check quantity and positive unit cost (up to two decimal places).',
+        request_conflict:'The receipt ID has already been used for different values. Refresh history.',
+        state_changed:'Another device updated this order or Inventory. Refresh purchase-order history.',
+        forbidden:'Only a manager or administrator can perform this action.',
+      };
+      return (isEN()?en:ja)[code]||API.userErrorText(error);
+    }
+    function poLifecycleMessage(text,ok){
+      var node=document.getElementById('poLifecycleMsg');
+      node.textContent=String(text||'');
+      node.style.color=ok?'#15803d':'#b91c1c';
+    }
+    window.approvePoRecord=function(poId){
+      if(PO_LIFECYCLE_BUSY)return;
+      var po=(PO_HISTORY||[]).find(function(x){return x.id===poId;});
+      if(!po||po.status!=='created')return;
+      PO_LIFECYCLE_BUSY=true;
+      UIConfirm((isEN()?'Approve purchase order?':'この発注書を承認しますか？')+
+        '\n'+po.supplierName+' / '+po.id).then(function(ok){
+        if(!ok)return;
+        return rpc('approvePurchaseOrder',[poId]).then(function(result){
+          if(!result||!result.success)throw Error(result&&result.error||'po_approval_failed');
+          poLifecycleMessage(isEN()?'Purchase order approved.':'発注を承認しました。',true);
+          return loadPoHistory();
+        }).catch(function(error){
+          poLifecycleMessage(poLifecycleErrorText(error),false);return loadPoHistory();
+        });
+      }).finally(function(){PO_LIFECYCLE_BUSY=false;});
+    };
+    window.openPoReceipt=function(poId){
+      if(PO_LIFECYCLE_BUSY)return;
+      var po=(PO_HISTORY||[]).find(function(x){return x.id===poId;});
+      if(!po||['approved','partial'].indexOf(po.status)<0)return;
+      PO_RECEIPT_TARGET=poId;PO_RECEIPT_RETRY=null;
+      document.getElementById('poReceiveTitle').textContent=
+        (isEN()?'📦 Record delivery':'📦 発注品を受領')+' · '+po.supplierName;
+      document.getElementById('poReceiveHint').textContent=
+        isEN()?'Enter only delivered quantities. Undelivered items remain open. Unit cost is required.':
+        '今回納品された数量のみ入力してください。未納品分は残数として維持されます。単価は必須です。';
+      var remaining=(po.lines||[]).filter(function(l){return Number(l.remainingQty)>0;});
+      document.getElementById('poReceiveRows').innerHTML=remaining.map(function(l){
+        return '<div class="fg" style="border-bottom:1px solid #eee;padding:8px 0;" data-po-receive-line="'+l.lineIndex+'">'+
+          '<strong>'+esc(l.name)+'</strong> · '+esc(l.unit)+' · '+
+          (isEN()?'Remaining ':'未納品残り ')+esc(l.remainingQty)+
+          '<div style="display:flex;gap:8px;margin-top:6px;">'+
+          '<label style="flex:1;">'+(isEN()?'Received qty':'今回受領数')+
+          '<input class="fc" data-po-qty type="number" min="0" step="0.000001" max="'+esc(l.remainingQty)+'" placeholder="0"></label>'+
+          '<label style="flex:1;">'+(isEN()?'Unit cost':'受領単価')+
+          '<input class="fc" data-po-cost type="number" min="0.01" step="0.01" placeholder="0.00"></label></div></div>';
+      }).join('');
+      document.getElementById('poReceiveSubmit').textContent=isEN()?'Confirm receipt':'受領を確定';
+      document.getElementById('poReceiveCancel').textContent=isEN()?'Close':'閉じる';
+      document.getElementById('poReceiveMessage').textContent='';
+      document.getElementById('poReceiveOverlay').style.display='flex';
+    };
+    window.closePoReceipt=function(){
+      if(PO_LIFECYCLE_BUSY)return;
+      document.getElementById('poReceiveOverlay').style.display='none';
+      PO_RECEIPT_TARGET='';PO_RECEIPT_RETRY=null;
+    };
+    window.submitPoReceipt=function(){
+      if(PO_LIFECYCLE_BUSY||!PO_RECEIPT_TARGET)return;
+      var error=document.getElementById('poReceiveMessage'),inputRows=[];
+      var valid=true;
+      Array.prototype.forEach.call(document.querySelectorAll('#poReceiveRows [data-po-receive-line]'),function(row){
+        var raw=row.querySelector('[data-po-qty]').value.trim();
+        if(!raw)return;
+        var qty=Number(raw),unitCost=Number(row.querySelector('[data-po-cost]').value);
+        if(!Number.isFinite(qty)||qty<=0||!Number.isFinite(unitCost)||unitCost<=0||
+          !row.querySelector('[data-po-cost]').value.trim()||
+          qty>Number(row.querySelector('[data-po-qty]').max)+1e-8){valid=false;return;}
+        inputRows.push({lineIndex:Number(row.dataset.poReceiveLine),qty:qty,unitCost:unitCost});
+      });
+      if(!valid||!inputRows.length){
+        error.textContent=isEN()?'Enter a quantity within the remaining balance and a positive unit cost.':'残数量以内の受領数と0より大きい単価を入力してください。';return;
+      }
+      var poId=PO_RECEIPT_TARGET,sig=JSON.stringify([poId,inputRows]);
+      if(!PO_RECEIPT_RETRY||PO_RECEIPT_RETRY.signature!==sig)
+        PO_RECEIPT_RETRY={signature:sig,id:nextEmailRequestId('po-receipt-')};
+      var key=PO_RECEIPT_RETRY.id;
+      PO_LIFECYCLE_BUSY=true;
+      UIConfirm((isEN()?'Record this delivery and update stock?':'今回の受領を記録し、在庫を更新しますか？')+
+        '\n'+inputRows.map(function(i){return '#'+(i.lineIndex+1)+' × '+i.qty;}).join(', '))
+        .then(function(ok){
+          if(!ok)return;
+          document.getElementById('poReceiveSubmit').disabled=true;
+          return rpc('receivePurchaseOrder',[poId,inputRows,key]).then(function(result){
+            if(!result||!result.success)throw Error(result&&result.error||'po_receipt_failed');
+            poLifecycleMessage((isEN()?'Delivery recorded. Cost: ':'受領を記録しました。受領原価: ')+result.costTotal,true);
+            PO_RECEIPT_TARGET='';PO_RECEIPT_RETRY=null;
+            document.getElementById('poReceiveOverlay').style.display='none';
+            return loadPoHistory();
+          }).catch(function(e){
+            error.textContent=poLifecycleErrorText(e);
+            return loadPoHistory();
+          }).finally(function(){document.getElementById('poReceiveSubmit').disabled=false;});
+        }).finally(function(){PO_LIFECYCLE_BUSY=false;});
     };
 
     // ── 新規発注（自由入力） ──

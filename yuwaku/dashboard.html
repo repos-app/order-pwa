@@ -127,11 +127,15 @@
       if(!D){ return; }
       var t=D.today||{}, m=D.month||{}, e=(m.exp||{});
       var avgT = t.orders>0 ? t.revenue/t.orders : 0;
-      var cogs = m.cogsAuto||0, wages=m.wages||0;
+      var cogs = Number(m.cogsAuto)||0, wages=Number(m.wages)||0, commissions=Number(m.commissions)||0;
       var prime = cogs + wages;
       var primeRate = m.revenue>0 ? Math.round(prime/m.revenue*1000)/10 : 0;
+      // Merchandise purchase is an alternative COGS basis in profit.html.
+      // NEVER subtract both actual purchases and recipe COGS from profit.
+      var purchaseAmount=Number(e['商品仕入'])||0;
       var expTotal = (e['賃料']||0)+(e['電気代']||0)+(e['水道代']||0)+(e['備品購入']||0)+(e['その他']||0);
-      var profit = (m.revenue||0) - (cogs + wages + expTotal);
+      var profit = (m.revenue||0) - (cogs + wages + commissions + expTotal);
+      var profitKnown=m.profitComponentsComplete===true;
       var margin = m.revenue>0 ? Math.round(profit/m.revenue*1000)/10 : 0;
       var tgt = D.target||0;
       var tgtPct = tgt>0 ? Math.min(100, Math.round((m.revenue||0)/tgt*100)) : 0;
@@ -141,8 +145,8 @@
       html += '<div class="grid">'
         + '<div class="kpi"><div class="lb">'+I18n.t('todaySales')+'</div><div class="v" data-autofit="amount" style="color:var(--green)">'+money(t.revenue)+'</div><div class="sub">'+(t.orders||0)+I18n.t('ordersU')+' ・ '+I18n.t('avg')+' '+money(avgT)+'</div></div>'
         + '<div class="kpi"><div class="lb">'+I18n.t('monthSales')+'</div><div class="v" data-autofit="amount">'+money(m.revenue)+'</div><div class="sub">'+(m.orders||0)+I18n.t('ordersU')+'</div></div>'
-        + '<div class="kpi"><div class="lb">'+I18n.t('grossProfit')+'</div><div class="v" data-autofit="amount" style="color:'+(profit>=0?'var(--navy)':'var(--red)')+'">'+money(profit)+'</div><div class="sub">'+I18n.t('margin')+' '+margin+'%</div></div>'
-        + '<div class="kpi"><div class="lb">'+I18n.t('primeRate')+'</div><div class="v"><span class="pill '+primePill+'">'+primeRate+'%</span></div><div class="sub">'+I18n.t('primeSub')+'</div></div>'
+        + '<div class="kpi"><div class="lb">'+I18n.t('grossProfit')+'</div><div class="v" data-autofit="amount" style="color:'+(profit>=0?'var(--navy)':'var(--red)')+'">'+(profitKnown?money(profit):'—')+'</div><div class="sub">'+(profitKnown?I18n.t('margin')+' '+margin+'%':I18n.t('profitIncomplete'))+'</div></div>'
+        + '<div class="kpi"><div class="lb">'+I18n.t('primeRate')+'</div><div class="v"><span class="pill '+primePill+'">'+(profitKnown?primeRate+'%':'—')+'</span></div><div class="sub">'+I18n.t('primeSub')+'</div></div>'
         + '</div>';
 
       // 目標
@@ -157,9 +161,13 @@
 
       // 原価内訳
       html += '<div class="card"><div class="card-title">'+I18n.t('costTitle')+'</div>'
-        + '<div class="row"><span>'+I18n.t('cogs')+'</span><span class="amt">'+money(cogs)+'</span></div>'
-        + '<div class="row"><span>'+I18n.t('wages')+'</span><span class="amt">'+money(wages)+'</span></div>'
+        + '<div class="row"><span>'+I18n.t('cogs')+'</span><span class="amt">'+(m.cogsIncomplete===false?money(cogs):'—')+'</span></div>'
+        + '<div class="row"><span>'+I18n.t('wages')+'</span><span class="amt">'+(m.wagesIncomplete===false?money(wages):'—')+'</span></div>'
+        + '<div class="row"><span>'+I18n.t('commissions')+'</span><span class="amt">'+(Number.isFinite(m.commissions)?money(commissions):'—')+'</span></div>'
         + '<div class="row"><span>'+I18n.t('expenses')+'</span><span class="amt">'+money(expTotal)+'</span></div>'
+        + '<div class="row"><span>'+I18n.t('purchaseReference')+'</span><span class="amt">'+money(purchaseAmount)+'</span></div>'
+        + '<div class="row"><span>'+I18n.t('unsettled')+' ('+Number(m.unsettledOrderCount||0)+')</span><span class="amt">'+money(Number(m.unsettledSubtotal)||0)+'</span></div>'
+        + '<div class="muted" style="font-size:11px;margin-top:4px;">'+I18n.t('unsettledHint')+'</div>'
         + '<div class="muted" style="margin-top:8px;">'+I18n.t('costNote')+' <a href="./profit.html">'+I18n.t('toProfit')+'</a></div></div>';
 
       // アラート
@@ -177,7 +185,26 @@
     // 表示し、以降の再試行は利用者の操作に委ねる（総待ち時間の上限を明確にする）。
     function loadDashboard(){
       if(!D) document.getElementById('wrap').innerHTML = '<div class="loading">'+I18n.t('loading')+'</div>';
-      return rpcBusyRetry('getDashboard',[]).then(function(d){ D=d||null; render(); })
+      return rpcBusyRetry('getDashboard',[]).then(function(d){
+          D=d||null; render();
+          if(!D||!D.month||!D.month.month) return;
+          // Defer heavier payroll/BOM work until paid sales are already visible.
+          // Keep the lean KPI request responsive; use one existing shared RPC.
+          var current=D;
+          return rpcBusyRetry('getMonthlyProfit',[D.month.month]).then(function(p){
+            if(D!==current||!p||p.month!==current.month.month) return;
+            current.month.cogsAuto=p.cogsAuto;
+            current.month.cogsIncomplete=p.cogsIncomplete;
+            current.month.wages=p.wages;
+            current.month.wagesIncomplete=p.wagesIncomplete;
+            current.month.commissions=p.commissions;
+            current.month.profitComponentsComplete=p.cogsIncomplete===false
+              &&p.wagesIncomplete===false&&Number.isFinite(Number(p.cogsAuto))
+              &&Number.isFinite(Number(p.wages))&&Number.isFinite(Number(p.commissions))
+              &&Math.abs(Number(p.revenue)-Number(current.month.revenue))<=0.01;
+            render();
+          }).catch(function(){ /* Never convert a failed estimate into zero. */ });
+        })
         .catch(function(e){
           if(String(e.message||e).indexOf('unauthorized')>=0){ location.href='./manage.html'; return; }
           var ts = new Date().toLocaleTimeString(isEN()?'en-US':'ja-JP');
@@ -196,8 +223,8 @@
     // そのまま表示されていた。I18n.init()（同期的にDICTを設定してapply()する）を先に呼んでから
     // loadDashboard()を呼ぶ順序に修正する。
     I18n.init({
-      ja:{ title:'📊 ダッシュボード', back:'← 管理へ', loading:'読み込み中…', todaySales:'本日の売上', monthSales:'今月の売上', ordersU:'件', avg:'客単価', grossProfit:'今月の概算利益', margin:'利益率', primeRate:'プライムコスト率', primeSub:'(原価+人件費)÷売上', targetTitle:'🎯 月間売上目標', monthVsTarget:'今月 / 目標', setTarget:'目標を設定:', save:'保存', saveErr:'保存エラー: ', costTitle:'💴 今月の原価内訳', cogs:'商品原価(自動)', wages:'従業員給与', expenses:'経費(固定費・備品・その他)', costNote:'詳細・仕入実績での計算は', toProfit:'月間利益へ', lowStock:'低在庫アラート', toInv:'在庫管理へ', menuAlert:'要注意メニュー', toSales:'売上分析へ', loadErr:'読み込みエラー: ', busyErr:'集計が混み合っています。数秒後に再試行してください。' },
-      en:{ title:'📊 Dashboard', back:'← Manage', loading:'Loading…', todaySales:"Today's sales", monthSales:'This month', ordersU:' orders', avg:'Avg/order', grossProfit:'Estimated profit (month)', margin:'Margin', primeRate:'Prime cost %', primeSub:'(COGS+labor)÷sales', targetTitle:'🎯 Monthly sales target', monthVsTarget:'Month / Target', setTarget:'Set target:', save:'Save', saveErr:'Save error: ', costTitle:'💴 Cost breakdown (month)', cogs:'Product cost (auto)', wages:'Wages', expenses:'Expenses (fixed/supplies/other)', costNote:'For detail & purchase-based calc →', toProfit:'Monthly profit', lowStock:'Low-stock alerts', toInv:'Inventory', menuAlert:'Menu to review', toSales:'Sales analytics', loadErr:'Load error: ', busyErr:'Sales analysis is busy. Please retry in a few seconds.' }
+      ja:{ title:'📊 ダッシュボード', back:'← 管理へ', loading:'読み込み中…', todaySales:'本日の売上', monthSales:'今月の売上', ordersU:'件', avg:'客単価', grossProfit:'今月の概算利益', margin:'利益率', primeRate:'プライムコスト率', primeSub:'(原価+人件費)÷売上', targetTitle:'🎯 月間売上目標', monthVsTarget:'今月 / 目標', setTarget:'目標を設定:', save:'保存', saveErr:'保存エラー: ', costTitle:'💴 今月の原価内訳', cogs:'商品原価(自動)', wages:'従業員給与', expenses:'経費(固定費・備品・その他)', unsettled:'未会計の注文小計', unsettledHint:'未会計分は売上に加算していません。税込みの最終会計額ではありません。', profitIncomplete:'原価・人件費を確認中／未算定。月間利益をご確認ください', commissions:'従業員コミッション', purchaseReference:'仕入実績（レシピ原価との重複控除なし）', costNote:'詳細・仕入実績での計算は', toProfit:'月間利益へ', lowStock:'低在庫アラート', toInv:'在庫管理へ', menuAlert:'要注意メニュー', toSales:'売上分析へ', loadErr:'読み込みエラー: ', busyErr:'集計が混み合っています。数秒後に再試行してください。' },
+      en:{ title:'📊 Dashboard', back:'← Manage', loading:'Loading…', todaySales:"Today's sales", monthSales:'This month', ordersU:' orders', avg:'Avg/order', grossProfit:'Estimated profit (month)', margin:'Margin', primeRate:'Prime cost %', primeSub:'(COGS+labor)÷sales', targetTitle:'🎯 Monthly sales target', monthVsTarget:'Month / Target', setTarget:'Set target:', save:'Save', saveErr:'Save error: ', costTitle:'💴 Cost breakdown (month)', cogs:'Product cost (auto)', wages:'Wages', expenses:'Expenses (fixed/supplies/other)', unsettled:'Unsettled order subtotal', unsettledHint:'Unpaid orders are not counted as sales; subtotal is before final VAT and service.', profitIncomplete:'Cost/payroll pending or unestimated; see monthly profit', commissions:'Employee commissions', purchaseReference:'Actual purchases (not double-counted with recipe COGS)', costNote:'For detail & purchase-based calc →', toProfit:'Monthly profit', lowStock:'Low-stock alerts', toInv:'Inventory', menuAlert:'Menu to review', toSales:'Sales analytics', loadErr:'Load error: ', busyErr:'Sales analysis is busy. Please retry in a few seconds.' }
     }, function(){ if(D) render(); });
 
     loadDashboard();

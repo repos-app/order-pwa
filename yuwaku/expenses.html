@@ -223,7 +223,7 @@
           '<button class="btn-sm" onclick="del(\''+e.id+'\')">'+I18n.t('del')+'</button></td></tr>';
       }).join('');
     }
-    var EXPENSE_CLIENT_REQUEST_ID='';
+    var EXPENSE_CLIENT_REQUEST_ID='', EXPENSE_EDIT_EXPECTED=null;
     function nextExpenseClientRequestId(){
       if(window.crypto && typeof window.crypto.randomUUID==='function') return 'exp-'+window.crypto.randomUUID();
       return 'exp-'+Date.now()+'-'+Math.random().toString(36).slice(2,12);
@@ -267,6 +267,7 @@
     });
     function clearForm(){
       EXPENSE_CLIENT_REQUEST_ID='';
+      EXPENSE_EDIT_EXPECTED=null;
       document.getElementById('eId').value=''; document.getElementById('eItem').value=''; document.getElementById('eAmount').value='';
       document.getElementById('eMemo').value=''; document.getElementById('ePurchaser').value='';
       document.getElementById('eReceiptFile').value=''; updateEReceiptFileName(); document.getElementById('eReceiptImageId').value='';
@@ -276,6 +277,8 @@
     window.edit = function(id){
       var e = ALL.filter(function(x){return x.id===id;})[0]; if(!e) return;
       EXPENSE_CLIENT_REQUEST_ID='';
+      EXPENSE_EDIT_EXPECTED={id:e.id,date:e.date,category:e.category,item:e.item,
+        amount:e.amount,memo:e.memo||'',purchaser:e.purchaser||'',receiptImageId:e.receiptImageId||''};
       document.getElementById('eId').value=e.id; document.getElementById('eDate').value=e.date;
       if(window.DateDisplay)DateDisplay.refresh();
       document.getElementById('eCat').value=e.category; document.getElementById('eItem').value=e.item;
@@ -362,8 +365,11 @@
         purchaser:document.getElementById('ePurchaser').value.trim(),
         receiptImageId:document.getElementById('eReceiptImageId').value };
       if(!exp.id) exp.clientRequestId=EXPENSE_CLIENT_REQUEST_ID || (EXPENSE_CLIENT_REQUEST_ID=nextExpenseClientRequestId());
+      else if(EXPENSE_EDIT_EXPECTED)exp.expected=EXPENSE_EDIT_EXPECTED;
       if(!exp.date){ msg(I18n.t('needDate'), false); return; }
-      if(!(exp.amount>0)){ msg(I18n.t('needAmount'), false); return; }
+      if(!(exp.amount>0) || !Number.isFinite(exp.amount) || exp.amount>10000000){
+        msg(I18n.lang&&I18n.lang()==='en'?'Enter an amount from 0.01 to 10,000,000.':'金額は0より大きく10,000,000以下で入力してください。', false); return;
+      }
       var btn=document.getElementById('saveBtn'); btn.disabled=true;
       var uploadStep = file
         ? prepareReceiptPayload(file).then(function(payload){ return rpc('uploadExpenseReceipt',[payload]); })

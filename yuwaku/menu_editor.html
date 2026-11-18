@@ -1321,11 +1321,20 @@
       bulkDeleting=true;render();
       var status=document.getElementById('menuBulkStatus');
       try{
+        // Show server-side recipe and unpaid-order impact before any delete.
+        var impact=await rpc('getMenuDeleteImpact',[targets.map(function(m){return m['商品名'];})]);
+        if(!impact||impact.success!==true||!Array.isArray(impact.items))
+          throw new Error((impact&&impact.error)||'menu_delete_impact_unavailable');
+        var blocked=impact.items.filter(function(row){return Number(row.openOrderCount)>0;});
+        var recipes=impact.items.reduce(function(n,row){return n+(Number(row.linkedRecipeCount)||0);},0);
         var preview=targets.slice(0,5).map(function(m){return loc(m['商品名_JA'],m['商品名_EN'])||m['商品名'];}).join('\n');
         var confirmation=(isEN()
           ?'Delete '+targets.length+' selected menu item(s)? This also removes their linked recipes.\n'
           :'選択した'+targets.length+'件の商品を削除しますか？紐づくレシピも削除されます。\n')+
-          preview+(targets.length>5?'\n…':'');
+          preview+(targets.length>5?'\n…':'')+
+          (isEN()?'\nLinked recipe rows: '+recipes+'. Products in unpaid orders (cannot delete): '+blocked.length
+            :'\n紐づくレシピ：'+recipes+'行。未会計注文で使用中（削除不可）：'+blocked.length+'件')+
+          (blocked.length?'\n'+blocked.map(function(row){return row.name;}).join('\n'):'');
         if(!await UIConfirm(confirmation))return;
         var success=0,failed=[],readbackIssue='';
         for(var m of targets){

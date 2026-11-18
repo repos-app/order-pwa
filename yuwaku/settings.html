@@ -718,7 +718,10 @@ function _seatLabel(v){var s=String(v==null?'':v).trim();var tableTerm=_seatTerm
     }
     var COUNTRY_PROFILES={PH:{locale:'en-PH',dateFormat:'MM/DD/YYYY',currencyCode:'PHP',currencySymbol:'₱',currencyDecimalDigits:2,timezone:'Asia/Manila',taxDisplayName:'VAT',taxIdLabel:'TIN',receiptNumberPrefix:'OR',receiptDocumentTitleJa:'レシート',receiptDocumentTitleEn:'Receipt'},JP:{locale:'ja-JP',dateFormat:'YYYY/MM/DD',currencyCode:'JPY',currencySymbol:'¥',currencyDecimalDigits:0,timezone:'Asia/Tokyo',taxDisplayName:'消費税',taxIdLabel:'適格請求書発行事業者登録番号',receiptNumberPrefix:'R',receiptDocumentTitleJa:'領収書',receiptDocumentTitleEn:'Receipt'},SG:{locale:'en-SG',dateFormat:'DD/MM/YYYY',currencyCode:'SGD',currencySymbol:'S$',currencyDecimalDigits:2,timezone:'Asia/Singapore',taxDisplayName:'GST',taxIdLabel:'UEN / GST Reg. No.',receiptNumberPrefix:'R',receiptDocumentTitleJa:'レシート',receiptDocumentTitleEn:'Receipt'},US:{locale:'en-US',dateFormat:'MM/DD/YYYY',currencyCode:'USD',currencySymbol:'$',currencyDecimalDigits:2,timezone:'America/New_York',taxDisplayName:'Sales Tax',taxIdLabel:'Tax ID',receiptNumberPrefix:'R',receiptDocumentTitleJa:'レシート',receiptDocumentTitleEn:'Receipt'},GB:{locale:'en-GB',dateFormat:'DD/MM/YYYY',currencyCode:'GBP',currencySymbol:'£',currencyDecimalDigits:2,timezone:'Europe/London',taxDisplayName:'VAT',taxIdLabel:'VAT Registration No.',receiptNumberPrefix:'R',receiptDocumentTitleJa:'レシート',receiptDocumentTitleEn:'Receipt'},AU:{locale:'en-AU',dateFormat:'DD/MM/YYYY',currencyCode:'AUD',currencySymbol:'A$',currencyDecimalDigits:2,timezone:'Australia/Sydney',taxDisplayName:'GST',taxIdLabel:'ABN',receiptNumberPrefix:'R',receiptDocumentTitleJa:'レシート',receiptDocumentTitleEn:'Receipt'}};
     window.applyCountryProfile=function(){var code=String($('countryCode').value||'').trim().toUpperCase(),p=COUNTRY_PROFILES[code];if(!p){st('st-locale',I18n.t('unknownCountry'),false);return;}Object.keys(p).forEach(function(k){if($(k))$(k).value=String(p[k]);});st('st-locale',I18n.t('countryApplied'),true);};
+    var savedLocaleValues=null,localeSaving=false;
     window.saveLocale = function(){
+      if(localeSaving)return;
+      if(!savedLocaleValues){st('st-locale',I18n.lang&&I18n.lang()==='en'?'Wait for settings to load.':'設定の読み込み完了をお待ちください。',false);return;}
       var bc=_splitTime($('bizDayCutoff').value), tz=String($('timezone').value||'').trim();
       try { if(!tz) throw new Error('blank'); new Intl.DateTimeFormat('en-US',{timeZone:tz}).format(); }
       catch(e){ st('st-locale',I18n.t('invalidTimezone'), false); return; }
@@ -729,10 +732,20 @@ function _seatLabel(v){var s=String(v==null?'':v).trim();var tableTerm=_seatTerm
           field.focus(); return;
         }
       }
-      rpc('saveSettings',[{ regionalSettingsVersion:'2', countryCode:$('countryCode').value, locale:$('locale').value, dateFormat:$('dateFormat').value, timezone:tz, currencyCode:$('currencyCode').value, currencySymbol:$('currencySymbol').value, currencyDecimalDigits:$('currencyDecimalDigits').value, serviceRate:$('serviceRate').value, taxRate:$('taxRate').value, taxDisplayName:$('taxDisplayName').value, taxIdLabel:$('taxIdLabel').value, receiptNumberPrefix:$('receiptNumberPrefix').value, receiptDocumentTitleJa:$('receiptDocumentTitleJa').value, receiptDocumentTitleEn:$('receiptDocumentTitleEn').value, taxRoundingMode:$('taxRoundingMode').value, serviceInclusive:$('serviceInclusive').checked?'true':'false', taxInclusive:$('taxInclusive').checked?'true':'false', defaultLang:$('defaultLang').value, accentColor:$('accentColor').value, bizDayCutoffHour:bc[0], bizDayCutoffMin:bc[1] }]).then(function(d){
+      var payload={ regionalSettingsVersion:'2', countryCode:$('countryCode').value, locale:$('locale').value, dateFormat:$('dateFormat').value, timezone:tz, currencyCode:$('currencyCode').value, currencySymbol:$('currencySymbol').value, currencyDecimalDigits:$('currencyDecimalDigits').value, serviceRate:$('serviceRate').value, taxRate:$('taxRate').value, taxDisplayName:$('taxDisplayName').value, taxIdLabel:$('taxIdLabel').value, receiptNumberPrefix:$('receiptNumberPrefix').value, receiptDocumentTitleJa:$('receiptDocumentTitleJa').value, receiptDocumentTitleEn:$('receiptDocumentTitleEn').value, taxRoundingMode:$('taxRoundingMode').value, serviceInclusive:$('serviceInclusive').checked?'true':'false', taxInclusive:$('taxInclusive').checked?'true':'false', defaultLang:$('defaultLang').value, accentColor:$('accentColor').value, bizDayCutoffHour:bc[0], bizDayCutoffMin:bc[1] };
+      var expected={};
+      Object.keys(payload).forEach(function(key){expected[key]=Object.prototype.hasOwnProperty.call(savedLocaleValues,key)?String(savedLocaleValues[key]):null;});
+      payload.__expectedSettings=expected;
+      localeSaving=true;
+      var saveButton=document.querySelector('button[onclick="saveLocale()"]');if(saveButton)saveButton.disabled=true;
+      st('st-locale',I18n.lang&&I18n.lang()==='en'?'Saving…':'保存中…',true);
+      var pendingStatus=$('st-locale');pendingStatus.style.background='#eff6ff';pendingStatus.style.color='#1d4ed8';
+      rpc('saveSettings',[payload]).then(function(d){
         if(!d || d.success===false){ st('st-locale',I18n.t('errPrefix')+API.userErrorText((d&&d.error)||'save_failed'), false); return; }
+        savedLocaleValues=Object.assign({},savedLocaleValues,payload);
+        delete savedLocaleValues.__expectedSettings;
         $('timezone').value=d.timezone||tz; savedDiscountCurrency=String(d.currencyCode||$('currencyCode').value||'').trim().toUpperCase();syncDiscountValueLimit(); if(window.DateDisplay)DateDisplay.setSettings({countryCode:$('countryCode').value,locale:$('locale').value,currencyCode:$('currencyCode').value,dateFormat:$('dateFormat').value,timezone:d.timezone||tz}); st('st-locale',I18n.t('saved'), true);
-      }).catch(function(e){ st('st-locale',I18n.t('errPrefix')+API.userErrorText(e), false); });
+      }).catch(function(e){ st('st-locale',I18n.t('errPrefix')+API.userErrorText(e), false); }).finally(function(){localeSaving=false;var saveButton=document.querySelector('button[onclick="saveLocale()"]');if(saveButton)saveButton.disabled=false;});
     };
     // 2026-08-25追加: ログイン保持時間（あつしさんのご要望「設定画面に持ち、操作があればログイン
     // 状態を保持したい」対応）。実際のスライディング・エクスパイア処理はサーバー側
@@ -1040,6 +1053,7 @@ function _seatLabel(v){var s=String(v==null?'':v).trim();var tableTerm=_seatTerm
     rpc('getSettingsBundle',[]).then(function(bundle){
       bundle = bundle || {};
       var d = bundle.settings || {};
+      savedLocaleValues=Object.assign({},d);
       DISCOUNT_RULES = bundle.discountRules || [];
       renderDiscountRules();
       $('orderVoidManagerApprovalRequired').checked = d.orderVoidManagerApprovalRequired===undefined ? true : !/^(?:|0|false|off|no)$/i.test(String(d.orderVoidManagerApprovalRequired).trim());

@@ -157,8 +157,14 @@
     }
     el.innerHTML=warning+staff.map(function(s,i){
       var pendingIds=entries.filter(function(e){return e.employeeId===s.employeeId&&e.status!=='paid'&&e.status!=='reversed'&&e.entryType!=='reversal'&&Number(e.amount)>0;}).map(function(e){return e.id;});
+      var netBalance=Number(s.netBalance)||0;
+      var reconciliation=Number(s.settlementDue)>0
+        ?'<div class="cm-warn cm-commission-reconcile" role="status"><span>'+
+          esc(I18n.lang()==='en'?'Refund reconciliation required (net balance)':'要精算（返金後の残高）')+
+          '</span> <strong>'+money(netBalance)+'</strong></div>':'';
       return '<div class="cm-row"><div class="cm-rowtop cm-report-staff-head"><div class="cm-name" data-iz-ellipsis="staff" title="'+esc(s.employeeName)+'">'+esc(s.employeeName)+'</div><span class="cm-badge">'+I18n.t('total')+' '+money(s.total)+'</span></div>'+
         '<div class="cm-summary" style="margin-top:10px"><div class="cm-kpi"><span>'+I18n.t('orderCommission')+'</span><strong>'+money(s.orderCommission)+'</strong></div><div class="cm-kpi"><span>'+I18n.t('serviceShare')+'</span><strong>'+money(s.serviceCharge)+'</strong></div><div class="cm-kpi"><span>'+I18n.t('unpaid')+'</span><strong>'+money(s.pending)+'</strong></div></div>'+
+        reconciliation+
         '<div class="cm-actions"><button class="cm-btn sec" type="button" data-details="'+i+'" aria-expanded="false" aria-controls="cm-report-detail-'+i+'">'+esc(ct('details'))+'</button>'+
         (pendingIds.length?'<button class="cm-btn" data-paid="'+esc(s.employeeId)+'">'+I18n.t('markPaid')+'</button>':'')+'</div>'+
         '<div id="cm-report-detail-'+i+'" class="cm-report-details" hidden>'+detailHtml(s)+'</div></div>';

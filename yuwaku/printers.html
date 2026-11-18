@@ -46,6 +46,7 @@
     .pr-row .nm{ font-weight:700; } .pr-row .mac{ font-family:monospace; font-size:11px; color:var(--text-3); }
     .st-badge{ font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
     .s-pend{ background:#fff7ed; color:#c2410c; } .s-prog{ background:#eff6ff; color:#2563eb; } .s-done{ background:var(--green-lt); color:var(--green-dk); } .s-fail{ background:#fee2e2; color:#b91c1c; }
+    .s-unknown{ background:#fef3c7; color:#92400e; }
     table{ width:100%; border-collapse:collapse; font-size:12px; } th,td{ padding:7px 6px; text-align:left; border-bottom:1px solid var(--border); white-space:nowrap; } th{ font-size:12px; color:var(--text-3); }
     .alert{ margin-top:10px; padding:10px 12px; border-radius:9px; font-size:13px; font-weight:700; }
     .alert-success{ background:var(--green-lt); color:var(--green-dk); } .alert-error{ background:#fee2e2; color:#b91c1c; }
@@ -165,6 +166,8 @@
       <div class="cnt-grid">
         <div class="cnt c-pend"><div class="n" id="c-pend">0</div><div class="l" id="l-pend">Pending</div></div>
         <div class="cnt c-prog"><div class="n" id="c-prog">0</div><div class="l" id="l-prog">Printing</div></div>
+        <div class="cnt"><div class="n" id="c-unknown">0</div><div class="l">確認待ち / Unknown</div></div>
+        <div class="cnt"><div class="n" id="c-deferred">0</div><div class="l">レシート保留 / Receipt pending</div></div>
         <div class="cnt c-done"><div class="n" id="c-done">0</div><div class="l" id="l-done">Done</div></div>
         <div class="cnt c-fail"><div class="n" id="c-fail">0</div><div class="l" id="l-fail">Failed</div></div>
       </div>
@@ -458,22 +461,22 @@
 
     function refreshQueue(){
       return Promise.all([
-        rpc('getPrintQueueCounts',[]).then(function(c){ $('c-pend').innerText=c['未印刷']||0; $('c-prog').innerText=c['印刷中']||0; $('c-done').innerText=c['印刷済']||0; $('c-fail').innerText=c['失敗']||0; }).catch(onErr),
+        rpc('getPrintQueueCounts',[]).then(function(c){ $('c-pend').innerText=c['未印刷']||0; $('c-prog').innerText=c['印刷中']||0; $('c-unknown').innerText=c['要確認']||0; $('c-deferred').innerText=c['レシート保留']||0; $('c-done').innerText=c['印刷済']||0; $('c-fail').innerText=c['失敗']||0; }).catch(onErr),
         rpc('getPrintQueue',[60]).then(function(rows){ lastQueue=rows||[]; renderQueue(lastQueue); }).catch(onErr)
       ]);
     }
     if(window.IZHeader&&typeof IZHeader.registerRefreshHandler==='function'){
       IZHeader.registerRefreshHandler(function(){return Promise.all([loadPrinters(),refreshQueue()]);});
     }
-    var STCLASS={ '未印刷':'s-pend','印刷中':'s-prog','印刷済':'s-done','失敗':'s-fail' };
-    function queueStatusLabel(v){ var raw=String(v||''); if(currentLang!=='en') return raw; return ({'未印刷':'Pending','印刷中':'Printing','印刷済':'Done','失敗':'Failed'})[raw]||raw; }
+    var STCLASS={ '未印刷':'s-pend','印刷中':'s-prog','要確認':'s-unknown','印刷済':'s-done','失敗':'s-fail' };
+    function queueStatusLabel(v){ var raw=String(v||''); if(currentLang!=='en') return raw; return ({'未印刷':'Pending','印刷中':'Printing','要確認':'Unknown — verify paper','印刷済':'Done','失敗':'Failed'})[raw]||raw; }
     function queueTableLabel(v){ var raw=String(v||''); if(currentLang!=='en') return raw; var m=/^(テーブル|カウンター)(\d+)$/.exec(raw); return m?((m[1]==='テーブル'?'Table ':'Counter ')+m[2]):raw; }
     function renderQueue(rows){
       var t=i18n[currentLang], tb=document.querySelector('#qTable tbody');
       if(!rows||!rows.length){ tb.innerHTML='<tr><td style="text-align:center;color:#aaa;padding:20px;">'+t.noJobs+'</td></tr>'; return; }
       var html='<tr><th>'+t.cTime+'</th><th>'+t.cPrinter+'</th><th>'+t.cTable+'</th><th>'+t.cStatus+'</th><th>'+t.cTry+'</th><th></th></tr>';
       rows.forEach(function(r){
-        var canRe=(r.status==='失敗'||r.status==='未印刷'||r.status==='印刷中');
+        var canRe=(r.status==='失敗'||r.status==='未印刷'||r.status==='印刷中'||r.status==='要確認');
         html+='<tr><td>'+escText(window.DateDisplay?DateDisplay.formatDateTime(r.created):r.created)+'</td><td>'+escText(r.printerName)+'</td><td>'+escText(queueTableLabel(r.table))+'</td>'+
           '<td><span class="st-badge '+(STCLASS[r.status]||'')+'">'+escText(queueStatusLabel(r.status))+'</span>'+(r.error?' <span class="form-hint">'+escText(API.userErrorText(r.error))+'</span>':'')+'</td>'+
           '<td>'+r.attempts+'</td>'+
@@ -481,7 +484,7 @@
       });
       tb.innerHTML=html;
     }
-    window.reJob=function(id){ rpc('reprintJob',[id]).then(function(r){ if(!r||r.success!==true) throw new Error((r&&r.error)||'reprint_failed'); toast(i18n[currentLang].reprintDone,'queue-msg'); refreshQueue(); if(window.NativePrintUI&&NativePrintUI.available()&&r.printerId) return NativePrintUI.run({channel:'specific',printerId:r.printerId}); }).catch(function(e){actionError(e,'queue-msg');}); };
+    window.reJob=function(id){ var q=lastQueue.find(function(row){return row.id===id;}); var confirm=q&&q.status==='要確認'?UIConfirm(currentLang==='en'?'This job may already be printed. Check the paper first. Print again?':'このジョブは既に印字されている可能性があります。用紙を確認してから再印刷しますか？'):Promise.resolve(true); confirm.then(function(ok){if(!ok)return;return rpc('reprintJob',[id]).then(function(r){ if(!r||r.success!==true) throw new Error((r&&r.error)||'reprint_failed'); toast(i18n[currentLang].reprintDone,'queue-msg'); refreshQueue(); if(window.NativePrintUI&&NativePrintUI.available()&&r.printerId) return NativePrintUI.run({channel:'specific',printerId:r.printerId}); }); }).catch(function(e){actionError(e,'queue-msg');}); };
     window.reprintAll=function(){ rpc('reprintAllFailed',[]).then(function(){ clearMessageAt('queue-msg'); refreshQueue(); }).catch(function(e){actionError(e,'queue-msg');}); };
     window.clearDone=function(){ rpc('clearPrintedJobs',[]).then(function(){ toast(i18n[currentLang].clearDoneMsg,'queue-msg'); refreshQueue(); }).catch(function(e){actionError(e,'queue-msg');}); };
 

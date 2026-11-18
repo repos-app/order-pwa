@@ -456,7 +456,10 @@
       ADMIN_JOB_ACTIVE = true;
       updateDelBtn();
       alertBox('dataAdminJobMsg',txnText('サーバーにジョブを登録中…','Registering server job…'),null);
-      return rpc('queueDataAdminJob',[operation,target,pass],
+      // A confirmed user action supplies a stable durable request identity.
+      // Server-side replay of this ID never executes a second restore.
+      var requestId=window.crypto.randomUUID();
+      return rpc('queueDataAdminJob',[operation,target,pass,requestId],
         {__timeoutMs:30000,__noInternalRetry:true}).then(function(d){
           if (!d || d.error || !d.success || !d.jobId)
             throw new Error(d && d.error || 'data_admin_job_failed');
@@ -529,6 +532,26 @@
       return !!(IMP_UPLOAD_JOB_ID && ADMIN_IMPORT_UPLOAD_ID &&
         IMP_UPLOAD_JOB_ID === ADMIN_IMPORT_UPLOAD_ID);
     }
+    // Explicit decoder avoids importing mojibake as valid customer names.
+    // UTF-8 and UTF-16 BOMs are authoritative; Shift_JIS is only attempted
+    // when a non-BOM UTF-8 strict decoder rejects the byte stream.
+    async function decodeImportCsvFile(file){
+      var bytes=new Uint8Array(await file.arrayBuffer());
+      var encoding='utf-8',offset=0;
+      if(bytes[0]===0xEF&&bytes[1]===0xBB&&bytes[2]===0xBF){ offset=3; }
+      else if(bytes[0]===0xFF&&bytes[1]===0xFE){ encoding='utf-16le';offset=2; }
+      else if(bytes[0]===0xFE&&bytes[1]===0xFF){ encoding='utf-16be';offset=2; }
+      var slice=bytes.subarray(offset),text;
+      try{text=new TextDecoder(encoding,{fatal:true}).decode(slice);}
+      catch(e){
+        if(encoding!=='utf-8'||offset)throw new Error('csv_encoding_unsupported');
+        encoding='shift_jis';
+        try{text=new TextDecoder(encoding,{fatal:true}).decode(slice);}
+        catch(x){throw new Error('csv_encoding_unsupported');}
+      }
+      if(/[\u0000\uFFFD]/.test(text))throw new Error('csv_encoding_unsupported');
+      return {text:text,encoding:encoding};
+    }
     function onImpFileChange(){
       IMP_PARSED = null;
       IMP_UPLOAD_JOB_ID = '';
@@ -536,15 +559,34 @@
       updateImpBtn();
       var f = document.getElementById('impFile').files[0];
       if (!f) return;
-      API.readFileAsText(f).then(function(text){
-        var parsed = parseCsv(text);
+      decodeImportCsvFile(f).then(function(decoded){
+        var parsed = parseCsv(decoded.text);
         if (!parsed.length) { alertBox('impMsg', I18n.t('csvEmpty'), false); return; }
         var header = parsed[0];
-        var rows = parsed.slice(1);
+        if(header.some(function(h){return !h.trim();})||
+           new Set(header).size!==header.length){
+          alertBox('impMsg',(I18n.lang()==='en'?'CSV header has duplicate or empty columns.':'CSVの列名に重複または空欄があります。'),false);
+          return;
+        }
+        var rows=[],invalid=[];
+        parsed.slice(1).forEach(function(row,index){
+          if(row.length===1&&row[0].trim()==='')return; // Blank lines anywhere are ignored.
+          if(row.length!==header.length){invalid.push({line:index+2,columns:row.length});return;}
+          rows.push(row);
+        });
+        if(invalid.length){
+          var examples=invalid.slice(0,8).map(function(r){return (
+            I18n.lang()==='en'?'CSV row ':'CSV行 ')+r.line+': '+
+            (I18n.lang()==='en'?'expected ':'期待列数 ')+header.length+
+            (I18n.lang()==='en'?', got ':'、実際 ')+r.columns;});
+          alertBox('impMsg',examples.join(' / ')+(invalid.length>8?' … (+'+(invalid.length-8)+')':''),false);
+          return;
+        }
         IMP_PARSED = { header: header, rows: rows };
-        document.getElementById('impPreview').innerText = I18n.t('csvRows').replace('{n}', rows.length).replace('{cols}', header.length);
+        document.getElementById('impPreview').innerText = I18n.t('csvRows').replace('{n}', rows.length).replace('{cols}', header.length)+
+          ' ['+decoded.encoding+']';
         updateImpBtn();
-      }).catch(function(){ alertBox('impMsg', I18n.t('csvReadErr'), false); });
+      }).catch(function(e){ alertBox('impMsg', I18n.t('csvReadErr')+' '+String(e&&e.message||''), false); });
     }
     function updateImpBtn(){
       var pass = document.getElementById('impPass').value;

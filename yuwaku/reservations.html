@@ -29,6 +29,9 @@
     .email-link{ color:#2563eb; text-decoration:underline; text-underline-offset:2px; overflow-wrap:normal; word-break:normal; }
     .email-cell{ width:210px; white-space:normal; }
     .status-cell{ width:150px; min-width:150px; }
+    .res-edit{width:100%;min-width:0;box-sizing:border-box;padding:5px;border:1px solid var(--border);border-radius:7px;font-family:inherit;font-size:12px}
+    .res-save{background:#0f172a;color:white;border:0;border-radius:7px;padding:7px 10px;margin-top:5px;cursor:pointer;font-weight:800}
+    .res-save:disabled{opacity:.5}
     .status-stack{ display:flex; flex-direction:column; align-items:flex-start; gap:6px; min-width:0; }
     .st{ display:inline-block; border-radius:6px; padding:1px 7px; font-size:11px; font-weight:800; }
     .s-recv{ background:#e0e7ff; color:#3730a3; } .s-ok{ background:#dcfce7; color:#15803d; } .s-came{ background:#f1f5f9; color:#475569; } .s-cxl{ background:#fee2e2; color:#b91c1c; }
@@ -69,29 +72,70 @@
     if (!TOKEN) location.href = './manage.html';
     function rpc(fn,args){ return API.post('rpc',{fn:fn,args:args||[],token:TOKEN}).then(function(r){ return r.data; }); }
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-    var ROWS=[], __loaded=false;
+    var ROWS=[], TABLES=[], __loaded=false;
     var STATUSES=['受付','確定','来店済','キャンセル'];
     var NEXT={ '受付':['受付','確定','キャンセル'], '確定':['確定','来店済','キャンセル'], '来店済':['来店済'], 'キャンセル':['キャンセル'] };
     var STCLS={ '受付':'s-recv','確定':'s-ok','来店済':'s-came','キャンセル':'s-cxl' };
     function stLabel(s){ var k={'受付':'stRecv','確定':'stOk','来店済':'stCame','キャンセル':'stCxl'}[s]; return k?I18n.t(k):s; }
+    function resLabel(ja,en){return I18n.lang()==='en'?en:ja;}
 
     function render(){
       if(!ROWS.length){ document.getElementById('rows').innerHTML='<tr><td colspan="8" class="muted" style="padding:16px;text-align:center;">'+I18n.t('empty')+'</td></tr>'; return; }
       document.getElementById('rows').innerHTML = ROWS.map(function(r){
         var opts = (NEXT[r.status]||[r.status]).map(function(s){ return '<option value="'+s+'"'+(s===r.status?' selected':'')+'>'+esc(stLabel(s))+'</option>'; }).join('');
-        return '<tr><td style="white-space:nowrap;font-weight:800;">'+esc(window.DateDisplay?DateDisplay.formatDateTime(r.datetime):r.datetime)+'</td><td class="num">'+r.people+'</td><td>'+esc(r.name)+'</td>'+
-          '<td class="muted">'+esc(r.phone)+'</td><td class="email-cell">'+(r.email?'<a class="email-link" href="mailto:'+esc(r.email)+'">'+esc(r.email)+'</a>':'')+'</td><td>'+esc(r.seat)+'</td><td class="muted" style="white-space:normal;max-width:190px;">'+esc(r.notes)+'</td>'+
-          '<td class="status-cell"><div class="status-stack"><span class="st '+(STCLS[r.status]||'')+'">'+esc(stLabel(r.status))+'</span><select class="mini" onchange="setStatus(\''+r.id+'\',this.value)">'+opts+'</select></div></td></tr>';
+        var readOnly=(r.status==='来店済'||r.status==='キャンセル')?' disabled':'';
+        var seatOptions='<option value="">'+esc(resLabel('未割当','Unassigned'))+'</option>';
+        TABLES.forEach(function(label){
+          seatOptions+='<option value="'+esc(label)+'"'+(label===(r.assignedTable||'')?' selected':'')+'>'+esc(label)+'</option>';
+        });
+        return '<tr data-rid="'+esc(r.id)+'"><td style="white-space:nowrap;font-weight:800;">'+
+          '<input class="res-edit" data-res-when type="datetime-local" step="1800" value="'+esc(r.datetime)+'"'+readOnly+'></td>'+
+          '<td class="num"><input class="res-edit" data-res-people type="number" min="1" max="100" value="'+r.people+'"'+readOnly+'></td><td>'+esc(r.name)+'</td>'+
+          '<td class="muted">'+esc(r.phone)+'</td><td class="email-cell">'+(r.email?'<a class="email-link" href="mailto:'+esc(r.email)+'">'+esc(r.email)+'</a>':'')+'</td>'+
+          '<td>'+esc(r.seat)+'<select class="res-edit" data-res-table'+readOnly+'>'+seatOptions+'</select></td>'+
+          '<td class="muted" style="white-space:normal;max-width:190px;">'+esc(r.notes)+'</td>'+
+          '<td class="status-cell"><div class="status-stack"><span class="st '+(STCLS[r.status]||'')+'">'+esc(stLabel(r.status))+'</span><select class="mini" onchange="setStatus(\''+r.id+'\',this.value)">'+opts+'</select>'+
+          (readOnly?'':('<button type="button" class="res-save" onclick="saveReservation(\''+r.id+'\')">'+esc(resLabel('💾 変更を保存','💾 Save changes'))+'</button>'))+
+          (r.visit?('<span class="muted" data-res-visit>'+esc(r.visit.table)+' · '+r.visit.partySize+' '+esc(resLabel('名','guests'))+
+            ' · '+r.visit.orderCount+' '+esc(resLabel('注文','orders'))+
+            (r.visit.receipts?' · '+esc(r.visit.receipts):'')+'</span>'):'')+
+          ((r.status==='来店済'&&r.visit&&r.visit.status==='active')?
+            ('<a class="res-save" data-res-order-link href="./order-entry.html?table='+encodeURIComponent(r.visit.table)+'">'+
+              esc(resLabel('🧾 注文へ','🧾 Open order'))+'</a>'):'')+
+          '</div></td></tr>';
       }).join('');
     }
-    window.setStatus = function(id, status){
+    window.saveReservation = function(id, status){
       var row=ROWS.find(function(r){ return String(r.id)===String(id); });
-      if(!row || row.status===status){ render(); return; }
-      render();
+      if(!row)return;
+      var tr=Array.prototype.find.call(document.querySelectorAll('#rows tr[data-rid]'),function(e){
+        return e.getAttribute('data-rid')===String(id);
+      });
+      if(!tr)return;
+      var edit={status:status||row.status,datetime:tr.querySelector('[data-res-when]').value,
+        people:tr.querySelector('[data-res-people]').value,
+        assignedTable:tr.querySelector('[data-res-table]').value,
+        expected:{status:row.status,datetime:row.datetime,people:row.people,assignedTable:row.assignedTable||''}};
       var statusMsg=document.getElementById('statusMsg'); statusMsg.style.display='none'; statusMsg.textContent='';
-      rpc('updateReservationStatus',[id,status]).then(function(r){ if(!r||r.ok!==true) throw new Error((r&&r.error)||'save_failed'); row.status=status; render(); }).catch(function(e){ render(); statusMsg.textContent=I18n.t('statusSaveErr')+API.userErrorText(e); statusMsg.style.display='block'; });
+      Array.prototype.forEach.call(tr.querySelectorAll('button,select'),function(el){el.disabled=true;});
+      return rpc('updateReservationStatus',[id,edit]).then(function(r){
+        if(!r||r.ok!==true)throw new Error((r&&r.error)||'save_failed');
+        row.status=r.status||edit.status;row.datetime=r.datetime||edit.datetime;
+        row.people=Number(r.people||edit.people);
+        row.assignedTable=r.assignedTable===undefined?edit.assignedTable:r.assignedTable;
+        if(row.status==='来店済')return reload();
+        render();
+      }).catch(function(e){
+        render(); statusMsg.textContent=I18n.t('statusSaveErr')+API.userErrorText(e);statusMsg.style.display='block';
+      });
     };
-    window.reload = function(){ return rpc('getReservations',[]).then(function(l){ ROWS=l||[]; render(); }); };
+    window.setStatus = function(id,status){return saveReservation(id,status);};
+    window.reload = function(){ return Promise.all([
+      rpc('getReservations',[]), rpc('getTableMaster',[]).catch(function(){return [];})
+    ]).then(function(l){
+      ROWS=l[0]||[];TABLES=(l[1]||[]).map(function(t){return typeof t==='string'?t:t.label;}).filter(Boolean);
+      render();
+    }); };
     if(window.IZHeader&&typeof IZHeader.registerRefreshHandler==='function'){
       IZHeader.registerRefreshHandler(function(){return window.reload();});
     }
@@ -120,7 +164,7 @@
       if(!value){ showUrlMessage(I18n.t('urlUnavailable'),false); return; }
       ExternalBrowser.open(value).then(function(){ showUrlMessage(I18n.t('urlOpened'),true); }).catch(function(){ showUrlMessage(I18n.t('urlOpenFailed'),false); });
     };
-    rpc('getReservations',[]).then(function(l){ ROWS=l||[]; __loaded=true; render(); })
+    reload().then(function(){ __loaded=true; })
       .catch(function(e){ if(String(e.message||e).indexOf('unauthorized')>=0){ location.href='./manage.html'; return; } document.getElementById('rows').innerHTML='<tr><td colspan="8" style="color:#b91c1c;padding:16px;">'+I18n.t('loadErr')+esc(API.userErrorText(e))+'</td></tr>'; });
 
     I18n.init({

@@ -341,6 +341,7 @@
     if (manage) { manage.textContent = compact ? '⌂' : text(isJa, '⌂ 管理', '⌂ Manage'); manage.title = text(isJa, '管理メニューに戻る', 'Return to management menu'); manage.setAttribute('aria-label', manage.title); }
     if (back) { var target = resolveBackTarget(location.search) || (/(?:^|[?&])from=overview(?:&|$)/i.test(String(location.search || '')) ? './overview.html' : ''); back.textContent = compact ? '←' : text(isJa, '← 戻る', '← Back'); back.title = target ? text(isJa, '前の画面へ戻る', 'Back to previous screen') : text(isJa, '前の画面に戻る', 'Go back'); back.setAttribute('aria-label', back.title); }
     renderTitle();
+    syncRouteLabels();
     if (window.IZAICreditHub) window.IZAICreditHub.translate();
     if (window.IZAnnouncements) window.IZAnnouncements.translate();
   }
@@ -651,6 +652,36 @@
     }).catch(function () {});
   }
 
+  function syncRouteLabels() {
+    var ja = currentLang() === 'ja', homeText = text(ja, '⌂ 管理トップ', '⌂ Management');
+    for (var id of ['izBreadcrumbHome','izFooterHome']) {
+      var link=document.getElementById(id);if(link)link.textContent=homeText;
+    }
+    var title=document.getElementById('izHeaderTitle')?.textContent || document.title || '';
+    var crumb=document.getElementById('izBreadcrumbCurrent');if(crumb)crumb.textContent=title;
+    var page=document.getElementById('izFooterPage');if(page)page.textContent=title;
+  }
+  function mountSharedRouteNavigation(policy,header) {
+    var p=policy && policy.page;
+    if(!policy || !policy.showAiCredit || p==='manage.html' || p==='index.html')return;
+    if(!document.getElementById('izCommonRouteStyle')){
+      var style=document.createElement('style');style.id='izCommonRouteStyle';
+      style.textContent='#izBreadcrumb{box-sizing:border-box;width:100%;min-width:0;max-width:100%;padding:6px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--surface,#fff);color:var(--text-3,#64748b);font:700 11px/1.5 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif}' +
+        '#izBreadcrumb a,#izCommonFooter a{color:inherit;text-decoration:underline;text-underline-offset:2px;overflow-wrap:anywhere}' +
+        '#izBreadcrumbCurrent,#izFooterPage{min-width:0;overflow-wrap:anywhere}' +
+        '#izCommonFooter{box-sizing:border-box;position:relative;width:100%;max-width:100%;min-width:0;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px 18px;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));margin-top:24px;background:var(--surface,#fff);border-top:1px solid var(--border,#e5e7eb);color:var(--text-3,#64748b);font:700 12px/1.5 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif}';
+      document.head.appendChild(style);
+    }
+    var crumb=document.createElement('nav');crumb.id='izBreadcrumb';crumb.setAttribute('aria-label','Breadcrumb');
+    var home=document.createElement('a');home.id='izBreadcrumbHome';home.href='./manage.html';
+    var sep=document.createElement('span');sep.textContent='›';sep.setAttribute('aria-hidden','true');
+    var current=document.createElement('span');current.id='izBreadcrumbCurrent';current.setAttribute('aria-current','page');
+    crumb.append(home,sep,current);header.insertAdjacentElement('afterend',crumb);
+    var footer=document.createElement('footer');footer.id='izCommonFooter';
+    var footerHome=document.createElement('a');footerHome.id='izFooterHome';footerHome.href='./manage.html';
+    var page=document.createElement('span');page.id='izFooterPage';footer.append(footerHome,page);
+    document.body.appendChild(footer);syncRouteLabels();
+  }
   function init() {
     if (!document.body || document.getElementById('izCommonHeader')) return;
     addStyles();
@@ -687,6 +718,7 @@
     toolbar.appendChild(extra); toolbar.appendChild(actions);
     main.appendChild(top); main.appendChild(toolbar); header.appendChild(main);
     document.body.insertBefore(header, document.body.firstChild);
+    mountSharedRouteNavigation(policy,header);
     ensureAiCreditHub(policy);
     ensureAnnouncements(policy);
     takeLegacyExtras(legacy, extra);

@@ -147,6 +147,7 @@
   <script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
   <script src="./pending-write-replay.js?v=s6-1"></script>
+  <script src="./inventory-unit-conversion.js?v=0081"></script>
   <script src="./i18n.js?v=auth3"></script>
   <script src="./ai-credit-ui.js?v=auth2"></script>
   <script src="./ai-image-quality.js?v=auth1"></script>
@@ -205,6 +206,7 @@
             var linkLabel = linkedMenus.length ? '🔗✓' : '🔗';
             var linkTitle = linkedMenus.length ? (I18n.t('linkedWith')+linkedMenus.join('、')) : I18n.t('linkBtnTitle');
             return '<td style="white-space:nowrap;"><button class="btn-sm" style="background:#dcfce7;color:#15803d;" onclick="openMove('+i+')">'+I18n.t('moveBtn')+'</button> '+
+              '<button class="btn-sm" style="background:#fff7ed;color:#9a3412;" onclick="IZInventoryConversion.open('+i+')">'+esc(loc('⚖️ 単位換算','⚖️ Convert'))+'</button> '+
               '<button class="btn-sm" style="background:#eff6ff;color:#2563eb;" onclick="openLinkPicker('+i+')" title="'+esc(linkTitle)+'">'+linkLabel+'</button> '+
               '<button class="btn-sm" onclick="delRow('+i+')">🗑</button></td></tr>';
           })();

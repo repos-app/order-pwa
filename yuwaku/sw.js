@@ -138,7 +138,7 @@ const CACHE_PREFIX = 'yuwaku-production-';
 // v327: expose independent phone/tablet menu grid settings in Menu Editor.
 // v332: use data-only Refresh on ten management screens and invalidate old header/pages.
 // v334: deliver data-only Refresh and retain painted content on another ten screens.
-const CACHE = CACHE_PREFIX + 'v334';
+const CACHE = CACHE_PREFIX + 'v336';
 const SHELL = [
   './',
   './index.html',
@@ -196,6 +196,7 @@ const SHELL = [
   './config.js?v=auth2',
 './header.js?v=auth28',
   './api.js?v=auth2',
+  './checkout-resume.js?v=1',
   './i18n.js?v=auth3',
   './commission-drink-settings.js?v=cd2',
   './external-browser.js?v=external1',

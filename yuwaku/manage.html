@@ -346,6 +346,28 @@
       if(status.pendingErrorCount>0&&typeof API.flushPendingDiagnostics==='function')
         API.flushPendingDiagnostics();
     }
+    var returnAfterFreshLogin=false;
+    function restoreExpiredPageAfterLogin(allowed){
+      if(!returnAfterFreshLogin)return;
+      returnAfterFreshLogin=false;
+      var saved;
+      try{
+        saved=sessionStorage.getItem('izAuthReturnTargetV1');
+        sessionStorage.removeItem('izAuthReturnTargetV1');
+        if(!saved)return;
+        saved=JSON.parse(saved);
+      }catch(e){return;}
+      var page=String(saved&&saved.page||'');
+      var store=String(API.currentStoreId()||'').toLowerCase();
+      if(!/^[a-z0-9_-]+\.html$/.test(page)||page==='manage.html'||
+         !saved||saved.storeId!==store||
+         !Number.isFinite(Number(saved.createdAt))||
+         Date.now()-Number(saved.createdAt)>600000||
+         Date.now()<Number(saved.createdAt))return;
+      var key=API.permissionKeyForPage(page);
+      if(!key||key==='__authenticated_info__'||!allowed||allowed[key]!==true)return;
+      location.replace('./'+page);
+    }
     function showHub(allowed, accountOwner){
       var openingHub=document.getElementById('hubView').classList.contains('hidden');
       ACCOUNT_OWNER=accountOwner===true;
@@ -361,6 +383,7 @@
       try{sessionStorage.setItem(HUB_CACHE_KEY,JSON.stringify({allowed:lastAllowed,accountOwner:ACCOUNT_OWNER}));}catch(e){}
       renderHub();
       loadDeletionBanner();
+      restoreExpiredPageAfterLogin(lastAllowed);
     }
     function deletionDeadlineText(value){
       if(!value)return '-';
@@ -438,6 +461,7 @@
         // [応答速度改善(2026-08-22)/ログイン再改善] loginレスポンスに権限メニュー(me)が
         // 同封されるようになったため、直後のcheckToken往復を省いて即座に表示する。
         // 念のため未同封（旧サーバー版との混在デプロイ等）の場合のみ従来通りcheckAndShowにフォールバック。
+        returnAfterFreshLogin=true;
         if (r.me) { window.izkManageOfflineStatus.markVerified(); showHub(r.me.allowed || {}, r.me.accountOwner); } else { checkAndShow(); }
       }).catch(function(e){
         if (attempt !== authAttempt) return;

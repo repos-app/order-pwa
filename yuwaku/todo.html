@@ -77,6 +77,7 @@
         </div>
       </div>
       <button class="btn" id="addBtn" onclick="addTodo()" data-t="addBtn">➕ 追加</button>
+      <button class="btn" id="cancelEditBtn" type="button" onclick="cancelTodoEdit()" style="display:none;background:#64748b;margin-left:7px;" data-t="cancelEdit">取消</button>
       <div id="addErr" class="muted" style="margin-top:8px;display:none;color:#b91c1c;"></div>
     </div>
 
@@ -100,6 +101,7 @@
 
     var ROWS = [], EMPLOYEES = [], __loaded = false;
     var TODO_CLIENT_REQUEST_ID = '';
+    var EDITING_TODO_ID='',EDITING_TODO_REVISION=null;
     var PENDING_TODO_IDS = new Set();
     var PENDING_TODO_CREATION = false;
     var PENDING_TODO_DELETIONS = new Set();
@@ -126,6 +128,7 @@
               (r.done && r.doneAt ? ' · '+esc(I18n.t('doneAt'))+esc(window.DateDisplay?DateDisplay.formatUtcDateTime(r.doneAt):r.doneAt) : '') +
             '</div>' +
           '</div>' +
+          '<button class="delbtn" onclick="editTodo(\''+r.id+'\')" title="'+esc(I18n.t('edit'))+'">✎</button>' +
           '<button class="delbtn" onclick="removeTodo(\''+r.id+'\')" title="'+esc(I18n.t('delete'))+'">🗑️</button>' +
         '</div>';
       }).join('');
@@ -144,6 +147,26 @@
     // [応答速度対応] 以前は保存/削除/完了切替のたびに全件再取得（getTodos）して一覧全体を再描画していた。
     // saveTodoが保存済み行をそのまま返すようになったので、その行だけをROWSに追加/更新し、
     // 削除・完了切替はローカル配列を直接書き換えることで、追加のAPI往復を無くす。
+    window.cancelTodoEdit = function(){
+      if(PENDING_TODO_CREATION)return;
+      EDITING_TODO_ID='';EDITING_TODO_REVISION=null;
+      $('newTitle').value='';$('newAssignee').value='';$('newDue').value='';
+      $('cancelEditBtn').style.display='none';
+      $('addBtn').textContent=I18n.t('addBtn');syncTodoAssigneeLabel();
+    };
+    window.editTodo = function(id){
+      if(PENDING_TODO_CREATION||PENDING_TODO_IDS.has(id))return;
+      var row=ROWS.find(function(r){return r.id===id;});if(!row)return;
+      EDITING_TODO_ID=row.id;EDITING_TODO_REVISION=row.revision;
+      $('newTitle').value=row.title||'';
+      if(row.assignee&&!Array.from($('newAssignee').options).some(function(o){return o.value===row.assignee;})){
+        var opt=document.createElement('option');opt.value=row.assignee;opt.textContent=row.assignee;
+        $('newAssignee').add(opt);
+      }
+      $('newAssignee').value=row.assignee||'';$('newDue').value=row.due||'';
+      $('cancelEditBtn').style.display='inline-flex';$('addBtn').textContent=I18n.t('saveEdit');
+      syncTodoAssigneeLabel();$('newTitle').focus();
+    };
     window.addTodo = function(){
       if (PENDING_TODO_CREATION) return;
       var title = ($('newTitle').value||'').trim();
@@ -154,8 +177,10 @@
       PENDING_TODO_CREATION = true;
       ++TODO_READ_SEQ;
       var btn = $('addBtn'); if (btn) btn.disabled = true;
-      var clientRequestId = TODO_CLIENT_REQUEST_ID || (TODO_CLIENT_REQUEST_ID = nextTodoClientRequestId());
-      return rpc('saveTodo',[{ title: title, assignee: assignee, due: due, clientRequestId: clientRequestId }]).then(function(r){
+      var payload={title:title,assignee:assignee,due:due};
+      if(EDITING_TODO_ID){payload.id=EDITING_TODO_ID;payload.expectedRevision=EDITING_TODO_REVISION;}
+      else payload.clientRequestId=TODO_CLIENT_REQUEST_ID || (TODO_CLIENT_REQUEST_ID = nextTodoClientRequestId());
+      return rpc('saveTodo',[payload]).then(function(r){
         if (btn) btn.disabled = false;
         if (r && r.row) {
           var existingIdx=ROWS.findIndex(function(current){return current.id===r.row.id;});
@@ -164,7 +189,9 @@
           render(); TODO_CLIENT_REQUEST_ID='';
         }
         else { throw new Error((r&&r.error)||'save_failed'); }
+        EDITING_TODO_ID='';EDITING_TODO_REVISION=null;
         $('newTitle').value=''; $('newAssignee').value=''; $('newDue').value=''; syncTodoAssigneeLabel();
+        $('cancelEditBtn').style.display='none';$('addBtn').textContent=I18n.t('addBtn');
         if(window.DateDisplay)DateDisplay.refresh();
       }).catch(function(e){ if (btn) btn.disabled = false; errEl.textContent = I18n.t('errPrefix')+API.userErrorText(e); errEl.style.display='block'; })
         .finally(function(){++TODO_READ_SEQ;PENDING_TODO_CREATION=false;if(btn)btn.disabled=false;});
@@ -178,12 +205,13 @@
       if (row) { row.done = done; row.doneAt = ''; render(); } // 状態のみ先行、完了日時はサーバー確定値を使用
       // [負荷試験レビュー対応/優先#6] toggleTodoDoneは失敗時も例外を投げず{success:false}を返す実装のため、
       // .catch()だけでは検知できず「保存できたつもり」のまま放置されていた。成功判定を明示的に行う。
-      rpc('toggleTodoDone',[id, done]).then(function(r){
+      rpc('toggleTodoDone',[id, done, row?row.revision:null]).then(function(r){
         if (!(r && r.success)) {
           if (row) { row.done = prevDone; row.doneAt = prevDoneAt; render(); }
           var e = $('addErr'); if (e) { e.textContent = I18n.t('errPrefix')+API.userErrorText((r&&r.error)||'save_failed'); e.style.display='block'; }
         } else if (row) {
           row.doneAt = r.doneAt || '';
+          row.revision = r.revision;
           render();
         }
       }).catch(function(err){
@@ -244,13 +272,13 @@
         listTitle:'📋 タスク一覧', loading:'読み込み中…', empty:'タスクはまだありません', loadErr:'読み込みエラー: ',
         unassigned:'未定', unassignedOpt:'未定・共有タスク', createdBy:'作成: ', doneAt:'完了: ', delete:'削除', confirmDelete:'このタスクを削除しますか？',
         dueLbl:'期限: ', overdue:'（期限超過）',
-        needTitle:'タスク内容を入力してください', errPrefix:'エラー: ' },
+        needTitle:'タスク内容を入力してください', errPrefix:'エラー: ',edit:'編集',saveEdit:'保存',cancelEdit:'取消' },
       en:{ title:'✅ To-dos', back:'← Manage', reload:'↻',
         addTitle:'➕ New task', taskLabel:'Task', taskPh:'e.g. Check drink menu stock', assigneeLabel:'Assignee', dueLabel:'Due date (optional)', addBtn:'➕ Add',
         listTitle:'📋 Task list', loading:'Loading…', empty:'No tasks yet', loadErr:'Load error: ',
         unassigned:'Unassigned', unassignedOpt:'Unassigned / shared', createdBy:'By: ', doneAt:'Done: ', delete:'Delete', confirmDelete:'Delete this task?',
         dueLbl:'Due: ', overdue:'(overdue)',
-        needTitle:'Please enter a task', errPrefix:'Error: ' }
+        needTitle:'Please enter a task', errPrefix:'Error: ',edit:'Edit',saveEdit:'Save',cancelEdit:'Cancel' }
     }, function(){ if (__loaded) { renderAssigneeOptions(); render(); } });
   </script>
 

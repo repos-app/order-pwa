@@ -49,10 +49,21 @@
     .served-lbl{ font-size:12px; color:var(--green); font-weight:800; }
     .prepaid{ background:#dcfce7; color:#15803d; font-weight:800; font-size:11px; padding:1px 7px; border-radius:999px; }
     .tg-a{ padding:12px 14px; }
+    .tg-fees{padding:9px 14px 11px;border-top:1px solid var(--border);background:var(--surface);font-size:12px;}
+    .tg-fees-title{font-weight:900;margin-bottom:5px;color:var(--text-2);}
+    .tg-fees-line{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px 12px;padding:3px 0;align-items:center;}
+    .tg-fees-line > span:nth-child(2){white-space:nowrap;font-weight:800;font-variant-numeric:tabular-nums;}
+    .tg-fees-included{font-size:11px;color:var(--text-3);}
+    .tg-arrivals{padding:9px 14px;border-bottom:1px solid var(--border);background:#f8fafc;font-size:12px;}
+    .tg-arrivals-title{font-weight:800;color:#475569;margin-bottom:5px;}
+    .tg-arrivals-line{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:4px 10px;padding:3px 0;}
+    .tg-arrivals-time{font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums;}
     .b-pay{ width:100%; border:0; border-radius:11px; padding:13px; font-size:14px; font-weight:900; background:var(--green); color:#fff; cursor:pointer; font-family:inherit; }
     .empty{ text-align:center; color:var(--text-3); padding:50px 20px; font-weight:700; }
     .ov{ position:fixed; inset:0; background:rgba(0,0,0,.62); z-index:9999; display:none; align-items:center; justify-content:center; }
     .ov.on{ display:flex; }
+    @keyframes checkoutSpin{to{transform:rotate(360deg)}}
+    .checkout-spinner{width:16px;height:16px;border:3px solid #cbd5e1;border-top-color:#2563eb;border-radius:50%;animation:checkoutSpin .75s linear infinite;flex:0 0 auto}
     .card{ background:#fff; border-radius:18px; padding:22px; max-width:340px; width:calc(100% - 32px); margin:16px; max-height:90vh; overflow:auto; }
     .sum{ background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px; margin-bottom:16px; }
     .sr{ display:flex; justify-content:space-between; font-size:13px; color:#555; margin-bottom:3px; }
@@ -113,6 +124,7 @@
   <div class="wrap" id="callsWrap" style="display:none;"></div>
   <div id="opsReadError" role="alert" aria-live="assertive" aria-atomic="true"></div>
   <div id="offlineCashStatus" class="wrap" role="status" aria-live="polite" style="display:none;margin-top:8px;margin-bottom:8px;"></div>
+  <div id="checkoutResumeStatus" class="wrap" role="status" aria-live="polite" style="display:none;"></div>
   <div class="wrap" id="list"><div class="empty" id="loadMsg">読み込み中…</div></div>
 
   <!-- Payment modal -->
@@ -164,7 +176,13 @@
         <div style="font-size:40px;">✅</div>
         <div id="ps3lbl" style="font-weight:800;margin:8px 0;"></div>
         <div id="ps3amt" style="font-size:20px;font-weight:900;color:var(--green);margin-bottom:16px;"></div>
+        <div id="cashTenderBox" style="display:none;text-align:left;margin-bottom:14px;">
+          <label for="cashTender" style="display:block;font-size:13px;font-weight:800;margin-bottom:5px;" id="cashTenderLabel">お預かり現金</label>
+          <input id="cashTender" type="text" inputmode="decimal" autocomplete="off" oninput="validateCashTender()" style="width:100%;font-size:18px;padding:10px;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;">
+          <div id="cashChange" aria-live="polite" style="font-size:14px;margin-top:6px;font-weight:800;"></div>
+        </div>
         <button class="pbtn" style="background:var(--green);" onclick="finalize()" id="doneBtn">完了（会計済にする）</button>
+        <div id="checkoutSendProgress" role="status" aria-live="polite" style="display:none;align-items:center;justify-content:center;gap:8px;margin:8px 0;font-weight:800;font-size:13px;"><span class="checkout-spinner" aria-hidden="true"></span><span id="checkoutProgressCount"></span></div>
         <button class="cancel" onclick="closePay()" id="cxl3">キャンセル</button>
       </div>
     </div>
@@ -197,6 +215,58 @@
   </div>
 
   <!-- Partial checkout modal -->
+  <!-- Staff-only correction of a mistaken headcount. A departure is never
+       inferred from this operation; the billed arrival cohorts are corrected. -->
+  <div class="ov" id="partyCorrectionModal" role="dialog" aria-modal="true" aria-labelledby="partyCorrectionTitle">
+    <div class="card">
+      <div id="partyCorrectionTitle" style="font-size:17px;font-weight:900;margin-bottom:12px;">オーダー訂正 — 人数</div>
+      <div id="partyCorrectionSeat" style="font-weight:800;margin-bottom:10px;"></div>
+      <label for="partyCorrectionCount" id="partyCorrectionCountLabel" style="font-size:13px;font-weight:800;display:block;margin-bottom:5px;">正しい人数</label>
+      <select id="partyCorrectionCount" class="entry-input" style="margin-bottom:12px;"></select>
+      <label for="partyCorrectionReason" id="partyCorrectionReasonLabel" style="font-size:13px;font-weight:800;display:block;margin-bottom:5px;">訂正理由（必須）</label>
+      <input id="partyCorrectionReason" class="entry-input" maxlength="300" autocomplete="off" style="margin-bottom:8px;">
+      <p id="partyCorrectionHint" style="font-size:12px;color:#64748b;line-height:1.5;margin:0 0 12px;"></p>
+      <div id="partyCorrectionError" role="alert" aria-live="polite" style="font-size:12px;color:#b91c1c;font-weight:700;margin-bottom:8px;"></div>
+      <button id="partyCorrectionSave" class="pbtn" type="button" style="background:#0f766e;" onclick="savePartyCorrection()">人数を訂正して再計算</button>
+      <button id="partyCorrectionCancel" class="cancel" type="button" onclick="closePartyCorrection()">キャンセル</button>
+    </div>
+  </div>
+
+  <!-- Each correction is scoped to a single active order or visit. -->
+  <div class="ov" id="orderItemCorrectionModal" role="dialog" aria-modal="true" aria-labelledby="orderItemCorrectionTitle">
+    <div class="card">
+      <div id="orderItemCorrectionTitle" style="font-size:17px;font-weight:900;margin-bottom:10px;">商品明細の訂正</div>
+      <div id="orderItemCorrectionSeat" style="font-size:12px;margin-bottom:8px;"></div>
+      <label for="orderItemCorrectionSelect" style="display:block;font-weight:800;margin-bottom:5px;" id="orderItemCorrectionSelectLbl">訂正する商品</label>
+      <select id="orderItemCorrectionSelect" class="entry-input" onchange="showOrderItemCorrectionSelection()" style="margin-bottom:9px;"></select>
+      <label for="orderItemCorrectionQty" style="display:block;font-weight:800;margin-bottom:5px;" id="orderItemCorrectionQtyLbl">数量</label>
+      <input id="orderItemCorrectionQty" class="entry-input" type="number" inputmode="numeric" min="1" max="99" step="1" style="margin-bottom:9px;">
+      <label for="orderItemCorrectionPrice" style="display:block;font-weight:800;margin-bottom:5px;" id="orderItemCorrectionPriceLbl">単価</label>
+      <input id="orderItemCorrectionPrice" class="entry-input" type="number" inputmode="decimal" min="0" step="any" style="margin-bottom:9px;">
+      <label for="orderItemCorrectionReason" style="display:block;font-weight:800;margin-bottom:5px;" id="orderItemCorrectionReasonLbl">訂正理由（必須）</label>
+      <input id="orderItemCorrectionReason" class="entry-input" maxlength="300" style="margin-bottom:9px;" autocomplete="off">
+      <div id="orderItemCorrectionError" role="alert" aria-live="polite" style="font-size:12px;color:#b91c1c;font-weight:700;margin-bottom:8px;"></div>
+      <button id="orderItemCorrectionSave" class="pbtn" type="button" style="background:#0f766e;" onclick="saveOrderItemCorrection()">商品を訂正して再計算</button>
+      <button id="orderItemCorrectionCancel" class="cancel" type="button" onclick="closeOrderItemCorrection()">キャンセル</button>
+    </div>
+  </div>
+
+  <div class="ov" id="chargeCorrectionModal" role="dialog" aria-modal="true" aria-labelledby="chargeCorrectionTitle">
+    <div class="card">
+      <div id="chargeCorrectionTitle" style="font-size:17px;font-weight:900;margin-bottom:10px;">料金明細の訂正</div>
+      <div id="chargeCorrectionSeat" style="font-size:12px;margin-bottom:8px;"></div>
+      <div id="chargeCorrectionCurrent" style="font-size:13px;margin-bottom:10px;"></div>
+      <label for="chargeCorrectionValue" style="display:block;font-weight:800;margin-bottom:5px;" id="chargeCorrectionValueLbl">訂正値</label>
+      <input id="chargeCorrectionValue" class="entry-input" type="number" inputmode="decimal" step="1" style="margin-bottom:8px;">
+      <p id="chargeCorrectionHint" style="font-size:12px;color:#64748b;margin:0 0 10px;line-height:1.5;"></p>
+      <label for="chargeCorrectionReason" style="display:block;font-weight:800;margin-bottom:5px;" id="chargeCorrectionReasonLbl">訂正理由（必須）</label>
+      <input id="chargeCorrectionReason" class="entry-input" maxlength="300" autocomplete="off" style="margin-bottom:9px;">
+      <div id="chargeCorrectionError" role="alert" aria-live="polite" style="font-size:12px;color:#b91c1c;font-weight:700;margin-bottom:8px;"></div>
+      <button id="chargeCorrectionSave" class="pbtn" type="button" style="background:#0f766e;" onclick="saveChargeCorrection()">訂正して再計算</button>
+      <button id="chargeCorrectionCancel" class="cancel" type="button" onclick="closeChargeCorrection()">キャンセル</button>
+    </div>
+  </div>
+
   <div class="ov" id="partModal">
     <div class="card">
       <div style="font-size:17px;font-weight:900;margin-bottom:10px;" id="partT">一部会計 — 明細選択</div>
@@ -227,6 +297,7 @@
 
   <script src="./date-display.js?v=auth4" data-iz-date-display></script><script src="./config.js?v=auth2"></script>
   <script src="./api.js?v=auth2"></script>
+  <script src="./checkout-resume.js?v=1"></script>
   <script src="./i18n.js?v=auth3"></script>
   <script src="./confirm.js?v=auth2"></script>
   <script>
@@ -256,6 +327,10 @@
     var offlineCashRows = [], offlineCashBusy = false, offlineSnapshotRestore = null;
     var payEntryFee = 0, payExtensionFee = 0, payPartySize = 0, payVipCharge = 0, payVipExtensionFee = 0, payPointsDiscount = 0;
     var entryTimeEditing = null, entryTimeSaving = false;
+    var partyCorrectionEditing = null, partyCorrectionSaving = false;
+    var orderItemCorrectionEditing = null, orderItemCorrectionSaving = false;
+    var chargeCorrectionEditing = null, chargeCorrectionSaving = false;
+    var CHARGE_ADJUSTMENTS = Object.create(null);
 
     var i18n = {
       ja: { title:'注文管理', served:'✓ 提供済', servedBtn:'提供済にする', pay:'💳 会計する', noOrder:'未会計の注文はありません',
@@ -519,6 +594,247 @@
           }).catch(function(){showUnverified();});
       }).finally(function(){entryTimeSaving=false;button.disabled=false;button.textContent=t().entryTimeSave;});
     };
+    // Order correction is deliberately separate from the routine Add guests
+    // path. Correcting a count is retrospective; it is NOT a real departure.
+    window.openPartyCorrection=function(table){
+      if(partyCorrectionSaving||!_ordersSnapshotLoaded||typeof navigator!=='undefined'&&navigator.onLine===false)return;
+      if(offlineCashRows.some(function(r){return String(r.table)===String(table)&&r.status!=='rejected';})){
+        UIAlert(lang==='en'?'Cannot correct guests while a local cash payment is pending.':'未同期の現金会計がある席は人数を訂正できません。');return;
+      }
+      var active=orders.some(function(o){return String(o.table)===String(table)&&o.status!=='会計済'&&o.status!=='取消';});
+      var party=PARTY_SIZES[table],count=Number(party&&party.count),enteredAt=Number(party&&party.enteredAt);
+      if(!active||!Number.isInteger(count)||count<=1||!Number.isSafeInteger(enteredAt)||enteredAt<=0)return;
+      partyCorrectionEditing={table:table,count:count,enteredAt:enteredAt};
+      var en=lang==='en',select=document.getElementById('partyCorrectionCount');
+      document.getElementById('partyCorrectionTitle').textContent=en?'Order correction — guests':'オーダー訂正 — 人数';
+      document.getElementById('partyCorrectionSeat').textContent='🪑 '+seatLabel(table)+'  ('+count+(en?' guests':'名')+')';
+      document.getElementById('partyCorrectionCountLabel').textContent=en?'Correct guest count':'正しい人数';
+      document.getElementById('partyCorrectionReasonLabel').textContent=en?'Reason for correction (required)':'訂正理由（必須）';
+      document.getElementById('partyCorrectionHint').textContent=en
+        ? 'For mistaken registrations only, not guests leaving. Newest registered arrivals are corrected first. Entry/extension fees are recalculated and the reason is audited.'
+        : '人数の誤登録専用です（退席処理ではありません）。後から登録した人数を優先して訂正し、入場料・延長料を再計算します。訂正理由は監査ログに残ります。';
+      document.getElementById('partyCorrectionSave').textContent=en?'Correct guests and recalculate':'人数を訂正して再計算';
+      document.getElementById('partyCorrectionCancel').textContent=t().cancel;
+      select.innerHTML='';
+      for(var n=1;n<count;n++)select.innerHTML+='<option value="'+n+'">'+n+(en?' guests':'名')+'</option>';
+      select.value=String(count-1);
+      document.getElementById('partyCorrectionReason').value='';
+      document.getElementById('partyCorrectionError').textContent='';
+      document.getElementById('partyCorrectionModal').classList.add('on');
+    };
+    window.closePartyCorrection=function(){
+      if(partyCorrectionSaving)return;
+      partyCorrectionEditing=null;
+      document.getElementById('partyCorrectionModal').classList.remove('on');
+    };
+    window.savePartyCorrection=function(){
+      if(partyCorrectionSaving||!partyCorrectionEditing)return;
+      var edit=partyCorrectionEditing,reason=document.getElementById('partyCorrectionReason').value.trim();
+      var count=Number(document.getElementById('partyCorrectionCount').value);
+      var error=document.getElementById('partyCorrectionError'),btn=document.getElementById('partyCorrectionSave');
+      if(!Number.isInteger(count)||count<1||count>=edit.count){
+        error.textContent=lang==='en'?'Select a smaller correct count.':'元の人数より少ない正しい人数を選んでください。';return;
+      }
+      if(reason.length<2||reason.length>300){
+        error.textContent=lang==='en'?'Enter a reason (2–300 characters).':'訂正理由を2～300文字で入力してください。';return;
+      }
+      partyCorrectionSaving=true;btn.disabled=true;btn.textContent=t().processing;error.textContent='';
+      API.post('setTablePartySize',{token:TOKEN,table:edit.table,mode:'correction',
+        count:count,expectedCount:edit.count,expectedEnteredAt:edit.enteredAt,
+        reason:reason,__noInternalRetry:true}).then(function(response){
+        var data=response&&response.data;
+        if(!response||response.ok===false||!data||data.ok!==true)
+          throw new Error(data&&data.error||response&&response.error||'correction_failed');
+        partyCorrectionEditing=null;
+        document.getElementById('partyCorrectionModal').classList.remove('on');
+        noteStatusMutation();
+        load(true);
+      }).catch(function(err){
+        var message=String(err&&err.message||err||'');
+        error.textContent=/state_changed|party_size_locked/.test(message)
+          ? (lang==='en'?'The guests or checkout changed. Refresh before correcting again.':'人数または会計状態が変わりました。更新後に訂正し直してください。')
+          : (lang==='en'?'Could not confirm the correction. Refresh and check the guests before trying again.':'訂正結果を確認できませんでした。再操作前に画面を更新して人数を確認してください。');
+        load(true); // Never blindly resend a possibly committed financial correction.
+      }).finally(function(){
+        partyCorrectionSaving=false;btn.disabled=false;
+        btn.textContent=lang==='en'?'Correct guests and recalculate':'人数を訂正して再計算';
+      });
+    };
+    function correctionIsBlocked(table){
+      return !_ordersSnapshotLoaded||typeof navigator!=='undefined'&&navigator.onLine===false
+        ||checkoutFinalizeBusy||offlineCashRows.some(function(r){
+          return String(r.table)===String(table)&&r.status!=='rejected';
+        });
+    }
+    function correctionErrorMessage(value){
+      var code=String(value&&value.message||value||'correction_failed');
+      var ja={
+        insufficient_stock:'在庫が不足しています。数量を減らすか在庫を確認してください。',
+        inventory_mapping_missing:'在庫連携先が見つかりません。メニューと在庫の紐付けを確認してください。',
+        ambiguous_inventory_match:'複数の在庫候補があります。在庫の紐付けを明確にしてください。',
+        commission_linked:'コミッションが付いた注文は直接訂正できません。取消と再注文で対応してください。',
+        discount_or_payment_linked:'ポイント・クーポン・決済が関連するため直接訂正できません。',
+        order_not_editable:'調理・提供・会計など注文の状態が変わりました。更新後に確認してください。',
+        state_changed:'別端末で注文または料金が変更されました。更新して確認してください。',
+        forbidden:'管理者またはマネージャーの権限が必要です。',
+        invalid_price_precision:'店舗の通貨設定に合う小数桁で単価を入力してください。',
+      };
+      var en={
+        insufficient_stock:'Insufficient stock. Reduce the quantity or check inventory.',
+        inventory_mapping_missing:'An inventory link is missing. Check the menu-to-stock mapping.',
+        ambiguous_inventory_match:'Multiple inventory matches. Set an explicit inventory link.',
+        commission_linked:'This order has commission components. Void and reorder instead.',
+        discount_or_payment_linked:'This order has linked points, coupons or payments.',
+        order_not_editable:'The order is no longer editable. Refresh and review its status.',
+        state_changed:'Another terminal changed this order or charge. Refresh before editing.',
+        forbidden:'Manager or administrator permission is required.',
+        invalid_price_precision:'Enter the unit price using the store currency precision.',
+      };
+      return (lang==='en'?en:ja)[code] ||
+        (lang==='en'?'Result not confirmed. Refresh before retrying: ':'訂正結果を確認できません。再操作前に更新してください：')+code;
+    }
+    // A correction is always an explicit audited operation, not a blind
+    // replay of an order or a checkout. The server owns the final bill.
+    window.openOrderItemCorrection=function(orderId){
+      var o=orders.find(function(row){return String(row.id)===String(orderId);});
+      if(!o||o.status!=='未対応'||correctionIsBlocked(o.table))return;
+      if(!Array.isArray(o.items)||!o.items.length){
+        UIAlert(lang==='en'?'This order has no editable line items.':'この注文には編集可能な商品明細がありません。');return;
+      }
+      orderItemCorrectionEditing={order:o,items:o.items.slice()};
+      var select=document.getElementById('orderItemCorrectionSelect');
+      select.innerHTML='';
+      o.items.forEach(function(item,i){
+        var option=document.createElement('option');
+        option.value=String(i);
+        option.textContent=String(item.item_name||item.name||'')+' ×'+String(item.qty||0);
+        select.appendChild(option);
+      });
+      var en=lang==='en';
+      document.getElementById('orderItemCorrectionTitle').textContent=en?'Correct order item':'商品明細の訂正';
+      document.getElementById('orderItemCorrectionSeat').textContent='🪑 '+seatLabel(o.table);
+      document.getElementById('orderItemCorrectionSelectLbl').textContent=en?'Item to correct':'訂正する商品';
+      document.getElementById('orderItemCorrectionQtyLbl').textContent=en?'Quantity':'数量';
+      document.getElementById('orderItemCorrectionPriceLbl').textContent=en?'Unit price':'単価';
+      document.getElementById('orderItemCorrectionReasonLbl').textContent=en?'Reason (required)':'訂正理由（必須）';
+      document.getElementById('orderItemCorrectionSave').textContent=en?'Correct item and recalculate':'商品を訂正して再計算';
+      document.getElementById('orderItemCorrectionCancel').textContent=t().cancel;
+      document.getElementById('orderItemCorrectionReason').value='';
+      document.getElementById('orderItemCorrectionError').textContent='';
+      showOrderItemCorrectionSelection();
+      document.getElementById('orderItemCorrectionModal').classList.add('on');
+    };
+    window.showOrderItemCorrectionSelection=function(){
+      if(!orderItemCorrectionEditing)return;
+      var idx=Number(document.getElementById('orderItemCorrectionSelect').value);
+      var item=orderItemCorrectionEditing.items[idx];
+      if(!item)return;
+      document.getElementById('orderItemCorrectionQty').value=String(item.qty);
+      document.getElementById('orderItemCorrectionPrice').value=String(item.unit_price);
+    };
+    window.closeOrderItemCorrection=function(){
+      if(orderItemCorrectionSaving)return;
+      orderItemCorrectionEditing=null;
+      document.getElementById('orderItemCorrectionModal').classList.remove('on');
+    };
+    window.saveOrderItemCorrection=function(){
+      if(!orderItemCorrectionEditing||orderItemCorrectionSaving)return;
+      var edit=orderItemCorrectionEditing,o=edit.order;
+      var idx=Number(document.getElementById('orderItemCorrectionSelect').value),item=edit.items[idx];
+      var qtyText=document.getElementById('orderItemCorrectionQty').value;
+      var priceText=document.getElementById('orderItemCorrectionPrice').value;
+      var qty=Number(qtyText),price=Number(priceText);
+      var reason=document.getElementById('orderItemCorrectionReason').value.trim();
+      var error=document.getElementById('orderItemCorrectionError'),btn=document.getElementById('orderItemCorrectionSave');
+      if(!item||!/^\d+$/.test(qtyText)||!Number.isInteger(qty)||qty<1||qty>99
+        ||!/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(priceText)||!Number.isFinite(price)||price<0||price>1000000000
+        ||reason.length<2||reason.length>300){
+        error.textContent=lang==='en'?'Enter a valid quantity, price and reason (2–300 characters).':'数量・単価・訂正理由（2～300文字）を確認してください。';return;
+      }
+      if(correctionIsBlocked(o.table))return;
+      orderItemCorrectionSaving=true;btn.disabled=true;error.textContent='';btn.textContent=t().processing;
+      API.post('correctOrderItem',{token:TOKEN,orderId:o.id,itemIndex:idx,quantity:qty,unitPrice:price,
+        expectedQuantity:Number(item.qty),expectedUnitPrice:Number(item.unit_price),reason:reason,
+        __noInternalRetry:true}).then(function(r){
+        var data=r&&r.data;
+        if(!r||r.ok===false||!data||data.ok!==true)throw new Error(data&&data.error||r&&r.error||'correction_failed');
+        orderItemCorrectionEditing=null;
+        document.getElementById('orderItemCorrectionModal').classList.remove('on');
+        noteStatusMutation();return load(true);
+      }).catch(function(e){
+        error.textContent=correctionErrorMessage(e);
+        load(true);
+      }).finally(function(){
+        orderItemCorrectionSaving=false;btn.disabled=false;
+        btn.textContent=lang==='en'?'Correct item and recalculate':'商品を訂正して再計算';
+      });
+    };
+    window.openChargeCorrection=function(table,kind){
+      if(correctionIsBlocked(table)||!['entry_override','extension_delta','vip_base_override','vip_extension_delta'].includes(kind))return;
+      var rows=orders.filter(function(o){return String(o.table)===String(table)&&o.status!=='会計済'&&o.status!=='取消';});
+      if(!rows.length)return;
+      var amount=rows.reduce(function(sum,o){return sum+(Number(o.price)||0);},0);
+      var points=rows.reduce(function(sum,o){return sum+Math.max(0,Number(o.pointsDiscount)||0);},0);
+      var charges=computeGroupCharges(amount,table,points),adj=CHARGE_ADJUSTMENTS[table]||{};
+      chargeCorrectionEditing={table:table,kind:kind,revision:Number(adj.revision)||0,
+        expectedEnteredAt:Number(adj.expectedEnteredAt)||0,charges:charges};
+      var en=lang==='en',ext=kind==='extension_delta'||kind==='vip_extension_delta';
+      var name={entry_override:en?'Entry fee':'入場料',extension_delta:en?'Extension count':'延長回数',
+        vip_base_override:en?'VIP base charge':'VIP基本料金',vip_extension_delta:en?'VIP extension count':'VIP延長回数'}[kind];
+      var current=kind==='entry_override'?charges.entryFee:kind==='extension_delta'?charges.extensionUnits:
+        kind==='vip_base_override'?charges.vipCharge:charges.vipExtensionUnits;
+      document.getElementById('chargeCorrectionTitle').textContent=(en?'Correct ':'訂正：')+name;
+      document.getElementById('chargeCorrectionSeat').textContent='🪑 '+seatLabel(table);
+      document.getElementById('chargeCorrectionCurrent').textContent=(en?'Current: ':'現在：')+(ext?String(current)+(en?' units':'回'):money(current));
+      document.getElementById('chargeCorrectionValueLbl').textContent=ext?(en?'Correct billable extension count':'正しい請求延長回数'):(en?'Correct amount':'正しい請求金額');
+      document.getElementById('chargeCorrectionHint').textContent=ext
+        ? (en?'The difference is saved. Further automatic extensions still accrue at the original schedule.':'自動計算との差分を保存します。訂正後も元の入場時刻から延長料金が自動加算されます。')
+        : (en?'This adjustment applies only to the current visit, not store settings.':'この訂正は今回の会計だけに適用します。店舗設定は変更しません。');
+      document.getElementById('chargeCorrectionReasonLbl').textContent=en?'Reason (required)':'訂正理由（必須）';
+      var input=document.getElementById('chargeCorrectionValue');
+      input.value=String(current);input.step=ext?'1':'any';input.min='0';
+      document.getElementById('chargeCorrectionReason').value='';
+      document.getElementById('chargeCorrectionError').textContent='';
+      document.getElementById('chargeCorrectionSave').textContent=en?'Correct and recalculate':'訂正して再計算';
+      document.getElementById('chargeCorrectionCancel').textContent=t().cancel;
+      document.getElementById('chargeCorrectionModal').classList.add('on');
+    };
+    window.closeChargeCorrection=function(){
+      if(chargeCorrectionSaving)return;
+      chargeCorrectionEditing=null;
+      document.getElementById('chargeCorrectionModal').classList.remove('on');
+    };
+    window.saveChargeCorrection=function(){
+      if(!chargeCorrectionEditing||chargeCorrectionSaving)return;
+      var edit=chargeCorrectionEditing,ext=edit.kind==='extension_delta'||edit.kind==='vip_extension_delta';
+      var textValue=document.getElementById('chargeCorrectionValue').value;
+      var desired=Number(textValue),reason=document.getElementById('chargeCorrectionReason').value.trim();
+      var err=document.getElementById('chargeCorrectionError'),btn=document.getElementById('chargeCorrectionSave');
+      if(!/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(textValue)||!Number.isFinite(desired)||desired<0
+        ||desired>1000000000||(ext&&(!Number.isInteger(desired)||desired>10000))||reason.length<2||reason.length>300){
+        err.textContent=lang==='en'?'Enter a valid value and reason (2–300 characters).':'有効な訂正値と訂正理由（2～300文字）を入力してください。';return;
+      }
+      if(correctionIsBlocked(edit.table)||!(edit.expectedEnteredAt>0)){
+        err.textContent=lang==='en'?'Visit is not loaded. Refresh and retry.':'入場情報を取得できていません。更新してから訂正してください。';
+        return;
+      }
+      var base=edit.kind==='extension_delta'?edit.charges.autoExtensionUnits:edit.charges.autoVipExtensionUnits;
+      var value=ext?desired-base:desired;
+      chargeCorrectionSaving=true;btn.disabled=true;btn.textContent=t().processing;err.textContent='';
+      API.post('correctChargeLine',{token:TOKEN,table:edit.table,kind:edit.kind,
+        value:value,expectedRevision:edit.revision,expectedEnteredAt:edit.expectedEnteredAt,
+        reason:reason,__noInternalRetry:true}).then(function(r){
+        var data=r&&r.data;
+        if(!r||r.ok===false||!data||data.ok!==true)throw new Error(data&&data.error||r&&r.error||'charge_correction_failed');
+        chargeCorrectionEditing=null;
+        document.getElementById('chargeCorrectionModal').classList.remove('on');
+        noteStatusMutation();return load(true);
+      }).catch(function(e){
+        err.textContent=correctionErrorMessage(e);
+        load(true);
+      }).finally(function(){chargeCorrectionSaving=false;btn.disabled=false;
+        btn.textContent=lang==='en'?'Correct and recalculate':'訂正して再計算';});
+    };
     var servedPending = Object.create(null), servedErrors = Object.create(null);
     var _statusMutationSeq = 0, _forceLoadQueued = false;
     function noteStatusMutation(){
@@ -599,7 +915,8 @@
         // 食い違って見えないよう、computeGroupTotal()で同じ計算式を使って表示用の合計を出す。
         var subtotal = rows.reduce(function(s,o){ return s + (Number(o.price)||0); }, 0);
         var pointsDiscount = rows.reduce(function(s,o){return s+Math.max(0,Number(o.pointsDiscount)||0);},0);
-        var total = computeGroupTotal(subtotal, tn, pointsDiscount);
+        var charges = computeGroupCharges(subtotal, tn, pointsDiscount);
+        var total = charges.total;
         // Keep the header clock aligned with the authoritative charging clock.
         // Fall back to the first order only for visits without an occupancy/VIP session.
         var minT = Infinity; rows.forEach(function(o){ var d=toUtcDate(o.date).getTime(); if(!isNaN(d)&&d<minT) minT=d; });
@@ -608,8 +925,45 @@
         var effectiveEntry=partyClock||vipClock||(minT!==Infinity?minT:0);
         var dwell = effectiveEntry>0 ? dwellStr(now-effectiveEntry) : '';
         var dwellTag = dwell ? ' <span class="dwell">⏱ '+t().stay+' '+dwell+'</span>' : '';
-        var editClock = '<button type="button" class="entry-edit-btn" title="'+esc(t().entryEdit)+'" aria-label="'+esc(t().entryEdit)+'" '+(typeof navigator!=='undefined'&&navigator.onLine===false?'disabled ':'')+'onclick="openEntryTime('+esc(JSON.stringify(tn))+')">✎</button>';
-        html += '<div class="tg"><div class="tg-h"><div class="ti"><span>🪑 '+esc(seatLabel(tn))+'</span>'+dwellTag+editClock+'</div><div class="to">'+money(total)+'</div></div>';
+        var correctClock = Number(PARTY_SIZES[tn]&&PARTY_SIZES[tn].count)>1
+          ? '<button type="button" class="entry-edit-btn" style="font-size:12px;padding:0 6px;" title="'+esc(lang==='en'?'Order correction: guests':'オーダー訂正：人数')+'" aria-label="'+esc(lang==='en'?'Correct guests':'人数訂正')+'" '+(typeof navigator!=='undefined'&&navigator.onLine===false?'disabled ':'')+'onclick="openPartyCorrection('+esc(JSON.stringify(tn))+')">'+(lang==='en'?'Correct guests':'人数訂正')+'</button>'
+          : '';
+        html += '<div class="tg"><div class="tg-h"><div class="ti"><span>🪑 '+esc(seatLabel(tn))+'</span>'+dwellTag+'</div><div class="to">'+money(total)+'</div></div>';
+        // Read-only arrival clock uses the same cohorts as the charge preview.
+        // A late guest starts at their own arrival, not the first guest's clock.
+        var partySnapshot=PARTY_SIZES[tn];
+        var pendingGuests=Math.max(0,Number(partySnapshot&&partySnapshot.pendingCount)||
+          Math.max(0,Number(partySnapshot&&partySnapshot.count)-Number(partySnapshot&&partySnapshot.billableCount)));
+        var arrivalGroups=Array.isArray(charges.partyGroups)?charges.partyGroups:[];
+        if(!arrivalGroups.length&&effectiveEntry>0&&
+            (!partySnapshot||Number(partySnapshot.count)<=0)){
+          arrivalGroups=[{count:Number(PARTY_SIZES[tn]&&PARTY_SIZES[tn].count)||0,startedAt:effectiveEntry,endedAt:null}];
+        }
+        if(arrivalGroups.length||pendingGuests>0){
+          html+='<div class="tg-arrivals" aria-label="'+esc(lang==='en'?'Guest arrival and elapsed time':'入場時刻と経過時間')+'"><div class="tg-arrivals-title">'
+            +esc(lang==='en'?'Guest arrival / elapsed time':'入場時刻・経過時間')+'</div>';
+          arrivalGroups.forEach(function(group,index){
+            var startedAt=Number(group.startedAt),guestCount=Number(group.count)||0;
+            if(!Number.isSafeInteger(startedAt)||startedAt<=0||guestCount<0)return;
+            var wall=typeof entryStoreWallTime==='function'?entryStoreWallTime(startedAt):new Date(startedAt).toISOString().slice(0,16);
+            // Always show the arrival date: a table can stay open past midnight
+            // even when the order auto-refresh is disabled.
+            var clock=wall.slice(5,10).replace('-','/')+' '+wall.slice(11,16);
+            var who=guestCount>0?(index===0?(lang==='en'?'Initial ':'初回'):(lang==='en'?'Added ':'追加'))+guestCount+(lang==='en'?(guestCount===1?' guest':' guests'):'名'):(lang==='en'?'Order started (guests unregistered)':'注文開始（人数未登録）');
+            html+='<div class="tg-arrivals-line"><span>'+esc(who)+'</span><span class="tg-arrivals-time">'
+              +esc(clock)+' · <span data-arrival-started-at="'+startedAt+'">'
+              +(startedAt>now
+                ? (lang==='en'?'0 min (check device clock)':'0分（端末時計を確認）')
+                : Math.floor((now-startedAt)/60000)+(lang==='en'?' min elapsed':'分経過'))
+              +'</span></span></div>';
+          });
+          if(pendingGuests>0){
+            html+='<div class="tg-arrivals-line" role="status"><span>'
+              +esc(lang==='en'?'Pending +'+pendingGuests+(pendingGuests===1?' guest':' guests'):'追加待ち '+pendingGuests+'名')
+              +'</span><span>'+esc(lang==='en'?'Starts at next confirmed order':'次の注文確定時から計算')+'</span></div>';
+          }
+          html+='</div>';
+        }
         // Each order row shows the same charge-inclusive amount as the checkout total.
         // Allocate the rounding remainder across rows so their sum equals the
         // settled order total after recorded points, excluding per-table fees.
@@ -621,9 +975,31 @@
             '<div class="it"><span data-iz-ellipsis="item" title="'+esc(orderDetailsText(o))+'">'+esc(orderDetailsText(o))+'</span>'+(o.demo?' <span class="prepaid" style="background:#dbeafe;color:#1d4ed8;">'+t().demoTag+'</span>':'')+(o.paid?' <span class="prepaid">💳前払い</span>':'')+'</div>'+servedErr+'</div>'+
             '<div class="rt"><span class="pr">'+money(displayedAmounts[rowIndex])+'</span>'+
             (served?('<span class="served-lbl">'+t().served+'</span>'):('<button class="b-xs b-warn" '+(servedBusy?'disabled ':'')+'onclick="setServed(\''+o.id+'\')">'+(servedBusy?t().processing:t().servedBtn)+'</button>'))+
+            (o.status==='未対応'&&!o.demo?('<button class="b-xs" style="background:#e0f2fe;color:#075985;" title="'+esc(lang==='en'?'Correct order item':'商品を訂正')+'" onclick="openOrderItemCorrection('+esc(JSON.stringify(String(o.id)))+')">'+(lang==='en'?'Edit':'訂正')+'</button>'):'')+
             '<button class="b-xs" style="background:#fee2e2;color:#b91c1c;margin-left:4px;" onclick="askVoid(\''+o.id+'\')">'+t().voidBtn+'</button>'+
             '</div></div>';
         });
+        // These informational lines are not additional order rows. SC and VAT
+        // are already allocated in the order prices above; seat charges are not.
+        var feeRows = [
+          [(lang==='en'?'Service charge (included above)':'サービスチャージ（注文金額に含む）'), charges.service, true],
+          [t().entryFeeLbl, charges.entryFee, false],
+          [t().extFeeLbl, charges.extensionFee, false],
+          [t().vipChargeLbl, charges.vipCharge, false],
+          [t().vipExtFeeLbl, charges.vipExtensionFee, false]
+        ];
+        html += '<div class="tg-fees" aria-label="'+esc(lang==='en'?'Checkout charge breakdown':'会計料金内訳')+'">'
+          +'<div class="tg-fees-title">'+esc(lang==='en'?'Checkout charge breakdown':'会計料金内訳')+'</div>';
+        feeRows.forEach(function(line,feeIndex){
+          var feeKind={1:'entry_override',2:'extension_delta',3:'vip_base_override',4:'vip_extension_delta'}[feeIndex];
+          var feeEdit=feeKind?'<button type="button" class="entry-edit-btn" style="font-size:12px;padding:0 6px;background:#0f766e;" title="'+esc(lang==='en'?'Correct charge':'料金訂正')+'" aria-label="'+esc(lang==='en'?'Correct charge':'料金訂正')+'" onclick="openChargeCorrection('+esc(JSON.stringify(tn))+','+esc(JSON.stringify(feeKind))+')">✎</button>':'';
+          html += '<div class="tg-fees-line'+(line[2]?' tg-fees-included':'')+'"><span>'
+            +esc(line[0])+'</span><span>'+money(line[1])+'</span>'+feeEdit+
+            (line===feeRows[1]
+              ?'<button type="button" class="entry-edit-btn" style="font-size:12px;padding:0 6px;" title="'+esc(t().entryEdit)+'" aria-label="'+esc(t().entryEdit)+'" onclick="openEntryTime('+esc(JSON.stringify(tn))+')">'+esc(lang==='en'?'Entry time':'入場時間')+'</button>'+correctClock
+              :'')+'</div>';
+        });
+        html += '</div>';
         html += '<div class="tg-a"><button class="b-pay" data-checkout-table="'+esc(tn)+'" onclick="openPay(\''+esc(tn).replace(/'/g,"\\'")+'\','+subtotal+')">'+t().pay+' '+money(total)+'</button>'+
           (PARTIAL_CHECKOUT_UI_ENABLED ? '<button class="b-xs" style="margin-top:6px;width:100%;background:#eef2f7;color:#0f172a;border:0;border-radius:9px;padding:9px;font-weight:800;cursor:pointer;" onclick="openPartial(\''+esc(tn).replace(/'/g,"\\'")+'\')">'+t().partial+'</button>' : '')+'</div></div>';
       });
@@ -719,27 +1095,39 @@
       var w = document.getElementById('callsWrap');
       if (!calls.length){ w.style.display='none'; w.innerHTML=''; return; }
       w.style.display='block';
+      var callsEn=typeof lang==='string'&&lang==='en';
       var html = '<div class="calls-box"><div class="calls-h">'+t().callHdr+'</div>';
       calls.forEach(function(c){
         var lbl = c.type==='bill' ? ('🧾 '+t().billLbl) : ('🔔 '+t().callLbl);
         var ageMin = Number(c.ageMin);
         var age = c.ageMin!=null && Number.isFinite(ageMin) ? (' · '+Math.max(0,Math.floor(ageMin))+t().agoMin) : '';
-        html += '<div class="call-row"><span>🪑 '+esc(seatLabel(c.table))+' — '+lbl+age+'</span>'+
-          '<button class="b-xs" style="background:#0f766e;color:#fff;" onclick="resolveCall(\''+esc(c.id).replace(/'/g,"\\'")+'\')">'+t().resolve+'</button></div>';
+        var assigned=c.status==='対応中',own=!!c.assignedToMe;
+        var owner=assigned?' · '+(callsEn?'Assigned: ':'担当: ')+esc(c.assignedName||'-'):'';
+        var action=assigned
+          ? (own?'<button class="b-xs" style="background:#0f766e;color:#fff;" onclick="resolveCall(\''+esc(c.id).replace(/'/g,"\\'")+'\')">'+t().resolve+'</button>'
+            :'<span style="font-size:12px;color:#64748b;">'+(callsEn?'In progress':'対応中')+'</span>')
+          :'<button class="b-xs" style="background:#0f766e;color:#fff;" onclick="assignCall(\''+esc(c.id).replace(/'/g,"\\'")+'\')">'+(callsEn?'Take':'担当する')+'</button>';
+        html += '<div class="call-row"><span>🪑 '+esc(seatLabel(c.table))+' — '+lbl+age+owner+'</span>'+action+'</div>';
       });
       w.innerHTML = html + '</div>';
     }
     var resolvingCalls = Object.create(null);
-    window.resolveCall = function(id){
+    function mutateCall(id,action){
       if(resolvingCalls[id]) return;
       resolvingCalls[id]=true;
-      API.post('resolveCall', { id:id, token: TOKEN }).then(function(r){
+      return API.post(action, { id:id, token: TOKEN }).then(function(r){
         var d=(r&&r.data)||{};
-        if(d.error || d.success===false) throw new Error(d.error||'save_failed');
+        if(r&&r.ok===false || d.error || d.success===false) throw new Error(d.error||(r&&r.error)||'save_failed');
         return load(true);
-      }).catch(function(e){ showToast((lang==='en'?'Could not resolve call: ':'呼び出しを完了できません: ')+API.userErrorText(e)); })
+      }).catch(function(e){
+        return load(true).finally(function(){
+          showToast((lang==='en'?'Could not update call: ':'呼び出しを更新できません: ')+API.userErrorText(e));
+        });
+      })
         .finally(function(){ delete resolvingCalls[id]; });
-    };
+    }
+    window.assignCall = function(id){ return mutateCall(id,'assignStaffCall'); };
+    window.resolveCall = function(id){ return mutateCall(id,'resolveCall'); };
     // [P0] getStaffCalls単独ポーリングは廃止し、getOperationsDelta（注文と統合）から呼び出しも一緒に受け取る。
     function loadCalls(){ return load(); }
 
@@ -867,6 +1255,10 @@
         if (d.unchanged){
           if (!_ordersSnapshotLoaded) throw new Error('invalid_server_response');
           _opsVersion = d.version != null ? d.version : _opsVersion;
+          // A charge can accrue without any database change. Recompute the
+          // table display on an unchanged delta so the next 30-minute unit
+          // appears automatically instead of waiting for another order.
+          if (!paused()) render();
           return {ok:true};
         }
         // Never interpret a malformed/missing order snapshot as a valid empty list.
@@ -875,6 +1267,7 @@
         orders = d.orders; calls = d.calls; _ordersSnapshotLoaded = true;
         if (d.partySizes) PARTY_SIZES = d.partySizes;
         if (d.vipStates) VIP_STATES = d.vipStates;
+        if (d.chargeAdjustments) CHARGE_ADJUSTMENTS = d.chargeAdjustments;
         render(); renderCalls(); saveOfflineOrders();
         return {ok:true};
       }).catch(function(err){
@@ -908,6 +1301,7 @@
       if(_pricingFromCache){_pricingReady=false;_pricingFromCache=false;render();}
       // Old local cash records are read-only; never auto-finalize legacy payments.
       refreshOfflineCashStatus().finally(function(){load(true);});
+      CheckoutResume.refresh();
     });
     if(typeof navigator!=='undefined'&&navigator.onLine===false)displayOpsReadError('offline');
     // 手動更新ボタン：getOrders自体はポーリング用に静音（ローディング非表示）のため、
@@ -950,7 +1344,11 @@
     // ── 自動更新（間隔設定・ON/OFF・会計中は停止） ──
     function paused(){ return document.getElementById('payModal').classList.contains('on')
       || document.getElementById('partModal').classList.contains('on')
-      || document.getElementById('voidModal').classList.contains('on'); }
+      || document.getElementById('voidModal').classList.contains('on')
+      || document.getElementById('entryTimeModal').classList.contains('on')
+      || document.getElementById('partyCorrectionModal').classList.contains('on')
+      || document.getElementById('orderItemCorrectionModal').classList.contains('on')
+      || document.getElementById('chargeCorrectionModal').classList.contains('on'); }
     function tick(){ if(!autoOn) return; if(paused()) return; load(); }
     // [慎重レビューH5対応] 従来は「refreshSec間隔のresetTimer」と「固定8秒のloadCalls用タイマー」の
     // 2本が並存し、タイマーがずれると同じ統合API（getOperationsDelta）を二重に呼びうる状態だった
@@ -985,21 +1383,64 @@
       }
       return Number(SETTINGS[amountKey])>=1;
     }
-    function computeEntryFeesPreview(party, skipForSplit){
+    function computeEntryFeesPreview(party, skipForSplit, table){
       var entryUnit = Number(SETTINGS.entryFeeAmount)||0, extUnit = Number(SETTINGS.extensionFeeAmount)||0;
       var entryEnabled=feeSettingEnabled('entryFeeEnabled','entryFeeAmount') && entryUnit>=1;
       var extensionEnabled=feeSettingEnabled('extensionFeeEnabled','extensionFeeAmount') && extUnit>=1;
-      if (skipForSplit || (!entryEnabled && !extensionEnabled) || !party || !(Number(party.count)>0) || !(Number(party.enteredAt)>0)) return { entryFee:0, extensionFee:0, partySize:0, extensionUnits:0 };
-      var count = Number(party.count)||0;
-      var entryFee = entryEnabled ? Math.round(entryUnit*count) : 0;
-      var extensionFee = 0, extensionUnits = 0;
-      if (extensionEnabled && party.enteredAt){
-        var baseMin = Math.max(0, Number(SETTINGS.baseUsageMinutes)||0);
-        var unitMin = Math.max(1, Number(SETTINGS.extensionUnitMinutes)||0) || 30;
-        var extraMin = (Date.now() - Number(party.enteredAt))/60000 - baseMin;
-        if (extraMin > 0){ extensionUnits = Math.ceil(extraMin/unitMin); extensionFee = Math.round(extUnit*count*extensionUnits); }
-      }
-      return { entryFee: entryFee, extensionFee: extensionFee, partySize: count, extensionUnits: extensionUnits };
+      if (skipForSplit || !party || !(Number(party.count)>0) || !(Number(party.enteredAt)>0)) return { entryFee:0, extensionFee:0, partySize:0, extensionUnits:0, groups:[] };
+      var count = Number(party.billableCount==null?party.count:party.billableCount)||0, now=Date.now(), initial=Number(party.enteredAt)||0;
+      if(count<=0)return {entryFee:0,extensionFee:0,partySize:0,extensionUnits:0,groups:[]};
+      var changes=(Array.isArray(party.changes)?party.changes:[]).slice()
+        .sort(function(a,b){return Number(a.changeId)-Number(b.changeId);});
+      var firstCount=changes.length?Number(changes[0].oldCount):count;
+      var current=firstCount, enteredGuests=firstCount;
+      var groups=[{count:firstCount,startedAt:initial,endedAt:null}];
+      changes.forEach(function(change){
+        var oldCount=Number(change.oldCount),newCount=Number(change.newCount),changedAt=Number(change.changedAt);
+        var eventKind=String(change.eventKind||'arrival');
+        if(oldCount!==current||newCount<1||!Number.isInteger(newCount)||!Number.isSafeInteger(changedAt)
+          ||changedAt<=0||changedAt>now||['arrival','correction'].indexOf(eventKind)<0)throw new Error('invalid_party_timeline');
+        var effectiveChangedAt=Math.max(changedAt,initial);
+        if(eventKind==='correction'){
+          if(newCount>=current)throw new Error('invalid_party_timeline');
+          var correctedOut=current-newCount,remaining=correctedOut;
+          for(var j=groups.length-1;j>=0&&remaining>0;j--){
+            var correctedGroup=groups[j];if(correctedGroup.endedAt!==null)continue;
+            var removeN=Math.min(correctedGroup.count,remaining);
+            correctedGroup.count-=removeN;remaining-=removeN;
+            if(correctedGroup.count===0)groups.splice(j,1);
+          }
+          if(remaining)throw new Error('invalid_party_timeline');
+          enteredGuests-=correctedOut;current=newCount;return;
+        }
+        if(newCount>current){var added=newCount-current;enteredGuests+=added;groups.push({count:added,startedAt:effectiveChangedAt,endedAt:null});}
+        else{var removing=current-newCount;
+          for(var i=groups.length-1;i>=0&&removing>0;i--){
+            var g=groups[i];if(g.endedAt!==null)continue;
+            var n=Math.min(g.count,removing);
+            if(n===g.count)g.endedAt=effectiveChangedAt;
+            else{g.count-=n;groups.splice(i+1,0,{count:n,startedAt:g.startedAt,endedAt:effectiveChangedAt});}
+            removing-=n;
+          }
+          if(removing)throw new Error('invalid_party_timeline');
+        }
+        current=newCount;
+      });
+      if(current!==count)throw new Error('invalid_party_timeline');
+      var baseMin=Math.max(0,Number(SETTINGS.baseUsageMinutes)||0);
+      var unitMin=Math.max(1,Number(SETTINGS.extensionUnitMinutes)||30);
+      var extensionUnits=extensionEnabled?groups.reduce(function(sum,g){
+        var elapsed=(Math.min(now,g.endedAt===null?now:g.endedAt)-g.startedAt)/60000;
+        return sum+g.count*Math.max(0,Math.ceil((elapsed-baseMin)/unitMin));
+      },0):0;
+      var adj=CHARGE_ADJUSTMENTS[table]||{};
+      var correctedUnits=Math.max(0,extensionUnits+(Number(adj.extensionDelta)||0));
+      var entryFee=entryEnabled?roundCharge(entryUnit*enteredGuests):0;
+      if(adj.entryOverride!=null)entryFee=Number(adj.entryOverride);
+      return {entryFee:entryFee,
+        extensionFee:extensionEnabled?roundCharge(extUnit*correctedUnits):0,
+        partySize:count,extensionUnits:correctedUnits,autoExtensionUnits:extensionUnits,
+        groups:groups.filter(function(g){return g.endedAt===null&&g.count>0;})};
     }
     // [要望対応] 注文一覧（卓ごとのグループ見出し・お会計ボタン）に表示する金額が、品目小計のみで
     // サービス料・入場料を含んでおらず、実際の会計金額と食い違って見える不具合の修正。
@@ -1007,22 +1448,32 @@
     // openPay/recompPayと同じ計算式で「実際に請求される合計」を一覧側でも表示する。
     function computeVipFeesPreview(table,skipForSplit){
       var v=VIP_STATES[table],startedAt=Number(v&&v.startedAt)||0;
-      if(skipForSplit||!v||startedAt<=0)return {vipCharge:0,vipExtensionFee:0};
+      if(skipForSplit||!v||startedAt<=0)return {vipCharge:0,vipExtensionFee:0,vipExtensionUnits:0,autoVipExtensionUnits:0};
       var baseMin=Number(v.baseMinutes)||0,unitMin=Number(v.extensionMinutes)||0;
-      if(baseMin<1||unitMin<1)return {vipCharge:0,vipExtensionFee:0};
+      if(baseMin<1||unitMin<1)return {vipCharge:0,vipExtensionFee:0,vipExtensionUnits:0,autoVipExtensionUnits:0};
       var extra=Math.max(0,(Date.now()-startedAt)/60000-baseMin);
       var units=Math.max(0,Math.ceil(extra/unitMin));
-      return {vipCharge:roundCharge(Number(v.baseCharge)||0),
-        vipExtensionFee:roundCharge((Number(v.extensionCharge)||0)*units)};
+      var adj=CHARGE_ADJUSTMENTS[table]||{};
+      var correctedUnits=Math.max(0,units+(Number(adj.vipExtensionDelta)||0));
+      return {vipCharge:adj.vipBaseOverride!=null?Number(adj.vipBaseOverride):roundCharge(Number(v.baseCharge)||0),
+        vipExtensionFee:roundCharge((Number(v.extensionCharge)||0)*correctedUnits),
+        vipExtensionUnits:correctedUnits,autoVipExtensionUnits:units};
     }
 
-    function computeGroupTotal(subtotal, table){
-      var pointsDiscount = arguments[2]; // optional, keep two-argument callers compatible
+    function computeGroupCharges(subtotal, table, pointsDiscount){
       var b = breakdown(subtotal);
-      var f = computeEntryFeesPreview(PARTY_SIZES[table], false);
+      var f = computeEntryFeesPreview(PARTY_SIZES[table], false, table);
       var vip = computeVipFeesPreview(table,false);
-      return Math.max(0,roundCharge(b.total-Math.max(0,Number(pointsDiscount)||0)))
-        + f.entryFee + f.extensionFee + vip.vipCharge + vip.vipExtensionFee;
+      return {total:Math.max(0,roundCharge(b.total-Math.max(0,Number(pointsDiscount)||0)))
+        + f.entryFee + f.extensionFee + vip.vipCharge + vip.vipExtensionFee,
+        service:b.service||0,entryFee:f.entryFee,extensionFee:f.extensionFee,
+        vipCharge:vip.vipCharge,vipExtensionFee:vip.vipExtensionFee,
+        extensionUnits:f.extensionUnits,autoExtensionUnits:f.autoExtensionUnits,
+        vipExtensionUnits:vip.vipExtensionUnits,autoVipExtensionUnits:vip.autoVipExtensionUnits,
+        partyGroups:f.groups||[]};
+    }
+    function computeGroupTotal(subtotal,table,pointsDiscount){
+      return computeGroupCharges(subtotal,table,pointsDiscount).total;
     }
     // Display-only allocation. The underlying order.price is always the pre-charge
     // subtotal used by openPay/finalizeBill; never save these allocated amounts.
@@ -1120,6 +1571,7 @@
         }
         if(d.partySizes)PARTY_SIZES=d.partySizes;
         if(d.vipStates)VIP_STATES=d.vipStates;
+        if(d.chargeAdjustments)CHARGE_ADJUSTMENTS=d.chargeAdjustments;
         var latestSubtotal=latest.reduce(function(sum,o){return sum+(Number(o.price)||0);},0);
         var latestRecorded=d.orders.some(function(o){return String(o.table)===String(tn)&&o.status!=='会計済'&&o.status!=='取消'&&cashRecordBlocks(tn,[String(o.id)]);});
         var finalIds=orderIds||(latestRecorded?latest.map(function(o){return String(o.id);}):null);
@@ -1160,7 +1612,7 @@
       payPointsDiscount = checkoutRows.reduce(function(s,o){return s+Math.max(0,Number(o.pointsDiscount)||0);},0);
       checkoutOutcomeUnknown = false;
       var shouldPreviewFees = !payOrderIds || partialCoversAllActive(tn, payOrderIds, freshOrders);
-      var initialFees = shouldPreviewFees ? computeEntryFeesPreview(PARTY_SIZES[tn], false) : { entryFee:0, extensionFee:0, partySize:0 };
+      var initialFees = shouldPreviewFees ? computeEntryFeesPreview(PARTY_SIZES[tn], false, tn) : { entryFee:0, extensionFee:0, partySize:0 };
       payEntryFee = initialFees.entryFee; payExtensionFee = initialFees.extensionFee; payPartySize = initialFees.partySize;
       var initialVip=computeVipFeesPreview(tn,!shouldPreviewFees);
       payVipCharge=initialVip.vipCharge;payVipExtensionFee=initialVip.vipExtensionFee;
@@ -1202,7 +1654,7 @@
       if (shouldPreviewFees && !freshPartySizes){
         API.post('getTablePartySize', { table: tn, token: TOKEN, __silent:true, __noInternalRetry:true }).then(function(r){
           if (payTable !== tn) return; // その間にモーダルが閉じ/別卓が開かれていたら無視
-          var f = computeEntryFeesPreview(r && r.data, false);
+          var f = computeEntryFeesPreview(r && r.data, false, tn);
           if (r && r.data) PARTY_SIZES[tn] = r.data;
           payEntryFee = f.entryFee; payExtensionFee = f.extensionFee; payPartySize = f.partySize;
           recompPay();
@@ -1328,7 +1780,12 @@
         '<div style="font-size:40px;">✅</div>'
         + '<div id="ps3lbl" style="font-weight:800;margin:8px 0;"></div>'
         + '<div id="ps3amt" style="font-size:20px;font-weight:900;color:var(--green);margin-bottom:16px;"></div>'
+        + '<div id="cashTenderBox" style="display:none;text-align:left;margin-bottom:14px;">'
+        + '<label for="cashTender" id="cashTenderLabel" style="display:block;font-size:13px;font-weight:800;margin-bottom:5px;"></label>'
+        + '<input id="cashTender" type="text" inputmode="decimal" autocomplete="off" oninput="validateCashTender()" style="width:100%;font-size:18px;padding:10px;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;">'
+        + '<div id="cashChange" aria-live="polite" style="font-size:14px;margin-top:6px;font-weight:800;"></div></div>'
         + '<button class="pbtn" style="background:var(--green);" onclick="finalize()" id="doneBtn">'+t().done+'</button>'
+        + '<div id="checkoutSendProgress" role="status" aria-live="polite" style="display:none;align-items:center;justify-content:center;gap:8px;margin:8px 0;font-weight:800;font-size:13px;"><span class="checkout-spinner" aria-hidden="true"></span><span id="checkoutProgressCount"></span></div>'
         + '<button class="cancel" onclick="closePay()" id="cxl3">'+t().cancel+'</button>';
     }
 
@@ -1370,6 +1827,29 @@
         proceedFn();
       }).catch(function(e){ _dcAlert('Error: '+API.userErrorText(e)); });
     }
+    // Tender is for change calculation only; the server recomputes the bill.
+    window.validateCashTender = function(){
+      var box=document.getElementById('cashTenderBox');
+      if(!box||box.style.display==='none')return true;
+      var el=document.getElementById('cashTender'),status=document.getElementById('cashChange');
+      var digits=Object.prototype.hasOwnProperty.call(SETTINGS,'currencyDecimalDigits')
+        ?Math.max(0,Math.min(3,Number(SETTINGS.currencyDecimalDigits)||0)):0;
+      var scale=Math.pow(10,digits),raw=String(el.value||'').trim();
+      var valid=/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(raw)&&
+        raw.length<=16&&(!raw.includes('.')||raw.split('.')[1].length<=digits);
+      var cents=valid?Math.round(Number(raw)*scale):NaN;
+      var due=Math.round(Number(payTotal)*scale);
+      valid=valid&&Number.isSafeInteger(cents)&&cents>=due&&
+        Number.isSafeInteger(due)&&due>=0;
+      var button=document.getElementById('doneBtn');
+      if(button&&!checkoutFinalizeBusy)button.disabled=!valid;
+      status.style.color=valid?'#15803d':'#b91c1c';
+      status.innerText=valid
+        ?(lang==='en'?'Change: ':'お釣り：')+money((cents-due)/scale)
+        :(lang==='en'?'Enter cash received (at least the total, valid currency decimals).'
+          :'受取金額が不足、マイナス、または通貨の小数桁が不正です。');
+      return valid;
+    };
     window.cashPay = function(){
       if(typeof navigator!=='undefined'&&navigator.onLine===false){UIAlert(offlineCheckoutWarning());return;}
       _dcVerifyThenGo(function(){
@@ -1377,7 +1857,13 @@
         document.getElementById('ps3lbl').innerText = t().cashRecv;
         document.getElementById('ps3amt').innerText = money(payTotal)+' — '+seatLabel(payTable);
         document.getElementById('doneBtn').innerText = t().done;
+        var digits=Object.prototype.hasOwnProperty.call(SETTINGS,'currencyDecimalDigits')
+          ?Math.max(0,Math.min(3,Number(SETTINGS.currencyDecimalDigits)||0)):0;
+        document.getElementById('cashTenderBox').style.display='block';
+        document.getElementById('cashTenderLabel').innerText=lang==='en'?'Cash received':'お預かり現金';
+        document.getElementById('cashTender').value=Number(payTotal).toFixed(digits);
         step(3);
+        validateCashTender();
       });
     };
     // 2026-08-23: クレジットカードは通常、別のカード決済端末で処理される想定のため、この画面では
@@ -1422,6 +1908,19 @@
         ?'Checkout result is not confirmed. Do not charge again. Check the receipt history or tap Check status after reconnecting.'
         :'会計結果を確認できません。再会計せず、領収書履歴を確認するか、通信復旧後に「会計状況を確認」を押してください。';
     }
+    function setCheckoutSendProgress(active,phase){
+      var progress=document.getElementById('checkoutSendProgress');
+      if(progress){
+        progress.style.display=active?'flex':'none';
+        var label=document.getElementById('checkoutProgressCount');
+        if(label)label.textContent=active
+          ?(phase==='outcome'
+            ?(lang==='en'?'Checking checkout 1/1':'会計照会中 1/1')
+            :(lang==='en'?'Sending checkout 1/1':'会計送信中 1/1')):'';
+      }
+      var cancel=document.getElementById('cxl3');
+      if(cancel)cancel.disabled=!!active;
+    }
     function checkCheckoutOutcome(){
       if(checkoutOutcomeChecking)return Promise.resolve();
       if(!payRecoveryOrderIds.length){UIAlert(checkoutUnconfirmedMessage());return Promise.resolve();}
@@ -1431,6 +1930,7 @@
       var ids=payRecoveryOrderIds.slice(),table=payTable,btn=document.getElementById('doneBtn');
       checkoutOutcomeChecking=true;
       if(btn){btn.disabled=true;btn.innerText=t().checking;}
+      setCheckoutSendProgress(true,'outcome');
       return API.post('getCheckoutOutcome',{token:TOKEN,table:table,orderIds:ids,
         __silent:true,__noInternalRetry:true,__timeoutMs:API.TIMEOUT_MS.read})
         .then(function(r){
@@ -1439,6 +1939,7 @@
           if(d.status==='settled'&&d.recovered===true&&d.orNo&&
             d.table===table&&Number.isFinite(Number(d.total))){
             checkoutOutcomeUnknown=false;
+            CheckoutResume.mark(table,ids);
             showReceipt(d.orNo,{table:table,method:d.method,subtotal:d.subtotal,
               vat:d.vat,service:d.service,discountAmount:d.discountAmount,
               discountType:d.discountType,total:d.total});
@@ -1452,6 +1953,7 @@
         }).catch(function(){checkoutOutcomeUnknown=true;UIAlert(checkoutUnconfirmedMessage());})
         .finally(function(){
           checkoutOutcomeChecking=false;
+          setCheckoutSendProgress(false);
           var current=document.getElementById('doneBtn');
           if(current){current.disabled=false;current.innerText=checkoutOutcomeUnknown?
             (lang==='en'?'🔎 Check checkout status':'🔎 会計状況を確認'):t().done;}
@@ -1460,6 +1962,7 @@
     window.finalize = function(){
       if(offlineCashBusy||checkoutFinalizeBusy||checkoutOutcomeChecking)return;
       if(checkoutOutcomeUnknown)return checkCheckoutOutcome();
+      if(payMethod==='cash'&&!validateCashTender())return;
       if(typeof navigator!=='undefined'&&navigator.onLine===false){
         UIAlert(offlineCheckoutWarning());return;
       }
@@ -1476,7 +1979,16 @@
         discountType: pv.discountType||'', discountRuleId:pv.discountRuleId||'', discountId: pv.discountId||'', discountName: pv.discountName||'', discountEligible: pv.discountEligible||0,
         discountApproverLogin: discOn&&!currentUserCanApprove()?document.getElementById('dcApprLogin').value.trim():'', discountApproverPass: discOn&&!currentUserCanApprove()?document.getElementById('dcApprPass').value:'',
         __timeoutMs: API.TIMEOUT_MS.write }; // [タイムアウト共通化] 会計確定は複数注文まとめての場合もあり時間がかかり得るため専用枠を使う
+      if(payMethod==='cash')req.cashTender=document.getElementById('cashTender').value.trim();
+      // Durably retain the exact order set before sending any payment.
+      if(!CheckoutResume.begin(payTable,payRecoveryOrderIds)){
+        btn.disabled=false;btn.innerText=t().done;
+        UIAlert(lang==='en'?'Checkout recovery storage is unavailable or this payment is pending. Recheck receipts before another charge.':
+          '会計復旧の記録を保存できないか、同じ会計を確認中です。再決済せず領収書を照会してください。');
+        CheckoutResume.refresh();return;
+      }
       checkoutFinalizeBusy=true;
+      setCheckoutSendProgress(true,'finalize');
       req.__noInternalRetry=true;
       API.post('finalizeBill', req).then(function(r){
         btn.disabled=false; btn.innerText=t().done; var d=(r&&r.data)||{};
@@ -1488,12 +2000,25 @@
           checkoutOutcomeUnknown=true;
           return checkCheckoutOutcome();
         }
+        if(d.demo||[
+          'discount_auth','discount_not_manager','senior_discount_disabled',
+          'discount_rule_not_found','discount_id_required','unserved_orders',
+          'commission_staff_unassigned','cash_tender_invalid',
+          'cash_tender_insufficient',
+        ].indexOf(d.error)>=0)
+          CheckoutResume.discard(payTable,payRecoveryOrderIds);
         if (d.error==='discount_auth'){ UIAlert(t().authFail); return; }
         if (d.error==='discount_not_manager'){ UIAlert(t().discNotManager); return; }
         if (d.error==='senior_discount_disabled'){ UIAlert(t().discDisabled); return; }
         if (d.error==='discount_rule_not_found'){ UIAlert(lang==='en'?'The discount is disabled or no longer exists.':'割引が無効化または削除されています。'); return; }
         if (d.error==='discount_id_required'){ UIAlert(lang==='en'?'ID is required.':'ID番号を入力してください。'); return; }
         if (d.error==='unserved_orders'){ closePay(); UIAlert(t().unservedBill); load(true); return; }
+        if(d.error==='cash_tender_invalid'||d.error==='cash_tender_insufficient'){
+          UIAlert(lang==='en'
+            ?'The cash amount is invalid or less than the server-calculated total. Refresh checkout before collecting payment.'
+            :'現金預り額が不正か、サーバー計算額に不足しています。再読み込みして請求額を確認してください。');
+          return;
+        }
         // Concurrent cashier: nothing_to_bill may mean another terminal
         // settled first. Read back the exact saved orders, never resubmit.
         if (d.error==='already_settled'||d.error==='nothing_to_bill'){
@@ -1505,18 +2030,31 @@
         // 表示・印刷・eレシートは全てサーバーが再計算した金額を正とする。
         var bill = { table: payTable, method: payMethod, paymentLabel:d.paymentLabel||'', paymentLabelJa:d.paymentLabelJa||'', paymentLabelEn:d.paymentLabelEn||'', receiptPaymentLabel:d.receiptPaymentLabel||'', receiptPaymentLabelJa:d.receiptPaymentLabelJa||'', receiptPaymentLabelEn:d.receiptPaymentLabelEn||'', subtotal: d.subtotal, vat: d.vat, service: d.service,
           scUnallocated:Number(d.commission&&d.commission.serviceChargeUnallocated)||0,
-          discountType: d.discountType||pv.discountType||'', discountId: pv.discountId||'', discountAmount: d.discountAmount, total: d.total };
+          discountType: d.discountType||pv.discountType||'', discountId: pv.discountId||'', discountAmount: d.discountAmount,
+          cashTender:d.cashTender,cashChange:d.cashChange,total: d.total };
         showReceipt(d.orNo||'', bill);
+        CheckoutResume.mark(payTable,payRecoveryOrderIds);
       }).catch(function(){
         // The server may have committed the receipt before the response was lost.
         checkoutOutcomeUnknown=true;
         return checkCheckoutOutcome();
-      }).finally(function(){checkoutFinalizeBusy=false;});
+      }).finally(function(){checkoutFinalizeBusy=false;setCheckoutSendProgress(false);});
     };
 
     // ヘッダの現在日時表示
     function _pad2(n){ return (n<10?'0':'')+n; }
     function updateHeadClock(){
+      // Update read-only elapsed minutes without rerendering checkout/order rows
+      // or making a network request. The existing header timer runs every 15s.
+      var live=document.querySelectorAll('[data-arrival-started-at]');
+      var now=Date.now();
+      Array.prototype.forEach.call(live,function(node){
+        var startedAt=Number(node.getAttribute('data-arrival-started-at'));
+        if(!Number.isSafeInteger(startedAt)||startedAt<=0)return;
+        node.textContent=startedAt>now
+          ? (lang==='en'?'0 min (check device clock)':'0分（端末時計を確認）')
+          : Math.floor((now-startedAt)/60000)+(lang==='en'?' min elapsed':'分経過');
+      });
       var el = document.getElementById('headClock'); if(!el) return;
       var d = new Date();
       el.textContent = window.DateDisplay ? DateDisplay.formatDateTime(d.toISOString()).slice(0,16) : d.getFullYear()+'-'+_pad2(d.getMonth()+1)+'-'+_pad2(d.getDate())+' '+_pad2(d.getHours())+':'+_pad2(d.getMinutes());
@@ -1578,6 +2116,7 @@
       I18n.init(i18n, onLangChange);
       API.pageReady({auth:'optional'}).then(function(ctx){
         TOKEN=ctx.token||TOKEN;
+        CheckoutResume.refresh();
         return refreshOfflineCashStatus().then(function(){
           if(typeof navigator!=='undefined'&&navigator.onLine===false)return restoreOfflineOrders();
           return null; // Historic records are retained; no automatic payment replay.
@@ -1591,6 +2130,7 @@
       // 固定8秒の別タイマーは廃止し、resetTimer（_pollIntervalMs）へ一本化した。
       document.addEventListener('visibilitychange', function(){
         resetTimer();
+        if(document.visibilityState==='visible')CheckoutResume.refresh();
         if (document.visibilityState === 'visible' && autoOn && !paused()) load(true);
       });
       // [慎重レビューH1対応] バージョン不一致検知に万一漏れがあっても数分以内に必ず復帰する安全弁。
@@ -1605,13 +2145,13 @@
       title: '注文管理画面の使い方',
       titleEn: 'How to use Orders',
       items: [
-        { ja: '① 未会計の注文が卓ごとにグループ表示されます。各注文の表示金額は設定されたサービス料・税を反映した会計見込み額です（入場料・延長料は卓合計のみ）。「提供済にする」で提供済み、「取消」で注文取消できます。取消理由は常に必須で、設定がONの場合はマネージャー以上の承認も必要です。', en: '① Unpaid orders are grouped by table. Each order amount estimates the checkout charge including configured service charge and tax (entry/extension fees appear only in the table total). Use "Mark served" or "Void" on each order. Voiding requires a reason and, when enabled, Manager-or-above approval.' },
+        { ja: '① 未会計の注文が卓ごとにグループ表示されます。各注文の表示金額には設定されたサービス料・税が含まれ、その内訳と入場料・延長料・VIP料金も注文の下に表示します。サービス料は二重加算しません。「提供済にする」で提供済み、「取消」で注文取消できます。', en: '① Unpaid orders are grouped by table. Order amounts include service charge and tax; the breakdown below includes those charges and entry, extension and VIP fees. Included service is not added twice. Mark orders served or void them as needed.' },
         { ja: '② 「💳会計する」ボタンで会計を開始し、設定画面で有効にした決済方法と割引から選べます。割引ごとに、ID提示・マネージャー以上の承認・税免除の条件が自動適用されます。カード・QR決済は外部端末または決済サービスで入金を確認してから完了してください。', en: '② Tap "💳 Checkout" and choose an enabled payment method and discount. Each discount automatically applies its configured ID, Manager-or-above approval, and tax-exemption rules. Confirm card or QR payment externally before completing checkout.' },
         { ja: '③ 会計完了後は「🖨️レシート印刷」ボタンで領収書を印刷できます。会計時にeレシート送付先メールも入力できます。', en: '③ After checkout, tap "🖨️ Print receipt" to print a receipt. You can also enter an e-receipt email during checkout.' },
         { ja: '④ 画面上部の🔔呼び出し欄では、お客様のスタッフ呼出・会計希望が自動更新（10/30/60秒）または手動更新時に反映されます。「対応済」で処理できます。自動更新OFF時は手動更新してください。', en: '④ Customer staff-call and bill requests appear at the top after auto-refresh (10/30/60 seconds) or manual refresh. Tap Done to resolve them. When auto-refresh is off, refresh manually.' },
         { ja: '⑤ 「自動更新: ON/OFF」ボタンと10s/30s/60sの間隔ボタンで、画面の自動更新頻度を調整できます。↻ボタンで手動更新もできます。', en: '⑤ Use the Auto ON/OFF toggle and the 10s/30s/60s interval buttons to control how often the screen refreshes. Tap ↻ to refresh manually.' },
         { ja: '⑥ 「🧾履歴」リンクで過去の会計履歴（receipts.html）に、「← 管理」でメニュー画面に戻れます。EN/JPボタンで表示言語を切り替えられます。', en: '⑥ Use the "🧾 History" link for past receipts, "← Manage" to return to the menu, and EN/JP to switch language.' },
-        { ja: '⑦ 卓名・滞在時間の横の「✎」で入場時刻を修正できます。年・月・日・時（24時間）・分を選んで「保存して料金を再計算」を押します。日付の並びと言語は表示・地域設定に従い、時刻は店舗のタイムゾーンで扱います。保存すると滞在時間と通常/VIP延長料金を再計算します。注文の記録日時は変更せず、退場時刻の入力も不要です。', en: '⑦ Tap the pencil beside a table’s stay duration to edit entry time. Choose Year, Month, Day, Hour (24h), and Minute, then Save and recalculate charges. Date order follows store regional settings, field labels follow the app language, and times use the store time zone. Saving recalculates stay duration and standard/VIP overtime fees without altering the original order timestamp. Exit time is recorded automatically at checkout.' }
+        { ja: '⑦ 入場料の明細行にある「入場時間」で入場時刻を修正できます。年・月・日・時（24時間）・分を選んで「保存して料金を再計算」を押します。店舗のタイムゾーンで通常/VIP延長料金を再計算し、注文の記録日時は変更しません。商品・入場料・延長料・VIP料金は各明細の「訂正」「✎」から修正できます。', en: '⑦ Use Entry time on the entry-fee line to correct the visit clock. Choose Year, Month, Day, Hour (24h) and Minute, then save. Standard and VIP extension charges recalculate using the store time zone without changing order timestamps. To correct individual order items, entry fees, extension counts or VIP charges, use Edit or the pencil on the corresponding line.' }
       ]
     });
   </script>

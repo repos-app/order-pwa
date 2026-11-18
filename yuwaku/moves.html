@@ -46,6 +46,7 @@
     <div class="card">
       <div class="bar">
         <div><label class="form-label" data-t="month">対象月</label><input id="month" type="month" class="fc"></div>
+        <div><label class="form-label" id="moveSortLabel">並び順</label><select class="fc" id="moveSort"><option value="newest" id="moveNewest">新しい順</option><option value="oldest" id="moveOldest">古い順</option></select></div>
       </div>
       <div class="kpi" id="kpi"></div>
       <div style="overflow:auto;">
@@ -55,6 +56,11 @@
           <th class="num" data-t="thCost">原価概算</th><th data-t="thReason">理由</th><th data-t="thActor">記録者</th>
         </tr></thead>
         <tbody id="rows"><tr><td colspan="8" style="color:#aaa;padding:16px;text-align:center;" data-t="loading">読み込み中…</td></tr></tbody></table>
+      </div>
+      <div class="bar" id="movePagination" style="margin:12px 0 0;align-items:center;">
+        <button type="button" class="hbtn" style="background:#eef2f7;color:#0f172a" id="movePrev" disabled onclick="changeMovePage(-1)">← 前へ</button>
+        <span id="movePageInfo" class="muted" role="status" aria-live="polite"></span>
+        <button type="button" class="hbtn" style="background:#eef2f7;color:#0f172a" id="moveNext" disabled onclick="changeMovePage(1)">次へ →</button>
       </div>
     </div>
   </div>
@@ -73,6 +79,8 @@
     var ALL = [], SYM='₱', __loaded=false;
     var TYPEKEY = { '入荷':'tIn', '廃棄':'tWaste', '棚卸':'tCount', '初期':'tOpening', '消費':'tConsume', '改名':'tRename' };
     var TYPECLS = { '入荷':'b-in', '廃棄':'b-waste', '棚卸':'b-count' };
+    var MOVE_PAGE_SIZE=50, MOVE_PAGE=0;
+    window.changeMovePage=function(direction){ MOVE_PAGE+=direction; render(); };
     // 2026-08-24修正: バックエンドが返すtsはSQLiteのdatetime('now')によるUTC時刻（末尾にZ無し）。
     // そのままnew Date()に渡すとローカル時刻として誤解釈され、表示が数時間ずれるため、
     // 明示的にUTCと分かる形式へ直してから変換する。
@@ -92,6 +100,16 @@
     function render(){
       var mo = document.getElementById('month').value;
       var list = ALL.filter(function(r){ return r.month===mo; });
+      if(document.getElementById('moveSort').value==='oldest') list.reverse();
+      var maxPage=Math.max(0,Math.ceil(list.length/MOVE_PAGE_SIZE)-1);
+      MOVE_PAGE=Math.max(0,Math.min(MOVE_PAGE,maxPage));
+      var begin=MOVE_PAGE*MOVE_PAGE_SIZE;
+      var visible=list.slice(begin,begin+MOVE_PAGE_SIZE);
+      document.getElementById('movePrev').disabled=MOVE_PAGE===0;
+      document.getElementById('moveNext').disabled=MOVE_PAGE>=maxPage;
+      document.getElementById('movePageInfo').textContent=
+        (list.length?begin+1:0)+'–'+Math.min(begin+MOVE_PAGE_SIZE,list.length)+
+        ' / '+list.length+' ('+(MOVE_PAGE+1)+'/'+(maxPage+1)+')';
       // KPI
       var inN=0, wasteN=0, wasteCost=0, countDiff=0;
       list.forEach(function(r){ if(r.type==='入荷') inN+=r.qty; else if(r.type==='廃棄'){ wasteN+= -r.qty; wasteCost+= Math.abs(r.costEst); } else if(r.type==='棚卸'){ countDiff+= r.qty; } });
@@ -100,7 +118,7 @@
         '<div class="kbox"><div class="kl">'+I18n.t('kWaste')+'</div><div class="kv" style="color:#b91c1c;">'+wasteN.toLocaleString()+' <span class="muted">('+SYM+wasteCost.toLocaleString()+')</span></div></div>'+
         '<div class="kbox"><div class="kl">'+I18n.t('kDiff')+'</div><div class="kv" style="color:'+(countDiff<0?'#b91c1c':'#15803d')+';">'+(countDiff>0?'+':'')+countDiff.toLocaleString()+'</div></div>';
       if(!list.length){ document.getElementById('rows').innerHTML='<tr><td colspan="8" style="color:#aaa;padding:16px;text-align:center;">'+I18n.t('empty')+'</td></tr>'; return; }
-      document.getElementById('rows').innerHTML = list.map(function(r){
+      document.getElementById('rows').innerHTML = visible.map(function(r){
         return '<tr><td class="muted" style="white-space:nowrap;">'+esc(fmt(r.ts))+'</td>'+
           '<td><span class="badge '+(TYPECLS[r.type]||'')+'">'+esc(typeLabel(r.type))+'</span></td>'+
           '<td>'+esc(loc(r.name, r.nameEn))+'</td>'+
@@ -110,7 +128,8 @@
           '<td class="muted">'+esc(reasonLabel(r.reason))+'</td><td>'+esc(r.actor)+'</td></tr>';
       }).join('');
     }
-    document.getElementById('month').addEventListener('change', render);
+    document.getElementById('month').addEventListener('change', function(){ MOVE_PAGE=0;render(); });
+    document.getElementById('moveSort').addEventListener('change', function(){ MOVE_PAGE=0;render(); });
     // 2026-08-24修正: toISOString()はUTC基準のため、フィリピン時間で月初の午前0〜8時頃に開くと
     // 前月が選択されてしまう不具合があった（profit_sim.htmlで先に見つけて修正済みだった同じ問題を
     // 横展開）。ローカル時間（店舗のタイムゾーン）で当月を決める。
@@ -123,7 +142,16 @@
     I18n.init({
       ja:{ title:'📋 在庫変動履歴', back:'← 管理へ', inv:'📦 在庫', month:'対象月', thTime:'日時', thType:'種別', thName:'商品', thQty:'数量', thStock:'変動後', thCost:'原価概算', thReason:'理由', thActor:'記録者', loading:'読み込み中…', empty:'この月の記録はありません', loadErr:'読み込みエラー: ', tIn:'入荷', tWaste:'廃棄', tCount:'棚卸', tOpening:'初期', tConsume:'消費', tRename:'改名', kIn:'入荷合計', kWaste:'廃棄合計', kDiff:'棚卸差異' },
       en:{ title:'📋 Stock history', back:'← Manage', inv:'📦 Inventory', month:'Target month', thTime:'Time', thType:'Type', thName:'Item', thQty:'Qty', thStock:'After', thCost:'Cost est.', thReason:'Reason', thActor:'By', loading:'Loading…', empty:'No records this month', loadErr:'Load error: ', tIn:'Receive', tWaste:'Waste', tCount:'Stocktake', tOpening:'Opening balance', tConsume:'Consumption', tRename:'Rename', kIn:'Received', kWaste:'Wasted', kDiff:'Count variance' }
-    }, function(){ document.title=I18n.lang()==='en'?'Stock history':'在庫変動履歴'; if(__loaded) render(); });
+    }, function(){
+      var en=I18n.lang()==='en';
+      document.title=en?'Stock history':'在庫変動履歴';
+      document.getElementById('moveSortLabel').textContent=en?'Sort order':'並び順';
+      document.getElementById('moveNewest').textContent=en?'Newest first':'新しい順';
+      document.getElementById('moveOldest').textContent=en?'Oldest first':'古い順';
+      document.getElementById('movePrev').textContent=en?'← Previous':'← 前へ';
+      document.getElementById('moveNext').textContent=en?'Next →':'次へ →';
+      if(__loaded) render();
+    });
   </script>
 
   <script src="./help.js?v=auth2"></script>

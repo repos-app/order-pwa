@@ -173,6 +173,26 @@
     </div>
   </div>
 
+  <!-- Management control is absent from anonymous order flows. All reads and
+       writes also require a signed staff session and the takeout page gate. -->
+  <section id="staffTakeoutPanel" style="display:none;max-width:850px;margin:14px auto;padding:18px;background:var(--surface);border:1px solid var(--border);border-radius:14px;">
+    <h2 id="staffTakeoutTitle" style="font-size:18px;margin:0 0 8px;">🥡 Staff takeout corrections</h2>
+    <label class="fl" for="staffTakeoutSelect">Order code</label>
+    <select class="fc" id="staffTakeoutSelect"></select>
+    <div id="staffEditFields" style="display:none;margin-top:12px;">
+      <label class="fl" for="staffEditName">Name</label><input id="staffEditName" class="fc" maxlength="40">
+      <label class="fl" for="staffEditPhone">Phone</label><input id="staffEditPhone" class="fc" maxlength="20">
+      <label class="fl" for="staffEditPickup">Pickup time</label><input id="staffEditPickup" class="fc" maxlength="20">
+      <label class="fl" for="staffEditNotes">Notes</label><input id="staffEditNotes" class="fc" maxlength="120">
+      <div class="fl" id="staffEditItemsTitle" style="margin-top:12px;">Order items</div>
+      <div id="staffEditLines"></div>
+      <button type="button" id="staffEditAddLine" class="btn-ghost">+ Add product</button>
+      <button type="button" id="staffEditSave" class="btn-primary2">💾 Save correction</button>
+      <button type="button" id="staffEditCancel" class="btn-ghost" style="color:#b91c1c;">Cancel takeout order</button>
+    </div>
+    <p id="staffEditMsg" role="status" style="font-size:13px;font-weight:700;"></p>
+  </section>
+
   <script src="./config.js?v=auth2"></script>
   <script>try{if(localStorage.getItem(window.APP_CONFIG.AUTH_STORAGE_PREFIX + 'mgmtToken')){var _mb=document.getElementById('mgmtBack');if(_mb)_mb.style.display='block';}}catch(e){}</script>
   <script src="./api.js?v=auth2"></script>
@@ -597,6 +617,127 @@
       if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./sw.js').catch(function(){}); }
     }
     document.addEventListener('DOMContentLoaded', boot);
+  </script>
+  <script>
+    (function(){
+      var staffOrders=[], staffSelected=null, staffBusy=false;
+      function el(id){return document.getElementById(id);}
+      function rpcStaff(fn,args){
+        var token=staffAuthToken();
+        if(!token)return Promise.reject(new Error('unauthorized'));
+        return API.post('rpc',{fn:fn,args:args||[],token:token}).then(function(r){
+          if(!r||!r.data)throw new Error(r&&r.error||'rpc_failed');
+          return r.data;
+        });
+      }
+      function say(message){el('staffEditMsg').textContent=message;}
+      function line(values){
+        var div=document.createElement('div');
+        div.className='staff-line';
+        div.style.cssText='display:flex;gap:8px;align-items:center;margin:6px 0;';
+        var select=document.createElement('select');
+        select.className='fc staff-line-name';select.style.flex='3';
+        var menu=MENU.filter(function(item){return item&&item['商品名'];});
+        menu.forEach(function(item){
+          var opt=document.createElement('option');opt.value=item['商品名'];
+          opt.textContent=dispNameOf(item['商品名']);select.appendChild(opt);
+        });
+        if(values&&values.name){
+          var found=menu.some(function(item){return item['商品名']===values.name;});
+          if(!found){
+            var legacy=document.createElement('option');
+            legacy.value=values.name;legacy.textContent=values.name+' (unavailable)';
+            select.appendChild(legacy);
+          }
+          select.value=values.name;
+        }
+        var qty=document.createElement('input');
+        qty.className='fc staff-line-qty';qty.type='number';
+        qty.min='1';qty.max='99';qty.step='1';qty.value=String(values&&values.qty||1);qty.style.flex='1';
+        var remove=document.createElement('button');
+        remove.type='button';remove.className='btn-ghost';remove.style.cssText='flex:0 0 auto;width:auto;margin:0;';
+        remove.textContent='×';
+        remove.onclick=function(){div.remove();};
+        div.appendChild(select);div.appendChild(qty);div.appendChild(remove);
+        el('staffEditLines').appendChild(div);
+      }
+      function selected(){
+        var code=el('staffTakeoutSelect').value;
+        staffSelected=staffOrders.find(function(item){return item.code===code;})||null;
+        var editable=staffSelected&&staffSelected.status==='未対応';
+        var cancellable=staffSelected&&['未対応','調理中','受渡可能'].indexOf(staffSelected.status)>=0;
+        el('staffEditFields').style.display=cancellable?'block':'none';
+        if(!staffSelected){say('');return;}
+        say(editable?'':('Order '+staffSelected.status+' cannot be edited'));
+        el('staffEditSave').disabled=!editable;
+        el('staffEditAddLine').disabled=!editable;
+        el('staffEditName').value=staffSelected.name;
+        el('staffEditPhone').value=staffSelected.phone;
+        el('staffEditPickup').value=staffSelected.pickup;
+        el('staffEditNotes').value=staffSelected.notes;
+        el('staffEditLines').textContent='';
+        staffSelected.items.forEach(function(item){line(item);});
+        Array.prototype.forEach.call(el('staffEditFields').querySelectorAll('input,.staff-line-name,.staff-line button'),
+          function(control){control.disabled=!editable;});
+      }
+      function reload(){
+        return rpcStaff('getTakeoutOrders',[100]).then(function(items){
+          staffOrders=Array.isArray(items)?items:[];
+          var selectedCode=staffSelected&&staffSelected.code;
+          el('staffTakeoutSelect').textContent='';
+          staffOrders.forEach(function(order){
+            var opt=document.createElement('option');
+            opt.value=order.code;opt.textContent=order.code+' · '+order.name+' · '+order.status;
+            el('staffTakeoutSelect').appendChild(opt);
+          });
+          if(selectedCode&&staffOrders.some(function(x){return x.code===selectedCode;}))
+            el('staffTakeoutSelect').value=selectedCode;
+          selected();
+        });
+      }
+      function save(){
+        if(staffBusy||!staffSelected)return;
+        var items=Array.prototype.map.call(el('staffEditLines').querySelectorAll('.staff-line'),
+          function(div){return {name:div.querySelector('.staff-line-name').value,
+            count:div.querySelector('.staff-line-qty').value};});
+        if(!items.length){say('At least one item is required');return;}
+        var request={code:staffSelected.code,expectedRevision:staffSelected.revision,
+          clientRequestId:crypto.randomUUID(),name:el('staffEditName').value,
+          phone:el('staffEditPhone').value,pickup:el('staffEditPickup').value,
+          notes:el('staffEditNotes').value,items:items};
+        staffBusy=true;el('staffEditSave').disabled=true;
+        rpcStaff('updateTakeoutDetails',[request]).then(function(result){
+          if(!result.success)throw new Error(result.error||'edit_failed');
+          return reload().then(function(){say('Saved revision '+result.revision);});
+        }).catch(function(e){say(API.userErrorText(e));})
+          .finally(function(){staffBusy=false;el('staffEditSave').disabled=false;});
+      }
+      function cancel(){
+        if(staffBusy||!staffSelected)return;
+        if(!window.confirm('Cancel '+staffSelected.code+'?'))return;
+        staffBusy=true;el('staffEditCancel').disabled=true;
+        rpcStaff('updateTakeoutStatus',[staffSelected.code,'キャンセル']).then(function(result){
+          if(!result.success)throw new Error(result.error||'cancel_failed');
+          return reload().then(function(){say('Order cancelled');});
+        }).catch(function(e){say(API.userErrorText(e));})
+          .finally(function(){staffBusy=false;el('staffEditCancel').disabled=false;});
+      }
+      document.addEventListener('DOMContentLoaded',function(){
+        if(!staffAuthToken())return;
+        el('staffTakeoutPanel').style.display='block';
+        el('staffTakeoutSelect').addEventListener('change',selected);
+        el('staffEditAddLine').addEventListener('click',function(){line();});
+        el('staffEditSave').addEventListener('click',save);
+        el('staffEditCancel').addEventListener('click',cancel);
+        reload().catch(function(e){say(API.userErrorText(e));});
+        if(typeof MutationObserver==='function'){
+          var observer=new MutationObserver(function(){
+            if(MENU.length){observer.disconnect();if(staffSelected)selected();}
+          });
+          observer.observe(el('menu'),{childList:true});
+        }
+      });
+    })();
   </script>
   <script src="./help.js?v=auth2"></script>
   <script>
