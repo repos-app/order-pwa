@@ -132,19 +132,27 @@ body.offline .net-banner.offline-b { display: flex; }
 .qty button.plus { background: var(--accent); color: #fff; border-color: var(--accent); }
 .qty .n { font-size: 16px; font-weight: 800; min-width: 22px; text-align: center; }
 .qty .n.has { color: var(--accent); }
-/* Keep narrow-card overrides after .qty flex so they cannot be overwritten. */
-@container (max-width: 150px) {
-  .qty { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; }
-  .qty .n { grid-column:1/-1; grid-row:1; justify-self:center; }
-  .qty .minus { grid-column:1; grid-row:2; width:100%; min-width:0; min-height:40px; }
-  .qty .plus { grid-column:2; grid-row:2; width:100%; min-width:0; min-height:40px; }
-  .qty .opt-btn { grid-column:1/-1; width:100%; min-width:0; }
+/* Always keep the original − count + sequence in ONE row, even at 3 phone
+   columns or 6 tablet columns. Explicit grid sizing beats the order-entry
+   page's generic 44px minimum button rule without affecting other controls. */
+.grid > .card .qty {
+  display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  align-items:center; gap:clamp(2px, 1.8cqw, 6px); min-width:0;
 }
-@container (max-width: 110px) {
-  .qty { grid-template-columns:minmax(0,1fr); }
-  .qty .n { grid-column:1; grid-row:1; }
-  .qty .minus { grid-column:1; grid-row:2; }
-  .qty .plus { grid-column:1; grid-row:3; }
+.grid > .card .qty .n { grid-column:2; grid-row:1; justify-self:center; }
+.grid > .card .qty :is(.minus,.plus) {
+  width:100%; max-width:44px; min-width:32px;
+  height:clamp(32px, 40cqw, 44px); min-height:32px;
+  padding:0; font-size:clamp(15px, 18cqw, 20px);
+}
+.grid > .card .qty .minus { grid-column:1; grid-row:1; justify-self:start; }
+.grid > .card .qty .plus { grid-column:3; grid-row:1; justify-self:end; }
+.grid > .card .qty :is(.opt-btn,.unavail-tag) { grid-column:1/-1; }
+@container (max-width: 130px) {
+  /* Expand only the stepper into the existing card padding; keep the original
+     item-name/price margins while retaining >=32px button targets. */
+  .grid > .card .qty { margin-right:-9px; margin-left:-9px; }
+  .grid > .card .qty .n { min-width:12px; font-size:clamp(12px, 13cqw, 15px); }
 }
 
 /* Cart bar */

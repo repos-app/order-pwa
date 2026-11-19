@@ -51,8 +51,19 @@
     .tg-a{ padding:12px 14px; }
     .tg-fees{padding:9px 14px 11px;border-top:1px solid var(--border);background:var(--surface);font-size:12px;}
     .tg-fees-title{font-weight:900;margin-bottom:5px;color:var(--text-2);}
-    .tg-fees-line{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px 12px;padding:3px 0;align-items:center;}
-    .tg-fees-line > span:nth-child(2){white-space:nowrap;font-weight:800;font-variant-numeric:tabular-nums;}
+    /* Reserve the same amount/action columns for every charge, even when no edit button exists. */
+    .tg-fees-line{display:grid;grid-template-columns:minmax(0,1fr) minmax(88px,max-content) 130px;column-gap:8px;padding:4px 0;align-items:center;}
+    .tg-fees-name{min-width:0;overflow-wrap:anywhere;line-height:1.35;}
+    .tg-fees-amount{justify-self:end;text-align:right;white-space:nowrap;font-weight:800;font-variant-numeric:tabular-nums;}
+    .tg-fees-actions{display:flex;align-items:center;justify-content:flex-end;gap:4px;min-width:0;}
+    .tg-fees-actions .entry-edit-btn{width:34px;min-width:34px;min-height:40px;height:40px;padding:0;}
+    .tg-fees-actions .fee-charge-edit{background:#0f766e;font-size:13px;}
+    .tg-fees-actions .fee-compact-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;width:44px;min-width:44px;min-height:40px;height:40px;padding:2px;font-size:11px;font-weight:800;line-height:1.1;}
+    @media (max-width:360px){
+      .tg-fees-line{grid-template-columns:minmax(0,1fr) minmax(88px,max-content);}
+      .tg-fees-actions{grid-column:1/-1;}
+      .tg-fees-included .tg-fees-actions{display:none;}
+    }
     .tg-fees-included{font-size:11px;color:var(--text-3);}
     .tg-arrivals{padding:9px 14px;border-bottom:1px solid var(--border);background:#f8fafc;font-size:12px;}
     .tg-arrivals-title{font-weight:800;color:#475569;margin-bottom:5px;}
@@ -240,9 +251,8 @@
       <label for="orderItemCorrectionSelect" style="display:block;font-weight:800;margin-bottom:5px;" id="orderItemCorrectionSelectLbl">訂正する商品</label>
       <select id="orderItemCorrectionSelect" class="entry-input" onchange="showOrderItemCorrectionSelection()" style="margin-bottom:9px;"></select>
       <label for="orderItemCorrectionQty" style="display:block;font-weight:800;margin-bottom:5px;" id="orderItemCorrectionQtyLbl">数量</label>
-      <input id="orderItemCorrectionQty" class="entry-input" type="number" inputmode="numeric" min="1" max="99" step="1" style="margin-bottom:9px;">
-      <label for="orderItemCorrectionPrice" style="display:block;font-weight:800;margin-bottom:5px;" id="orderItemCorrectionPriceLbl">単価</label>
-      <input id="orderItemCorrectionPrice" class="entry-input" type="number" inputmode="decimal" min="0" step="any" style="margin-bottom:9px;">
+      <input id="orderItemCorrectionQty" class="entry-input" type="number" inputmode="numeric" min="0" max="99" step="1" oninput="refreshOrderItemCorrectionMode()" style="margin-bottom:5px;">
+      <p id="orderItemCorrectionQtyHint" style="font-size:12px;color:#64748b;margin:0 0 9px;">0＝この商品を全数取消。最後の商品は注文取消に進みます。</p>
       <label for="orderItemCorrectionReason" style="display:block;font-weight:800;margin-bottom:5px;" id="orderItemCorrectionReasonLbl">訂正理由（必須）</label>
       <input id="orderItemCorrectionReason" class="entry-input" maxlength="300" style="margin-bottom:9px;" autocomplete="off">
       <div id="orderItemCorrectionError" role="alert" aria-live="polite" style="font-size:12px;color:#b91c1c;font-weight:700;margin-bottom:8px;"></div>
@@ -677,7 +687,9 @@
         order_not_editable:'調理・提供・会計など注文の状態が変わりました。更新後に確認してください。',
         state_changed:'別端末で注文または料金が変更されました。更新して確認してください。',
         forbidden:'管理者またはマネージャーの権限が必要です。',
-        invalid_price_precision:'店舗の通貨設定に合う小数桁で単価を入力してください。',
+        price_change_not_allowed:'単価は訂正できません。注文時の単価を維持します。',
+        void_required:'最後の商品は注文取消から処理してください。',
+        invalid_price_precision:'注文時の単価と店舗の通貨設定が一致しません。管理者に確認してください。',
       };
       var en={
         insufficient_stock:'Insufficient stock. Reduce the quantity or check inventory.',
@@ -688,7 +700,9 @@
         order_not_editable:'The order is no longer editable. Refresh and review its status.',
         state_changed:'Another terminal changed this order or charge. Refresh before editing.',
         forbidden:'Manager or administrator permission is required.',
-        invalid_price_precision:'Enter the unit price using the store currency precision.',
+        price_change_not_allowed:'The original unit price cannot be changed.',
+        void_required:'Void the whole order using the existing order void flow.',
+        invalid_price_precision:'The saved order-time unit price does not match the store currency precision. Contact an administrator.',
       };
       return (lang==='en'?en:ja)[code] ||
         (lang==='en'?'Result not confirmed. Refresh before retrying: ':'訂正結果を確認できません。再操作前に更新してください：')+code;
@@ -715,7 +729,9 @@
       document.getElementById('orderItemCorrectionSeat').textContent='🪑 '+seatLabel(o.table);
       document.getElementById('orderItemCorrectionSelectLbl').textContent=en?'Item to correct':'訂正する商品';
       document.getElementById('orderItemCorrectionQtyLbl').textContent=en?'Quantity':'数量';
-      document.getElementById('orderItemCorrectionPriceLbl').textContent=en?'Unit price':'単価';
+      document.getElementById('orderItemCorrectionQtyHint').textContent=en
+        ? '0 cancels all units of this item. For the last item, continue to Void order.'
+        : '0＝この商品を全数取消。最後の商品は注文取消に進みます。';
       document.getElementById('orderItemCorrectionReasonLbl').textContent=en?'Reason (required)':'訂正理由（必須）';
       document.getElementById('orderItemCorrectionSave').textContent=en?'Correct item and recalculate':'商品を訂正して再計算';
       document.getElementById('orderItemCorrectionCancel').textContent=t().cancel;
@@ -730,7 +746,16 @@
       var item=orderItemCorrectionEditing.items[idx];
       if(!item)return;
       document.getElementById('orderItemCorrectionQty').value=String(item.qty);
-      document.getElementById('orderItemCorrectionPrice').value=String(item.unit_price);
+      refreshOrderItemCorrectionMode();
+    };
+    window.refreshOrderItemCorrectionMode=function(){
+      if(!orderItemCorrectionEditing)return;
+      var qty=document.getElementById('orderItemCorrectionQty').value;
+      var last=orderItemCorrectionEditing.items.filter(function(item){return Number(item.qty)>0;}).length===1;
+      var en=lang==='en';
+      document.getElementById('orderItemCorrectionSave').textContent=qty==='0'
+        ? (last?(en?'Continue to void order':'注文取消へ進む'):(en?'Cancel all units of this item':'この商品を全数取消'))
+        : (en?'Correct item and recalculate':'商品を訂正して再計算');
     };
     window.closeOrderItemCorrection=function(){
       if(orderItemCorrectionSaving)return;
@@ -742,19 +767,29 @@
       var edit=orderItemCorrectionEditing,o=edit.order;
       var idx=Number(document.getElementById('orderItemCorrectionSelect').value),item=edit.items[idx];
       var qtyText=document.getElementById('orderItemCorrectionQty').value;
-      var priceText=document.getElementById('orderItemCorrectionPrice').value;
-      var qty=Number(qtyText),price=Number(priceText);
+      var qty=Number(qtyText);
       var reason=document.getElementById('orderItemCorrectionReason').value.trim();
       var error=document.getElementById('orderItemCorrectionError'),btn=document.getElementById('orderItemCorrectionSave');
-      if(!item||!/^\d+$/.test(qtyText)||!Number.isInteger(qty)||qty<1||qty>99
-        ||!/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(priceText)||!Number.isFinite(price)||price<0||price>1000000000
+      if(!item||!/^\d+$/.test(qtyText)||!Number.isInteger(qty)||qty<0||qty>99
         ||reason.length<2||reason.length>300){
-        error.textContent=lang==='en'?'Enter a valid quantity, price and reason (2–300 characters).':'数量・単価・訂正理由（2～300文字）を確認してください。';return;
+        error.textContent=lang==='en'?'Enter a valid quantity (0–99) and reason (2–300 characters).':'数量（0～99）と訂正理由（2～300文字）を確認してください。';return;
       }
       if(correctionIsBlocked(o.table))return;
+      if(qty===0&&edit.items.filter(function(x){return Number(x.qty)>0;}).length===1){
+        if(reason.length>200){
+          error.textContent=lang==='en'?'Whole-order void reason must be 200 characters or fewer.':'注文全体の取消理由は200文字以内で入力してください。';
+          return;
+        }
+        orderItemCorrectionEditing=null;
+        document.getElementById('orderItemCorrectionModal').classList.remove('on');
+        window.askVoid(o.id,false,reason);
+        return;
+      }
       orderItemCorrectionSaving=true;btn.disabled=true;error.textContent='';btn.textContent=t().processing;
-      API.post('correctOrderItem',{token:TOKEN,orderId:o.id,itemIndex:idx,quantity:qty,unitPrice:price,
-        expectedQuantity:Number(item.qty),expectedUnitPrice:Number(item.unit_price),reason:reason,
+      API.post('correctOrderItem',{token:TOKEN,orderId:o.id,itemIndex:idx,quantity:qty,
+        expectedQuantity:Number(item.qty),expectedUnitPrice:Number(item.unit_price),
+        expectedItemName:String(item.item_name||item.name||''),expectedItemCount:edit.items.length,
+        reason:reason,
         __noInternalRetry:true}).then(function(r){
         var data=r&&r.data;
         if(!r||r.ok===false||!data||data.ok!==true)throw new Error(data&&data.error||r&&r.error||'correction_failed');
@@ -762,11 +797,15 @@
         document.getElementById('orderItemCorrectionModal').classList.remove('on');
         noteStatusMutation();return load(true);
       }).catch(function(e){
-        error.textContent=correctionErrorMessage(e);
+        if(String(e&&e.message||e)==='void_required'){
+          orderItemCorrectionEditing=null;
+          document.getElementById('orderItemCorrectionModal').classList.remove('on');
+          window.askVoid(o.id,false,reason);
+        } else error.textContent=correctionErrorMessage(e);
         load(true);
       }).finally(function(){
         orderItemCorrectionSaving=false;btn.disabled=false;
-        btn.textContent=lang==='en'?'Correct item and recalculate':'商品を訂正して再計算';
+        refreshOrderItemCorrectionMode();
       });
     };
     window.openChargeCorrection=function(table,kind){
@@ -926,7 +965,7 @@
         var dwell = effectiveEntry>0 ? dwellStr(now-effectiveEntry) : '';
         var dwellTag = dwell ? ' <span class="dwell">⏱ '+t().stay+' '+dwell+'</span>' : '';
         var correctClock = Number(PARTY_SIZES[tn]&&PARTY_SIZES[tn].count)>1
-          ? '<button type="button" class="entry-edit-btn" style="font-size:12px;padding:0 6px;" title="'+esc(lang==='en'?'Order correction: guests':'オーダー訂正：人数')+'" aria-label="'+esc(lang==='en'?'Correct guests':'人数訂正')+'" '+(typeof navigator!=='undefined'&&navigator.onLine===false?'disabled ':'')+'onclick="openPartyCorrection('+esc(JSON.stringify(tn))+')">'+(lang==='en'?'Correct guests':'人数訂正')+'</button>'
+          ? '<button type="button" class="entry-edit-btn fee-compact-btn" title="'+esc(lang==='en'?'Order correction: guests':'オーダー訂正：人数')+'" aria-label="'+esc(lang==='en'?'Correct guests':'人数訂正')+'" '+(typeof navigator!=='undefined'&&navigator.onLine===false?'disabled ':'')+'onclick="openPartyCorrection('+esc(JSON.stringify(tn))+')">'+(lang==='en'?'<span>Guests</span><span>Edit</span>':'<span>人数</span><span>訂正</span>')+'</button>'
           : '';
         html += '<div class="tg"><div class="tg-h"><div class="ti"><span>🪑 '+esc(seatLabel(tn))+'</span>'+dwellTag+'</div><div class="to">'+money(total)+'</div></div>';
         // Read-only arrival clock uses the same cohorts as the charge preview.
@@ -992,12 +1031,12 @@
           +'<div class="tg-fees-title">'+esc(lang==='en'?'Checkout charge breakdown':'会計料金内訳')+'</div>';
         feeRows.forEach(function(line,feeIndex){
           var feeKind={1:'entry_override',2:'extension_delta',3:'vip_base_override',4:'vip_extension_delta'}[feeIndex];
-          var feeEdit=feeKind?'<button type="button" class="entry-edit-btn" style="font-size:12px;padding:0 6px;background:#0f766e;" title="'+esc(lang==='en'?'Correct charge':'料金訂正')+'" aria-label="'+esc(lang==='en'?'Correct charge':'料金訂正')+'" onclick="openChargeCorrection('+esc(JSON.stringify(tn))+','+esc(JSON.stringify(feeKind))+')">✎</button>':'';
-          html += '<div class="tg-fees-line'+(line[2]?' tg-fees-included':'')+'"><span>'
-            +esc(line[0])+'</span><span>'+money(line[1])+'</span>'+feeEdit+
+          var feeEdit=feeKind?'<button type="button" class="entry-edit-btn fee-charge-edit" title="'+esc(lang==='en'?'Correct charge':'料金訂正')+'" aria-label="'+esc(lang==='en'?'Correct charge':'料金訂正')+'" onclick="openChargeCorrection('+esc(JSON.stringify(tn))+','+esc(JSON.stringify(feeKind))+')">✎</button>':'';
+          html += '<div class="tg-fees-line'+(line[2]?' tg-fees-included':'')+'"><span class="tg-fees-name">'
+            +esc(line[0])+'</span><span class="tg-fees-amount">'+money(line[1])+'</span><span class="tg-fees-actions">'+feeEdit+
             (line===feeRows[1]
-              ?'<button type="button" class="entry-edit-btn" style="font-size:12px;padding:0 6px;" title="'+esc(t().entryEdit)+'" aria-label="'+esc(t().entryEdit)+'" onclick="openEntryTime('+esc(JSON.stringify(tn))+')">'+esc(lang==='en'?'Entry time':'入場時間')+'</button>'+correctClock
-              :'')+'</div>';
+              ?'<button type="button" class="entry-edit-btn fee-compact-btn" title="'+esc(t().entryEdit)+'" aria-label="'+esc(t().entryEdit)+'" onclick="openEntryTime('+esc(JSON.stringify(tn))+')">'+(lang==='en'?'<span>Entry</span><span>time</span>':'<span>入場</span><span>時間</span>')+'</button>'+correctClock
+              :'')+'</span></div>';
         });
         html += '</div>';
         html += '<div class="tg-a"><button class="b-pay" data-checkout-table="'+esc(tn)+'" onclick="openPay(\''+esc(tn).replace(/'/g,"\\'")+'\','+subtotal+')">'+t().pay+' '+money(total)+'</button>'+
@@ -1134,9 +1173,9 @@
     function voidApprovalRequired(){var v=SETTINGS.orderVoidManagerApprovalRequired;if(v===undefined||v===null)return true;return !/^(?:|0|false|off|no)$/i.test(String(v).trim());}
     function voidNeedsExternalApproval(){return voidApprovalRequired()&&!currentUserCanApprove();}
     // ── 注文取消 ──
-    window.askVoid = function(id, settingsFresh){
+    window.askVoid = function(id, settingsFresh, prefilledReason){
       if(!settingsFresh){
-        API.post('getSettings', {}).then(function(r){ var d=(r&&r.settings)||(r&&r.data&&r.data.settings)||(r&&r.data)||r||{}; if(d.error) throw new Error(d.error); SETTINGS=Object.assign({},SETTINGS,d); window.askVoid(id,true); })
+        API.post('getSettings', {}).then(function(r){ var d=(r&&r.settings)||(r&&r.data&&r.data.settings)||(r&&r.data)||r||{}; if(d.error) throw new Error(d.error); SETTINGS=Object.assign({},SETTINGS,d); window.askVoid(id,true,prefilledReason); })
           .catch(function(e){ showToast((lang==='en'?'Could not load approval settings: ':'承認設定を確認できません: ')+API.userErrorText(e)); });
         return;
       }
@@ -1147,7 +1186,7 @@
       document.getElementById('vdItem').innerText = '🪑 '+seatLabel(o.table)+' · '+orderDetailsText(o)+' · '+money(o.price||0);
       document.getElementById('vdReasonL').innerText = t().reason;
       document.getElementById('vdApprL').innerText = t().approver;
-      document.getElementById('vdReason').value='';
+      document.getElementById('vdReason').value=typeof prefilledReason==='string'?prefilledReason:'';
       document.getElementById('vdLogin').value=''; document.getElementById('vdLogin').placeholder=t().loginPh;
       document.getElementById('vdPass').value=''; document.getElementById('vdPass').placeholder=t().passPh;
       var externalApproval=voidNeedsExternalApproval(); document.getElementById('vdApproverFields').style.display=externalApproval?'':'none';
@@ -2151,7 +2190,8 @@
         { ja: '④ 画面上部の🔔呼び出し欄では、お客様のスタッフ呼出・会計希望が自動更新（10/30/60秒）または手動更新時に反映されます。「対応済」で処理できます。自動更新OFF時は手動更新してください。', en: '④ Customer staff-call and bill requests appear at the top after auto-refresh (10/30/60 seconds) or manual refresh. Tap Done to resolve them. When auto-refresh is off, refresh manually.' },
         { ja: '⑤ 「自動更新: ON/OFF」ボタンと10s/30s/60sの間隔ボタンで、画面の自動更新頻度を調整できます。↻ボタンで手動更新もできます。', en: '⑤ Use the Auto ON/OFF toggle and the 10s/30s/60s interval buttons to control how often the screen refreshes. Tap ↻ to refresh manually.' },
         { ja: '⑥ 「🧾履歴」リンクで過去の会計履歴（receipts.html）に、「← 管理」でメニュー画面に戻れます。EN/JPボタンで表示言語を切り替えられます。', en: '⑥ Use the "🧾 History" link for past receipts, "← Manage" to return to the menu, and EN/JP to switch language.' },
-        { ja: '⑦ 入場料の明細行にある「入場時間」で入場時刻を修正できます。年・月・日・時（24時間）・分を選んで「保存して料金を再計算」を押します。店舗のタイムゾーンで通常/VIP延長料金を再計算し、注文の記録日時は変更しません。商品・入場料・延長料・VIP料金は各明細の「訂正」「✎」から修正できます。', en: '⑦ Use Entry time on the entry-fee line to correct the visit clock. Choose Year, Month, Day, Hour (24h) and Minute, then save. Standard and VIP extension charges recalculate using the store time zone without changing order timestamps. To correct individual order items, entry fees, extension counts or VIP charges, use Edit or the pencil on the corresponding line.' }
+        { ja: '⑦ 入場料の明細行にある「入場時間」で入場時刻を修正できます。年・月・日・時（24時間）・分を選んで「保存して料金を再計算」を押します。店舗のタイムゾーンで通常/VIP延長料金を再計算し、注文の記録日時は変更しません。商品・入場料・延長料・VIP料金は各明細の「訂正」「✎」から修正できます。', en: '⑦ Use Entry time on the entry-fee line to correct the visit clock. Choose Year, Month, Day, Hour (24h) and Minute, then save. Standard and VIP extension charges recalculate using the store time zone without changing order timestamps. To correct individual order items, entry fees, extension counts or VIP charges, use Edit or the pencil on the corresponding line.' },
+        { ja: '⑧ 商品明細の訂正では数量と訂正理由のみ変更できます。注文済みの単価は変更できません。数量0はその商品の全数取消となり、最後の1商品を取り消す場合は既存の注文取消と承認フローへ進みます。別端末で変更された場合は再読込してから訂正してください。', en: '⑧ Correcting an ordered item changes only quantity and the required reason; the original unit price cannot be edited. Quantity zero cancels all units of that item. For the last item, use the existing whole-order void and approval flow. Reload before correcting an order changed on another device.' }
       ]
     });
   </script>
