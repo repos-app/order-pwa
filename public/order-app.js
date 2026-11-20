@@ -668,7 +668,10 @@
       showOk(title, msg, result === 'queued' ? '📥' : (paid ? '💳' : '✅'));
       refreshPending();
     }).catch(function (err) { showErr(API.userErrorText(err)); })
-      .then(function () { btn.disabled = false; });
+      // A successful submission clears the cart. Do not re-enable an empty
+      // checkout button in the finalizer (or unlock a settled table session).
+      // Rejected/failed submissions keep the cart, so they can still retry.
+      .then(function () { btn.disabled = state.sessionEnded || breakdown().sub <= 0; });
   }
 
   function showOk(title, msg, emoji) { $('okEmoji').textContent = emoji || '✅'; $('okTitle').textContent = title; $('okMsg').textContent = msg; $('okOverlay').classList.add('show'); }

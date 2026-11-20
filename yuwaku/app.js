@@ -869,7 +869,10 @@
     var tableSel = $('tableSelect');
     if (tableSel) tableSel.disabled = partyPickerSaving;
     sel.disabled = partyPickerLoading || partyPickerSaving || (locked && !partyPickerEditing) || state.sessionEnded;
-    change.hidden = !locked || !state.staffMode;
+    change.hidden = !locked || !state.staffMode || Number(partyPickerSaved.count) >= partySizeMax();
+    Array.prototype.forEach.call(sel.options, function(opt) {
+      if(opt.value && locked) opt.disabled = Number(opt.value) <= partyPickerSaved.count && opt.value !== String(partyPickerSaved.count);
+    });
     change.disabled = partyPickerLoading || partyPickerSaving || partyPickerLoadFailed || state.sessionEnded;
     change.textContent = partyPickerEditing ? t().partySave : t().partyChange;
     start.disabled = partyPickerLoading || partyPickerSaving || partyPickerLoadFailed || partyPickerEditing || state.sessionEnded;
@@ -1007,6 +1010,11 @@
       var nextCount = Number(partySel.value);
       if (!Number.isInteger(nextCount) || nextCount < 1 || nextCount > partySizeMax()) return;
       var previous = partyPickerSaved;
+      if (nextCount < previous.count) {
+        partyPickerShowError(t().partyDecrease);
+        partySel.value = String(previous.count);
+        return;
+      }
       partyPickerSaving = true;
       paintPartyPicker();
       API.post('setTablePartySize', tablePayload({

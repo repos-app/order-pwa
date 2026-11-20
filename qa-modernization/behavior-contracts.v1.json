@@ -396,11 +396,11 @@
     },
     {
       "id": "IZK-UT-009",
-      "revision": 2,
+      "revision": 3,
       "sourceRequirements": [
         "IZK-UT-009"
       ],
-      "provenance": "User-authorized dynamic permission matrix: registered employees with explicit settings or printers permission must be allowed to persist settings via the authenticated RPC, while ungranted pages, actors, and other actions must remain denied. Cross-role browser/API/SQLite tests independently exercise the change.",
+      "provenance": "User-authorized dynamic permission matrix: registered employees with explicit settings or printers permission must be allowed to persist settings via the authenticated RPC, while ungranted pages, actors, and other actions must remain denied. Cross-role browser/API/SQLite tests independently exercise the change. Owner subsequently required that configuration changes be verified by logged-in roles and actual persistence/denial, including revocation after a page was already open and independently verified post-save UI state.",
       "risk": "P0",
       "scope": [
         {
@@ -412,6 +412,31 @@
           "path": "src/gasApi.js",
           "start": "    // dispatchRpc has already verified the authenticated user's live",
           "end": "  // Commission page edits only its own five settings."
+        },
+        {
+          "path": "src/gasApi.js",
+          "start": "        // Staff order-entry and order management share the Orders page bit.",
+          "end": "      } else {"
+        },
+        {
+          "path": "src/gasApi.js",
+          "start": "      // A previously opened Time Clock page must not keep writing punches",
+          "end": "      if (String(body.empId || '')"
+        },
+        {
+          "path": "src/gasApi.js",
+          "start": "  const additionalRequiredPages = [];",
+          "end": "  if (!permissionPage && !RPC_AUTH_ONLY.has(fn))"
+        },
+        {
+          "path": "src/gasApi.js",
+          "start": "  for (const page of additionalRequiredPages) {",
+          "end": "  const requiredFeature = getRpcPlanFeature(fn);"
+        },
+        {
+          "path": "mobile-app/web/kds.html",
+          "start": "        // The server acknowledged and committed this exact priority/revision.",
+          "end": "        // A status poll may still be in flight."
         }
       ],
       "expected": {
@@ -432,6 +457,25 @@
         },
         "ungrantedSettingsSave": {
           "authorized": false
+        },
+        "revokedStaffOrder": {
+          "authorized": false,
+          "status": 403,
+          "orderRowsAdded": 0
+        },
+        "revokedClockPunch": {
+          "authorized": false,
+          "status": 403,
+          "attendanceRowsAdded": 0
+        },
+        "mixedSettingsTargetWithoutDashboard": {
+          "authorized": false,
+          "status": 403,
+          "monthlyTargetUnchanged": true
+        },
+        "acceptedKdsPriority": {
+          "visiblePriorityMatchesServer": true,
+          "priorityRevisionUpdated": true
         }
       },
       "preserve": [
@@ -439,7 +483,11 @@
         "default-denied unknown screens",
         "existing system permission",
         "no bypass by direct RPC",
-        "persisted store settings after authorized save"
+        "persisted store settings after authorized save",
+        "live per-page revocation for already-rendered screens",
+        "guest QR ordering remains independent of staff Orders permission",
+        "server-confirmed kitchen priority revision",
+        "dashboard target protected even inside mixed settings"
       ],
       "oracles": [
         {
@@ -456,6 +504,26 @@
           "path": "test/auto-ci/configuration-matrix-browser.test.mjs",
           "marker": "every permission page x every role: default, override, SQL, independent forbidden/allowed RPC",
           "lane": "business"
+        },
+        {
+          "path": "test/auto-ci/configuration-cross-live-admin-order-entry-browser.test.mjs",
+          "marker": "STAFF-ORDER-SIGNED-TOKEN-DIRECT-FORGERY-DENIED",
+          "lane": "web"
+        },
+        {
+          "path": "test/auto-ci/configuration-cross-live-clock-gateway-browser.test.mjs",
+          "marker": "CLOCK-REVOKED-SIGNED-PUNCH-DENIED-SQL-UNCHANGED",
+          "lane": "business"
+        },
+        {
+          "path": "test/auto-ci/configuration-cross-live-birthday-feedback-dashboard-browser.test.mjs",
+          "marker": "DASHBOARD-REAL-UI-REVOKED-TARGET-DENIED",
+          "lane": "web"
+        },
+        {
+          "path": "test/auto-ci/configuration-cross-live-kds-browser.test.mjs",
+          "marker": "KDS-REAL-UI-RESTORED-PRIORITY-CHANGED",
+          "lane": "business"
         }
       ],
       "negativeControls": [
@@ -468,9 +536,29 @@
           "id": "settings-rpc-forbidden",
           "path": "test/auto-ci/configuration-role-navigation-browser.test.mjs",
           "marker": "4 genuinely logged-in employees x every registered protected page: real browser allow/deny and API behavior"
+        },
+        {
+          "id": "revoked-signed-order",
+          "path": "test/auto-ci/configuration-cross-live-admin-order-entry-browser.test.mjs",
+          "marker": "STAFF-ORDER-SIGNED-TOKEN-DIRECT-FORGERY-DENIED"
+        },
+        {
+          "id": "revoked-clock-punch",
+          "path": "test/auto-ci/configuration-cross-live-clock-gateway-browser.test.mjs",
+          "marker": "CLOCK-REVOKED-SIGNED-PUNCH-DENIED-SQL-UNCHANGED"
+        },
+        {
+          "id": "revoked-dashboard-target",
+          "path": "test/auto-ci/configuration-cross-live-birthday-feedback-dashboard-browser.test.mjs",
+          "marker": "DASHBOARD-REAL-UI-REVOKED-TARGET-DENIED"
+        },
+        {
+          "id": "revoked-kds-priority",
+          "path": "test/auto-ci/configuration-cross-live-kds-browser.test.mjs",
+          "marker": "KDS-REAL-UI-REVOKED-PRIORITY-DENIED"
         }
       ],
-      "changeReason": "Include authenticated settings-save gateway: live page permission, rather than a second hard-coded manager gate, is the decision point; setting changes must persist but still reject unauthorized employees or RPCs."
+      "changeReason": "Expand the live permission invariant to post-revocation staff order entry, time clock punches, dashboard target updates, mixed settings patches and the KDS priority button. These are requirement-linked, persisted mutations validated by existing Chrome/Gateway/SQLite oracles."
     },
     {
       "id": "IZK-UT-039",
@@ -1221,6 +1309,298 @@
           "id": "fee-column-misalignment",
           "path": "test/auto-ci/orders-fee-columns-layout.test.mjs",
           "marker": "Orders fee amounts align and 2-line correction buttons stay visible at phone widths"
+        }
+      ]
+    },
+    {
+      "id": "IZK-UT-055",
+      "revision": 1,
+      "sourceRequirements": [
+        "IZK-UT-055"
+      ],
+      "provenance": "User-required order-submit badge and cart semantics: after a successful submission that clears the cart, the action must not be left enabled against an empty or finished session. A rejected submission retains the cart and remains retryable.",
+      "risk": "P1",
+      "scope": [
+        {
+          "path": "docs/public/order-app.js",
+          "start": "      // A successful submission clears the cart.",
+          "end": "  function showOk("
+        }
+      ],
+      "expected": {
+        "completedOrder": {
+          "emptyCartButtonDisabled": true
+        },
+        "rejectedOrder": {
+          "retryWithCartAllowed": true
+        },
+        "sessionEnded": {
+          "submitDisabled": true
+        }
+      },
+      "preserve": [
+        "server-side order idempotency",
+        "customer table-session end state",
+        "failed order remains retryable"
+      ],
+      "oracles": [
+        {
+          "path": "test/auto-ci/order-submit-button-postcondition.test.mjs",
+          "marker": "successful submit with empty cart keeps submit disabled",
+          "lane": "auto"
+        }
+      ],
+      "negativeControls": [
+        {
+          "id": "old-unconditional-reenable",
+          "path": "test/auto-ci/order-submit-button-postcondition.test.mjs",
+          "marker": "negative control: old unconditional enabled assignment is rejected"
+        }
+      ]
+    },
+    {
+      "id": "IZK-UT-010",
+      "revision": 1,
+      "sourceRequirements": [
+        "IZK-UT-010"
+      ],
+      "provenance": "User-required locale-consistent and narrow-screen-safe date controls. The shared date control layout must be loaded on feedback screens in Native, hosted Web production, and its Test mirror; no per-screen divergent date geometry.",
+      "risk": "P2",
+      "scope": [
+        {
+          "path": "mobile-app/web/feedback.html",
+          "start": "  <link rel=\"stylesheet\" href=\"./date-controls.css?v=3\">",
+          "end": "  <title>Feedback</title>"
+        },
+        {
+          "path": "docs/yuwaku/feedback.html",
+          "start": "  <link rel=\"stylesheet\" href=\"./date-controls.css?v=3\">",
+          "end": "  <title>Feedback</title>"
+        },
+        {
+          "path": "docs/yuwaku/test/feedback.html",
+          "start": "  <link rel=\"stylesheet\" href=\"./date-controls.css?v=3\">",
+          "end": "  <title>Feedback</title>"
+        }
+      ],
+      "expected": {
+        "feedbackDateInput": {
+          "sharedDateCssLoaded": true,
+          "phoneOverflow": false
+        }
+      },
+      "preserve": [
+        "feedback form content and moderation data",
+        "JA/EN labels",
+        "all three shipped surfaces"
+      ],
+      "oracles": [
+        {
+          "path": "test/auto-ci/feedback-date-controls-css.test.mjs",
+          "marker": "feedback screens load shared date controls on every shipped surface",
+          "lane": "auto"
+        }
+      ],
+      "negativeControls": [
+        {
+          "id": "omitted-date-css",
+          "path": "test/auto-ci/feedback-date-controls-css.test.mjs",
+          "marker": "negative control: removing the date stylesheet is rejected"
+        }
+      ]
+    },
+    {
+      "id": "IZK-UT-119",
+      "revision": 1,
+      "sourceRequirements": [
+        "IZK-UT-119"
+      ],
+      "provenance": "User-required mobile-friendly category/menu editing layout: image-mode controls must not wrap or overflow on narrow viewports, and all three shipped menu editors retain usable minimum tap heights.",
+      "risk": "P2",
+      "scope": [
+        {
+          "path": "mobile-app/web/menu_editor.html",
+          "start": "    .menu-media-mode-tabs{flex-wrap:nowrap;max-width:100%;min-width:0}",
+          "end": "    .cat-manager-hint{"
+        },
+        {
+          "path": "docs/yuwaku/menu_editor.html",
+          "start": "    .menu-media-mode-tabs{flex-wrap:nowrap;max-width:100%;min-width:0}",
+          "end": "    .cat-manager-hint{"
+        },
+        {
+          "path": "docs/yuwaku/test/menu_editor.html",
+          "start": "    .menu-media-mode-tabs{flex-wrap:nowrap;max-width:100%;min-width:0}",
+          "end": "    .cat-manager-hint{"
+        }
+      ],
+      "expected": {
+        "imageModeTabs": {
+          "noHorizontalWrap": true,
+          "minTapHeightPx": 44,
+          "contentMayEllipsize": true
+        }
+      },
+      "preserve": [
+        "image mode actions remain clickable",
+        "category manager remains functional",
+        "Native and Web mirrors preserve parity"
+      ],
+      "oracles": [
+        {
+          "path": "test/auto-ci/menu-media-mode-responsive.test.mjs",
+          "marker": "menu media mode buttons stay in one bounded row across native and Web mirrors",
+          "lane": "auto"
+        }
+      ],
+      "negativeControls": [
+        {
+          "id": "legacy-wrapping-tabs",
+          "path": "test/auto-ci/menu-media-mode-responsive.test.mjs",
+          "marker": "negative control: legacy wrapping rules are rejected"
+        }
+      ]
+    },
+    {
+      "id": "IZK-UT-153",
+      "revision": 1,
+      "sourceRequirements": [
+        "IZK-UT-153"
+      ],
+      "provenance": "User reported staff-call and checkout push notifications missing; opt-in must reflect OS permission truth, not just a locally saved preference. Native production loads the pinned script consistently in the shell and all management hubs.",
+      "risk": "P1",
+      "scope": [
+        {
+          "path": "mobile-app/web/staff-push.js",
+          "start": "    var result = await registerIfPermitted(true);",
+          "end": "  async function unregisterCurrent()"
+        },
+        {
+          "path": "mobile-app/web/admin.html",
+          "start": "./staff-push.js?v=9",
+          "end": "./print-renderer.js?v=print2"
+        },
+        {
+          "path": "mobile-app/web/index.html",
+          "start": "./staff-push.js?v=9",
+          "end": "./print-renderer.js?v=print2"
+        },
+        {
+          "path": "mobile-app/web/manage.html",
+          "start": "./staff-push.js?v=9",
+          "end": "./print-renderer.js?v=print2"
+        },
+        {
+          "path": "mobile-app/web/sw.js",
+          "start": "// v376: refresh OS-permission-denied staff push state",
+          "end": "const SHELL = ["
+        },
+        {
+          "path": "mobile-app/web/sw.js",
+          "start": "'./staff-push.js?v=9'",
+          "end": "'./remember-login.js?v=remember1'"
+        }
+      ],
+      "expected": {
+        "osPermissionDenied": {
+          "toggleEnabled": false,
+          "registrationAccepted": false
+        },
+        "osPermissionGranted": {
+          "retryPossible": true
+        },
+        "offlineAsset": {
+          "pinnedScriptAvailable": true
+        }
+      },
+      "preserve": [
+        "user can retry after enabling system notification permission",
+        "failed registration remains visible as an actionable warning",
+        "no false notification delivery promise"
+      ],
+      "oracles": [
+        {
+          "path": "test/auto-ci/configuration-cross-push-denial-recovery-browser.test.mjs",
+          "marker": "PUSH-OS-PERMISSION-DENIED-SWITCH-RESETS",
+          "lane": "auto"
+        },
+        {
+          "path": "test/staff_push_native_ui_test.mjs",
+          "marker": "native UI is opt-in only; enabling registers and disabling revokes own token",
+          "lane": "web"
+        }
+      ],
+      "negativeControls": [
+        {
+          "id": "os-denied-ui-false-on",
+          "path": "test/auto-ci/configuration-cross-push-denial-recovery-browser.test.mjs",
+          "marker": "OS-denied push cannot truthfully claim ON"
+        }
+      ]
+    },
+    {
+      "id": "IZK-UT-162",
+      "revision": 1,
+      "sourceRequirements": [
+        "IZK-UT-162"
+      ],
+      "provenance": "User-required durable asynchronous transaction reset, recovery and accurate status. A rejected or uncertain new request must never be misreported as completed because an older job succeeded; actual transaction reset remains isolated and safely confirmed.",
+      "risk": "P0",
+      "scope": [
+        {
+          "path": "mobile-app/web/data_admin.html",
+          "start": "    // A failed/unknown acceptance must not be reported",
+          "end": "    function txnText(ja,en)"
+        },
+        {
+          "path": "mobile-app/web/data_admin.html",
+          "start": "        var wasUncertain = TXN_ACCEPTANCE_UNCERTAIN;",
+          "end": "        updateTxnButton();"
+        },
+        {
+          "path": "mobile-app/web/data_admin.html",
+          "start": "      var lastObservedJob = TXN_LAST_OBSERVED_JOB_ID;",
+          "end": "        }).finally(function(){"
+        }
+      ],
+      "expected": {
+        "rejectedPassword": {
+          "accepted": false,
+          "newJobCreated": false,
+          "oldJobNotShownAsNewSuccess": true
+        },
+        "uncertainAck": {
+          "message": "Acceptance is uncertain",
+          "retryRequiresJobReadback": true
+        },
+        "acceptedReset": {
+          "durableWorkerJob": true,
+          "tenantIsolated": true
+        }
+      },
+      "preserve": [
+        "existing completed job remains auditable",
+        "preview and confirmation lock",
+        "no double deletion",
+        "other tenant records intact"
+      ],
+      "oracles": [
+        {
+          "path": "test/auto-ci/transaction-reset-schema.test.mjs",
+          "marker": "System-only reset removes current transaction graph and keeps masters and other tenant; restore works",
+          "lane": "auto"
+        },
+        {
+          "path": "test/auto-ci/configuration-cross-live-data-admin-transaction-reset-browser.test.mjs",
+          "marker": "DATA-RESET-BAD-PASSWORD-NO-JOB-AND-UI-RECOVERY",
+          "lane": "web"
+        }
+      ],
+      "negativeControls": [
+        {
+          "id": "rejected-password-old-job",
+          "path": "test/auto-ci/configuration-cross-live-data-admin-transaction-reset-browser.test.mjs",
+          "marker": "DATA-RESET-BAD-PASSWORD-NO-JOB-AND-UI-RECOVERY"
         }
       ]
     }
