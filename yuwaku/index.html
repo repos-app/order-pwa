@@ -167,6 +167,18 @@
       <div id="stTaxRow" style="display:none;justify-content:space-between;font-size:14px;color:var(--text-2);">
         <span id="stTaxLbl">Tax</span><span id="stTaxVal">—</span>
       </div>
+      <div id="stEntryRow" style="display:none;justify-content:space-between;font-size:14px;color:var(--text-2);">
+        <span id="stEntryLbl">Entry fee</span><span id="stEntryVal">—</span>
+      </div>
+      <div id="stExtensionRow" style="display:none;justify-content:space-between;font-size:14px;color:var(--text-2);">
+        <span id="stExtensionLbl">Extension fee</span><span id="stExtensionVal">—</span>
+      </div>
+      <div id="stVipRow" style="display:none;justify-content:space-between;font-size:14px;color:var(--text-2);">
+        <span id="stVipLbl">VIP base charge</span><span id="stVipVal">—</span>
+      </div>
+      <div id="stVipExtensionRow" style="display:none;justify-content:space-between;font-size:14px;color:var(--text-2);">
+        <span id="stVipExtensionLbl">VIP extension</span><span id="stVipExtensionVal">—</span>
+      </div>
       <div id="stTotalRow" style="display:flex;justify-content:space-between;font-weight:900;font-size:17px;border-top:2px solid var(--border);padding-top:10px;margin-top:6px;">
         <span id="stTotalLbl">Unpaid total</span><span id="stTotalVal">—</span>
       </div>
@@ -227,7 +239,7 @@
   <script src="./api.js?v=auth2"></script>
   <script src="./i18n.js?v=auth3"></script>
   <script src="./confirm.js?v=auth2"></script>
-  <script src="./app.js?v=party-lock1"></script>
+  <script src="./app.js?v=order-fees2"></script>
   <script src="./help.js?v=auth2"></script>
   <script>
     HelpUI.register({
@@ -238,7 +250,7 @@
         { ja: '② 画面下の「注文」で商品・数量・小計・税・合計を確認し、確認ダイアログで確定すると注文を送信します。ボタン横の数字はカート点数で、未同期注文は別の通信状態バナーに表示されます。', en: '② Tap Order to review items, quantities, subtotal, tax and total, then confirm in the dialog to submit. The number beside the button is the cart item count; queued orders appear in the connection-status banner.' },
         { ja: '③ クイックバーの🎁会員／🎟️クーポンで、会員証確認・ポイント利用・誕生日登録やクーポンコードの適用ができます。', en: '③ Use the 🎁 Member and 🎟️ Coupon buttons in the quick bar to check membership, use points, register a birthday, or apply a coupon code.' },
         { ja: '④ 🔔スタッフ呼出でスタッフを呼べます。お会計はスタッフへお申し付けください。', en: '④ Use 🔔 to call staff. Please ask a staff member when you are ready to pay.' },
-        { ja: '⑤ 📋注文状況で注文内容・小計・サービス料・税・未払い合計を確認できます。内税は「うち○○（内税）」と表示され、合計へ重ねて加算されません。税の名称は店舗設定に従います。', en: '⑤ Use 📋 to see your orders, subtotal, service charge, tax, and unpaid total. Included tax is labeled as included and is not added to the total again. The tax name follows the store settings.' },
+        { ja: '⑤ 📋注文状況で注文内容・小計・サービス料・税・入場料・延長料・VIP料金・未払い合計を確認できます。内税は金額も括弧で示し、合計へ重ねて加算されません。発生しない料金は表示しません。税の名称は店舗設定に従います。', en: '⑤ Use 📋 to see orders, subtotal, service charge, tax, applicable entry, extension and VIP charges, and unpaid total. Included amounts appear in parentheses and are not added twice. Charges not incurred are hidden.' },
         { ja: '⑥ ⭐評価ボタンから星評価とコメントを送信できます。', en: '⑥ Use ⭐ to send a star rating and comment.' },
         { ja: '⑦ 席未選択なら最初に席番号を選びます。入場料・延長料が有効な店舗では最初の登録時に人数を確定します。登録済み人数はグレー表示で、会計完了前にスタッフが「変更」ボタンから明示的に変更します。変更後は保存が必要で、精算済みや古い画面からは上書きできません。', en: '⑦ Select a seat first if none is chosen. Where entry or extension fees apply, register the party size once. The saved count is read-only until staff explicitly tap Change and Save before checkout. Stale changes after settlement or another staff update are rejected.' },
       ]

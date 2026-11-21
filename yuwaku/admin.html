@@ -59,9 +59,10 @@
     .tg-fees-actions .entry-edit-btn{width:34px;min-width:34px;min-height:40px;height:40px;padding:0;}
     .tg-fees-actions .fee-charge-edit{background:#0f766e;font-size:13px;}
     .tg-fees-actions .fee-compact-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;width:44px;min-width:44px;min-height:40px;height:40px;padding:2px;font-size:11px;font-weight:800;line-height:1.1;}
-    @media (max-width:360px){
-      .tg-fees-line{grid-template-columns:minmax(0,1fr) minmax(88px,max-content);}
-      .tg-fees-actions{grid-column:1/-1;}
+    /* Entry fee has two action buttons, so all three cells fit on one row. */
+    @media (max-width:640px){
+      .tg-fees-line{grid-template-columns:minmax(0,1fr) max-content max-content;column-gap:6px;}
+      .tg-fees-actions:empty{display:none;}
       .tg-fees-included .tg-fees-actions{display:none;}
     }
     .tg-fees-included{font-size:11px;color:var(--text-3);}
@@ -92,6 +93,11 @@
     .entry-edit-btn{ flex:0 0 auto; min-width:34px; min-height:34px; border:1px solid #64748b; border-radius:8px; background:#243247; color:#fff; font:inherit; font-size:15px; cursor:pointer; }
     .entry-edit-btn:disabled{opacity:.45;cursor:not-allowed;}
     .entry-input{width:100%;min-height:44px;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:9px;font:inherit;font-size:15px;}
+    .charge-stepper{display:flex;align-items:stretch;gap:10px;margin-bottom:8px;}
+    .charge-stepper[hidden]{display:none;}
+    .charge-stepper-btn{flex:0 0 64px;min-height:52px;border:1px solid #94a3b8;border-radius:10px;background:#e2e8f0;color:#0f172a;font:inherit;font-size:26px;font-weight:900;cursor:pointer;}
+    .charge-stepper-btn:disabled{opacity:.35;cursor:not-allowed;}
+    .charge-stepper-count{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;border:1px solid #cbd5e1;border-radius:10px;background:#fff;font-size:24px;font-weight:900;font-variant-numeric:tabular-nums;}
     .entry-time-date{display:flex;gap:6px;align-items:start;min-width:0;}
     .entry-time-date .entry-time-field{flex:1 1 0;min-width:0;}
     .entry-time-clock{display:flex;gap:8px;margin-top:8px;}
@@ -268,6 +274,11 @@
       <div id="chargeCorrectionCurrent" style="font-size:13px;margin-bottom:10px;"></div>
       <label for="chargeCorrectionValue" style="display:block;font-weight:800;margin-bottom:5px;" id="chargeCorrectionValueLbl">訂正値</label>
       <input id="chargeCorrectionValue" class="entry-input" type="number" inputmode="decimal" step="1" style="margin-bottom:8px;">
+      <div id="chargeCorrectionStepper" class="charge-stepper" role="group" aria-labelledby="chargeCorrectionValueLbl" hidden>
+        <button id="chargeCorrectionMinus" class="charge-stepper-btn" type="button" aria-label="延長回数を減らす" onclick="changeChargeCorrectionCount(-1)">−</button>
+        <output id="chargeCorrectionCount" class="charge-stepper-count" aria-live="polite">0回</output>
+        <button id="chargeCorrectionPlus" class="charge-stepper-btn" type="button" aria-label="延長回数を増やす" onclick="changeChargeCorrectionCount(1)">＋</button>
+      </div>
       <p id="chargeCorrectionHint" style="font-size:12px;color:#64748b;margin:0 0 10px;line-height:1.5;"></p>
       <label for="chargeCorrectionReason" style="display:block;font-weight:800;margin-bottom:5px;" id="chargeCorrectionReasonLbl">訂正理由（必須）</label>
       <input id="chargeCorrectionReason" class="entry-input" maxlength="300" autocomplete="off" style="margin-bottom:9px;">
@@ -809,7 +820,7 @@
       });
     };
     window.openChargeCorrection=function(table,kind){
-      if(correctionIsBlocked(table)||!['entry_override','extension_delta','vip_base_override','vip_extension_delta'].includes(kind))return;
+      if(correctionIsBlocked(table)||!['extension_delta','vip_extension_delta'].includes(kind))return;
       var rows=orders.filter(function(o){return String(o.table)===String(table)&&o.status!=='会計済'&&o.status!=='取消';});
       if(!rows.length)return;
       var amount=rows.reduce(function(sum,o){return sum+(Number(o.price)||0);},0);
@@ -832,11 +843,33 @@
       document.getElementById('chargeCorrectionReasonLbl').textContent=en?'Reason (required)':'訂正理由（必須）';
       var input=document.getElementById('chargeCorrectionValue');
       input.value=String(current);input.step=ext?'1':'any';input.min='0';
+      input.hidden=ext;
+      input.style.display=ext?'none':'';
+      document.getElementById('chargeCorrectionStepper').hidden=!ext;
+      if(ext)syncChargeCorrectionStepper();
       document.getElementById('chargeCorrectionReason').value='';
       document.getElementById('chargeCorrectionError').textContent='';
       document.getElementById('chargeCorrectionSave').textContent=en?'Correct and recalculate':'訂正して再計算';
       document.getElementById('chargeCorrectionCancel').textContent=t().cancel;
       document.getElementById('chargeCorrectionModal').classList.add('on');
+    };
+    function syncChargeCorrectionStepper(){
+      var value=Number(document.getElementById('chargeCorrectionValue').value);
+      var valid=Number.isInteger(value)&&value>=0&&value<=10000;
+      document.getElementById('chargeCorrectionCount').textContent=valid?value+(lang==='en'?' units':'回'):'—';
+      document.getElementById('chargeCorrectionMinus').disabled=chargeCorrectionSaving||!valid||value===0;
+      document.getElementById('chargeCorrectionPlus').disabled=chargeCorrectionSaving||!valid||value===10000;
+      document.getElementById('chargeCorrectionMinus').setAttribute('aria-label',lang==='en'?'Decrease extension count':'延長回数を減らす');
+      document.getElementById('chargeCorrectionPlus').setAttribute('aria-label',lang==='en'?'Increase extension count':'延長回数を増やす');
+    }
+    window.changeChargeCorrectionCount=function(delta){
+      if(!chargeCorrectionEditing||chargeCorrectionSaving||
+        (chargeCorrectionEditing.kind!=='extension_delta'&&chargeCorrectionEditing.kind!=='vip_extension_delta')||
+        (delta!==-1&&delta!==1))return;
+      var input=document.getElementById('chargeCorrectionValue'),current=Number(input.value);
+      if(!Number.isInteger(current)||current<0||current>10000)return;
+      input.value=String(Math.max(0,Math.min(10000,current+delta)));
+      syncChargeCorrectionStepper();
     };
     window.closeChargeCorrection=function(){
       if(chargeCorrectionSaving)return;
@@ -860,6 +893,7 @@
       var base=edit.kind==='extension_delta'?edit.charges.autoExtensionUnits:edit.charges.autoVipExtensionUnits;
       var value=ext?desired-base:desired;
       chargeCorrectionSaving=true;btn.disabled=true;btn.textContent=t().processing;err.textContent='';
+      if(ext)syncChargeCorrectionStepper();
       API.post('correctChargeLine',{token:TOKEN,table:edit.table,kind:edit.kind,
         value:value,expectedRevision:edit.revision,expectedEnteredAt:edit.expectedEnteredAt,
         reason:reason,__noInternalRetry:true}).then(function(r){
@@ -872,6 +906,7 @@
         err.textContent=correctionErrorMessage(e);
         load(true);
       }).finally(function(){chargeCorrectionSaving=false;btn.disabled=false;
+        if(ext)syncChargeCorrectionStepper();
         btn.textContent=lang==='en'?'Correct and recalculate':'訂正して再計算';});
     };
     var servedPending = Object.create(null), servedErrors = Object.create(null);
@@ -1023,14 +1058,21 @@
         var feeRows = [
           [(lang==='en'?'Service charge (included above)':'サービスチャージ（注文金額に含む）'), charges.service, true],
           [t().entryFeeLbl, charges.entryFee, false],
-          [t().extFeeLbl, charges.extensionFee, false],
-          [t().vipChargeLbl, charges.vipCharge, false],
-          [t().vipExtFeeLbl, charges.vipExtensionFee, false]
+          [t().extFeeLbl, charges.extensionFee, false]
         ];
+        // The authoritative VIP state list contains only VIP-enabled seats or
+        // seats with an active VIP visit. Ordinary seats must not show VIP fees.
+        if(Object.prototype.hasOwnProperty.call(VIP_STATES,tn)){
+          feeRows.push([t().vipChargeLbl, charges.vipCharge, false],
+            [t().vipExtFeeLbl, charges.vipExtensionFee, false]);
+        }
         html += '<div class="tg-fees" aria-label="'+esc(lang==='en'?'Checkout charge breakdown':'会計料金内訳')+'">'
           +'<div class="tg-fees-title">'+esc(lang==='en'?'Checkout charge breakdown':'会計料金内訳')+'</div>';
         feeRows.forEach(function(line,feeIndex){
-          var feeKind={1:'entry_override',2:'extension_delta',3:'vip_base_override',4:'vip_extension_delta'}[feeIndex];
+          // Entry fees follow the registered headcount; no direct amount edit.
+          // VIP base charge is fixed by the seat/session settings; only
+          // extension counts may be manually corrected.
+          var feeKind={2:'extension_delta',4:'vip_extension_delta'}[feeIndex];
           var feeEdit=feeKind?'<button type="button" class="entry-edit-btn fee-charge-edit" title="'+esc(lang==='en'?'Correct charge':'料金訂正')+'" aria-label="'+esc(lang==='en'?'Correct charge':'料金訂正')+'" onclick="openChargeCorrection('+esc(JSON.stringify(tn))+','+esc(JSON.stringify(feeKind))+')">✎</button>':'';
           html += '<div class="tg-fees-line'+(line[2]?' tg-fees-included':'')+'"><span class="tg-fees-name">'
             +esc(line[0])+'</span><span class="tg-fees-amount">'+money(line[1])+'</span><span class="tg-fees-actions">'+feeEdit+
@@ -2190,7 +2232,7 @@
         { ja: '④ 画面上部の🔔呼び出し欄では、お客様のスタッフ呼出・会計希望が自動更新（10/30/60秒）または手動更新時に反映されます。「対応済」で処理できます。自動更新OFF時は手動更新してください。', en: '④ Customer staff-call and bill requests appear at the top after auto-refresh (10/30/60 seconds) or manual refresh. Tap Done to resolve them. When auto-refresh is off, refresh manually.' },
         { ja: '⑤ 「自動更新: ON/OFF」ボタンと10s/30s/60sの間隔ボタンで、画面の自動更新頻度を調整できます。↻ボタンで手動更新もできます。', en: '⑤ Use the Auto ON/OFF toggle and the 10s/30s/60s interval buttons to control how often the screen refreshes. Tap ↻ to refresh manually.' },
         { ja: '⑥ 「🧾履歴」リンクで過去の会計履歴（receipts.html）に、「← 管理」でメニュー画面に戻れます。EN/JPボタンで表示言語を切り替えられます。', en: '⑥ Use the "🧾 History" link for past receipts, "← Manage" to return to the menu, and EN/JP to switch language.' },
-        { ja: '⑦ 入場料の明細行にある「入場時間」で入場時刻を修正できます。年・月・日・時（24時間）・分を選んで「保存して料金を再計算」を押します。店舗のタイムゾーンで通常/VIP延長料金を再計算し、注文の記録日時は変更しません。商品・入場料・延長料・VIP料金は各明細の「訂正」「✎」から修正できます。', en: '⑦ Use Entry time on the entry-fee line to correct the visit clock. Choose Year, Month, Day, Hour (24h) and Minute, then save. Standard and VIP extension charges recalculate using the store time zone without changing order timestamps. To correct individual order items, entry fees, extension counts or VIP charges, use Edit or the pencil on the corresponding line.' },
+        { ja: '⑦ 入場料の明細行にある「入場時間」で入場時刻を修正できます。「人数訂正」で人数を変更すると入場料は自動再計算されるため、入場料の金額を直接編集するボタンはありません。年・月・日・時（24時間）・分を選んで「保存して料金を再計算」を押すと、店舗のタイムゾーンで通常/VIP延長料金を再計算し、注文の記録日時は変更しません。商品明細および通常・VIPの延長回数は訂正できますが、VIP基本料金は席の設定に従って自動計算され、注文管理では変更できません。', en: '⑦ Use Entry time on the entry-fee line to correct the visit clock. Changing guests with Correct guests recalculates entry fees automatically; there is no direct entry-fee amount edit button. Choose Year, Month, Day, Hour (24h), and Minute and save to recalculate standard/VIP extensions in the store time zone without changing order timestamps. Order items and standard/VIP extension counts can be corrected. The VIP base charge is calculated from seat settings and cannot be edited in Orders.' },
         { ja: '⑧ 商品明細の訂正では数量と訂正理由のみ変更できます。注文済みの単価は変更できません。数量0はその商品の全数取消となり、最後の1商品を取り消す場合は既存の注文取消と承認フローへ進みます。別端末で変更された場合は再読込してから訂正してください。', en: '⑧ Correcting an ordered item changes only quantity and the required reason; the original unit price cannot be edited. Quantity zero cancels all units of that item. For the last item, use the existing whole-order void and approval flow. Reload before correcting an order changed on another device.' }
       ]
     });
